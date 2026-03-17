@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>dBrain - 现代化多端笔记应用</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta
+      name="description"
+      content="dBrain - 基于 Rust + Next.js + Tauri 构建的多端笔记应用"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0"
+    />
+    <link
+      rel="stylesheet"
+      href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css"
+    />
+    <style>
+      :root {
+        --theme-color: #3b82f6;
+        --theme-color-dark: #2563eb;
+      }
+
+      /* 侧边栏链接样式 */
+      .sidebar-nav a {
+        transition: all 0.2s ease;
+      }
+
+      .sidebar-nav a.active {
+        color: #3b82f6 !important;
+        font-weight: 600;
+        border-left: 3px solid #3b82f6;
+        padding-left: 0.5rem;
+      }
+
+      /* 滚动进度条 */
+      .progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        z-index: 1000;
+        transition: width 0.1s ease;
+      }
+
+      /* 去除子侧边栏项目的前缀符号 */
+      .app-sub-sidebar li:before {
+        content: "";
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.$docsify = {
+        name: "dBrain",
+        repo: "https://github.com/Yuqi-666/dBrain",
+        loadSidebar: true,
+        coverpage: true,
+        subMaxLevel: 3,
+        auto2top: true,
+        maxLevel: 4,
+        onlyCover: true,
+        // 搜索插件配置
+        search: {
+          maxAge: 86400000,
+          paths: "auto",
+          placeholder: "搜索文档...",
+          noData: "没有找到结果",
+          depth: 4,
+          hideOtherSidebarContent: false,
+        },
+        // 复制代码插件配置
+        copyCode: {
+          buttonText: "复制",
+          errorText: "错误",
+          successText: "已复制",
+        },
+
+        // 分页插件配置
+        pagination: {
+          crossChapter: true,
+          crossChapterText: true,
+        },
+
+        // emoji 插件配置
+        emoji: {
+          emoji: true,
+        },
+
+        // 缩放图片插件配置
+        zoomImg: {
+          maxWidth: 1500,
+          maxHeight: 1500,
+        },
+
+        // 外行代码插件配置
+        executeScript: true,
+
+        // 自定义配置
+        formatUpdated: "{YYYY}/{MM}/{DD} {HH}:{mm}",
+        formatUpdated: function (time) {
+          return time;
+        },
+
+        // 导航栏
+        mergeNavbar: true,
+
+        // 进度条
+        progress: {
+          position: "top",
+          color: "var(--theme-color)",
+          height: "3px",
+        },
+
+        // 标签页
+        tabs: {
+          theme: "classic",
+        },
+
+        // 侧边栏导航高亮 - 每页自动生成目录
+        subMaxLevel: 2,
+        autoHeader: true,
+        mermaidConfig: {
+          querySelector: ".mermaid",
+        },
+        mermaidZoom: {
+          minimumScale: 1,
+          maximumScale: 5,
+          zoomPannel: true,
+        },
+      };
+    </script>
+
+    <!-- Docsify 核心 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+
+    <!-- Import D3.js -->
+    <script src="//cdn.jsdelivr.net/npm/d3@7"></script>
+    <!-- Import Mermaid -->
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true });
+      window.mermaid = mermaid;
+    </script>
+    <!-- Import Docsify-mermaid -->
+    <script src="//unpkg.com/docsify-mermaid@2.0.0/dist/docsify-mermaid.js"></script>
+    <script src="//unpkg.com/docsify-mermaid-zoom/dist/docsify-mermaid-zoom.js"></script>
+
+
+    <!-- 搜索插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+
+    <!-- 复制代码插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+
+    <!-- Emoji 插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/emoji.min.js"></script>
+
+    <!-- 缩放图片插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
+
+    <!-- 分页插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+
+    <!-- Prism 语法高亮 -->
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-rust.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-toml.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-docker.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js"></script>
+
+    <!-- Tabs 插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify-tabs@1"></script>
+
+    <!-- 进度条插件 -->
+    <script src="https://cdn.jsdelivr.net/npm/docsify-progress@latest/dist/progress.min.js"></script>
+
+    <!-- 页内目录高亮脚本 -->
+    <script>
+      (function () {
+        let ticking = false;
+
+        function updateActiveHeading() {
+          const markdownSection = document.querySelector(".markdown-section");
+          const sidebarNav = document.querySelector(".sidebar-nav");
+
+          if (!markdownSection || !sidebarNav) return;
+
+          const headings = markdownSection.querySelectorAll("h1, h2, h3, h4");
+          if (headings.length === 0) return;
+
+          const sidebarLinks = Array.from(
+            sidebarNav.querySelectorAll("a"),
+          ).filter((link) => {
+            const href = link.getAttribute("href");
+            return href && href.includes("?id=");
+          });
+
+          if (sidebarLinks.length === 0) return;
+
+          const scrollPosition = window.scrollY + window.innerHeight * 0.3;
+          let activeLink = null;
+
+          for (const link of sidebarLinks) {
+            const href = link.getAttribute("href");
+            const urlMatch = href.match(/id=([^&]+)/);
+
+            if (urlMatch) {
+              const decodedId = decodeURIComponent(urlMatch[1]);
+              const targetElement = document.getElementById(decodedId);
+
+              if (targetElement && targetElement.offsetTop <= scrollPosition) {
+                activeLink = link;
+              }
+            }
+          }
+
+          sidebarLinks.forEach((link) => {
+            link.classList.remove("active");
+            link.style.color = "";
+            link.style.fontWeight = "";
+            link.style.borderLeft = "";
+            link.style.paddingLeft = "";
+          });
+
+          if (activeLink) {
+            activeLink.classList.add("active");
+            activeLink.style.color = "#3b82f6";
+            activeLink.style.fontWeight = "600";
+            activeLink.style.borderLeft = "3px solid #3b82f6";
+            activeLink.style.paddingLeft = "0.5rem";
+          }
+
+          ticking = false;
+        }
+
+        function initScrollHighlight() {
+          window.addEventListener("scroll", function () {
+            if (!ticking) {
+              requestAnimationFrame(updateActiveHeading);
+              ticking = true;
+            }
+          });
+          setTimeout(updateActiveHeading, 500);
+        }
+
+        window.$docsify = window.$docsify || {};
+        window.$docsify.plugins = (window.$docsify.plugins || []).concat([
+          function (hook, vm) {
+            hook.doneEach(initScrollHighlight);
+            hook.ready(initScrollHighlight);
+          },
+        ]);
+      })();
+    </script>
+  </body>
+</html>
