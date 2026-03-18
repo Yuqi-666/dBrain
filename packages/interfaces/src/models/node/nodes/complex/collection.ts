@@ -1,6 +1,6 @@
-import type { NodeBase } from "../../models/node/base";
-import type { NodeType } from "../../models/node/types";
-import type { NodeId } from "../../common/metadata/system";
+import type { NodeBase } from "../../base";
+import type { NodeType } from "../../types";
+import type { NodeId } from "../../metadata/system";
 
 export type CollectionType = "static" | "dynamic";
 

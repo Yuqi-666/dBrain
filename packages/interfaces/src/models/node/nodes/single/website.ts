@@ -1,5 +1,5 @@
-import type { NodeBase } from "../../models/node/base";
-import type { NodeType } from "../../models/node/types";
+import type { NodeBase } from "../../base";
+import type { NodeType } from "../../types";
 
 export interface WebsiteNodeData extends NodeBase, NodeType<"website"> {
   targetUrl: string;

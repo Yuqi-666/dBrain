@@ -1,6 +1,6 @@
-import type { BaseMetadata } from "../../common/metadata/base";
-import type { SemanticMetadata } from "../../common/metadata/semantic";
-import type { SystemMetadata } from "../../common/metadata/system";
+import type { BaseMetadata } from "./metadata/base";
+import type { SemanticMetadata } from "./metadata/semantic";
+import type { SystemMetadata } from "./metadata/system";
 
 export interface NodeMetadata
   extends BaseMetadata, SemanticMetadata, SystemMetadata { }

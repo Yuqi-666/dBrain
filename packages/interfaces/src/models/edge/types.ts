@@ -1,4 +1,4 @@
-import type { NodeId } from "../../common/metadata/system";
+import type { NodeId } from "../node/metadata/system";
 
 export type EdgeDirection = "forward" | "reverse" | "bidirectional";
 
