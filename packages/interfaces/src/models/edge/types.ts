@@ -6,19 +6,7 @@ export type EdgeDimension = "vertical" | "horizontal";
 
 export type EdgeCategory = "hierarchy" | "flow" | "association" | "interaction";
 
-export type HierarchyType = "belongsTo" | "contains";
-
-export type FlowType = "causes" | "precedes" | "derivesFrom";
-
-export type AssociationType = "references" | "relatedTo" | "similarTo";
-
-export type InteractionType = "influences" | "collaborates" | "dependsOn";
-
-export type EdgeType =
-  | HierarchyType
-  | FlowType
-  | AssociationType
-  | InteractionType;
+export type EdgeType = string;
 
 export interface EdgeVisualStyle {
   color?: string;

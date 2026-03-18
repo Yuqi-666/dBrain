@@ -197,6 +197,9 @@ importers:
 
   packages/store:
     dependencies:
+      '@workspace/interfaces':
+        specifier: workspace:*
+        version: link:../interfaces
       zustand:
         specifier: ^4.5.0
         version: 4.5.7(@types/react@19.2.14)(react@19.2.4)
