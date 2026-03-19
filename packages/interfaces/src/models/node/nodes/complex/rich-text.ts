@@ -1,6 +1,6 @@
 import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
-import type { NodeId } from "../../metadata/system";
+import type { NodeId } from "../../base";
 
 export type RichTextBlockType =
   | "heading"

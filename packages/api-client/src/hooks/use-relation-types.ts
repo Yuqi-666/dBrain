@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as relationTypesApi from "../api/relation-types";
-import type { RelationType } from "../api/relation-types";
+import type { RelationType } from "@workspace/interfaces";
 
 export const RELATION_TYPES_KEYS = {
   all: ["relationTypes"] as const,

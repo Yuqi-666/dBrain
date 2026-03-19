@@ -1,4 +1,7 @@
-import type { NodeId } from "./system";
+import type { NodeId } from "./node/base";
+import type {
+  FilterConfig,
+} from "./filter";
 
 export type ViewScope = "global" | "local";
 
@@ -21,46 +24,12 @@ export interface ViewVisualConfig {
   showMinimap?: boolean;
 }
 
-export type FilterField =
-  | "type"
-  | "tags"
-  | "createdAt"
-  | "updatedAt"
-  | "permission"
-  | "customProperty"
-  | "incomingEdges"
-  | "outgoingEdges"
-  | "referenceCount";
 
-export type FilterOperator =
-  | "equals"
-  | "notEquals"
-  | "contains"
-  | "startsWith"
-  | "endsWith"
-  | "gt"
-  | "lt"
-  | "between"
-  | "in";
-
-export interface FilterRule {
-  field: FilterField;
-  operator: FilterOperator;
-  value: string | number | string[];
-}
-
-export type FilterLogic = "and" | "or";
-
-export interface ViewFilter {
-  nodeFilters?: FilterRule[];
-  edgeFilters?: FilterRule[];
-  logic?: FilterLogic;
-}
 
 export interface LocalViewConfig {
   selectionType: ViewSelectionType;
   selectedNodeIds?: NodeId[];
-  filter?: ViewFilter;
+  filter?: FilterConfig;
 }
 
 export interface ViewState {

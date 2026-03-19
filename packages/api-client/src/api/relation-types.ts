@@ -1,11 +1,4 @@
-import type { EdgeCategory } from "@workspace/interfaces";
-
-export interface RelationType {
-  id: string;
-  name: string;
-  category: EdgeCategory;
-  description?: string;
-}
+import type { RelationType } from "@workspace/interfaces";
 
 export interface RelationTypesResponse {
   relationTypes: RelationType[];

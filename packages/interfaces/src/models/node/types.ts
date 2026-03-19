@@ -1,14 +1,4 @@
-export type NodeDataType =
-  | "text"
-  | "image"
-  | "pdf"
-  | "video"
-  | "audio"
-  | "webpage"
-  | "website"
-  | "collection"
-  | "rich-text";
-
+export type NodeDataType = SingleNodeDataType | ComplexNodeDataType;
 export type SingleNodeDataType =
   | "text"
   | "image"

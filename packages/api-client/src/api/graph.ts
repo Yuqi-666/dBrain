@@ -1,4 +1,4 @@
-import type { NodeData, EdgeBase } from "@workspace/interfaces";
+import type { NodeData, EdgeData } from "@workspace/interfaces";
 
 export interface GraphNodesResponse {
   nodes: NodeData[];
@@ -6,19 +6,19 @@ export interface GraphNodesResponse {
 }
 
 export interface GraphEdgesResponse {
-  edges: EdgeBase[];
+  edges: EdgeData[];
   total: number;
 }
 
 export interface GraphResponse {
   nodes: NodeData[];
-  edges: EdgeBase[];
+  edges: EdgeData[];
   nodeCount: number;
   edgeCount: number;
 }
 
 const MOCK_NODES: NodeData[] = [];
-const MOCK_EDGES: EdgeBase[] = [];
+const MOCK_EDGES: EdgeData[] = [];
 
 export async function getGraph(): Promise<GraphResponse> {
   return Promise.resolve({
@@ -85,12 +85,12 @@ export async function getEdges(): Promise<GraphEdgesResponse> {
   });
 }
 
-export async function getEdge(edgeId: string): Promise<EdgeBase | null> {
+export async function getEdge(edgeId: string): Promise<EdgeData | null> {
   const edge = MOCK_EDGES.find((e) => e.id === edgeId);
   return Promise.resolve(edge ?? null);
 }
 
-export async function createEdge(edge: EdgeBase): Promise<EdgeBase> {
+export async function createEdge(edge: EdgeData): Promise<EdgeData> {
   const newEdge = { ...edge, id: edge.id || `edge-${Date.now()}` };
   MOCK_EDGES.push(newEdge);
   return Promise.resolve(newEdge);
@@ -98,8 +98,8 @@ export async function createEdge(edge: EdgeBase): Promise<EdgeBase> {
 
 export async function updateEdge(
   edgeId: string,
-  updates: Partial<EdgeBase>,
-): Promise<EdgeBase> {
+  updates: Partial<EdgeData>,
+): Promise<EdgeData> {
   const index = MOCK_EDGES.findIndex((e) => e.id === edgeId);
   if (index === -1) {
     throw new Error("Edge not found");

@@ -8,16 +8,7 @@ import type { WebsiteNodeData } from "./single/website";
 import type { CollectionNodeData } from "./complex/collection";
 import type { RichTextNodeData } from "./complex/rich-text";
 
-export type NodeData =
-  | TextNodeData
-  | ImageNodeData
-  | PdfNodeData
-  | VideoNodeData
-  | AudioNodeData
-  | WebpageNodeData
-  | WebsiteNodeData
-  | CollectionNodeData
-  | RichTextNodeData;
+export type NodeData = SingleNodeData | ComplexNodeData;
 
 export type SingleNodeData =
   | TextNodeData

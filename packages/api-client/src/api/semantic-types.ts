@@ -1,11 +1,4 @@
-export interface SemanticType {
-  id: string;
-  name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-}
-
+import type { SemanticType } from "@workspace/interfaces";
 export interface SemanticTypesResponse {
   semanticTypes: SemanticType[];
   total: number;

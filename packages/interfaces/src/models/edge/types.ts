@@ -1,12 +1,17 @@
-import type { NodeId } from "../node/metadata/system";
+import type { NodeId } from "../node/base";
 
 export type EdgeDirection = "forward" | "reverse" | "bidirectional";
 
-export type EdgeDimension = "vertical" | "horizontal";
-
 export type EdgeCategory = "hierarchy" | "flow" | "association" | "interaction";
 
-export type EdgeType = string;
+export type RelationTypeId = string;
+
+export interface RelationType {
+  id: RelationTypeId;
+  name: string;
+  category: EdgeCategory;
+  description?: string;
+}
 
 export interface EdgeVisualStyle {
   color?: string;
@@ -15,14 +20,19 @@ export interface EdgeVisualStyle {
   showArrow?: boolean;
 }
 
+export const DEFAULT_EDGE_VISUAL_STYLE: EdgeVisualStyle = {
+  color: "#888888",
+  lineType: "solid",
+  lineWidth: 2,
+  showArrow: true,
+};
+
 export interface EdgeBase {
   id: string;
   from: NodeId;
   to: NodeId;
   direction: EdgeDirection;
-  dimension: EdgeDimension;
-  category: EdgeCategory;
-  type: EdgeType;
+  type: RelationTypeId;
   name?: string;
   weight?: number;
   visualStyle?: EdgeVisualStyle;
@@ -30,9 +40,4 @@ export interface EdgeBase {
   updatedAt: string;
 }
 
-export const DEFAULT_EDGE_VISUAL_STYLE: EdgeVisualStyle = {
-  color: "#888888",
-  lineType: "solid",
-  lineWidth: 2,
-  showArrow: true,
-};
+export interface EdgeData extends EdgeBase { }

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as semanticTypesApi from "../api/semantic-types";
-import type { SemanticType } from "../api/semantic-types";
+import type { SemanticType } from "@workspace/interfaces";
 
 export const SEMANTIC_TYPES_KEYS = {
   all: ["semanticTypes"] as const,
