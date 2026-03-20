@@ -3,8 +3,6 @@ import type {
   FilterConfig,
 } from "./filter";
 
-export type ViewScope = "global" | "local";
-
 export type ViewSelectionType = "static" | "dynamic";
 
 export type LayoutType = "force" | "timeline" | "matrix" | "free";
@@ -26,22 +24,18 @@ export interface ViewVisualConfig {
 
 
 
-export interface LocalViewConfig {
+export interface ViewConfig {
   selectionType: ViewSelectionType;
   selectedNodeIds?: NodeId[];
   filter?: FilterConfig;
 }
 
-export interface ViewState {
+export interface View {
   id: string;
   name: string;
-  scope: ViewScope;
   layoutType: LayoutType;
   viewport: ViewportState;
   visualConfig: ViewVisualConfig;
-  localConfig?: LocalViewConfig;
-  createdAt: string;
-  updatedAt: string;
-  lastOpenedAt?: string;
+  Config?: ViewConfig;
   isPinned?: boolean;
 }

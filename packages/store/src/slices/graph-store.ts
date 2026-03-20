@@ -1,14 +1,14 @@
 import { create } from "zustand";
 import type { NodeData } from "@workspace/interfaces";
 import type { EdgeBase } from "@workspace/interfaces";
-import type { ViewState, LayoutType } from "@workspace/interfaces";
+import type { View, LayoutType } from "@workspace/interfaces";
 
 interface GraphState {
   nodes: NodeData[];
   edges: EdgeBase[];
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
-  currentView: ViewState | null;
+  currentView: View | null;
   viewport: {
     x: number;
     y: number;
@@ -40,7 +40,7 @@ interface GraphState {
   toggleEdgeSelection: (edgeId: string) => void;
   clearEdgeSelection: () => void;
 
-  setCurrentView: (view: ViewState | null) => void;
+  setCurrentView: (view: View | null) => void;
   setViewport: (viewport: { x: number; y: number; zoom: number }) => void;
   setLayoutType: (layout: LayoutType) => void;
   setSidebarOpen: (isOpen: boolean) => void;

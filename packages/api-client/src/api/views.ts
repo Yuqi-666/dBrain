@@ -1,11 +1,11 @@
-import type { ViewState } from "@workspace/interfaces";
+import type { View } from "@workspace/interfaces";
 
 export interface ViewsResponse {
-  views: ViewState[];
+  views: View[];
   total: number;
 }
 
-const MOCK_VIEWS: ViewState[] = [];
+const MOCK_VIEWS: View[] = [];
 
 export async function getViews(): Promise<ViewsResponse> {
   return Promise.resolve({
@@ -14,12 +14,12 @@ export async function getViews(): Promise<ViewsResponse> {
   });
 }
 
-export async function getView(viewId: string): Promise<ViewState | null> {
+export async function getView(viewId: string): Promise<View | null> {
   const view = MOCK_VIEWS.find((v) => v.id === viewId);
   return Promise.resolve(view ?? null);
 }
 
-export async function createView(view: ViewState): Promise<ViewState> {
+export async function createView(view: View): Promise<View> {
   const newView = { ...view, id: view.id || `view-${Date.now()}` };
   MOCK_VIEWS.push(newView);
   return Promise.resolve(newView);
@@ -27,8 +27,8 @@ export async function createView(view: ViewState): Promise<ViewState> {
 
 export async function updateView(
   viewId: string,
-  updates: Partial<ViewState>,
-): Promise<ViewState> {
+  updates: Partial<View>,
+): Promise<View> {
   const index = MOCK_VIEWS.findIndex((v) => v.id === viewId);
   if (index === -1) {
     throw new Error("View not found");

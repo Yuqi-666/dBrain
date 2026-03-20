@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as viewsApi from "../api/views";
-import type { ViewState } from "@workspace/interfaces";
+import type { View } from "@workspace/interfaces";
 
 export const VIEWS_KEYS = {
   all: ["views"] as const,
@@ -28,7 +28,7 @@ export function useView(viewId: string) {
 export function useCreateView() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (view: ViewState) => viewsApi.createView(view),
+    mutationFn: (view: View) => viewsApi.createView(view),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VIEWS_KEYS.lists() });
     },
@@ -43,7 +43,7 @@ export function useUpdateView() {
       updates,
     }: {
       viewId: string;
-      updates: Partial<ViewState>;
+      updates: Partial<View>;
     }) => viewsApi.updateView(viewId, updates),
     onSuccess: (_, { viewId }) => {
       queryClient.invalidateQueries({ queryKey: VIEWS_KEYS.detail(viewId) });
