@@ -1,11 +1,11 @@
-import type { RelationType } from "@workspace/interfaces";
+import type { EdgeSemantic } from "@workspace/interfaces";
 
-export interface RelationTypesResponse {
-  relationTypes: RelationType[];
+export interface EdgeSemanticResponse {
+  edgeSemantics: EdgeSemantic[];
   total: number;
 }
 
-const DEFAULT_RELATION_TYPES: RelationType[] = [
+const DEFAULT_EDGE_SEMANTICS: EdgeSemantic[] = [
   {
     id: "hierarchy-belongsTo",
     name: "归属于",
@@ -74,54 +74,54 @@ const DEFAULT_RELATION_TYPES: RelationType[] = [
   },
 ];
 
-export async function getRelationTypes(): Promise<RelationTypesResponse> {
+export async function getEdgeSemantics(): Promise<EdgeSemanticResponse> {
   return Promise.resolve({
-    relationTypes: DEFAULT_RELATION_TYPES,
-    total: DEFAULT_RELATION_TYPES.length,
+    edgeSemantics: DEFAULT_EDGE_SEMANTICS,
+    total: DEFAULT_EDGE_SEMANTICS.length,
   });
 }
 
-export async function getRelationType(
+export async function getEdgeSemantic(
   typeId: string,
-): Promise<RelationType | null> {
-  const type = DEFAULT_RELATION_TYPES.find((t) => t.id === typeId);
+): Promise<EdgeSemantic | null> {
+  const type = DEFAULT_EDGE_SEMANTICS.find((t) => t.id === typeId);
   return Promise.resolve(type ?? null);
 }
 
-export async function createRelationType(
-  relationType: RelationType,
-): Promise<RelationType> {
+export async function createEdgeSemantic(
+  edgeSemantic: EdgeSemantic,
+): Promise<EdgeSemantic> {
   const newType = {
-    ...relationType,
-    id: relationType.id || `relation-${Date.now()}`,
+    ...edgeSemantic,
+    id: edgeSemantic.id || `relation-${Date.now()}`,
   };
-  DEFAULT_RELATION_TYPES.push(newType);
+  DEFAULT_EDGE_SEMANTICS.push(newType);
   return Promise.resolve(newType);
 }
 
-export async function updateRelationType(
+export async function updateEdgeSemantic(
   typeId: string,
-  updates: Partial<RelationType>,
-): Promise<RelationType> {
-  const index = DEFAULT_RELATION_TYPES.findIndex((t) => t.id === typeId);
+  updates: Partial<EdgeSemantic>,
+): Promise<EdgeSemantic> {
+  const index = DEFAULT_EDGE_SEMANTICS.findIndex((t) => t.id === typeId);
   if (index === -1) {
     throw new Error("Relation type not found");
   }
-  const existing = DEFAULT_RELATION_TYPES[index]!;
-  const updated: RelationType = {
+  const existing = DEFAULT_EDGE_SEMANTICS[index]!;
+  const updated: EdgeSemantic = {
     id: typeId,
     name: updates.name ?? existing.name,
     category: updates.category ?? existing.category,
     description: updates.description ?? existing.description,
   };
-  DEFAULT_RELATION_TYPES[index] = updated;
+  DEFAULT_EDGE_SEMANTICS[index] = updated;
   return Promise.resolve(updated);
 }
 
-export async function deleteRelationType(typeId: string): Promise<void> {
-  const index = DEFAULT_RELATION_TYPES.findIndex((t) => t.id === typeId);
+export async function deleteEdgeSemantic(typeId: string): Promise<void> {
+  const index = DEFAULT_EDGE_SEMANTICS.findIndex((t) => t.id === typeId);
   if (index !== -1) {
-    DEFAULT_RELATION_TYPES.splice(index, 1);
+    DEFAULT_EDGE_SEMANTICS.splice(index, 1);
   }
   return Promise.resolve();
 }

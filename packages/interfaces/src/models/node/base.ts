@@ -20,9 +20,9 @@ export interface BaseMetadata {
 
 // ============== 语义元数据 ==============
 
-export type SemanticTypeId = string;
-export interface SemanticType {
-  id: SemanticTypeId;
+export type NodeSemanticId = string;
+export interface NodeSemantic {
+  id: NodeSemanticId;
   name: string;
   description?: string;
   color?: string;
@@ -43,7 +43,7 @@ export interface CustomProperty {
 }
 
 export interface SemanticMetadata {
-  type: SemanticTypeId;
+  type: NodeSemanticId;
   tags?: string[];
   customProperties?: Record<string, CustomProperty>;
 }
@@ -52,7 +52,6 @@ export interface SemanticMetadata {
 // ============== 系统元数据 ==============
 
 export type NodeId = string;
-export type EdgeId = string;
 
 export interface SystemMetadata {
   id: NodeId;

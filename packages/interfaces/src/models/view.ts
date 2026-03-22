@@ -13,7 +13,7 @@ export interface ViewportState {
   zoom: number;
 }
 
-export interface ViewVisualConfig {
+export interface VisualConfig {
   backgroundColor?: string;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
   gridSpacing?: number;
@@ -23,8 +23,8 @@ export interface ViewVisualConfig {
 }
 
 
-
-export interface ViewConfig {
+//if the type is "static" then selectedNodeIds exists,or filter exists
+export interface Scope {
   selectionType: ViewSelectionType;
   selectedNodeIds?: NodeId[];
   filter?: FilterConfig;
@@ -35,7 +35,7 @@ export interface View {
   name: string;
   layoutType: LayoutType;
   viewport: ViewportState;
-  visualConfig: ViewVisualConfig;
-  Config?: ViewConfig;
+  visualConfig: VisualConfig;
+  scope?: Scope;
   isPinned?: boolean;
 }

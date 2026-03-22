@@ -1,4 +1,4 @@
 export * from "./graph";
 export * from "./views";
-export * from "./relation-types";
-export * from "./semantic-types";
+export * from "./semantic-edges";
+export * from "./semantic-nodes";

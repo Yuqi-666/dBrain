@@ -4,21 +4,23 @@ export type EdgeDirection = "forward" | "reverse" | "bidirectional";
 
 export type EdgeCategory = "hierarchy" | "flow" | "association" | "interaction";
 
-export type RelationTypeId = string;
+export type EdgeSemanticId = string;
 
-export interface RelationType {
-  id: RelationTypeId;
+export type EdgeId = string;
+
+export interface EdgeSemantic {
+  id: EdgeSemanticId;
   name: string;
   category: EdgeCategory;
   description?: string;
 }
 
 export interface EdgeBase {
-  id: string;
+  id: EdgeId;
   from: NodeId;
   to: NodeId;
   direction: EdgeDirection;
-  type: RelationTypeId;
+  type: EdgeSemanticId;
   name?: string;
   weight?: number;
   createdAt: string;
