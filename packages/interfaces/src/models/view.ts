@@ -1,11 +1,7 @@
 import type { NodeId } from "./node/base";
-import type {
-  FilterConfig,
-} from "./filter";
+import type { FilterConfig } from "./filter";
+import type { LayoutConfig } from "./layout";
 
-export type ViewSelectionType = "static" | "dynamic";
-
-export type LayoutType = "force" | "timeline" | "matrix" | "free";
 
 export interface ViewportState {
   x: number;
@@ -22,10 +18,7 @@ export interface VisualConfig {
   showMinimap?: boolean;
 }
 
-
-//if the type is "static" then selectedNodeIds exists,or filter exists
 export interface Scope {
-  selectionType: ViewSelectionType;
   selectedNodeIds?: NodeId[];
   filter?: FilterConfig;
 }
@@ -33,7 +26,7 @@ export interface Scope {
 export interface View {
   id: string;
   name: string;
-  layoutType: LayoutType;
+  layout: LayoutConfig;
   viewport: ViewportState;
   visualConfig: VisualConfig;
   scope?: Scope;
