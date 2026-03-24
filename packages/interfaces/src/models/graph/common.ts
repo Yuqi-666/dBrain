@@ -1,3 +1,8 @@
+// ============================================
+// Common Style Types (shared between node and edge)
+// ============================================
+
+
 export type CursorStyle =
   | "auto"
   | "default"

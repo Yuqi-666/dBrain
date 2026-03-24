@@ -1,6 +1,6 @@
 import type { NodeId } from "./node/base";
 import type { FilterConfig } from "./filter";
-import type { LayoutConfig } from "./layout";
+import type { LayoutConfig } from "./graph/layout";
 
 
 export interface ViewportState {
