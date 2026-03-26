@@ -32,10 +32,6 @@ export type { WebsiteNodeData } from "./single/website";
 export type {
   CollectionNodeData,
   CollectionType,
-  CollectionRule,
-  CollectionRuleField,
-  CollectionRuleOperator,
-  CollectionRuleLogic,
 } from "./complex/collection";
 
 export type {
