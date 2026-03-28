@@ -9,7 +9,6 @@
     "typecheck": "tsc --noemit"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.0.0",
     "@workspace/interfaces": "workspace:*",
     "axios": "^1.6.0"
   },

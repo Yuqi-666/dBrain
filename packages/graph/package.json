@@ -13,5 +13,8 @@
   },
   "exports": {
     ".": "./src"
+  },
+  "dependencies": {
+    "@antv/g6": "^5.0.51"
   }
 }

@@ -1,6 +1,6 @@
 import type { NodeId } from "./node/base";
 import type { FilterConfig } from "./filter";
-import type { LayoutConfig } from "./graph/layout";
+import type { LayoutConfig } from "./layout";
 
 
 export interface ViewportState {
@@ -8,6 +8,7 @@ export interface ViewportState {
   y: number;
   zoom: number;
 }
+
 
 export interface VisualConfig {
   backgroundColor?: string;
