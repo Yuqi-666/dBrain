@@ -1,15 +1,15 @@
 import type { NodeId } from "./node/base";
 import type { FilterConfig } from "./filter";
-import type { LayoutConfig } from "./layout";
+import type { LayoutType } from "./layout";
 
 
-export interface ViewportState {
-  x: number;
-  y: number;
-  zoom: number;
-}
+// export interface ViewportState {
+//   x: number;
+//   y: number;
+//   zoom: number;
+// }
 
-
+export type ViewId = string;
 export interface VisualConfig {
   backgroundColor?: string;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
@@ -25,10 +25,10 @@ export interface Scope {
 }
 
 export interface View {
-  id: string;
+  id: ViewId;
   name: string;
-  layout: LayoutConfig;
-  viewport: ViewportState;
+  layout: LayoutType;
+  // viewport: ViewportState;
   visualConfig: VisualConfig;
   scope?: Scope;
   isPinned?: boolean;
