@@ -1,11 +1,4 @@
-export type {
-  CollectionNodeData,
-  CollectionType,
-  CollectionRule,
-  CollectionRuleField,
-  CollectionRuleOperator,
-  CollectionRuleLogic,
-} from "./collection";
+export type { CollectionNodeData } from "./collection";
 
 export type {
   RichTextNodeData,

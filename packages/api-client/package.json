@@ -9,14 +9,15 @@
     "typecheck": "tsc --noemit"
   },
   "dependencies": {
+    "@types/socket.io-client": "^3.0.0",
     "@workspace/interfaces": "workspace:*",
-    "axios": "^1.6.0"
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
   "exports": {
-    "./api": "./src/api",
-    "./hooks": "./src/hooks"
+    ".": "./src/index.ts",
+    "./socket": "./src/socket.ts"
   }
 }

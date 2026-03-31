@@ -11,31 +11,29 @@ import type {
   View,
   ViewId,
 } from "@workspace/interfaces";
-// 1. 引入你封装好的 WebSocket 单例服务
-import { WebSocketService } from "@workspace/services/websocket";
 
 // 定义变更操作的类型
 type Mutation =
   | { type: "addNodeSemantic"; payload: NodeSemantic }
   | {
-    type: "updateNodeSemantic";
-    payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
-  }
+      type: "updateNodeSemantic";
+      payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
+    }
   | { type: "deleteNodeSemantic"; payload: { id: NodeSemanticId } }
   | { type: "addEdgeSemantic"; payload: EdgeSemantic }
   | {
-    type: "updateEdgeSemantic";
-    payload: { id: EdgeSemanticId; updates: Partial<EdgeSemantic> };
-  }
+      type: "updateEdgeSemantic";
+      payload: { id: EdgeSemanticId; updates: Partial<EdgeSemantic> };
+    }
   | { type: "deleteEdgeSemantic"; payload: { id: EdgeSemanticId } }
   | { type: "addNode"; payload: NodeData }
   | {
-    type: "updateNode";
-    payload: {
-      id: NodeId;
-      updates: Partial<Omit<NodeData, "id" | "nodeType">>;
-    };
-  }
+      type: "updateNode";
+      payload: {
+        id: NodeId;
+        updates: Partial<Omit<NodeData, "id" | "nodeType">>;
+      };
+    }
   | { type: "deleteNode"; payload: { id: NodeId } }
   | { type: "addEdge"; payload: EdgeData }
   | { type: "updateEdge"; payload: { id: EdgeId; updates: Partial<EdgeData> } }
@@ -44,13 +42,6 @@ type Mutation =
   | { type: "updateView"; payload: { id: ViewId; updates: Partial<View> } }
   | { type: "deleteView"; payload: { id: ViewId } };
 
-/**
- * Action Options for graph store operations
- */
-export interface ActionOptions {
-  /** 是否为服务端远程触发的操作 (默认: false) */
-  isRemote?: boolean;
-}
 /**
  * Unified Zustand store for managing all cognitive graph data
  */
@@ -69,59 +60,44 @@ export interface GraphStore {
   /** G6 消费完变更后，调用此方法清空队列 */
   clearMutations: () => void;
 
-  // ====================WebSocket 连接状态====================
-  isWsConnected: boolean;
-  setWsConnected: (connected: boolean) => void;
-
   // ==================== CRUD Actions ====================
   // -- Node Semantic --
-  addNodeSemantic: (semantic: NodeSemantic, options?: ActionOptions) => void;
+  addNodeSemantic: (semantic: NodeSemantic) => void;
   updateNodeSemantic: (
     id: NodeSemanticId,
     updates: Partial<NodeSemantic>,
-    options?: ActionOptions,
   ) => void;
-  deleteNodeSemantic: (id: NodeSemanticId, options?: ActionOptions) => void;
+  deleteNodeSemantic: (id: NodeSemanticId) => void;
   setNodeSemantics: (semantics: NodeSemantic[]) => void;
 
   // -- Edge Semantic --
-  addEdgeSemantic: (semantic: EdgeSemantic, options?: ActionOptions) => void;
+  addEdgeSemantic: (semantic: EdgeSemantic) => void;
   updateEdgeSemantic: (
     id: EdgeSemanticId,
     updates: Partial<EdgeSemantic>,
-    options?: ActionOptions,
   ) => void;
-  deleteEdgeSemantic: (id: EdgeSemanticId, options?: ActionOptions) => void;
+  deleteEdgeSemantic: (id: EdgeSemanticId) => void;
   setEdgeSemantics: (semantics: EdgeSemantic[]) => void;
 
   // -- Nodes --
-  addNode: (node: NodeData, options?: ActionOptions) => void;
+  addNode: (node: NodeData) => void;
   updateNode: (
     id: NodeId,
     updates: Partial<Omit<NodeData, "id" | "nodeType">>,
-    options?: ActionOptions,
   ) => void;
-  deleteNode: (id: NodeId, options?: ActionOptions) => void;
+  deleteNode: (id: NodeId) => void;
   setNodes: (nodes: NodeData[]) => void;
 
   // -- Edges --
-  addEdge: (edge: EdgeData, options?: ActionOptions) => void;
-  updateEdge: (
-    id: EdgeId,
-    updates: Partial<EdgeData>,
-    options?: ActionOptions,
-  ) => void;
-  deleteEdge: (id: EdgeId, options?: ActionOptions) => void;
+  addEdge: (edge: EdgeData) => void;
+  updateEdge: (id: EdgeId, updates: Partial<EdgeData>) => void;
+  deleteEdge: (id: EdgeId) => void;
   setEdges: (edges: EdgeData[]) => void;
 
   // -- Views --
-  addView: (view: View, options?: ActionOptions) => void;
-  updateView: (
-    id: ViewId,
-    updates: Partial<View>,
-    options?: ActionOptions,
-  ) => void;
-  deleteView: (id: ViewId, options?: ActionOptions) => void;
+  addView: (view: View) => void;
+  updateView: (id: ViewId, updates: Partial<View>) => void;
+  deleteView: (id: ViewId) => void;
   setViews: (views: View[]) => void;
 
   // ==================== Getters ====================
@@ -158,18 +134,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   nodes: new Map(),
   edges: new Map(),
   views: new Map(),
-  isWsConnected: false,
   latestMutations: [],
-
-  // ==================== WebSocket 状态设置 ====================
-  setWsConnected: (connected) => set({ isWsConnected: connected }),
 
   // 清空队列的方法
   clearMutations: () => set({ latestMutations: [] }),
 
-  // ==================== Node Semantic Actions (集成 WS) ====================
-  addNodeSemantic: (semantic, options = {}) => {
-    const { isRemote = false } = options;
+  // ==================== Node Semantic Actions ====================
+  addNodeSemantic: (semantic) => {
     // 1. 更新本地状态
     set((state) => {
       const newSemantics = new Map(state.nodeSemantics);
@@ -183,14 +154,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "addNodeSemantic", payload: semantic },
       ],
     }));
-    // 3. 非远程操作才通知服务端
-    if (!isRemote) {
-      WebSocketService.send({ type: "ADD_NODE_SEMANTIC", payload: semantic });
-    }
   },
 
-  updateNodeSemantic: (id, updates, options = {}) => {
-    const { isRemote = false } = options;
+  updateNodeSemantic: (id, updates) => {
     set((state) => {
       if (!state.nodeSemantics.has(id)) return state;
       const newSemantics = new Map(state.nodeSemantics);
@@ -205,16 +171,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "updateNodeSemantic", payload: { id, updates } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({
-        type: "UPDATE_NODE_SEMANTIC",
-        payload: { id, updates },
-      });
-    }
   },
 
-  deleteNodeSemantic: (id, options = {}) => {
-    const { isRemote = false } = options;
+  deleteNodeSemantic: (id) => {
     set((state) => {
       const newSemantics = new Map(state.nodeSemantics);
       newSemantics.delete(id);
@@ -227,19 +186,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "deleteNodeSemantic", payload: { id } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "DELETE_NODE_SEMANTIC", payload: { id } });
-    }
   },
 
   setNodeSemantics: (semantics) => {
     set({ nodeSemantics: new Map(semantics.map((s) => [s.id, s])) });
-    // 注意：setXxx 通常用于初始化，视业务需求决定是否发 WS
   },
 
-  // ==================== Edge Semantic Actions (集成 WS，逻辑同上) ====================
-  addEdgeSemantic: (semantic, options = {}) => {
-    const { isRemote = false } = options;
+  // ==================== Edge Semantic Actions ====================
+  addEdgeSemantic: (semantic) => {
     set((state) => {
       const newSemantics = new Map(state.edgeSemantics);
       newSemantics.set(semantic.id, semantic);
@@ -252,13 +206,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "addEdgeSemantic", payload: semantic },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "ADD_EDGE_SEMANTIC", payload: semantic });
-    }
   },
 
-  updateEdgeSemantic: (id, updates, options = {}) => {
-    const { isRemote = false } = options;
+  updateEdgeSemantic: (id, updates) => {
     set((state) => {
       if (!state.edgeSemantics.has(id)) return state;
       const newSemantics = new Map(state.edgeSemantics);
@@ -273,16 +223,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "updateEdgeSemantic", payload: { id, updates } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({
-        type: "UPDATE_EDGE_SEMANTIC",
-        payload: { id, updates },
-      });
-    }
   },
 
-  deleteEdgeSemantic: (id, options = {}) => {
-    const { isRemote = false } = options;
+  deleteEdgeSemantic: (id) => {
     set((state) => {
       const newSemantics = new Map(state.edgeSemantics);
       newSemantics.delete(id);
@@ -295,17 +238,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "deleteEdgeSemantic", payload: { id } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "DELETE_EDGE_SEMANTIC", payload: { id } });
-    }
   },
 
   setEdgeSemantics: (semantics) =>
     set({ edgeSemantics: new Map(semantics.map((s) => [s.id, s])) }),
 
   // ==================== Node Actions (重点：G6 交互会用到) ====================
-  addNode: (node, options = {}) => {
-    const { isRemote = false } = options;
+  addNode: (node) => {
     set((state) => {
       const newNodes = new Map(state.nodes);
       newNodes.set(node.id, node);
@@ -318,13 +257,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "addNode", payload: node },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "ADD_NODE", payload: node });
-    }
   },
 
-  updateNode: (id, updates, options = {}) => {
-    const { isRemote = false } = options;
+  updateNode: (id, updates) => {
     set((state) => {
       const existingNode = state.nodes.get(id);
       if (!existingNode) return state;
@@ -340,16 +275,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "updateNode", payload: { id, updates } },
       ],
     }));
-
-    // 特殊优化：如果是高频的位置更新(x/y)，可以在这里加判断，只在 dragend 发 WS
-    // 或者由调用方决定是调用 updateNode (实时发) 还是 updateNodePosition (本地暂存)
-    if (!isRemote) {
-      WebSocketService.send({ type: "UPDATE_NODE", payload: { id, updates } });
-    }
   },
 
-  deleteNode: (id, options = {}) => {
-    const { isRemote = false } = options;
+  deleteNode: (id) => {
     // 级联删除边 (可选业务逻辑，放在 Action 里统一处理)
     set((state) => {
       const newNodes = new Map(state.nodes);
@@ -370,16 +298,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "deleteNode", payload: { id } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "DELETE_NODE", payload: { id } });
-    }
   },
 
   setNodes: (nodes) => set({ nodes: new Map(nodes.map((n) => [n.id, n])) }),
 
   // ==================== Edge Actions ====================
-  addEdge: (edge, options = {}) => {
-    const { isRemote = false } = options;
+  addEdge: (edge) => {
     set((state) => {
       const newEdges = new Map(state.edges);
       newEdges.set(edge.id, edge);
@@ -392,13 +316,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "addEdge", payload: edge },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "ADD_EDGE", payload: edge });
-    }
   },
 
-  updateEdge: (id, updates, options = {}) => {
-    const { isRemote = false } = options;
+  updateEdge: (id, updates) => {
     set((state) => {
       const existingEdge = state.edges.get(id);
       if (!existingEdge) return state;
@@ -413,13 +333,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "updateEdge", payload: { id, updates } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "UPDATE_EDGE", payload: { id, updates } });
-    }
   },
 
-  deleteEdge: (id, options = {}) => {
-    const { isRemote = false } = options;
+  deleteEdge: (id) => {
     set((state) => {
       const newEdges = new Map(state.edges);
       newEdges.delete(id);
@@ -432,9 +348,6 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "deleteEdge", payload: { id } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "DELETE_EDGE", payload: { id } });
-    }
   },
 
   setEdges: (edges) => {
@@ -444,8 +357,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   // ==================== View Actions ====================
-  addView: (view, options = {}) => {
-    const { isRemote = false } = options;
+  addView: (view) => {
     set((state) => {
       const newViews = new Map(state.views);
       newViews.set(view.id, view);
@@ -458,13 +370,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "addView", payload: view },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "ADD_VIEW", payload: view });
-    }
   },
 
-  updateView: (id, updates, options = {}) => {
-    const { isRemote = false } = options;
+  updateView: (id, updates) => {
     set((state) => {
       if (!state.views.has(id)) return state;
       const newViews = new Map(state.views);
@@ -479,13 +387,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "updateView", payload: { id, updates } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "UPDATE_VIEW", payload: { id, updates } });
-    }
   },
 
-  deleteView: (id, options = {}) => {
-    const { isRemote = false } = options;
+  deleteView: (id) => {
     set((state) => {
       const newViews = new Map(state.views);
       newViews.delete(id);
@@ -498,9 +402,6 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         { type: "deleteView", payload: { id } },
       ],
     }));
-    if (!isRemote) {
-      WebSocketService.send({ type: "DELETE_VIEW", payload: { id } });
-    }
   },
 
   setViews: (views) => set({ views: new Map(views.map((v) => [v.id, v])) }),

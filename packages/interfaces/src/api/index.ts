@@ -1,3 +1,2 @@
-export * from "./requests";
-export * from "./responses";
-export * from "./websocket";
+export * from "./client-messages";
+export * from "./server-messages";
