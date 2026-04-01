@@ -3,12 +3,30 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/api-client": ["../api-client/src"],
-      "@workspace/api-client/*": ["../api-client/src/*"],
-      "@workspace/interfaces": ["../interfaces/src"],
-      "@workspace/interfaces/*": ["../interfaces/src/*"]
+      "@workspace/api-client": [
+        "../api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../api-client/src/*"
+      ],
+      "@workspace/interfaces": [
+        "../interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../interfaces/src/*"
+      ],
+      "@workspace/store": [
+        "../store/src"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

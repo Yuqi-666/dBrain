@@ -1,5 +1,6 @@
 import {
-  ClientMessageType,
+  CommandMessageType,
+  QueryMessageType,
   type AddNodeSemanticAck,
   type UpdateNodeSemanticAck,
   type DeleteNodeSemanticAck,
@@ -15,6 +16,8 @@ import {
   type AddViewAck,
   type UpdateViewAck,
   type DeleteViewAck,
+  type SyncAck,
+  type SyncQuery,
   type NodeData,
   type EdgeData,
   type NodeSemantic,
@@ -31,7 +34,9 @@ import { useGraphStore } from "@workspace/store";
 
 const socketClient = socketClientInstance;
 
-export const GraphService = {
+export const GraphCQRS = {
+  // ================== Command ==================
+
   // Node Semantic operations
   async addNodeSemantic(semantic: NodeSemantic): Promise<void> {
     const store = useGraphStore.getState();
@@ -43,8 +48,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<AddNodeSemanticAck>(
         "ADD_NODE_SEMANTIC",
         {
-          type: ClientMessageType.ADD_NODE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.ADD_NODE_SEMANTIC,
+          requestId: "",
           payload: semantic,
         },
       );
@@ -77,8 +82,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<UpdateNodeSemanticAck>(
         "UPDATE_NODE_SEMANTIC",
         {
-          type: ClientMessageType.UPDATE_NODE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.UPDATE_NODE_SEMANTIC,
+          requestId: "",
           payload: { id, updates },
         },
       );
@@ -108,8 +113,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<DeleteNodeSemanticAck>(
         "DELETE_NODE_SEMANTIC",
         {
-          type: ClientMessageType.DELETE_NODE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.DELETE_NODE_SEMANTIC,
+          requestId: "",
           payload: { id },
         },
       );
@@ -135,8 +140,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<AddEdgeSemanticAck>(
         "ADD_EDGE_SEMANTIC",
         {
-          type: ClientMessageType.ADD_EDGE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.ADD_EDGE_SEMANTIC,
+          requestId: "",
           payload: semantic,
         },
       );
@@ -169,8 +174,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<UpdateEdgeSemanticAck>(
         "UPDATE_EDGE_SEMANTIC",
         {
-          type: ClientMessageType.UPDATE_EDGE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.UPDATE_EDGE_SEMANTIC,
+          requestId: "",
           payload: { id, updates },
         },
       );
@@ -200,8 +205,8 @@ export const GraphService = {
       const ack = await socketClient.emitWithAck<DeleteEdgeSemanticAck>(
         "DELETE_EDGE_SEMANTIC",
         {
-          type: ClientMessageType.DELETE_EDGE_SEMANTIC,
-          requestId: crypto.randomUUID(),
+          type: CommandMessageType.DELETE_EDGE_SEMANTIC,
+          requestId: "",
           payload: { id },
         },
       );
@@ -225,8 +230,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<AddNodeAck>("ADD_NODE", {
-        type: ClientMessageType.ADD_NODE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.ADD_NODE,
+        requestId: "",
         payload: node,
       });
 
@@ -253,8 +258,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<UpdateNodeAck>("UPDATE_NODE", {
-        type: ClientMessageType.UPDATE_NODE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.UPDATE_NODE,
+        requestId: "",
         payload: { id, updates },
       });
 
@@ -281,8 +286,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<DeleteNodeAck>("DELETE_NODE", {
-        type: ClientMessageType.DELETE_NODE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.DELETE_NODE,
+        requestId: "",
         payload: { id },
       });
 
@@ -305,8 +310,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<AddEdgeAck>("ADD_EDGE", {
-        type: ClientMessageType.ADD_EDGE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.ADD_EDGE,
+        requestId: "",
         payload: edge,
       });
 
@@ -333,8 +338,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<UpdateEdgeAck>("UPDATE_EDGE", {
-        type: ClientMessageType.UPDATE_EDGE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.UPDATE_EDGE,
+        requestId: "",
         payload: { id, updates },
       });
 
@@ -361,8 +366,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<DeleteEdgeAck>("DELETE_EDGE", {
-        type: ClientMessageType.DELETE_EDGE,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.DELETE_EDGE,
+        requestId: "",
         payload: { id },
       });
 
@@ -385,8 +390,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<AddViewAck>("ADD_VIEW", {
-        type: ClientMessageType.ADD_VIEW,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.ADD_VIEW,
+        requestId: "",
         payload: view,
       });
 
@@ -413,8 +418,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<UpdateViewAck>("UPDATE_VIEW", {
-        type: ClientMessageType.UPDATE_VIEW,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.UPDATE_VIEW,
+        requestId: "",
         payload: { id, updates },
       });
 
@@ -441,8 +446,8 @@ export const GraphService = {
 
     try {
       const ack = await socketClient.emitWithAck<DeleteViewAck>("DELETE_VIEW", {
-        type: ClientMessageType.DELETE_VIEW,
-        requestId: crypto.randomUUID(),
+        type: CommandMessageType.DELETE_VIEW,
+        requestId: "",
         payload: { id },
       });
 
@@ -452,6 +457,29 @@ export const GraphService = {
     } catch (error) {
       // Rollback
       store.addView(oldView);
+      throw error;
+    }
+  },
+  // ================== Query ==================
+
+  async sync(query: SyncQuery): Promise<void> {
+    const store = useGraphStore.getState();
+
+    try {
+      const ack = await socketClient.emitWithAck<SyncAck>("SYNC", {
+        type: QueryMessageType.SYNC,
+        requestId: "",
+        payload: query,
+      });
+
+      if (!ack.success) {
+        throw new Error(ack.error?.message || "Sync query failed");
+      }
+
+      if (ack.data) {
+        store.syncFromServer(ack.data);
+      }
+    } catch (error) {
       throw error;
     }
   },

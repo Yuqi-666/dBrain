@@ -1,5 +1,5 @@
 import { io, type Socket, type SocketOptions } from "socket.io-client";
-import type { ClientMessage, ApiAck } from "@workspace/interfaces";
+import type { CommandMessage, ApiAck, QueryMessage } from "@workspace/interfaces";
 
 export class SocketClient {
   private static instance: SocketClient | null = null;
@@ -11,7 +11,7 @@ export class SocketClient {
   private readonly pushHandlers = new Map<string, Set<(data: any) => void>>();
   private readonly DEFAULT_TIMEOUT = 10000;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): SocketClient {
     if (!SocketClient.instance) {
@@ -79,7 +79,7 @@ export class SocketClient {
 
   public emitWithAck<T>(
     event: string,
-    data: ClientMessage,
+    data: CommandMessage | QueryMessage,
     timeout?: number,
   ): Promise<ApiAck & { data: T }> {
     return new Promise((resolve, reject) => {
