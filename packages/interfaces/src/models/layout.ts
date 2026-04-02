@@ -1,5 +1,14 @@
-
-export type LayoutType = "d3-force" | "dagre" | "fishbone" | "mindmap"
+export type LayoutType =
+  | "force"
+  | "dagre"
+  | "fruchterman"
+  | "circular"
+  | "grid"
+  | "radial"
+  | "concentric"
+  | "d3-force"
+  | "fishbone"
+  | "mindmap";
 // export interface LayoutConfig {
 //   d3: D3LayoutConfig;
 //   dagre: DagreLayoutConfig;

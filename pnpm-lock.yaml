@@ -188,7 +188,31 @@ importers:
       '@antv/g6':
         specifier: ^5.0.51
         version: 5.0.51(workerize-loader@2.0.2(webpack@5.105.4))
+      '@workspace/interfaces':
+        specifier: workspace:*
+        version: link:../interfaces
+      '@workspace/store':
+        specifier: workspace:*
+        version: link:../store
+      '@workspace/ui':
+        specifier: workspace:*
+        version: link:../utils
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+      zustand:
+        specifier: ^4.5.0
+        version: 4.5.7(@types/react@19.2.14)(react@19.2.4)
     devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -200,25 +224,6 @@ importers:
         version: 5.9.3
 
   packages/interfaces:
-    devDependencies:
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
-  packages/service:
-    dependencies:
-      '@workspace/api-client':
-        specifier: workspace:*
-        version: link:../api-client
-      '@workspace/interfaces':
-        specifier: workspace:*
-        version: link:../interfaces
-      '@workspace/store':
-        specifier: workspace:*
-        version: link:../store
-      zustand:
-        specifier: ^4.5.0
-        version: 4.5.7(@types/react@19.2.14)(react@19.2.4)
     devDependencies:
       typescript:
         specifier: ^5.0.0

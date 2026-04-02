@@ -9,12 +9,20 @@
     "typecheck": "tsc --noemit"
   },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "typescript": "^5.0.0"
   },
   "exports": {
     ".": "./src"
   },
   "dependencies": {
-    "@antv/g6": "^5.0.51"
+    "@antv/g6": "^5.0.51",
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/store": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^4.5.0"
   }
 }
