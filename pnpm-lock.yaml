@@ -28,7 +28,7 @@ importers:
     dependencies:
       '@workspace/ui':
         specifier: workspace:*
-        version: link:../../packages/utils
+        version: link:../../packages/ui
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
@@ -87,9 +87,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@workspace/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
+      '@workspace/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       '@workspace/ui':
         specifier: workspace:*
-        version: link:../../packages/utils
+        version: link:../../packages/ui
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
@@ -196,7 +202,7 @@ importers:
         version: link:../store
       '@workspace/ui':
         specifier: workspace:*
-        version: link:../utils
+        version: link:../ui
       react:
         specifier: ^19.0.0
         version: 19.2.4

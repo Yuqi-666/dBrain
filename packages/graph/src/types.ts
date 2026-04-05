@@ -1,43 +1,23 @@
-import type {
-  NodeId,
-  EdgeId,
-  NodeData,
-  EdgeData,
-  NodeSemantic,
-  EdgeSemantic,
-  View,
-} from "@workspace/interfaces";
+import type { NodeSemantic, EdgeSemantic } from "@workspace/interfaces";
 
-export interface G6Node {
-  id: string;
-  data: {
-    originalId: NodeId;
-    nodeType: string;
-    title: string;
+// 全局扩展G6原生类型
+declare module "@antv/g6" {
+  export interface NodeData {
+    nodeType?: string;
+    title?: string;
     abstract?: string;
-    semanticType?: string;
+    semanticId?: string;
     tags?: string[];
-  };
-  style?: Record<string, any>;
-}
+    [key: string]: any;
+  }
 
-export interface G6Edge {
-  id: string;
-  source: string;
-  target: string;
-  data: {
-    originalId: EdgeId;
-    edgeType: string;
-    direction: "forward" | "reverse" | "bidirectional";
+  export interface EdgeData {
+    semanticId?: string;
+    direction?: "forward" | "backward" | "bidirectional";
     name?: string;
     weight?: number;
-  };
-  style?: Record<string, any>;
-}
-
-export interface G6GraphData {
-  nodes: G6Node[];
-  edges: G6Edge[];
+    [key: string]: any;
+  }
 }
 
 export type Mutation =

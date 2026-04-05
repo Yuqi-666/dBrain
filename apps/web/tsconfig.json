@@ -3,8 +3,24 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@workspace/ui/*": ["../../packages/ui/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@workspace/store": [
+        "../store/src"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
+      ],
+      "@workspace/graph": [
+        "../graph/src"
+      ],
+      "@workspace/graph/*": [
+        "../graph/src/*"
+      ],
     },
     "plugins": [
       {
@@ -19,5 +35,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

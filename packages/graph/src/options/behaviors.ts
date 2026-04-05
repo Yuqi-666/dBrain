@@ -3,12 +3,14 @@ export const DEFAULT_BEHAVIORS = [
   "zoom-canvas",
   "drag-element",
   "click-select",
-  "hover-element",
+  "hover-activate",
 ] as const;
 
-export const NODE_DRAGGING_BEHAVIORS = ["drag-node"];
+// drag-node is deprecated in G6 5.x, drag-element already handles node dragging
+export const NODE_DRAGGING_BEHAVIORS = [];
 
-export const EDGE_INTERACTION_BEHAVIORS = ["click-edge", "hover-edge"];
+// click-edge and hover-edge are deprecated in G6 5.x, covered by click-select and hover-activate
+export const EDGE_INTERACTION_BEHAVIORS = [];
 
 export function getBehaviorsConfig(
   enableNodeDragging = true,

@@ -1,4 +1,7 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect } from "react";
+import { create } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import type { StoreApi } from "zustand";
 import { Graph as G6Graph, type GraphData } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
 import type { View, ViewId } from "@workspace/interfaces";
@@ -9,22 +12,19 @@ import {
   getThemeConfig,
   getBehaviorsConfig,
   getPluginsConfig,
-  DEFAULT_NODE_STYLE,
-  DEFAULT_EDGE_STYLE,
-  SELECTED_NODE_STYLE,
-  SELECTED_EDGE_STYLE,
-  HOVER_NODE_STYLE,
-  HOVER_EDGE_STYLE,
+  getNodeConfig,
+  getEdgeConfig,
 } from "./options";
 import { registerEventHandlers } from "./on";
 import type { GraphEventHandlers } from "./on";
 import type { Mutation } from "./types";
-import type { Graph as G6GraphType } from "@antv/g6";
 
+// ----------------------------------------------------------------------
+// 1. 定义组件 Props
+// ----------------------------------------------------------------------
 export interface GraphProps extends GraphEventHandlers {
   viewId?: ViewId;
   view?: View;
-  syncMode?: "full" | "incremental";
   theme?: "light" | "dark";
   enableMinimap?: boolean;
   enableGrid?: boolean;
@@ -36,10 +36,30 @@ export interface GraphProps extends GraphEventHandlers {
   onLoad?: (graph: any) => void;
 }
 
+// ----------------------------------------------------------------------
+// 2. 定义局部 Zustand Store (用于内部 UI 状态)
+// ----------------------------------------------------------------------
+interface LocalGraphUIState {
+  selectedNodeIds: Set<string>;
+  selectedEdgeIds: Set<string>;
+  contextMenu: {
+    x: number;
+    y: number;
+    target: { type: "node" | "edge" | "canvas"; id?: string } | null;
+    visible: boolean;
+  };
+  setSelectedNodeIds: (ids: Set<string>) => void;
+  setSelectedEdgeIds: (ids: Set<string>) => void;
+  setContextMenu: (menu: LocalGraphUIState["contextMenu"]) => void;
+  closeContextMenu: () => void;
+}
+
+// ----------------------------------------------------------------------
+// 3. 主组件
+// ----------------------------------------------------------------------
 export function Graph({
   viewId,
   view,
-  syncMode = "incremental",
   theme = "light",
   enableMinimap = true,
   enableGrid = true,
@@ -51,67 +71,80 @@ export function Graph({
   onLoad,
   ...eventHandlers
 }: GraphProps) {
+  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<any>(null);
+  const graphRef = useRef<G6Graph | null>(null);
   const cleanupHandlersRef = useRef<(() => void) | null>(null);
+  const resolvedViewRef = useRef<View | undefined>(undefined);
 
-  // Internal state
-  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    target: { type: "node" | "edge" | "canvas"; id?: string } | null;
-    visible: boolean;
-  }>({ x: 0, y: 0, target: null, visible: false });
+  // ----------------------------------------------------------------------
+  // 初始化局部 Zustand Store (仅在组件内部使用)
+  // ----------------------------------------------------------------------
+  const localStoreRef = useRef<StoreApi<LocalGraphUIState> | null>(null);
 
-  // Get data from store
-  const nodes = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.nodes,
-  );
-  const edges = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.edges,
-  );
-  const views = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.views,
-  );
-  const nodeSemantics = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.nodeSemantics,
-  );
-  const edgeSemantics = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.edgeSemantics,
-  );
-  const latestMutations = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.latestMutations,
-  );
-  const clearMutations = useGraphStore(
-    (s: ReturnType<typeof useGraphStore.getState>) => s.clearMutations,
-  );
+  if (!localStoreRef.current) {
+    localStoreRef.current = create<LocalGraphUIState>((set) => ({
+      selectedNodeIds: new Set(),
+      selectedEdgeIds: new Set(),
+      contextMenu: { x: 0, y: 0, target: null, visible: false },
 
-  // Resolve view
-  const resolvedView = useMemo(() => {
-    if (view) return view;
-    if (viewId) return views.get(viewId);
-    return undefined;
-  }, [view, viewId, views]);
+      setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+      setSelectedEdgeIds: (ids) => set({ selectedEdgeIds: ids }),
+      setContextMenu: (menu) => set({ contextMenu: menu }),
+      closeContextMenu: () =>
+        set((state) => ({
+          contextMenu: { ...state.contextMenu, visible: false },
+        })),
+    }));
+  }
 
-  // Transform data to G6 format
-  const g6Data = useMemo((): GraphData => {
-    return transformToG6Data(
+  // 便捷 Hook 用于消费局部状态
+  const useLocalStore = <T,>(selector: (state: LocalGraphUIState) => T) => {
+    return useStoreWithEqualityFn(localStoreRef.current!, selector);
+  };
+
+  // 消费局部状态
+  const contextMenu = useLocalStore((s) => s.contextMenu);
+  const setSelectedNodeIds = useLocalStore((s) => s.setSelectedNodeIds);
+  const setSelectedEdgeIds = useLocalStore((s) => s.setSelectedEdgeIds);
+  const setContextMenu = useLocalStore((s) => s.setContextMenu);
+  const closeContextMenu = useLocalStore((s) => s.closeContextMenu);
+
+  // ----------------------------------------------------------------------
+  // 数据同步逻辑
+  // ----------------------------------------------------------------------
+
+  // 全量同步
+  const performFullSync = (graph: G6Graph) => {
+    const state = useGraphStore.getState();
+    const { nodes, edges, nodeSemantics, edgeSemantics, views } = state;
+
+    // 解析当前 View
+    let currentView: View | undefined;
+    if (view) {
+      currentView = view;
+    } else if (viewId) {
+      currentView = views.get(viewId);
+    }
+    resolvedViewRef.current = currentView;
+
+    // 转换数据并同步
+    const g6Data = transformToG6Data(
       nodes,
       edges,
-      nodeSemantics,
-      edgeSemantics,
-      resolvedView,
+      currentView,
     );
-  }, [nodes, edges, nodeSemantics, edgeSemantics, resolvedView]);
+    graph.setData(g6Data);
+    graph.setLayout(getLayoutConfig(currentView?.layout));
+    graph.render();
+  };
 
-  // Process mutations for incremental sync
-  const processMutations = (graph: any, mutations: Mutation[]) => {
+  // 增量同步
+  const processMutations = (graph: G6Graph, mutations: Mutation[]) => {
+    const state = useGraphStore.getState();
+    const { nodeSemantics, edgeSemantics, nodes, edges } = state;
+    const currentView = resolvedViewRef.current;
+
     mutations.forEach((mutation) => {
       switch (mutation.type) {
         case "addNode": {
@@ -119,13 +152,15 @@ export function Graph({
           const adapted = transformToG6Data(
             new Map([[node.id, node]]),
             new Map(),
-            nodeSemantics,
-            edgeSemantics,
-            resolvedView,
+            currentView,
           );
-          const nodes = adapted.nodes ?? [];
-          if (nodes.length > 0) {
-            graph.addItem("node", nodes[0]);
+          const newNodes = adapted.nodes ?? [];
+          const newNode = newNodes[0];
+          if (newNode?.id) {
+            const existingNode = graph.getNodeData(newNode.id);
+            existingNode
+              ? graph.updateNodeData([newNode])
+              : graph.addNodeData([newNode]);
           }
           break;
         }
@@ -136,20 +171,16 @@ export function Graph({
             const adapted = transformToG6Data(
               new Map([[id, { ...existing, ...updates }]]),
               new Map(),
-              nodeSemantics,
-              edgeSemantics,
-              resolvedView,
+              currentView,
             );
-            const nds = adapted.nodes ?? [];
-            if (nds.length > 0) {
-              graph.updateItem(id, nds[0]);
-            }
+            const updatedNodes = adapted.nodes ?? [];
+            const updatedNode = updatedNodes[0];
+            if (updatedNode) graph.updateNodeData([updatedNode]);
           }
           break;
         }
         case "deleteNode": {
-          const { id } = mutation.payload;
-          graph.removeItem(id);
+          graph.removeNodeData([mutation.payload.id]);
           break;
         }
         case "addEdge": {
@@ -157,13 +188,15 @@ export function Graph({
           const adapted = transformToG6Data(
             new Map(),
             new Map([[edge.id, edge]]),
-            nodeSemantics,
-            edgeSemantics,
-            resolvedView,
+            currentView,
           );
-          const edgs = adapted.edges ?? [];
-          if (edgs.length > 0) {
-            graph.addItem("edge", edgs[0]);
+          const newEdges = adapted.edges ?? [];
+          const newEdge = newEdges[0];
+          if (newEdge?.id) {
+            const existingEdge = graph.getEdgeData(newEdge.id);
+            existingEdge
+              ? graph.updateEdgeData([newEdge])
+              : graph.addEdgeData([newEdge]);
           }
           break;
         }
@@ -174,87 +207,74 @@ export function Graph({
             const adapted = transformToG6Data(
               new Map(),
               new Map([[id, { ...existing, ...updates }]]),
-              nodeSemantics,
-              edgeSemantics,
-              resolvedView,
+              currentView,
             );
-            const edgs = adapted.edges ?? [];
-            if (edgs.length > 0) {
-              graph.updateItem(id, edgs[0]);
-            }
+            const updatedEdges = adapted.edges ?? [];
+            const updatedEdge = updatedEdges[0];
+            if (updatedEdge) graph.updateEdgeData([updatedEdge]);
           }
           break;
         }
         case "deleteEdge": {
-          const { id } = mutation.payload;
-          graph.removeItem(id);
+          graph.removeEdgeData([mutation.payload.id]);
           break;
         }
-        // Handle view changes by re-rendering entire graph
         case "addView":
         case "updateView":
         case "deleteView":
-          graph.changeData(g6Data);
+          performFullSync(graph);
           break;
       }
     });
   };
 
-  // Initialize G6 graph
+  // ----------------------------------------------------------------------
+  // Effects
+  // ----------------------------------------------------------------------
+
+  // 1. 初始化 G6 实例
   useEffect(() => {
     if (!containerRef.current) return;
+
+    // 获取节点和边配置
+    const nodeConfig = getNodeConfig(theme);
+    const edgeConfig = getEdgeConfig(theme);
 
     const graph = new G6Graph({
       container: containerRef.current,
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
-      data: g6Data,
-      layout: getLayoutConfig(resolvedView?.layout),
-      behaviors: getBehaviorsConfig(
-        enableNodeDragging,
-        enableEdgeInteractions,
-      ) as never[],
-      plugins: getPluginsConfig(
-        enableMinimap,
-        enableGrid,
-        enableFisheye,
-      ) as never[],
-      node: {
-        style: {
-          ...DEFAULT_NODE_STYLE,
-          labelText: "",
-        },
-      },
-      edge: {
-        style: DEFAULT_EDGE_STYLE,
-      },
-      theme: {
-        style: {
-          background: getThemeConfig(theme).background,
-        },
-      },
+      data: { nodes: [], edges: [] },
+      layout: getLayoutConfig(),
+      behaviors: getBehaviorsConfig(enableNodeDragging, enableEdgeInteractions),
+      plugins: getPluginsConfig(enableMinimap, enableGrid, enableFisheye),
+      node: nodeConfig,
+      edge: edgeConfig,
+      background: getThemeConfig(theme).background,
     } as any);
 
     graph.render();
     graphRef.current = graph;
 
-    // Register event handlers
+    // 注册事件 (绑定局部 Store Actions)
     const allHandlers: GraphEventHandlers = {
       ...eventHandlers,
       onNodeRightClick: (node, e) => {
+        if (!node?.id) return;
         setContextMenu({
           x: e.clientX,
           y: e.clientY,
-          target: { type: "node", id: node.data.originalId },
+          target: { type: "node", id: node.id },
           visible: true,
         });
         eventHandlers.onNodeRightClick?.(node, e);
       },
       onEdgeRightClick: (edge, e) => {
+        if (!edge?.id) return;
         setContextMenu({
           x: e.clientX,
           y: e.clientY,
-          target: { type: "edge", id: edge.data.originalId },
+          target: { type: "edge", id: edge.id },
           visible: true,
         });
         eventHandlers.onEdgeRightClick?.(edge, e);
@@ -269,15 +289,19 @@ export function Graph({
         eventHandlers.onCanvasRightClick?.(e);
       },
       onCanvasClick: (e) => {
-        setContextMenu((prev) => ({ ...prev, visible: false }));
+        closeContextMenu();
         eventHandlers.onCanvasClick?.(e);
       },
       onSelectionChange: (selectedNodes, selectedEdges) => {
         setSelectedNodeIds(
-          new Set(selectedNodes.map((n) => n.data.originalId)),
+          new Set(
+            selectedNodes.filter((n) => n?.id).map((n) => n.id as string),
+          ),
         );
         setSelectedEdgeIds(
-          new Set(selectedEdges.map((e) => e.data.originalId)),
+          new Set(
+            selectedEdges.filter((e) => e?.id).map((e) => e.id as string),
+          ),
         );
         eventHandlers.onSelectionChange?.(selectedNodes, selectedEdges);
       },
@@ -285,7 +309,7 @@ export function Graph({
 
     cleanupHandlersRef.current = registerEventHandlers(graph, allHandlers);
 
-    // Handle window resize
+    // 窗口 resize
     const handleResize = () => {
       if (containerRef.current) {
         graph.setSize(
@@ -296,89 +320,60 @@ export function Graph({
     };
     window.addEventListener("resize", handleResize);
 
+    // 初始全量同步
+    performFullSync(graph);
+
     onLoad?.(graph);
 
-    // Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
-      if (cleanupHandlersRef.current) {
-        cleanupHandlersRef.current();
-      }
+      cleanupHandlersRef.current?.();
       graph.destroy();
       graphRef.current = null;
     };
   }, []);
 
-  // Handle theme and view changes
+  // 2. 订阅全局 Store 的增量更新
+  useEffect(() => {
+    const unsubscribe = useGraphStore.subscribe((state) => {
+      if (!graphRef.current || state.latestMutations.length === 0) return;
+      processMutations(graphRef.current, state.latestMutations);
+      useGraphStore.getState().clearMutations();
+    });
+    return unsubscribe;
+  }, []);
+
+  // 3. View 变化触发全量重绘
   useEffect(() => {
     if (!graphRef.current) return;
-    graphRef.current.updateCfg({
-      background: getThemeConfig(theme).background,
-      defaultNode: {
-        style: DEFAULT_NODE_STYLE,
-        labelCfg: {
-          style: {
-            fill: getThemeConfig(theme).labelColor,
-          },
-        },
-      },
-      defaultEdge: {
-        style: DEFAULT_EDGE_STYLE,
-        labelCfg: {
-          style: {
-            fill: getThemeConfig(theme).labelColor,
-          },
-        },
-      },
-    });
-    graphRef.current.changeData(g6Data);
-    graphRef.current.setLayout(getLayoutConfig(resolvedView?.layout));
-    graphRef.current.render();
-  }, [theme, resolvedView, g6Data]);
+    performFullSync(graphRef.current);
+  }, [view, viewId]);
 
-  // Incremental sync
+  // 4. Theme 变化更新样式
   useEffect(() => {
-    if (
-      !graphRef.current ||
-      syncMode !== "incremental" ||
-      latestMutations.length === 0
-    )
-      return;
-    processMutations(graphRef.current, latestMutations);
-    clearMutations();
-  }, [latestMutations, syncMode]);
+    if (!graphRef.current) return;
 
-  // Context menu handlers
-  const handleContextMenuClose = () => {
-    setContextMenu((prev) => ({ ...prev, visible: false }));
-  };
+    // 更新主题配置
+    const nodeConfig = getNodeConfig(theme);
+    const edgeConfig = getEdgeConfig(theme);
 
+    graphRef.current.setOptions({
+      background: getThemeConfig(theme).background,
+      node: nodeConfig,
+      edge: edgeConfig,
+    });
+    graphRef.current.render();
+  }, [theme]);
+
+  // ----------------------------------------------------------------------
+  // 事件处理
+  // ----------------------------------------------------------------------
   const handleEdit = (target: { type: "node" | "edge"; id: string }) => {
     eventHandlers.onNodeClick?.(
       { id: target.id, data: { originalId: target.id } } as any,
       {} as any,
     );
-    handleContextMenuClose();
-  };
-
-  const handleDelete = (_target: { type: "node" | "edge"; id: string }) => {
-    // This will be handled by parent component via CQRS
-    handleContextMenuClose();
-  };
-
-  const handleAddChild = (_nodeId: string) => {
-    // Handle add child logic
-    handleContextMenuClose();
-  };
-
-  const handleConnect = (_nodeId: string) => {
-    // Handle connect logic
-    handleContextMenuClose();
-  };
-
-  const handleDuplicate = (_target: { type: "node" | "edge"; id: string }) => {
-    // Handle duplicate logic
-    handleContextMenuClose();
+    closeContextMenu();
   };
 
   return (
@@ -393,12 +388,12 @@ export function Graph({
           y={contextMenu.y}
           visible={contextMenu.visible}
           target={contextMenu.target}
-          onClose={handleContextMenuClose}
+          onClose={closeContextMenu}
           onEdit={handleEdit}
-          onDelete={handleDelete}
-          onAddChild={handleAddChild}
-          onConnect={handleConnect}
-          onDuplicate={handleDuplicate}
+          onDelete={closeContextMenu}
+          onAddChild={closeContextMenu}
+          onConnect={closeContextMenu}
+          onDuplicate={closeContextMenu}
         />
       )}
     </div>

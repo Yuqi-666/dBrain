@@ -43,7 +43,7 @@ export function filterByViewScope(
 
     // Filter edges where both from and to are in selected nodes
     const filteredEdges = new Map<EdgeId, EdgeData>();
-    filteredEdges.forEach((edge, id) => {
+    edges.forEach((edge, id) => {
       if (filteredNodes.has(edge.from) && filteredNodes.has(edge.to)) {
         filteredEdges.set(id, edge);
       }
@@ -62,41 +62,17 @@ export function filterByViewScope(
 
 export function adaptNodesToG6(
   nodes: Map<NodeId, NodeData>,
-  nodeSemantics: Map<string, NodeSemantic>,
 ): G6NodeData[] {
   const g6Nodes: G6NodeData[] = [];
 
-  const defaultStyle = {
-    fill: "#165DFF",
-    stroke: "#fff",
-    radius: 8,
-  };
-
   nodes.forEach((node) => {
-    const semantic = nodeSemantics.get(node.type);
-    let style = { ...defaultStyle };
-
-    if (semantic && semantic.color) {
-      style.fill = semantic.color;
-    }
-
-    // Merge any custom style properties if they exist
-    const semanticWithStyle = semantic as { style?: Record<string, any> };
-    if (semanticWithStyle.style) {
-      style = { ...style, ...semanticWithStyle.style };
-    }
-
     g6Nodes.push({
       id: node.id,
-      data: {
-        originalId: node.id,
-        nodeType: node.type,
-        title: node.title,
-        abstract: node.abstract,
-        semanticType: node.type,
-        tags: node.tags,
-      },
-      style,
+      nodeType: node.semanticId,
+      title: node.title,
+      abstract: node.abstract,
+      semanticId: node.semanticId,
+      tags: node.tags,
     });
   });
 
@@ -105,38 +81,18 @@ export function adaptNodesToG6(
 
 export function adaptEdgesToG6(
   edges: Map<EdgeId, EdgeData>,
-  edgeSemantics: Map<string, EdgeSemantic>,
 ): G6EdgeData[] {
   const g6Edges: G6EdgeData[] = [];
 
-  const defaultStyle = {
-    stroke: "#91caff",
-    lineWidth: 2,
-    endArrow: true,
-  };
-
   edges.forEach((edge) => {
-    const semantic = edgeSemantics.get(edge.type);
-    let style = { ...defaultStyle };
-
-    // Merge any custom style properties if they exist
-    const semanticWithStyle = semantic as { style?: Record<string, any> };
-    if (semanticWithStyle.style) {
-      style = { ...style, ...semanticWithStyle.style };
-    }
-
     g6Edges.push({
       id: edge.id,
       source: edge.from,
       target: edge.to,
-      data: {
-        originalId: edge.id,
-        edgeType: edge.type,
-        direction: "forward",
-        name: edge.name,
-        weight: edge.weight,
-      },
-      style,
+      semanticId: edge.semanticId,
+      direction: "forward",
+      name: edge.name,
+      weight: edge.weight,
     });
   });
 
@@ -146,8 +102,6 @@ export function adaptEdgesToG6(
 export function transformToG6Data(
   nodes: Map<NodeId, NodeData>,
   edges: Map<EdgeId, EdgeData>,
-  nodeSemantics: Map<string, NodeSemantic>,
-  edgeSemantics: Map<string, EdgeSemantic>,
   view?: View,
 ): GraphData {
   const { filteredNodes, filteredEdges } = filterByViewScope(
@@ -155,8 +109,8 @@ export function transformToG6Data(
     edges,
     view,
   );
-  const adaptedNodes = adaptNodesToG6(filteredNodes, nodeSemantics);
-  const adaptedEdges = adaptEdgesToG6(filteredEdges, edgeSemantics);
+  const adaptedNodes = adaptNodesToG6(filteredNodes);
+  const adaptedEdges = adaptEdgesToG6(filteredEdges);
 
   return {
     nodes: adaptedNodes,

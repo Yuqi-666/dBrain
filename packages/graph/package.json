@@ -14,7 +14,7 @@
     "typescript": "^5.0.0"
   },
   "exports": {
-    ".": "./src"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@antv/g6": "^5.0.51",

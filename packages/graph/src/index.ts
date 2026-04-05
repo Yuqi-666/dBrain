@@ -8,9 +8,6 @@ export {
 export { registerEventHandlers, type GraphEventHandlers } from "./on";
 export * from "./options";
 export type {
-  G6Node,
-  G6Edge,
-  G6GraphData,
   Mutation,
   MutationProcessor,
 } from "./types";

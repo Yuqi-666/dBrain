@@ -20,7 +20,7 @@ export interface EdgeBase {
   from: NodeId;
   to: NodeId;
   direction: EdgeDirection;
-  type: EdgeSemanticId;
+  semanticId: EdgeSemanticId;
   name?: string;
   weight?: number;
   createdAt: string;

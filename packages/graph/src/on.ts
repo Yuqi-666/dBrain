@@ -24,36 +24,48 @@ export function registerEventHandlers(
     {
       event: "node:click",
       handler: (e: any) => {
-        if (handlers.onNodeClick) handlers.onNodeClick(e.item?.getModel(), e);
+        if (handlers.onNodeClick && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeClick(model, e);
+        }
       },
     },
     {
       event: "node:dblclick",
       handler: (e: any) => {
-        if (handlers.onNodeDoubleClick)
-          handlers.onNodeDoubleClick(e.item?.getModel(), e);
+        if (handlers.onNodeDoubleClick && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeDoubleClick(model, e);
+        }
       },
     },
     {
       event: "node:contextmenu",
       handler: (e: any) => {
         e.preventDefault();
-        if (handlers.onNodeRightClick)
-          handlers.onNodeRightClick(e.item?.getModel(), e);
+        if (handlers.onNodeRightClick && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeRightClick(model, e);
+        }
       },
     },
     {
       event: "edge:click",
       handler: (e: any) => {
-        if (handlers.onEdgeClick) handlers.onEdgeClick(e.item?.getModel(), e);
+        if (handlers.onEdgeClick && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onEdgeClick(model, e);
+        }
       },
     },
     {
       event: "edge:contextmenu",
       handler: (e: any) => {
         e.preventDefault();
-        if (handlers.onEdgeRightClick)
-          handlers.onEdgeRightClick(e.item?.getModel(), e);
+        if (handlers.onEdgeRightClick && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onEdgeRightClick(model, e);
+        }
       },
     },
     {
@@ -74,12 +86,8 @@ export function registerEventHandlers(
       handler: (e: any) => {
         if (handlers.onSelectionChange) {
           const g = graph as any;
-          const selectedNodes = g
-            .findAllByState("node", "selected")
-            .map((n: any) => n.getModel());
-          const selectedEdges = g
-            .findAllByState("edge", "selected")
-            .map((e: any) => e.getModel());
+          const selectedNodes = g.getElementDataByState("node", "selected");
+          const selectedEdges = g.getElementDataByState("edge", "selected");
           handlers.onSelectionChange(selectedNodes, selectedEdges);
         }
       },
@@ -87,21 +95,28 @@ export function registerEventHandlers(
     {
       event: "node:dragstart",
       handler: (e: any) => {
-        if (handlers.onNodeDragStart)
-          handlers.onNodeDragStart(e.item?.getModel(), e);
+        if (handlers.onNodeDragStart && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeDragStart(model, e);
+        }
       },
     },
     {
       event: "node:drag",
       handler: (e: any) => {
-        if (handlers.onNodeDrag) handlers.onNodeDrag(e.item?.getModel(), e);
+        if (handlers.onNodeDrag && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeDrag(model, e);
+        }
       },
     },
     {
       event: "node:dragend",
       handler: (e: any) => {
-        if (handlers.onNodeDragEnd)
-          handlers.onNodeDragEnd(e.item?.getModel(), e);
+        if (handlers.onNodeDragEnd && e.item) {
+          const model = e.item.getModel();
+          if (model) handlers.onNodeDragEnd(model, e);
+        }
       },
     },
     {

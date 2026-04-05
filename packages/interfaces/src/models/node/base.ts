@@ -29,7 +29,7 @@ export interface NodeBase {
   title: string;
   abstract?: string;
   permission: Permission;
-  type: NodeSemanticId;
+  semanticId: NodeSemanticId;
   tags?: string[];
   customProperties?: Record<string, CustomProperty>;
   createdAt: string;

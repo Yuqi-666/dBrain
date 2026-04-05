@@ -4,16 +4,12 @@ export const LAYOUT_CONFIGS: Record<LayoutType, any> = {
   force: {
     type: "force",
     preventOverlap: true,
-    nodeStrength: 30,
+    nodeStrength: -50,
     edgeStrength: 0.1,
     linkDistance: 150,
   },
   "d3-force": {
-    type: "force",
-    preventOverlap: true,
-    nodeStrength: 30,
-    edgeStrength: 0.1,
-    linkDistance: 150,
+    type: "d3-force",
   },
   dagre: { type: "dagre", rankdir: "TB", nodesep: 30, ranksep: 50 },
   fruchterman: { type: "fruchterman", gravity: 10, speed: 2 },

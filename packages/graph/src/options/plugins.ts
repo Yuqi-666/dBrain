@@ -1,5 +1,5 @@
 export const GRID_PLUGIN = {
-  type: "grid",
+  type: "grid-line",
   size: 20,
   visible: true,
 };
