@@ -59,7 +59,8 @@ export function filterByViewScope(
     filteredEdges: new Map(edges),
   };
 }
-
+// TODO: 改造为对于不同布局，将源数据转换为不同形式的G6数据
+// 如adaptNodesToD3Force、adaptNodesToFishbone
 export function adaptNodesToG6(
   nodes: Map<NodeId, NodeData>,
 ): G6NodeData[] {

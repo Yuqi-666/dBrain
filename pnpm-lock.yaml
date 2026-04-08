@@ -90,6 +90,9 @@ importers:
       '@workspace/graph':
         specifier: workspace:*
         version: link:../../packages/graph
+      '@workspace/interfaces':
+        specifier: workspace:*
+        version: link:../../packages/interfaces
       '@workspace/store':
         specifier: workspace:*
         version: link:../../packages/store

@@ -1,22 +1,29 @@
-export const DEFAULT_BEHAVIORS = [
+import type { LayoutType } from "@workspace/interfaces";
+
+const BASE_BEHAVIORS = [
   "drag-canvas",
   "zoom-canvas",
-  "drag-element",
+  "scroll-canvas",
+  "optimize-viewport-transform",
   "click-select",
   "hover-activate",
 ] as const;
 
-// drag-node is deprecated in G6 5.x, drag-element already handles node dragging
 export const NODE_DRAGGING_BEHAVIORS = [];
 
-// click-edge and hover-edge are deprecated in G6 5.x, covered by click-select and hover-activate
 export const EDGE_INTERACTION_BEHAVIORS = [];
 
 export function getBehaviorsConfig(
   enableNodeDragging = true,
   enableEdgeInteractions = true,
+  layoutType?: LayoutType,
 ) {
-  const behaviors: string[] = [...DEFAULT_BEHAVIORS];
+  const behaviors: string[] = [...BASE_BEHAVIORS];
+  if (layoutType === "d3-force") {
+    behaviors.push("drag-element-force");
+  } else {
+    behaviors.push("drag-element");
+  }
   if (enableNodeDragging) behaviors.push(...NODE_DRAGGING_BEHAVIORS);
   if (enableEdgeInteractions) behaviors.push(...EDGE_INTERACTION_BEHAVIORS);
   return behaviors;

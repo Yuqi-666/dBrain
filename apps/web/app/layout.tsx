@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils";
 import { SidebarProvider, SidebarTrigger } from "@workspace/ui/components/ui/sidebar"
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
+import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
 const fontSans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -27,6 +28,7 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", fontSans.variable)}
     >
       <body>
+        <ContextMenuInterceptor />
         <ThemeProvider>
           <SidebarProvider>
             <AppSidebar />

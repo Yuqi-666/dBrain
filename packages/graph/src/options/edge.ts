@@ -1,6 +1,6 @@
 import type { EdgeOptions, EdgeData } from "@antv/g6";
 import { getThemeConfig } from "./theme";
-
+// TODO: 改造为数据驱动样式，为一部分样式配备样式函数，输入数据字段，输出对应样式值
 export const DEFAULT_EDGE_CONFIG: EdgeOptions = {
   type: "line",
   style: (data: EdgeData) => {

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import type { StoreApi } from "zustand";
@@ -15,14 +15,17 @@ import {
   getNodeConfig,
   getEdgeConfig,
 } from "./options";
-import { registerEventHandlers } from "./on";
-import type { GraphEventHandlers } from "./on";
 import type { Mutation } from "./types";
 
+import {
+  NodeEvent,
+  EdgeEvent,
+  CanvasEvent,
+} from "@antv/g6";
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
 // ----------------------------------------------------------------------
-export interface GraphProps extends GraphEventHandlers {
+export interface GraphProps {
   viewId?: ViewId;
   view?: View;
   theme?: "light" | "dark";
@@ -69,7 +72,6 @@ export function Graph({
   className,
   style,
   onLoad,
-  ...eventHandlers
 }: GraphProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,7 @@ export function Graph({
   const setContextMenu = useLocalStore((s) => s.setContextMenu);
   const closeContextMenu = useLocalStore((s) => s.closeContextMenu);
 
+  const [isMounted, setMounted] = useState(false);
   // ----------------------------------------------------------------------
   // 数据同步逻辑
   // ----------------------------------------------------------------------
@@ -118,6 +121,11 @@ export function Graph({
   const performFullSync = (graph: G6Graph) => {
     const state = useGraphStore.getState();
     const { nodes, edges, nodeSemantics, edgeSemantics, views } = state;
+
+    // Stop any running layout before making changes
+    if (isMounted) {
+      graph.stopLayout();
+    }
 
     // 解析当前 View
     let currentView: View | undefined;
@@ -129,14 +137,20 @@ export function Graph({
     resolvedViewRef.current = currentView;
 
     // 转换数据并同步
-    const g6Data = transformToG6Data(
-      nodes,
-      edges,
-      currentView,
-    );
+    const g6Data = transformToG6Data(nodes, edges, currentView);
     graph.setData(g6Data);
     graph.setLayout(getLayoutConfig(currentView?.layout));
+    graph.setBehaviors(
+      getBehaviorsConfig(
+        enableNodeDragging,
+        enableEdgeInteractions,
+        currentView?.layout,
+      ),
+    );
+
+    // Explicitly run layout with new configuration and center view after completion
     graph.render();
+    console.log("rendered")
   };
 
   // 增量同步
@@ -220,10 +234,18 @@ export function Graph({
           break;
         }
         case "addView":
-        case "updateView":
-        case "deleteView":
-          performFullSync(graph);
           break;
+        case "updateView": {
+          const updatedView = mutation.payload;
+          const currentViewId = resolvedViewRef.current?.id;
+          if (currentViewId && updatedView.id === currentViewId) {
+            performFullSync(graph);
+          }
+          break;
+        }
+        case "deleteView": {
+          break;
+        }
       }
     });
   };
@@ -246,68 +268,59 @@ export function Graph({
       height: containerRef.current.clientHeight,
       data: { nodes: [], edges: [] },
       layout: getLayoutConfig(),
-      behaviors: getBehaviorsConfig(enableNodeDragging, enableEdgeInteractions),
+      behaviors: getBehaviorsConfig(
+        enableNodeDragging,
+        enableEdgeInteractions,
+        resolvedViewRef.current?.layout,
+      ),
       plugins: getPluginsConfig(enableMinimap, enableGrid, enableFisheye),
       node: nodeConfig,
       edge: edgeConfig,
       background: getThemeConfig(theme).background,
     } as any);
 
-    graph.render();
     graphRef.current = graph;
 
-    // 注册事件 (绑定局部 Store Actions)
-    const allHandlers: GraphEventHandlers = {
-      ...eventHandlers,
-      onNodeRightClick: (node, e) => {
-        if (!node?.id) return;
+    graph.on(NodeEvent.CONTEXT_MENU,
+      (e: any) => {
+        e.preventDefault();
+        let id: string = e.target.id;
+        let { x: clientX, y: clientY } = e.client;
+        if (!id) return;
         setContextMenu({
-          x: e.clientX,
-          y: e.clientY,
-          target: { type: "node", id: node.id },
+          x: clientX,
+          y: clientY,
+          target: { type: "node", id: id },
           visible: true,
         });
-        eventHandlers.onNodeRightClick?.(node, e);
-      },
-      onEdgeRightClick: (edge, e) => {
-        if (!edge?.id) return;
+      })
+    graph.on(EdgeEvent.CONTEXT_MENU,
+      (e: any) => {
+        e.preventDefault();
+        if (!e.target.id) return;
         setContextMenu({
-          x: e.clientX,
-          y: e.clientY,
-          target: { type: "edge", id: edge.id },
+          x: e.client.x,
+          y: e.client.y,
+          target: { type: "edge", id: e.target.id },
           visible: true,
         });
-        eventHandlers.onEdgeRightClick?.(edge, e);
-      },
-      onCanvasRightClick: (e) => {
+      })
+    graph.on(CanvasEvent.CONTEXT_MENU,
+      (e: any) => {
+        e.preventDefault();
         setContextMenu({
-          x: e.clientX,
-          y: e.clientY,
+          x: e.client.x,
+          y: e.client.y,
           target: { type: "canvas" },
           visible: true,
         });
-        eventHandlers.onCanvasRightClick?.(e);
-      },
-      onCanvasClick: (e) => {
+      })
+    graph.on(CanvasEvent.CLICK,
+      (e: any) => {
         closeContextMenu();
-        eventHandlers.onCanvasClick?.(e);
-      },
-      onSelectionChange: (selectedNodes, selectedEdges) => {
-        setSelectedNodeIds(
-          new Set(
-            selectedNodes.filter((n) => n?.id).map((n) => n.id as string),
-          ),
-        );
-        setSelectedEdgeIds(
-          new Set(
-            selectedEdges.filter((e) => e?.id).map((e) => e.id as string),
-          ),
-        );
-        eventHandlers.onSelectionChange?.(selectedNodes, selectedEdges);
-      },
-    };
+      })
 
-    cleanupHandlersRef.current = registerEventHandlers(graph, allHandlers);
+
 
     // 窗口 resize
     const handleResize = () => {
@@ -322,12 +335,11 @@ export function Graph({
 
     // 初始全量同步
     performFullSync(graph);
-
+    setMounted(true);
     onLoad?.(graph);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      cleanupHandlersRef.current?.();
       graph.destroy();
       graphRef.current = null;
     };
@@ -365,17 +377,6 @@ export function Graph({
     graphRef.current.render();
   }, [theme]);
 
-  // ----------------------------------------------------------------------
-  // 事件处理
-  // ----------------------------------------------------------------------
-  const handleEdit = (target: { type: "node" | "edge"; id: string }) => {
-    eventHandlers.onNodeClick?.(
-      { id: target.id, data: { originalId: target.id } } as any,
-      {} as any,
-    );
-    closeContextMenu();
-  };
-
   return (
     <div
       ref={containerRef}
@@ -389,7 +390,7 @@ export function Graph({
           visible={contextMenu.visible}
           target={contextMenu.target}
           onClose={closeContextMenu}
-          onEdit={handleEdit}
+          onEdit={closeContextMenu}
           onDelete={closeContextMenu}
           onAddChild={closeContextMenu}
           onConnect={closeContextMenu}

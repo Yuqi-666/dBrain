@@ -5,7 +5,6 @@ export {
   adaptNodesToG6,
   adaptEdgesToG6,
 } from "./transform";
-export { registerEventHandlers, type GraphEventHandlers } from "./on";
 export * from "./options";
 export type {
   Mutation,

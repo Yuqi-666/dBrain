@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@workspace/graph": "workspace:*",
+    "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.577.0",

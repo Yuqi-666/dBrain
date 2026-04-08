@@ -1,8 +1,9 @@
 import type { NodeOptions, NodeData } from "@antv/g6";
 import { getThemeConfig } from "./theme";
 
+// TODO: 改造为数据驱动样式，为一部分样式配备样式函数，输入数据字段，输出对应样式值
 export const DEFAULT_NODE_CONFIG: NodeOptions = {
-  type: "rect",
+  type: "circle",
   style: (data: NodeData) => {
     const theme = getThemeConfig();
     return {

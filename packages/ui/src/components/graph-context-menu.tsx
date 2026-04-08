@@ -46,7 +46,6 @@ const GraphContextMenu = React.forwardRef<
     ref,
   ) => {
     if (!visible || !target) return null;
-
     const isNode = target.type === "node";
     const isEdge = target.type === "edge";
     const isCanvas = target.type === "canvas";
