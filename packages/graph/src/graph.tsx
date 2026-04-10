@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useRef, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
@@ -18,11 +18,7 @@ import {
 } from "./options";
 import type { Mutation } from "./types";
 
-import {
-  NodeEvent,
-  EdgeEvent,
-  CanvasEvent,
-} from "@antv/g6";
+import { NodeEvent, EdgeEvent, CanvasEvent } from "@antv/g6";
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
 // ----------------------------------------------------------------------
@@ -119,7 +115,6 @@ export function Graph({
 
   // 全量同步
   const performFullSync = (graph: G6Graph) => {
-
     const state = useGraphStore.getState();
     const { nodes, edges, views } = state;
     // Stop any running layout before making changes
@@ -137,7 +132,12 @@ export function Graph({
     resolvedViewRef.current = currentView;
 
     // 转换数据并同步
-    const g6Data = transformToG6Data(nodes, edges, currentView);
+    const g6Data = transformToG6Data(
+      nodes,
+      edges,
+      currentView,
+      currentView?.layout,
+    );
     graph.setData(g6Data);
     graph.setLayout(getLayoutConfig(currentView?.layout));
     graph.setBehaviors(
@@ -151,7 +151,7 @@ export function Graph({
     if (isMounted) {
       graph.draw();
       graph.layout();
-      console.log("synced")
+      console.log("synced");
     }
   };
 
@@ -169,6 +169,7 @@ export function Graph({
             new Map([[node.id, node]]),
             new Map(),
             currentView,
+            currentView?.layout,
           );
           const newNodes = adapted.nodes ?? [];
           const newNode = newNodes[0];
@@ -188,6 +189,7 @@ export function Graph({
               new Map([[id, { ...existing, ...updates }]]),
               new Map(),
               currentView,
+              currentView?.layout,
             );
             const updatedNodes = adapted.nodes ?? [];
             const updatedNode = updatedNodes[0];
@@ -205,6 +207,7 @@ export function Graph({
             new Map(),
             new Map([[edge.id, edge]]),
             currentView,
+            currentView?.layout,
           );
           const newEdges = adapted.edges ?? [];
           const newEdge = newEdges[0];
@@ -224,6 +227,7 @@ export function Graph({
               new Map(),
               new Map([[id, { ...existing, ...updates }]]),
               currentView,
+              currentView?.layout,
             );
             const updatedEdges = adapted.edges ?? [];
             const updatedEdge = updatedEdges[0];
@@ -263,7 +267,10 @@ export function Graph({
     const state = useGraphStore.getState();
     const { nodeSemantics, edgeSemantics } = state;
     // 获取节点和边配置
-    const nodeConfig = getNodeConfig(nodeSemantics, resolvedViewRef.current?.layout);
+    const nodeConfig = getNodeConfig(
+      nodeSemantics,
+      resolvedViewRef.current?.layout,
+    );
     const edgeConfig = getEdgeConfig(edgeSemantics);
 
     const graph = new G6Graph({
@@ -285,46 +292,40 @@ export function Graph({
 
     graphRef.current = graph;
 
-    graph.on(NodeEvent.CONTEXT_MENU,
-      (e: any) => {
-        e.preventDefault();
-        let id: string = e.target.id;
-        let { x: clientX, y: clientY } = e.client;
-        if (!id) return;
-        setContextMenu({
-          x: clientX,
-          y: clientY,
-          target: { type: "node", id: id },
-          visible: true,
-        });
-      })
-    graph.on(EdgeEvent.CONTEXT_MENU,
-      (e: any) => {
-        e.preventDefault();
-        if (!e.target.id) return;
-        setContextMenu({
-          x: e.client.x,
-          y: e.client.y,
-          target: { type: "edge", id: e.target.id },
-          visible: true,
-        });
-      })
-    graph.on(CanvasEvent.CONTEXT_MENU,
-      (e: any) => {
-        e.preventDefault();
-        setContextMenu({
-          x: e.client.x,
-          y: e.client.y,
-          target: { type: "canvas" },
-          visible: true,
-        });
-      })
-    graph.on(CanvasEvent.CLICK,
-      (e: any) => {
-        closeContextMenu();
-      })
-
-
+    graph.on(NodeEvent.CONTEXT_MENU, (e: any) => {
+      e.preventDefault();
+      let id: string = e.target.id;
+      let { x: clientX, y: clientY } = e.client;
+      if (!id) return;
+      setContextMenu({
+        x: clientX,
+        y: clientY,
+        target: { type: "node", id: id },
+        visible: true,
+      });
+    });
+    graph.on(EdgeEvent.CONTEXT_MENU, (e: any) => {
+      e.preventDefault();
+      if (!e.target.id) return;
+      setContextMenu({
+        x: e.client.x,
+        y: e.client.y,
+        target: { type: "edge", id: e.target.id },
+        visible: true,
+      });
+    });
+    graph.on(CanvasEvent.CONTEXT_MENU, (e: any) => {
+      e.preventDefault();
+      setContextMenu({
+        x: e.client.x,
+        y: e.client.y,
+        target: { type: "canvas" },
+        visible: true,
+      });
+    });
+    graph.on(CanvasEvent.CLICK, (e: any) => {
+      closeContextMenu();
+    });
 
     // 窗口 resize
     const handleResize = () => {
@@ -341,7 +342,7 @@ export function Graph({
     performFullSync(graph);
     setMounted(true);
     graph.render();
-    console.log("mounted")
+    console.log("mounted");
     onLoad?.(graph);
 
     return () => {

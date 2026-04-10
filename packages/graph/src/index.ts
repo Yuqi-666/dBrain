@@ -4,9 +4,7 @@ export {
   filterByViewScope,
   adaptNodesToG6,
   adaptEdgesToG6,
+  adaptNodesToTree,
 } from "./transform";
 export * from "./options";
-export type {
-  Mutation,
-  MutationProcessor,
-} from "./types";
+export type { Mutation, MutationProcessor } from "./types";
