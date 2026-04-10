@@ -16,782 +16,246 @@ import type {
 } from "@workspace/interfaces";
 
 const LAYOUT_OPTIONS: { value: LayoutType; label: string }[] = [
-  { value: "force", label: "Force Directed" },
+  { value: "D3force", label: "D3 Force" },
   { value: "dagre", label: "Dagre (Hierarchical)" },
-  { value: "fruchterman", label: "Fruchterman" },
-  { value: "circular", label: "Circular" },
-  { value: "grid", label: "Grid" },
   { value: "radial", label: "Radial" },
-  { value: "concentric", label: "Concentric" },
-  { value: "d3-force", label: "D3 Force" },
+  { value: "compactBox", label: "CompactBox" },
   { value: "fishbone", label: "Fishbone" },
   { value: "mindmap", label: "Mind Map" },
 ];
-
+// 节点语义定义（保持原格式）
 const INITIAL_NODE_SEMANTICS: NodeSemantic[] = [
   { id: "layer", name: "System Layer", color: "#3B82F6" },
   { id: "module", name: "Core Module", color: "#10B981" },
   { id: "component", name: "Component", color: "#8B5CF6" },
 ];
 
+// 边语义定义（保持原格式）
 const INITIAL_EDGE_SEMANTICS: EdgeSemantic[] = [
-  { id: "belongs_to", name: "Belongs To", category: "hierarchy" },
-  { id: "depends_on", name: "Depends On", category: "association" },
-  { id: "calls", name: "Calls", category: "flow" },
+  { id: "belongs_to", name: "Belongs To", color: "#3B82F6" },
+  { id: "depends_on", name: "Depends On", color: "#10B981" },
+  { id: "calls", name: "Calls", color: "#8B5CF6" },
 ];
 
+// 测试节点（覆盖3种语义、2种权限、分层结构）
 const INITIAL_NODES: TextNodeData[] = [
-  // 分层节点
+  // 1. 系统层节点（Layer）
   {
-    id: "layer-1",
-    title: "Layer 1: AI & Research",
+    id: "layer-frontend",
+    title: "Frontend Layer",
     nodeType: "text",
     semanticId: "layer",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    permission: "public",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "layer-2",
-    title: "Layer 2: Application Layer",
+    id: "layer-backend",
+    title: "Backend Layer",
     nodeType: "text",
     semanticId: "layer",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "layer-3",
-    title: "Layer 3: Core Framework - vnpy.trader",
+    id: "layer-data",
+    title: "Data Layer",
     nodeType: "text",
     semanticId: "layer",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "layer-4",
-    title: "Layer 4: Gateway & API",
-    nodeType: "text",
-    semanticId: "layer",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "layer-5",
-    title: "Layer 5: External Interface",
-    nodeType: "text",
-    semanticId: "layer",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "layer-ui",
-    title: "User Interface Layer",
-    nodeType: "text",
-    semanticId: "layer",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "layer-infra",
-    title: "Infrastructure Layer",
-    nodeType: "text",
-    semanticId: "layer",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 
-  // Layer 1: AI & Research 组件
+  // 2. 核心模块节点（Module）
   {
-    id: "comp-1-1",
-    title: "vnpy.alpha.dataset\nFeature Engineering",
+    id: "module-user",
+    title: "User Module",
     nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    semanticId: "module",
+    permission: "public",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "comp-1-2",
-    title: "vnpy.alpha.model\nML Models",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-1-3",
-    title: "vnpy.alpha.strategy\nAI Strategies",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-1-4",
-    title: "vnpy.alpha.lab\nResearch Environment",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Layer 2: Application Layer 组件
-  {
-    id: "comp-2-1",
-    title: "BaseApp\nvnpy.trader.app",
+    id: "module-order",
+    title: "Order Module",
     nodeType: "text",
     semanticId: "module",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "comp-2-2",
-    title: "vnpy_ctastrategy",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-2-3",
-    title: "vnpy_algotrading",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-2-4",
-    title: "vnpy_datarecorder",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-2-5",
-    title: "15+ App Modules",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Layer 3: Core Framework 组件
-  {
-    id: "comp-3-1",
-    title: "MainEngine\nvnpy.trader.engine",
+    id: "module-payment",
+    title: "Payment Module",
     nodeType: "text",
     semanticId: "module",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-3-2",
-    title: "EventEngine\nvnpy.event.engine",
-    nodeType: "text",
-    semanticId: "module",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-3-3",
-    title: "OmsEngine\nvnpy.trader.engine",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-3-4",
-    title: "LogEngine\nvnpy.trader.engine",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-3-5",
-    title: "EmailEngine\nvnpy.trader.engine",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 
-  // Layer 4: Gateway & API 组件
+  // 3. 组件节点（Component）
   {
-    id: "comp-4-1",
-    title: "vnpy_rest\nREST Client",
+    id: "comp-auth",
+    title: "Auth Component",
+    nodeType: "text",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: "comp-cart",
+    title: "Shopping Cart",
+    nodeType: "text",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: "comp-db-user",
+    title: "User DB",
     nodeType: "text",
     semanticId: "component",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "comp-4-2",
-    title: "vnpy_websocket\nWebSocket Client",
+    id: "comp-cache",
+    title: "Redis Cache",
     nodeType: "text",
     semanticId: "component",
     permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-4-3",
-    title: "BaseGateway\nvnpy.trader.gateway",
-    nodeType: "text",
-    semanticId: "module",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Layer 5: External Interface 组件
-  {
-    id: "comp-5-1",
-    title: "Data Services\n10+ Providers",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-5-2",
-    title: "Trading Exchanges\n30+ Gateways",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // UI Layer 组件
-  {
-    id: "comp-ui-1",
-    title: "ChartWidget\nvnpy.chart",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-ui-2",
-    title: "MainWindow\nvnpy.trader.ui",
-    nodeType: "text",
-    semanticId: "module",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Infrastructure Layer 组件
-  {
-    id: "comp-infra-1",
-    title: "vnpy.trader.datafeed\nHistorical Data",
-    nodeType: "text",
-    semanticId: "module",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-infra-2",
-    title: "vnpy.trader.database\nSQL/NoSQL/TimeSeries",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "comp-infra-3",
-    title: "vnpy.rpc\nDistributed Communication",
-    nodeType: "text",
-    semanticId: "component",
-    permission: "private",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 ];
+
+// 测试边（覆盖3种语义、3种方向、5种权重、4种类别）
 const INITIAL_EDGES: EdgeData[] = [
-  // Layer 1 归属 + 内部依赖
+  // 1. 层级关系（hierarchy + belongs_to + forward + 权重1）
   {
-    id: "edge-1-1",
-    from: "comp-1-1",
-    to: "layer-1",
+    id: "edge-1",
+    from: "module-user",
+    to: "layer-backend",
     semanticId: "belongs_to",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 1,
+    category: "hierarchy",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "edge-1-2",
-    from: "comp-1-2",
-    to: "layer-1",
+    id: "edge-2",
+    from: "module-order",
+    to: "layer-backend",
     semanticId: "belongs_to",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 1,
+    category: "hierarchy",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "edge-1-3",
-    from: "comp-1-3",
-    to: "layer-1",
+    id: "edge-3",
+    from: "comp-auth",
+    to: "module-user",
     semanticId: "belongs_to",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 1,
+    category: "hierarchy",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "edge-1-4",
-    from: "comp-1-4",
-    to: "layer-1",
+    id: "edge-4",
+    from: "comp-db-user",
+    to: "layer-data",
     semanticId: "belongs_to",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-1-5",
-    from: "comp-1-1",
-    to: "comp-1-2",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-1-6",
-    from: "comp-1-2",
-    to: "comp-1-3",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-1-7",
-    from: "comp-1-3",
-    to: "comp-1-4",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 1,
+    category: "hierarchy",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 
-  // Layer 2 归属 + 内部依赖
+  // 2. 依赖关系（flow + depends_on + forward + 权重2-3）
   {
-    id: "edge-2-1",
-    from: "comp-2-1",
-    to: "layer-2",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-2",
-    from: "comp-2-2",
-    to: "layer-2",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-3",
-    from: "comp-2-3",
-    to: "layer-2",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-4",
-    from: "comp-2-4",
-    to: "layer-2",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-5",
-    from: "comp-2-5",
-    to: "layer-2",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-6",
-    from: "comp-2-2",
-    to: "comp-2-1",
+    id: "edge-5",
+    from: "comp-cart",
+    to: "comp-auth",
     semanticId: "depends_on",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 2,
+    category: "flow",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "edge-2-7",
-    from: "comp-2-3",
-    to: "comp-2-1",
+    id: "edge-6",
+    from: "module-order",
+    to: "module-user",
     semanticId: "depends_on",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-8",
-    from: "comp-2-4",
-    to: "comp-2-1",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-2-9",
-    from: "comp-2-5",
-    to: "comp-2-1",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 3,
+    category: "flow",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 
-  // Layer 3 归属 + 内部依赖
+  // 3. 调用关系（interaction + calls + forward + 权重3）
   {
-    id: "edge-3-1",
-    from: "comp-3-1",
-    to: "layer-3",
-    semanticId: "belongs_to",
+    id: "edge-7",
+    from: "module-payment",
+    to: "module-order",
+    semanticId: "calls",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 3,
+    category: "interaction",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
   {
-    id: "edge-3-2",
-    from: "comp-3-2",
-    to: "layer-3",
-    semanticId: "belongs_to",
+    id: "edge-8",
+    from: "comp-auth",
+    to: "comp-db-user",
+    semanticId: "calls",
     direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-3",
-    from: "comp-3-3",
-    to: "layer-3",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-4",
-    from: "comp-3-4",
-    to: "layer-3",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-5",
-    from: "comp-3-5",
-    to: "layer-3",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-6",
-    from: "comp-3-1",
-    to: "comp-3-2",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-7",
-    from: "comp-3-3",
-    to: "comp-3-2",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-8",
-    from: "comp-3-4",
-    to: "comp-3-1",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-3-9",
-    from: "comp-3-5",
-    to: "comp-3-3",
-    semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    weight: 3,
+    category: "interaction",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 
-  // Layer 4 归属 + 内部依赖
+  // 4. 双向关联（association + depends_on + bidirectional + 权重4）
   {
-    id: "edge-4-1",
-    from: "comp-4-1",
-    to: "layer-4",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-4-2",
-    from: "comp-4-2",
-    to: "layer-4",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-4-3",
-    from: "comp-4-3",
-    to: "layer-4",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-4-4",
-    from: "comp-4-1",
-    to: "comp-4-3",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-4-5",
-    from: "comp-4-2",
-    to: "comp-4-3",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Layer 5 归属
-  {
-    id: "edge-5-1",
-    from: "comp-5-1",
-    to: "layer-5",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-5-2",
-    from: "comp-5-2",
-    to: "layer-5",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // UI Layer 归属 + 内部依赖
-  {
-    id: "edge-ui-1",
-    from: "comp-ui-1",
-    to: "layer-ui",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-ui-2",
-    from: "comp-ui-2",
-    to: "layer-ui",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-ui-3",
-    from: "comp-ui-1",
-    to: "comp-ui-2",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // Infrastructure Layer 归属 + 内部依赖
-  {
-    id: "edge-infra-1",
-    from: "comp-infra-1",
-    to: "layer-infra",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-infra-2",
-    from: "comp-infra-2",
-    to: "layer-infra",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-infra-3",
-    from: "comp-infra-3",
-    to: "layer-infra",
-    semanticId: "belongs_to",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "edge-infra-4",
-    from: "comp-infra-1",
-    to: "comp-infra-2",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
-  // 跨层核心依赖（架构主链路）
-  {
-    id: "cross-1",
-    from: "comp-ui-2",
-    to: "comp-3-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-2",
-    from: "comp-4-3",
-    to: "comp-3-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-3",
-    from: "comp-5-1",
-    to: "comp-infra-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-4",
-    from: "comp-5-2",
-    to: "comp-4-3",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-5",
-    from: "comp-infra-1",
-    to: "comp-3-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-6",
-    from: "comp-infra-3",
-    to: "comp-3-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-7",
-    from: "comp-2-1",
-    to: "comp-3-1",
+    id: "edge-9",
+    from: "comp-cache",
+    to: "comp-db-user",
     semanticId: "depends_on",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    direction: "bidirectional",
+    weight: 4,
+    category: "association",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
+
+  // 5. 反向关系（reverse + belongs_to + 权重5）
   {
-    id: "cross-8",
-    from: "comp-3-2",
-    to: "comp-2-1",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-9",
-    from: "comp-3-2",
-    to: "comp-ui-2",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "cross-10",
-    from: "comp-3-2",
-    to: "comp-4-3",
-    semanticId: "calls",
-    direction: "forward",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    id: "edge-10",
+    from: "layer-frontend",
+    to: "comp-cart",
+    semanticId: "belongs_to",
+    direction: "reverse",
+    weight: 5,
+    category: "hierarchy",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
   },
 ];
 export default function GraphDemoPage() {
@@ -799,7 +263,7 @@ export default function GraphDemoPage() {
   const [view, setView] = useState<View>({
     id: "demo-view",
     name: "Demo View",
-    layout: "force",
+    layout: "D3force",
     visualConfig: {
       showMinimap: true,
       backgroundStyle: "grid",
@@ -889,6 +353,7 @@ export default function GraphDemoPage() {
       to: toNode,
       semanticId: randomSemantic,
       direction: "forward",
+      category: "flow",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -956,30 +421,30 @@ export default function GraphDemoPage() {
         </Button>
       </div>
 
-      {/* {isInitialized && ( */}
-      {/*   <Graph */}
-      {/*     theme={theme} */}
-      {/*     view={view} */}
-      {/*     enableMinimap={true} */}
-      {/*     enableGrid={true} */}
-      {/*     enableFisheye={false} */}
-      {/*     enableNodeDragging={true} */}
-      {/*     enableEdgeInteractions={true} */}
-      {/*     className="w-full h-full" */}
-      {/*     onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)} */}
-      {/*   /> */}
-      {/* )} */}
-      <Graph
-        theme={theme}
-        view={view}
-        enableMinimap={true}
-        enableGrid={true}
-        enableFisheye={false}
-        enableNodeDragging={true}
-        enableEdgeInteractions={true}
-        className="w-full h-full"
-        onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
-      />
+      {isInitialized && (
+        <Graph
+          theme={theme}
+          view={view}
+          enableMinimap={true}
+          enableGrid={true}
+          enableFisheye={false}
+          enableNodeDragging={true}
+          enableEdgeInteractions={true}
+          className="w-full h-full"
+          onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
+        />
+      )}
+      {/* <Graph */}
+      {/*   theme={theme} */}
+      {/*   view={view} */}
+      {/*   enableMinimap={true} */}
+      {/*   enableGrid={true} */}
+      {/*   enableFisheye={false} */}
+      {/*   enableNodeDragging={true} */}
+      {/*   enableEdgeInteractions={true} */}
+      {/*   className="w-full h-full" */}
+      {/*   onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)} */}
+      {/* /> */}
     </div>
   );
 }

@@ -9,19 +9,6 @@ export interface NodeSemantic {
   icon?: string;
 }
 
-export type CustomPropertyFieldType =
-  | "text"
-  | "number"
-  | "date"
-  | "singleSelect"
-  | "multiSelect";
-
-export interface CustomProperty {
-  key: string;
-  value: string | number | boolean | string[];
-  fieldType: CustomPropertyFieldType;
-}
-
 export type NodeId = string;
 
 export interface NodeBase {
@@ -31,7 +18,7 @@ export interface NodeBase {
   permission: Permission;
   semanticId: NodeSemanticId;
   tags?: string[];
-  customProperties?: Record<string, CustomProperty>;
+  stateData?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
 }

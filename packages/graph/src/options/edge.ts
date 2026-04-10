@@ -1,62 +1,69 @@
 import type { EdgeOptions, EdgeData } from "@antv/g6";
 import { getThemeConfig } from "./theme";
-// TODO: 改造为数据驱动样式，为一部分样式配备样式函数，输入数据字段，输出对应样式值
-export const DEFAULT_EDGE_CONFIG: EdgeOptions = {
-  type: "line",
-  style: (data: EdgeData) => {
-    const theme = getThemeConfig();
-    return {
-      stroke: theme.edgeColor,
-      lineWidth: 2,
-      endArrow: true,
-      endArrowSize: 8,
-      startArrow: false,
-      lineCap: "round",
-      cursor: "pointer",
-      labelText: data.name,
-      labelFill: theme.labelColor,
-      labelFontSize: 12,
-      labelBackground: true,
-      labelBackgroundColor: theme.background,
-      labelBackgroundPadding: [2, 4],
-      labelBackgroundRadius: 4,
-    };
-  },
-  state: {
-    selected: {
-      stroke: "#FF7D00",
-      lineWidth: 3,
-      shadowColor: "rgba(255, 125, 0, 0.3)",
-      shadowBlur: 5,
-    },
-    hover: {
-      stroke: "#4080FF",
-      lineWidth: 2.5,
-      shadowColor: "rgba(22, 93, 255, 0.2)",
-      shadowBlur: 3,
-    },
-    disabled: {
-      stroke: "#d1d5db",
-      labelFill: "#9ca3af",
-      endArrowFill: "#d1d5db",
-    },
-  },
-  animation: false,
-};
+import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
+import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
 
-export function getEdgeConfig(theme?: "light" | "dark"): EdgeOptions {
-  const themeConfig = getThemeConfig(theme);
-  const baseStyle = DEFAULT_EDGE_CONFIG.style as (data: EdgeData) => any;
-
+export function getEdgeConfig(
+  edgeSemantics?: Map<EdgeSemanticId, EdgeSemantic>,
+): EdgeOptions {
   return {
-    ...DEFAULT_EDGE_CONFIG,
-    style: (data: EdgeData) => {
+    type: (data: EdgeData) => {
+      const semantic = edgeSemantics?.get(data.semanticId!);
+      const direction = data.direction || "forward";
+      if (direction === "bidirectional") return "cubic";
+      switch (data.category) {
+        case "hierarchy":
+          return "polyline";
+        case "flow":
+          return "quadratic";
+        case "interaction":
+          return "cubic";
+        default:
+          return "line";
+      }
+    },
+    style: (data: EdgeData): EdgeStyle => {
+      const theme = getThemeConfig();
+      let semantic = edgeSemantics?.get(data.semanticId!);
+      const direction = data.direction || "forward";
       return {
-        ...baseStyle(data),
-        stroke: themeConfig.edgeColor,
-        labelFill: themeConfig.labelColor,
-        labelBackgroundColor: themeConfig.background,
+        stroke: semantic?.color || theme.edgeColor,
+        lineWidth: 2,
+        lineCap: "round",
+        cursor: "pointer",
+        endArrow: direction === "reverse" ? false : true,
+        endArrowSize: 8,
+        startArrow: direction === "forward" ? false : true,
+        startArrowSize: 8,
+        labelText: semantic?.name,
+        labelFill: theme.labelColor,
+        labelFontSize: 10,
+        labelMaxWidth: 100,
+        labelBackground: true,
+        labelBackgroundColor: theme.background,
+        labelBackgroundPadding: [2, 4],
+        labelBackgroundRadius: 4,
+        lineDash: data.category === "association" ? [6, 4] : undefined,
       };
     },
+    state: {
+      selected: {
+        stroke: "#FF7D00",
+        lineWidth: 3,
+        shadowColor: "rgba(255, 125, 0, 0.3)",
+        shadowBlur: 5,
+      },
+      hover: {
+        stroke: "#4080FF",
+        lineWidth: 2.5,
+        shadowColor: "rgba(22, 93, 255, 0.2)",
+        shadowBlur: 3,
+      },
+      disabled: {
+        stroke: "#d1d5db",
+        labelFill: "#9ca3af",
+      },
+    },
+    animation: false,
   };
 }

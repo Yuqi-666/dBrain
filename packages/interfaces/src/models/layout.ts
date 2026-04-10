@@ -1,12 +1,8 @@
 export type LayoutType =
-  | "force"
   | "dagre"
-  | "fruchterman"
-  | "circular"
-  | "grid"
   | "radial"
-  | "concentric"
-  | "d3-force"
+  | "compactBox"
+  | "D3force"
   | "fishbone"
   | "mindmap";
 // export interface LayoutConfig {

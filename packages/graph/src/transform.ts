@@ -69,11 +69,12 @@ export function adaptNodesToG6(
   nodes.forEach((node) => {
     g6Nodes.push({
       id: node.id,
-      nodeType: node.semanticId,
+      nodeType: node.nodeType,
       title: node.title,
       abstract: node.abstract,
       semanticId: node.semanticId,
       tags: node.tags,
+      stateData: node.stateData
     });
   });
 
@@ -91,9 +92,14 @@ export function adaptEdgesToG6(
       source: edge.from,
       target: edge.to,
       semanticId: edge.semanticId,
-      direction: "forward",
-      name: edge.name,
+      direction: edge.direction,
+      data: {
+        weight: edge.weight,
+        stateData: edge.stateData
+      },
+      category: edge.category,
       weight: edge.weight,
+      stateData: edge.stateData
     });
   });
 

@@ -19,7 +19,7 @@ export function getBehaviorsConfig(
   layoutType?: LayoutType,
 ) {
   const behaviors: string[] = [...BASE_BEHAVIORS];
-  if (layoutType === "d3-force") {
+  if (layoutType === "D3force") {
     behaviors.push("drag-element-force");
   } else {
     behaviors.push("drag-element");

@@ -1,3 +1,4 @@
+"use client"
 import React, { useRef, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
@@ -76,7 +77,6 @@ export function Graph({
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<G6Graph | null>(null);
-  const cleanupHandlersRef = useRef<(() => void) | null>(null);
   const resolvedViewRef = useRef<View | undefined>(undefined);
 
   // ----------------------------------------------------------------------
@@ -119,9 +119,9 @@ export function Graph({
 
   // 全量同步
   const performFullSync = (graph: G6Graph) => {
-    const state = useGraphStore.getState();
-    const { nodes, edges, nodeSemantics, edgeSemantics, views } = state;
 
+    const state = useGraphStore.getState();
+    const { nodes, edges, views } = state;
     // Stop any running layout before making changes
     if (isMounted) {
       graph.stopLayout();
@@ -148,9 +148,11 @@ export function Graph({
       ),
     );
 
-    // Explicitly run layout with new configuration and center view after completion
-    graph.render();
-    console.log("rendered")
+    if (isMounted) {
+      graph.draw();
+      graph.layout();
+      console.log("synced")
+    }
   };
 
   // 增量同步
@@ -258,9 +260,11 @@ export function Graph({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const state = useGraphStore.getState();
+    const { nodeSemantics, edgeSemantics } = state;
     // 获取节点和边配置
-    const nodeConfig = getNodeConfig(theme);
-    const edgeConfig = getEdgeConfig(theme);
+    const nodeConfig = getNodeConfig(nodeSemantics, resolvedViewRef.current?.layout);
+    const edgeConfig = getEdgeConfig(edgeSemantics);
 
     const graph = new G6Graph({
       container: containerRef.current,
@@ -336,6 +340,8 @@ export function Graph({
     // 初始全量同步
     performFullSync(graph);
     setMounted(true);
+    graph.render();
+    console.log("mounted")
     onLoad?.(graph);
 
     return () => {
@@ -364,15 +370,8 @@ export function Graph({
   // 4. Theme 变化更新样式
   useEffect(() => {
     if (!graphRef.current) return;
-
-    // 更新主题配置
-    const nodeConfig = getNodeConfig(theme);
-    const edgeConfig = getEdgeConfig(theme);
-
     graphRef.current.setOptions({
       background: getThemeConfig(theme).background,
-      node: nodeConfig,
-      edge: edgeConfig,
     });
     graphRef.current.render();
   }, [theme]);

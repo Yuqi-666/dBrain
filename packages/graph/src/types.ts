@@ -1,21 +1,22 @@
-import type { NodeSemantic, EdgeSemantic } from "@workspace/interfaces";
+import type { EdgeCategory, EdgeDirection, EdgeSemanticId, EdgeWeight, NodeDataType, NodeSemanticId } from "@workspace/interfaces";
 
 // 全局扩展G6原生类型
 declare module "@antv/g6" {
   export interface NodeData {
-    nodeType?: string;
+    nodeType?: NodeDataType;
     title?: string;
-    abstract?: string;
-    semanticId?: string;
+    semanticId?: NodeSemanticId;
     tags?: string[];
+    stateData?: Record<string, any>;
     [key: string]: any;
   }
 
   export interface EdgeData {
-    semanticId?: string;
-    direction?: "forward" | "backward" | "bidirectional";
-    name?: string;
-    weight?: number;
+    semanticId?: EdgeSemanticId;
+    direction?: EdgeDirection;
+    category: EdgeCategory;
+    weight?: EdgeWeight;
+    stateData?: Record<string, any>;
     [key: string]: any;
   }
 }
