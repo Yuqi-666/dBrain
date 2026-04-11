@@ -290,7 +290,7 @@ export default function GraphDemoPage() {
 
   return (
     <CognitiveGraphLayout sidebar={<CognitiveSidebar />}>
-      <div className="fixed inset-0 z-0">
+      <div className="absolute inset-0 z-0">
         <GraphHeader />
         {isInitialized && (
           <Graph

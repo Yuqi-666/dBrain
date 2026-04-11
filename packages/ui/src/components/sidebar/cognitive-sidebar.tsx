@@ -54,7 +54,7 @@ export function CognitiveSidebar() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen w-64 flex-col border-r bg-background text-foreground">
+      <div className="flex h-screen w-70 flex-col border-r bg-background text-foreground">
         <SidebarHeader onToggle={handleToggleSidebar} />
 
         <Separator />

@@ -241,7 +241,7 @@ export function Graph({
         case "addView":
           break;
         case "updateView": {
-          console.log("detected updateview")
+          console.log("detected updateview");
           const updatedView = mutation.payload;
           const currentViewId = resolvedViewRef.current?.id;
           if (currentViewId && updatedView.id === currentViewId) {
@@ -327,7 +327,6 @@ export function Graph({
       closeContextMenu();
     });
 
-    // 窗口 resize
     const handleResize = () => {
       if (containerRef.current) {
         graph.setSize(
@@ -337,6 +336,8 @@ export function Graph({
       }
     };
     window.addEventListener("resize", handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(containerRef.current);
 
     // 初始全量同步
     performFullSync(graph);
@@ -347,6 +348,7 @@ export function Graph({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       graph.destroy();
       graphRef.current = null;
     };

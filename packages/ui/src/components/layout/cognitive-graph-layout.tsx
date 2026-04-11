@@ -66,7 +66,7 @@ export function CognitiveGraphLayout({
         </div>
       )}
 
-      <main className="flex-1">{children}</main>
+      <main className="relative flex-1">{children}</main>
     </div>
   );
 }
