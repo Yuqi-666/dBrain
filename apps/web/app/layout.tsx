@@ -30,12 +30,9 @@ export default function RootLayout({
       <body>
         <ContextMenuInterceptor />
         <ThemeProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main>
-              {children}
-            </main>
-          </SidebarProvider>
+          <main>
+            {children}
+          </main>
         </ThemeProvider>
       </body>
     </html>

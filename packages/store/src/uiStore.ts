@@ -7,20 +7,30 @@ import type { ViewId, NodeId } from "@workspace/interfaces";
 export type MainViewType = "graph" | "editor";
 
 /**
+ * Sidebar 显示模式
+ * - "closed": 关闭状态
+ * - "fixed": 固定显示（推开右侧内容）
+ * - "temp": 临时显示（浮动面板，不推开内容）
+ */
+export type SidebarMode = "closed" | "fixed" | "temp";
+
+/**
  * UI Store 接口 - 管理认知图谱的UI状态
  */
 export interface UIStore {
   // ==================== Sidebar 状态 ====================
-  /** Sidebar 是否显示 */
-  sidebarOpen: boolean;
-  /** Sidebar 是否处于临时显示状态（鼠标滑入） */
-  sidebarTempOpen: boolean;
-  /** 切换 sidebar 显示 */
+  /** Sidebar 显示模式 */
+  sidebarMode: SidebarMode;
+  /** 切换 sidebar 显示（固定模式） */
   toggleSidebar: () => void;
-  /** 设置 sidebar 显示状态 */
-  setSidebarOpen: (open: boolean) => void;
-  /** 设置 sidebar 临时显示状态 */
-  setSidebarTempOpen: (tempOpen: boolean) => void;
+  /** 设置 sidebar 模式 */
+  setSidebarMode: (mode: SidebarMode) => void;
+  /** 切换到固定显示模式 */
+  convertTempToFixed: () => void;
+  /** 关闭 sidebar */
+  closeSidebar: () => void;
+  /** 临时显示 sidebar（浮动面板） */
+  showTempSidebar: () => void;
 
   // ==================== 主视图状态 ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
@@ -72,9 +82,7 @@ export interface UIStore {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  // ==================== 初始状态 ====================
-  sidebarOpen: false,
-  sidebarTempOpen: false,
+  sidebarMode: "closed",
 
   mainViewType: "graph",
 
@@ -89,25 +97,18 @@ export const useUIStore = create<UIStore>((set) => ({
   nodeInfoPanelOpen: false,
   optionsMenuOpen: false,
 
-  // ==================== Sidebar Actions ====================
   toggleSidebar: () =>
     set((state) => ({
-      sidebarOpen: !state.sidebarOpen,
-      sidebarTempOpen: false,
+      sidebarMode: state.sidebarMode === "fixed" ? "closed" : "fixed",
     })),
 
-  setSidebarOpen: (open) =>
-    set({
-      sidebarOpen: open,
-      sidebarTempOpen: false,
-    }),
+  setSidebarMode: (mode) => set({ sidebarMode: mode }),
 
-  setSidebarTempOpen: (tempOpen) =>
-    set({
-      sidebarTempOpen: tempOpen,
-      // 临时显示时 sidebarOpen 应为 true
-      sidebarOpen: tempOpen || undefined,
-    }),
+  convertTempToFixed: () => set({ sidebarMode: "fixed" }),
+
+  closeSidebar: () => set({ sidebarMode: "closed" }),
+
+  showTempSidebar: () => set({ sidebarMode: "temp" }),
 
   // ==================== 主视图 Actions ====================
   setMainViewType: (type) => set({ mainViewType: type }),

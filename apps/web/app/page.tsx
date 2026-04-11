@@ -17,7 +17,8 @@ import type {
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { EditorHeader } from "@workspace/ui/components/header/editor-header/editor-header";
 import { Main } from "next/document";
-
+import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
+import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
 
 const LAYOUT_OPTIONS: { value: LayoutType; label: string }[] = [
   { value: "D3force", label: "D3 Force" },
@@ -270,13 +271,13 @@ const Main_View: View = {
     showMinimap: true,
     backgroundStyle: "grid",
   },
-}
+};
 export default function GraphDemoPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isInitialized, setIsInitialized] = useState(false);
   const ui_store = useUIStore();
   const graph_store = useGraphStore();
-  const currentViewId = ui_store.currentViewId;
+  const currentViewId = ui_store.currentViewId ?? undefined;
   useEffect(() => {
     ui_store.setCurrentViewId(Main_View.id);
     graph_store.setViews([Main_View]);
@@ -288,21 +289,23 @@ export default function GraphDemoPage() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-0">
-      <GraphHeader />
-      {isInitialized && (
-        <Graph
-          theme={theme}
-          viewId={currentViewId}
-          enableMinimap={true}
-          enableGrid={true}
-          enableFisheye={false}
-          enableNodeDragging={true}
-          enableEdgeInteractions={true}
-          className="w-full h-full"
-          onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
-        />
-      )}
-    </div>
+    <CognitiveGraphLayout sidebar={<CognitiveSidebar />}>
+      <div className="fixed inset-0 z-0">
+        <GraphHeader />
+        {isInitialized && (
+          <Graph
+            theme={theme}
+            viewId={currentViewId}
+            enableMinimap={true}
+            enableGrid={true}
+            enableFisheye={false}
+            enableNodeDragging={true}
+            enableEdgeInteractions={true}
+            className="w-full h-full"
+            onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
+          />
+        )}
+      </div>
+    </CognitiveGraphLayout>
   );
 }
