@@ -108,7 +108,7 @@ export function Graph({
   const setContextMenu = useLocalStore((s) => s.setContextMenu);
   const closeContextMenu = useLocalStore((s) => s.closeContextMenu);
 
-  const [isMounted, setMounted] = useState(false);
+  const isMountedRef = useRef(false);
   // ----------------------------------------------------------------------
   // 数据同步逻辑
   // ----------------------------------------------------------------------
@@ -118,7 +118,7 @@ export function Graph({
     const state = useGraphStore.getState();
     const { nodes, edges, views } = state;
     // Stop any running layout before making changes
-    if (isMounted) {
+    if (isMountedRef.current) {
       graph.stopLayout();
     }
 
@@ -147,8 +147,7 @@ export function Graph({
         currentView?.layout,
       ),
     );
-
-    if (isMounted) {
+    if (isMountedRef.current) {
       graph.draw();
       graph.layout();
       console.log("synced");
@@ -242,6 +241,7 @@ export function Graph({
         case "addView":
           break;
         case "updateView": {
+          console.log("detected updateview")
           const updatedView = mutation.payload;
           const currentViewId = resolvedViewRef.current?.id;
           if (currentViewId && updatedView.id === currentViewId) {
@@ -340,9 +340,9 @@ export function Graph({
 
     // 初始全量同步
     performFullSync(graph);
-    setMounted(true);
-    graph.render();
-    console.log("mounted");
+    graph.render().then(() => {
+      isMountedRef.current = true;
+    });
     onLoad?.(graph);
 
     return () => {
@@ -374,7 +374,7 @@ export function Graph({
     graphRef.current.setOptions({
       background: getThemeConfig(theme).background,
     });
-    graphRef.current.render();
+    graphRef.current?.render();
   }, [theme]);
 
   return (

@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils";
-import { SidebarProvider, SidebarTrigger } from "@workspace/ui/components/ui/sidebar"
+import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
 const fontSans = Geist({
@@ -33,7 +33,6 @@ export default function RootLayout({
           <SidebarProvider>
             <AppSidebar />
             <main>
-              <SidebarTrigger />
               {children}
             </main>
           </SidebarProvider>

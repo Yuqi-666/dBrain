@@ -14,33 +14,12 @@ import {
   Plus,
   ChevronDown,
 } from "lucide-react"
+import { ToggleSidebarButton } from "./header/toggle-sidebar-button"
 
 export function AppSidebar() {
   return (
     <Sidebar>
-      <SidebarHeader />
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>应用</SidebarGroupLabel>
-          <SidebarGroupAction><Plus /></SidebarGroupAction>
-          <SidebarGroupContent></SidebarGroupContent>
-        </SidebarGroup>
-
-        <Collapsible defaultOpen className="group/collapsible">
-          <SidebarGroup>
-            <SidebarGroupLabel asChild>
-              <CollapsibleTrigger>
-                帮助 <ChevronDown />
-              </CollapsibleTrigger>
-            </SidebarGroupLabel>
-            <CollapsibleContent>
-              <SidebarGroupContent />
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
-
-      </SidebarContent>
-      <SidebarFooter />
+      <ToggleSidebarButton />
     </Sidebar>
   )
 }

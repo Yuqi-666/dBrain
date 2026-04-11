@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ReactElement } from "react";
 import { Graph } from "@workspace/graph";
-import { useGraphStore } from "@workspace/store";
+import { useGraphStore, useUIStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Sun, Moon, Plus, Link2, Trash2 } from "lucide-react";
 import type {
@@ -14,6 +14,10 @@ import type {
   TextNodeData,
   NodeSemantic,
 } from "@workspace/interfaces";
+import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
+import { EditorHeader } from "@workspace/ui/components/header/editor-header/editor-header";
+import { Main } from "next/document";
+
 
 const LAYOUT_OPTIONS: { value: LayoutType; label: string }[] = [
   { value: "D3force", label: "D3 Force" },
@@ -258,173 +262,38 @@ const INITIAL_EDGES: EdgeData[] = [
     updatedAt: "2024-01-01T00:00:00Z",
   },
 ];
+const Main_View: View = {
+  id: "demo-view",
+  name: "Demo View",
+  layout: "D3force",
+  visualConfig: {
+    showMinimap: true,
+    backgroundStyle: "grid",
+  },
+}
 export default function GraphDemoPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [view, setView] = useState<View>({
-    id: "demo-view",
-    name: "Demo View",
-    layout: "D3force",
-    visualConfig: {
-      showMinimap: true,
-      backgroundStyle: "grid",
-    },
-  });
-  const [nodeCounter, setNodeCounter] = useState(5);
   const [isInitialized, setIsInitialized] = useState(false);
-
-  const store = useGraphStore();
-
+  const ui_store = useUIStore();
+  const graph_store = useGraphStore();
+  const currentViewId = ui_store.currentViewId;
   useEffect(() => {
-    if (isInitialized) return;
-
-    store.setNodeSemantics(INITIAL_NODE_SEMANTICS);
-    store.setEdgeSemantics(INITIAL_EDGE_SEMANTICS);
-    store.setNodes(INITIAL_NODES);
-    store.setEdges(INITIAL_EDGES);
+    ui_store.setCurrentViewId(Main_View.id);
+    graph_store.setViews([Main_View]);
+    graph_store.setNodeSemantics(INITIAL_NODE_SEMANTICS);
+    graph_store.setEdgeSemantics(INITIAL_EDGE_SEMANTICS);
+    graph_store.setNodes(INITIAL_NODES);
+    graph_store.setEdges(INITIAL_EDGES);
     setIsInitialized(true);
-  }, [isInitialized, store]);
-
-  const handleAddNode = useCallback(() => {
-    const newId = `node-${nodeCounter + 1}`;
-    const semanticIds = ["concept", "field", "technology"] as const;
-    const randomSemantic =
-      semanticIds[Math.floor(Math.random() * semanticIds.length)]!;
-    const titles = [
-      "Reinforcement Learning",
-      "Transformer",
-      "GAN",
-      "BERT",
-      "GPT",
-      "CNN",
-      "RNN",
-    ];
-    const randomTitle = titles[Math.floor(Math.random() * titles.length)]!;
-
-    store.addNode({
-      id: newId,
-      title: randomTitle,
-      nodeType: "text" as const,
-      semanticId: randomSemantic,
-      permission: "private",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    setNodeCounter((c) => c + 1);
-    console.log("[GraphDemo] Node added:", newId);
-  }, [store, nodeCounter]);
-
-  const handleAddEdge = useCallback(() => {
-    const nodeIds = Array.from(store.nodes.keys());
-    if (nodeIds.length < 2) {
-      console.warn("[GraphDemo] Need at least 2 nodes to create an edge");
-      return;
-    }
-
-    const fromNode = nodeIds[Math.floor(Math.random() * nodeIds.length)]!;
-    let toNode = nodeIds[Math.floor(Math.random() * nodeIds.length)]!;
-    while (toNode === fromNode && nodeIds.length > 1) {
-      toNode = nodeIds[Math.floor(Math.random() * nodeIds.length)]!;
-    }
-
-    const existingEdges = Array.from(store.edges.values());
-    const edgeExists = existingEdges.some(
-      (e) =>
-        (e.from === fromNode && e.to === toNode) ||
-        (e.from === toNode && e.to === fromNode),
-    );
-
-    if (edgeExists) {
-      console.warn("[GraphDemo] Edge already exists between these nodes");
-      return;
-    }
-
-    const edgeSemanticIds = [
-      "relates_to",
-      "specializes",
-      "applies_to",
-    ] as const;
-    const randomSemantic =
-      edgeSemanticIds[Math.floor(Math.random() * edgeSemanticIds.length)]!;
-    const newEdgeId = `edge-${Date.now()}`;
-
-    store.addEdge({
-      id: newEdgeId,
-      from: fromNode,
-      to: toNode,
-      semanticId: randomSemantic,
-      direction: "forward",
-      category: "flow",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    console.log(
-      "[GraphDemo] Edge added:",
-      newEdgeId,
-      "from",
-      fromNode,
-      "to",
-      toNode,
-    );
-  }, [store]);
-
-  const handleDeleteSelected = useCallback(() => {
-    console.log(
-      "[GraphDemo] Delete selected - not implemented (selection handled internally by Graph)",
-    );
   }, []);
 
   return (
     <div className="fixed inset-0 z-0">
-      <div className="absolute top-6 right-6 z-50 flex items-center gap-2 p-2 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
-        <select
-          value={view.layout}
-          onChange={(e) =>
-            setView({ ...view, layout: e.target.value as LayoutType })
-          }
-          className="h-9 w-40 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {LAYOUT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-          title={theme === "light" ? "Switch to Dark" : "Switch to Light"}
-        >
-          {theme === "light" ? (
-            <Moon className="h-4 w-4" />
-          ) : (
-            <Sun className="h-4 w-4" />
-          )}
-        </Button>
-
-        <div className="w-px h-6 bg-border" />
-
-        <Button variant="outline" size="sm" onClick={handleAddNode}>
-          <Plus className="h-4 w-4 mr-1" />
-          Node
-        </Button>
-
-        <Button variant="outline" size="sm" onClick={handleAddEdge}>
-          <Link2 className="h-4 w-4 mr-1" />
-          Edge
-        </Button>
-
-        <Button variant="outline" size="sm" onClick={handleDeleteSelected}>
-          <Trash2 className="h-4 w-4 mr-1" />
-          Delete
-        </Button>
-      </div>
-
+      <GraphHeader />
       {isInitialized && (
         <Graph
           theme={theme}
-          view={view}
+          viewId={currentViewId}
           enableMinimap={true}
           enableGrid={true}
           enableFisheye={false}
@@ -434,17 +303,6 @@ export default function GraphDemoPage() {
           onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
         />
       )}
-      {/* <Graph */}
-      {/*   theme={theme} */}
-      {/*   view={view} */}
-      {/*   enableMinimap={true} */}
-      {/*   enableGrid={true} */}
-      {/*   enableFisheye={false} */}
-      {/*   enableNodeDragging={true} */}
-      {/*   enableEdgeInteractions={true} */}
-      {/*   className="w-full h-full" */}
-      {/*   onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)} */}
-      {/* /> */}
     </div>
   );
 }
