@@ -117,9 +117,11 @@ export function Graph({
   const performFullSync = (graph: G6Graph) => {
     const state = useGraphStore.getState();
     const { nodes, edges, views } = state;
+    console.log("performing full sync")
     // Stop any running layout before making changes
     if (isMountedRef.current) {
       graph.stopLayout();
+      console.log("stoped layouting")
     }
 
     // 解析当前 View
@@ -148,8 +150,16 @@ export function Graph({
       ),
     );
     if (isMountedRef.current) {
-      graph.draw();
-      graph.layout();
+      graph.draw().then(
+        () => {
+          graph.layout().then(() => graph.fitCenter());
+          // graph.zoomTo(0.6, {
+          //   duration: 1200,
+          // }).then(
+          //   () => {
+          //     graph.fitCenter();
+          //   })
+        });
       console.log("synced");
     }
   };
@@ -263,15 +273,11 @@ export function Graph({
   // 1. 初始化 G6 实例
   useEffect(() => {
     if (!containerRef.current) return;
-
-    const state = useGraphStore.getState();
-    const { nodeSemantics, edgeSemantics } = state;
     // 获取节点和边配置
     const nodeConfig = getNodeConfig(
-      nodeSemantics,
       resolvedViewRef.current?.layout,
     );
-    const edgeConfig = getEdgeConfig(edgeSemantics);
+    const edgeConfig = getEdgeConfig();
 
     const graph = new G6Graph({
       container: containerRef.current,
@@ -327,24 +333,21 @@ export function Graph({
       closeContextMenu();
     });
 
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
-      if (containerRef.current) {
-        graph.setSize(
-          containerRef.current.clientWidth,
-          containerRef.current.clientHeight,
-        );
-      }
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (containerRef.current && graphRef.current) {
+          const width = containerRef.current.clientWidth;
+          const height = containerRef.current.clientHeight;
+          graph.setSize(width, height);
+        }
+      }, 20);
     };
-    window.addEventListener("resize", handleResize);
+
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(containerRef.current);
 
-    // 初始全量同步
-    performFullSync(graph);
-    graph.render().then(() => {
-      isMountedRef.current = true;
-    });
-    onLoad?.(graph);
 
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -366,8 +369,17 @@ export function Graph({
 
   // 3. View 变化触发全量重绘
   useEffect(() => {
+    console.log("view changed")
     if (!graphRef.current) return;
-    performFullSync(graphRef.current);
+    if (!isMountedRef.current) {
+      graphRef.current.render().then(
+        () => {
+          isMountedRef.current = true;
+          performFullSync(graphRef.current!)
+        })
+    } else {
+      performFullSync(graphRef.current);
+    }
   }, [view, viewId]);
 
   // 4. Theme 变化更新样式

@@ -1,4 +1,4 @@
-export { useGraphStore } from "./graphStore";
+export { useGraphStore, graphStore } from "./graphStore";
 export type { GraphStore } from "./graphStore";
 
 export { useUIStore } from "./uiStore";

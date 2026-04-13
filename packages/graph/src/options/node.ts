@@ -2,14 +2,16 @@ import type { NodeOptions, NodeData } from "@antv/g6";
 import { getThemeConfig } from "./theme";
 import type { LayoutType, NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
 import type { NodeStyle } from "@antv/g6/lib/spec/element/node";
+import { graphStore } from "@workspace/store";
 
-export function getNodeConfig(nodeSemantics: Map<NodeSemanticId, NodeSemantic>, layoutType?: LayoutType): NodeOptions {
+export function getNodeConfig(layoutType?: LayoutType): NodeOptions {
+  const getNodeSemantic = graphStore.getState().getNodeSemantic;
   if (layoutType == 'D3force' || 'radio') {
     return {
       type: "circle",
       style: (data: NodeData): NodeStyle => {
         const theme = getThemeConfig();
-        let nodeSemantic = nodeSemantics.get(data.semanticId!);
+        let nodeSemantic = getNodeSemantic(data.semanticId!);
         return {
           fill: nodeSemantic?.color || theme.nodeColor,
           stroke: nodeSemantic?.color || theme.nodeColor,

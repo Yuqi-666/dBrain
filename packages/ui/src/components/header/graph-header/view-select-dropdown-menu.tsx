@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
-import { ChevronDownIcon, LayoutDashboardIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, LayoutDashboardIcon } from "lucide-react";
 
 interface ViewSelectDropdownMenuProps {
   className?: string;
@@ -35,7 +35,10 @@ export function ViewSelectDropdownMenu({
         <Button variant="outline" size="lg" className={className}>
           <LayoutDashboardIcon className="size-4 mr-1" />
           <span>{currentView?.name || "选择视图"}</span>
-          <ChevronDownIcon className="size-3 ml-1" />
+          <div className="flex flex-col items-center ml-1 leading-none">
+            <ChevronUpIcon className="size-3" />
+            <ChevronDownIcon className="size-3 -mt-1" />
+          </div>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">

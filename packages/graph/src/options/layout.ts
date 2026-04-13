@@ -52,5 +52,5 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
 };
 
 export function getLayoutConfig(layoutType?: LayoutType) {
-  return LAYOUT_CONFIGS[layoutType || "D3force"];
+  return LAYOUT_CONFIGS[layoutType || "dagre"];
 }

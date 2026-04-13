@@ -194,6 +194,9 @@ importers:
 
   packages/graph:
     dependencies:
+      '@antv/g-webgl':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@antv/g6':
         specifier: ^5.0.51
         version: 5.0.51(workerize-loader@2.0.2(webpack@5.105.4))
@@ -354,14 +357,26 @@ packages:
   '@antv/g-canvas@2.2.0':
     resolution: {integrity: sha512-h7zVBBo2aO64DuGKvq9sG+yTU3sCUb9DALCVm7nz8qGPs8hhLuFOkKPEzUDNfNYZGJUGzY8UDtJ3QRGRFcvEQg==}
 
+  '@antv/g-device-api@1.6.13':
+    resolution: {integrity: sha512-lTvlSHYDZyWJnAR1W8DOQLwUo32VpRopbS/BPQqStcOV6FqaC+u5YjT50KbJ+oBWcorpzfknhICRwEA3Xm8t9Q==}
+
   '@antv/g-lite@2.7.0':
     resolution: {integrity: sha512-uSzgHYa5bwR5L2Au7/5tsOhFmXKZKLPBH90+Q9bP9teVs5VT4kOAi0isPSpDI8uhdDC2/VrfTWu5K9HhWI6FWw==}
 
   '@antv/g-math@3.1.0':
     resolution: {integrity: sha512-DtN1Gj/yI0UiK18nSBsZX8RK0LszGwqfb+cBYWgE+ddyTm8dZnW4tPUhV7QXePsS6/A5hHC+JFpAAK7OEGo5ZQ==}
 
+  '@antv/g-plugin-device-renderer@2.6.1':
+    resolution: {integrity: sha512-cQFszjyUCI0M55AX0HMw7kEHuu9s+sywLo3r19WNRqh3FnA0UcoZeSrPMarCgWf+5NJ+CUwsVamFL1sjUI170Q==}
+
   '@antv/g-plugin-dragndrop@2.1.1':
     resolution: {integrity: sha512-+aesDUJVQDs6UJ2bOBbDlaGAPCfHmU0MbrMTlQlfpwNplWueqtgVAZ3L57oZ2ZGHRWUHiRwZGPjXMBM3O2LELw==}
+
+  '@antv/g-shader-components@2.0.0':
+    resolution: {integrity: sha512-qdUAz0ZZSrAFrBKxne7kUMWt2v+kncnpWwdDD7SGa7OCtcnWADl6lUUiL0r29gBMcoDtPXJijsjS/e/w9cVWuQ==}
+
+  '@antv/g-webgl@2.1.1':
+    resolution: {integrity: sha512-Fhg21NruxSxYaQETXTSa9guTI9XlUE7M3Kjz8iFh3ihnMKkuUGlL8P8Gn5CQ8O/WWiFPqskoE82TPhqMAIup5Q==}
 
   '@antv/g6@5.0.51':
     resolution: {integrity: sha512-/88LJDZ7FHKtpyJibXOnJWZ8gFRp32mLb8KzEFrMuiIC/dsZgTf/oYVw6L4tLKooPXfXqUtrJb2tWFMGR04EMg==}
@@ -2272,6 +2287,9 @@ packages:
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
 
+  '@webgpu/types@0.1.69':
+    resolution: {integrity: sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ==}
+
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
 
@@ -3016,6 +3034,9 @@ packages:
 
   duplexer3@0.1.5:
     resolution: {integrity: sha512-1A8za6ws41LQgv9HrE/66jyC5yuSjQ3L/KOpFtoBilsAK2iA2wuS5rTt1OCzIvtS2V7nVmedsUU+DGRcjBmOYA==}
+
+  earcut@2.2.4:
+    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
 
   eciesjs@0.4.18:
     resolution: {integrity: sha512-wG99Zcfcys9fZux7Cft8BAX/YrOJLJSZ3jyYPfhZHqN2E+Ffx+QXBDsv3gubEgPtV6dTzJMSQUwk1H98/t/0wQ==}
@@ -5704,6 +5725,14 @@ snapshots:
       gl-matrix: 3.4.4
       tslib: 2.8.1
 
+  '@antv/g-device-api@1.6.13':
+    dependencies:
+      '@antv/util': 3.3.11
+      '@webgpu/types': 0.1.69
+      eventemitter3: 5.0.4
+      gl-matrix: 3.4.4
+      tslib: 2.8.1
+
   '@antv/g-lite@2.7.0':
     dependencies:
       '@antv/g-math': 3.1.0
@@ -5721,11 +5750,37 @@ snapshots:
       gl-matrix: 3.4.4
       tslib: 2.8.1
 
+  '@antv/g-plugin-device-renderer@2.6.1':
+    dependencies:
+      '@antv/g-device-api': 1.6.13
+      '@antv/g-lite': 2.7.0
+      '@antv/g-math': 3.1.0
+      '@antv/g-shader-components': 2.0.0
+      '@antv/util': 3.3.11
+      '@babel/runtime': 7.29.2
+      '@webgpu/types': 0.1.69
+      earcut: 2.2.4
+      eventemitter3: 5.0.4
+      gl-matrix: 3.4.4
+      tslib: 2.8.1
+
   '@antv/g-plugin-dragndrop@2.1.1':
     dependencies:
       '@antv/g-lite': 2.7.0
       '@antv/util': 3.3.11
       '@babel/runtime': 7.29.2
+      tslib: 2.8.1
+
+  '@antv/g-shader-components@2.0.0': {}
+
+  '@antv/g-webgl@2.1.1':
+    dependencies:
+      '@antv/g-device-api': 1.6.13
+      '@antv/g-lite': 2.7.0
+      '@antv/g-plugin-device-renderer': 2.6.1
+      '@antv/util': 3.3.11
+      '@babel/runtime': 7.29.2
+      gl-matrix: 3.4.4
       tslib: 2.8.1
 
   '@antv/g6@5.0.51(workerize-loader@2.0.2(webpack@5.105.4))':
@@ -7794,6 +7849,8 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
+  '@webgpu/types@0.1.69': {}
+
   '@xtuc/ieee754@1.2.0': {}
 
   '@xtuc/long@4.2.2': {}
@@ -8572,6 +8629,8 @@ snapshots:
       gopd: 1.2.0
 
   duplexer3@0.1.5: {}
+
+  earcut@2.2.4: {}
 
   eciesjs@0.4.18:
     dependencies:

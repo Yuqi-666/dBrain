@@ -5,9 +5,10 @@ export const GRID_PLUGIN = {
 };
 
 export const MINIMAP_PLUGIN = {
+  key: "minimap",
   type: "minimap",
   size: [200, 120],
-  position: "bottom-right",
+  position: "bottom-left",
   visible: true,
 };
 

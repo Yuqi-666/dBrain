@@ -2,13 +2,14 @@ import type { EdgeOptions, EdgeData } from "@antv/g6";
 import { getThemeConfig } from "./theme";
 import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
+import { graphStore } from "@workspace/store";
 
 export function getEdgeConfig(
-  edgeSemantics?: Map<EdgeSemanticId, EdgeSemantic>,
 ): EdgeOptions {
+  const getEdgeSemantic = graphStore.getState().getEdgeSemantic;
   return {
     type: (data: EdgeData) => {
-      const semantic = edgeSemantics?.get(data.semanticId!);
+      const semantic = getEdgeSemantic(data.semanticId!);
       const direction = data.direction || "forward";
       if (direction === "bidirectional") return "cubic";
       switch (data.category) {
@@ -24,7 +25,7 @@ export function getEdgeConfig(
     },
     style: (data: EdgeData): EdgeStyle => {
       const theme = getThemeConfig();
-      let semantic = edgeSemantics?.get(data.semanticId!);
+      const semantic = getEdgeSemantic(data.semanticId!);
       const direction = data.direction || "forward";
       return {
         stroke: semantic?.color || theme.edgeColor,

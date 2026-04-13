@@ -15,24 +15,21 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@workspace/ui/components/ui/tooltip";
-import {
   Search,
   ChevronDown,
   ChevronRight,
   Plus,
   MoreHorizontal,
   Pin,
-  PanelLeftClose,
   LayoutGrid,
   CircleDot,
   Link2,
   Globe,
+  PanelLeftIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from "lucide-react";
+import LogoIcon from "../../img/icon/logo.svg"
 
 export function CognitiveSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar } = useUIStore();
@@ -53,64 +50,58 @@ export function CognitiveSidebar() {
   };
 
   return (
-    <TooltipProvider>
-      <div className="flex h-screen w-70 flex-col border-r bg-background text-foreground">
-        <SidebarHeader onToggle={handleToggleSidebar} />
+    <div className="flex h-screen w-70 flex-col border-r bg-background text-foreground">
+      <SidebarHeader onToggle={handleToggleSidebar} />
 
-        <Separator />
+      <Separator />
 
-        <div className="flex flex-col gap-1 p-3">
-          <SpaceSelector />
+      <div className="flex flex-col gap-1 p-3">
+        <SpaceSelector />
 
-          <Button
-            variant="ghost"
-            className="justify-between px-3 text-muted-foreground hover:text-foreground"
-          >
-            <div className="flex items-center gap-2">
-              <Search className="size-4" />
-              <span>Search</span>
-            </div>
-            <kbd className="rounded-md border bg-muted px-2 py-0.5 text-xs">
-              Ctrl+K
-            </kbd>
-          </Button>
-        </div>
-
-        <Separator />
-
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="flex flex-col gap-4">
-            <ViewsList views={pinnedViews} />
-            <NodesList nodes={recentNodes} />
-            <RelationshipsList />
+        <Button
+          variant="ghost"
+          className="justify-between px-3 text-muted-foreground hover:text-foreground"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="size-4" />
+            <span>Search</span>
           </div>
+          <kbd className="rounded-md border bg-muted px-2 py-0.5 text-xs">
+            Ctrl+K
+          </kbd>
+        </Button>
+      </div>
+
+      <Separator />
+
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex flex-col gap-4">
+          <ViewsList views={pinnedViews} />
+          <NodesList nodes={recentNodes} />
+          <RelationshipsList />
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
+
 function SidebarHeader({ onToggle }: { onToggle: () => void }) {
   return (
-    <div className="flex items-center justify-between p-3">
+    <div className="flex items-center justify-between p-2">
       <div className="flex items-center gap-2">
-        <div className="size-8 rounded-md bg-orange-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">dB</span>
+        <div className="size-12 rounded-md flex items-center justify-center">
+          <img src={LogoIcon.src} className="w-full h-full" />
         </div>
         <span className="text-xl font-semibold">dBrain</span>
       </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggle}
-            className="size-8"
-          >
-            <PanelLeftClose className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">Close sidebar</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggle}
+        className="size-8"
+      >
+        <PanelLeftIcon className="size-4" />
+      </Button>
     </div>
   );
 }
@@ -121,15 +112,18 @@ function SpaceSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between px-3">
+        <Button variant="ghost" className="w-full justify-between px-3 h-12">
           <div className="flex items-center gap-2">
             <Globe className="size-4" />
             <span className="font-medium">{currentSpace}</span>
           </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
+          <div className="flex flex-col items-center ml-1 leading-none">
+            <ChevronUpIcon className="size-3" />
+            <ChevronDownIcon className="size-3 -mt-1" />
+          </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" side="right" sideOffset={16} className="w-56">
         <DropdownMenuItem onClick={() => setCurrentSpace("Personal Space")}>
           Personal Space
         </DropdownMenuItem>
@@ -161,30 +155,20 @@ function ViewItem({
         <span className="text-sm">{view.name}</span>
       </div>
       <div className="hidden items-center gap-1 group-hover:flex">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 text-muted-foreground hover:text-foreground"
-            >
-              <Pin className="size-3 fill-current" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Unpin view</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">View options</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <Pin className="size-3 fill-current" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <MoreHorizontal className="size-3" />
+        </Button>
       </div>
     </div>
   );
@@ -203,7 +187,7 @@ function ViewsList({
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            className="flex-1 justify-start p-0 h-auto hover:bg-transparent"
           >
             <div className="flex items-center gap-1.5">
               {isOpen ? (
@@ -215,14 +199,9 @@ function ViewsList({
             </div>
           </Button>
         </CollapsibleTrigger>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-6">
-              <Plus className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Create new view</TooltipContent>
-        </Tooltip>
+        <Button variant="ghost" size="icon" className="size-6">
+          <Plus className="size-3.5" />
+        </Button>
       </div>
       <CollapsibleContent className="pt-1.5">
         <div className="flex flex-col gap-0.5">
@@ -256,30 +235,20 @@ function NodeItem({
         )}
       </div>
       <div className="hidden items-center gap-1 group-hover:flex">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 text-muted-foreground hover:text-foreground"
-            >
-              <Pin className="size-3 fill-current" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Unpin node</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Node options</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <Pin className="size-3 fill-current" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <MoreHorizontal className="size-3" />
+        </Button>
       </div>
     </div>
   );
@@ -298,7 +267,7 @@ function NodesList({
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            className="flex-1 justify-start p-0 h-auto hover:bg-transparent"
           >
             <div className="flex items-center gap-1.5">
               {isOpen ? (
@@ -310,14 +279,9 @@ function NodesList({
             </div>
           </Button>
         </CollapsibleTrigger>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-6">
-              <Plus className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Create new node</TooltipContent>
-        </Tooltip>
+        <Button variant="ghost" size="icon" className="size-6">
+          <Plus className="size-3.5" />
+        </Button>
       </div>
       <CollapsibleContent className="pt-1.5">
         <div className="flex flex-col gap-0.5">
@@ -368,7 +332,7 @@ function RelationshipsList() {
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            className="flex-1 justify-start p-0 h-auto hover:bg-transparent"
           >
             <div className="flex items-center gap-1.5">
               {isOpen ? (
@@ -380,16 +344,9 @@ function RelationshipsList() {
             </div>
           </Button>
         </CollapsibleTrigger>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-6">
-              <Plus className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            Create new relationship type
-          </TooltipContent>
-        </Tooltip>
+        <Button variant="ghost" size="icon" className="size-6">
+          <Plus className="size-3.5" />
+        </Button>
       </div>
       <CollapsibleContent className="pt-1.5">
         <div className="flex flex-col gap-0.5">
