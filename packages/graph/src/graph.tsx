@@ -3,10 +3,11 @@ import React, { useRef, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import type { StoreApi } from "zustand";
-import { Graph as G6Graph, type GraphData } from "@antv/g6";
+import { Graph as G6Graph } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
 import type { View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu";
+import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
 import {
   getLayoutConfig,
@@ -48,10 +49,18 @@ interface LocalGraphUIState {
     target: { type: "node" | "edge" | "canvas"; id?: string } | null;
     visible: boolean;
   };
+  previewBlock: {
+    nodeId: string | null;
+    x: number;
+    y: number;
+    visible: boolean;
+  };
   setSelectedNodeIds: (ids: Set<string>) => void;
   setSelectedEdgeIds: (ids: Set<string>) => void;
   setContextMenu: (menu: LocalGraphUIState["contextMenu"]) => void;
   closeContextMenu: () => void;
+  setPreviewBlock: (block: LocalGraphUIState["previewBlock"]) => void;
+  closePreviewBlock: () => void;
 }
 
 // ----------------------------------------------------------------------
@@ -85,6 +94,7 @@ export function Graph({
       selectedNodeIds: new Set(),
       selectedEdgeIds: new Set(),
       contextMenu: { x: 0, y: 0, target: null, visible: false },
+      previewBlock: { nodeId: null, x: 0, y: 0, visible: false },
 
       setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
       setSelectedEdgeIds: (ids) => set({ selectedEdgeIds: ids }),
@@ -92,6 +102,11 @@ export function Graph({
       closeContextMenu: () =>
         set((state) => ({
           contextMenu: { ...state.contextMenu, visible: false },
+        })),
+      setPreviewBlock: (block) => set({ previewBlock: block }),
+      closePreviewBlock: () =>
+        set((state) => ({
+          previewBlock: { ...state.previewBlock, visible: false },
         })),
     }));
   }
@@ -103,12 +118,17 @@ export function Graph({
 
   // 消费局部状态
   const contextMenu = useLocalStore((s) => s.contextMenu);
+  const previewBlock = useLocalStore((s) => s.previewBlock);
   const setSelectedNodeIds = useLocalStore((s) => s.setSelectedNodeIds);
   const setSelectedEdgeIds = useLocalStore((s) => s.setSelectedEdgeIds);
   const setContextMenu = useLocalStore((s) => s.setContextMenu);
   const closeContextMenu = useLocalStore((s) => s.closeContextMenu);
+  const setPreviewBlock = useLocalStore((s) => s.setPreviewBlock);
+  const closePreviewBlock = useLocalStore((s) => s.closePreviewBlock);
+  const nodes = useGraphStore((state) => state.nodes);
 
   const isMountedRef = useRef(false);
+  const isDragging = useRef(false);
   // ----------------------------------------------------------------------
   // 数据同步逻辑
   // ----------------------------------------------------------------------
@@ -117,11 +137,11 @@ export function Graph({
   const performFullSync = (graph: G6Graph) => {
     const state = useGraphStore.getState();
     const { nodes, edges, views } = state;
-    console.log("performing full sync")
+    console.log("performing full sync");
     // Stop any running layout before making changes
     if (isMountedRef.current) {
       graph.stopLayout();
-      console.log("stoped layouting")
+      console.log("stoped layouting");
     }
 
     // 解析当前 View
@@ -150,16 +170,15 @@ export function Graph({
       ),
     );
     if (isMountedRef.current) {
-      graph.draw().then(
-        () => {
-          graph.layout().then(() => graph.fitCenter());
-          // graph.zoomTo(0.6, {
-          //   duration: 1200,
-          // }).then(
-          //   () => {
-          //     graph.fitCenter();
-          //   })
-        });
+      graph.draw().then(() => {
+        graph.layout().then(() => graph.fitCenter());
+        // graph.zoomTo(0.6, {
+        //   duration: 1200,
+        // }).then(
+        //   () => {
+        //     graph.fitCenter();
+        //   })
+      });
       console.log("synced");
     }
   };
@@ -274,9 +293,7 @@ export function Graph({
   useEffect(() => {
     if (!containerRef.current) return;
     // 获取节点和边配置
-    const nodeConfig = getNodeConfig(
-      resolvedViewRef.current?.layout,
-    );
+    const nodeConfig = getNodeConfig(resolvedViewRef.current?.layout);
     const edgeConfig = getEdgeConfig();
 
     const graph = new G6Graph({
@@ -303,6 +320,7 @@ export function Graph({
       let id: string = e.target.id;
       let { x: clientX, y: clientY } = e.client;
       if (!id) return;
+      closePreviewBlock();
       setContextMenu({
         x: clientX,
         y: clientY,
@@ -333,6 +351,59 @@ export function Graph({
       closeContextMenu();
     });
 
+    // 两个定时器：一个控制显示，一个控制隐藏
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+    let leaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const HOVER_DELAY = 150;  // 进入延迟
+    const LEAVE_DELAY = 70;  // 离开延迟
+    graph.on(NodeEvent.POINTER_ENTER, (e: any) => {
+      const nodeId = e.target?.id;
+      if (!nodeId || isDragging.current) return;
+
+      // 关键：鼠标重新进入 → 清除离开的延迟，不让预览关掉
+      if (leaveTimer) {
+        clearTimeout(leaveTimer);
+        leaveTimer = null;
+      }
+
+      // 清除旧的显示定时器
+      if (hoverTimer) clearTimeout(hoverTimer);
+
+      hoverTimer = setTimeout(() => {
+        setPreviewBlock({
+          nodeId,
+          x: e.client.x,
+          y: e.client.y,
+          visible: true,
+        });
+      }, HOVER_DELAY);
+    });
+
+    graph.on(NodeEvent.POINTER_LEAVE, () => {
+      // 进入关闭流程：先清除显示定时器
+      if (hoverTimer) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+
+      // 关键：离开后延迟关闭
+      if (leaveTimer) clearTimeout(leaveTimer);
+      leaveTimer = setTimeout(() => {
+        closePreviewBlock();
+      }, LEAVE_DELAY);
+    });
+    // graph.on(CanvasEvent.POINTER_ENTER, () => {
+    //   closePreviewBlock();
+    // });
+
+    graph.on(NodeEvent.DRAG, () => {
+      if (isDragging.current) return;
+      isDragging.current = true;
+    })
+    graph.on(NodeEvent.DRAG_END, () => {
+      isDragging.current = false;
+    })
     let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimer);
@@ -347,7 +418,6 @@ export function Graph({
 
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(containerRef.current);
-
 
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -369,14 +439,13 @@ export function Graph({
 
   // 3. View 变化触发全量重绘
   useEffect(() => {
-    console.log("view changed")
+    console.log("view changed");
     if (!graphRef.current) return;
     if (!isMountedRef.current) {
-      graphRef.current.render().then(
-        () => {
-          isMountedRef.current = true;
-          performFullSync(graphRef.current!)
-        })
+      graphRef.current.render().then(() => {
+        isMountedRef.current = true;
+        performFullSync(graphRef.current!);
+      });
     } else {
       performFullSync(graphRef.current);
     }
@@ -409,6 +478,14 @@ export function Graph({
           onAddChild={closeContextMenu}
           onConnect={closeContextMenu}
           onDuplicate={closeContextMenu}
+        />
+      )}
+      {previewBlock.visible && previewBlock.nodeId && (
+        <PreviewBlock
+          node={nodes.get(previewBlock.nodeId)!}
+          position={{ x: previewBlock.x, y: previewBlock.y }}
+          containerRef={containerRef}
+          onClose={closePreviewBlock}
         />
       )}
     </div>
