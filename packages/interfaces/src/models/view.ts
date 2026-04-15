@@ -19,10 +19,6 @@ export interface VisualConfig {
   showMinimap?: boolean;
 }
 
-export interface Scope {
-  selectedNodeIds?: NodeId[];
-  filter?: FilterConfig;
-}
 
 export interface View {
   id: ViewId;
@@ -30,6 +26,6 @@ export interface View {
   layout: LayoutType;
   // viewport: ViewportState;
   visualConfig: VisualConfig;
-  scope?: Scope;
+  filterConfig: FilterConfig;
   isPinned?: boolean;
 }

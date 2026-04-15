@@ -3,17 +3,13 @@ import type {
   EdgeId,
   NodeData,
   EdgeData,
-  NodeSemantic,
-  EdgeSemantic,
   View,
-  NodeDataType,
-  NodeSemanticId,
   EdgeSemanticId,
   LayoutType,
 } from "@workspace/interfaces";
 
 import { treeToGraphData } from "@antv/g6";
-
+import { filterByViewFilterConfig } from "@workspace/utils";
 import type {
   GraphData,
   NodeData as G6NodeData,
@@ -21,51 +17,6 @@ import type {
   TreeData as G6TreeData,
 } from "@antv/g6";
 
-export function filterByViewScope(
-  nodes: Map<NodeId, NodeData>,
-  edges: Map<EdgeId, EdgeData>,
-  view?: View,
-): {
-  filteredNodes: Map<NodeId, NodeData>;
-  filteredEdges: Map<EdgeId, EdgeData>;
-} {
-  if (!view || !view.scope) {
-    return {
-      filteredNodes: new Map(nodes),
-      filteredEdges: new Map(edges),
-    };
-  }
-
-  const filteredNodes = new Map<NodeId, NodeData>();
-
-  if (view.scope.selectedNodeIds && view.scope.selectedNodeIds.length > 0) {
-    const selectedSet = new Set(view.scope.selectedNodeIds);
-
-    // Filter nodes by selectedNodeIds
-    nodes.forEach((node, id) => {
-      if (selectedSet.has(id)) {
-        filteredNodes.set(id, node);
-      }
-    });
-
-    // Filter edges where both from and to are in selected nodes
-    const filteredEdges = new Map<EdgeId, EdgeData>();
-    edges.forEach((edge, id) => {
-      if (filteredNodes.has(edge.from) && filteredNodes.has(edge.to)) {
-        filteredEdges.set(id, edge);
-      }
-    });
-
-    return { filteredNodes, filteredEdges };
-  }
-
-  // TODO: Add filter config logic later
-  // For now, return all nodes and edges when no selectedNodeIds
-  return {
-    filteredNodes: new Map(nodes),
-    filteredEdges: new Map(edges),
-  };
-}
 export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
   const g6Nodes: G6NodeData[] = [];
 
@@ -216,7 +167,7 @@ export function transformToG6Data(
   view?: View,
   layoutType?: LayoutType,
 ): GraphData {
-  const { filteredNodes, filteredEdges } = filterByViewScope(
+  const { filteredNodes, filteredEdges } = filterByViewFilterConfig(
     nodes,
     edges,
     view,

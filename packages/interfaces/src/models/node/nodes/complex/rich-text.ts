@@ -2,7 +2,7 @@ import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
 import type { NodeId } from "../../base";
 
-export type RichTextBlockType =
+export type BaseBlockType =
   | "heading"
   | "paragraph"
   | "bulletList"
@@ -13,10 +13,10 @@ export type RichTextBlockType =
   | "quote"
   | "reference";
 
-export interface BaseTextBlock {
+export interface BaseBlock {
   id: string;
-  type: Exclude<RichTextBlockType, "reference">;
-  content: string;
+  type: Exclude<BaseBlockType, "reference">;
+  content?: BaseBlock[];
   attributes?: Record<string, unknown>;
 }
 
@@ -27,8 +27,13 @@ export interface ReferenceBlock {
   referenceType: "inline" | "block";
 }
 
-export type RichTextBlock = BaseTextBlock | ReferenceBlock;
+export type RichTextBlock = BaseBlock | ReferenceBlock;
 
 export interface RichTextNodeData extends NodeBase, NodeType<"rich-text"> {
+  content: RichTextContent;
+}
+
+export interface RichTextContent {
   blocks: RichTextBlock[];
+
 }

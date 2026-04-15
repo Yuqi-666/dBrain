@@ -13,5 +13,9 @@
   },
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "react-querybuilder": "^8.14.4",
+    "@workspace/interfaces": "workspace:*"
   }
 }

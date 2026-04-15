@@ -1,230 +1,158 @@
-/**
- * Shared Filter Model
- *
- * Unified filter types for views, collection nodes, and future search functionality.
- *
- * Field applicability:
- * - Basic fields: type, tags, createdAt, updatedAt (available in all contexts)
- * - Collection-specific: customProperty
- * - View-specific: permission, incomingEdges, outgoingEdges, referenceCount
- *
- * Operator applicability:
- * - Basic operators: equals, contains, startsWith, endsWith, gt, lt, between (available in all contexts)
- * - View-specific: notEquals, in
- */
+import type { RuleGroupType, Field } from "@workspace/utils";
+import type { NodeId } from "./node";
+import { NODE_DATA_TYPES } from "./node/types";
+import type { EdgeCategory, EdgeDirection } from "./edge/types";
 
-/**
- * Unified filter field types
- * - Views use all fields
- * - Collections use: type, tags, createdAt, updatedAt, customProperty
- * - Search can use all fields
- */
-export type FilterField =
-  | "type"
-  | "tags"
-  | "createdAt"
-  | "updatedAt"
-  | "permission"
-  | "customProperty"
-  | "incomingEdges"
-  | "outgoingEdges"
-  | "referenceCount";
-
-/**
- * Unified filter operator types
- * - Views use all operators
- * - Collections use: equals, contains, startsWith, endsWith, gt, lt, between
- * - Search can use all operators
- */
-export type FilterOperator =
-  | "equals"
-  | "notEquals"
-  | "contains"
-  | "startsWith"
-  | "endsWith"
-  | "gt"
-  | "lt"
-  | "between"
-  | "in";
-
-/**
- * Single filter rule combining field, operator, and value
- */
-export interface FilterRule {
-  field: FilterField;
-  operator: FilterOperator;
-  value: string | number | string[];
-}
-
-/**
- * Filter logic for combining multiple rules
- */
-export type FilterLogic = "and" | "or" | "not";
-
-/**
- * Unified filter configuration
- * Can be used by views (with edgeFilters) and collections (without edgeFilters)
- */
 export interface FilterConfig {
-  /** Filter rules for nodes */
-  nodeFilters?: FilterRule[];
-  /** Filter rules for edges (optional, used by views) */
-  edgeFilters?: FilterRule[];
-  /** Logic for combining multiple filter rules */
-  logic?: FilterLogic;
+  //Filter->selectedNodes AND ruleGroup
+  //example
+  //[1,2,3,4,5,6]
+  //selectedNodes:[1,6] ruleGroup:even
+  //filter->[1,2,4,6]
+  selectedNodes?: NodeId[];
+  ruleGroup?: RuleGroupType;
 }
 
-/**
- * Metadata: Which fields are applicable to which contexts
- */
-export const FILTER_FIELD_META: Record<
-  FilterField,
-  { views: boolean; collections: boolean; search: boolean; description: string }
-> = {
-  type: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Filter by node/edge type",
+// Node filter fields for react-querybuilder
+export const NODE_FILTER_FIELDS: Field[] = [
+  {
+    name: "id",
+    label: "ID",
+    inputType: "text",
   },
-  tags: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Filter by tags",
+  {
+    name: "title",
+    label: "标题",
+    inputType: "text",
   },
-  createdAt: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Filter by creation date",
+  {
+    name: "abstract",
+    label: "摘要",
+    inputType: "text",
   },
-  updatedAt: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Filter by last updated date",
+  {
+    name: "permission",
+    label: "权限",
+    inputType: "select",
+    values: [
+      { name: "private", label: "私有" },
+      { name: "public", label: "公开" },
+      { name: "restricted", label: "受限" },
+    ],
   },
-  permission: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Filter by permission level",
+  {
+    name: "semanticId",
+    label: "语义标签",
+    inputType: "text",
   },
-  customProperty: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Filter by custom property",
+  {
+    name: "tags",
+    label: "标签",
+    inputType: "text",
   },
-  incomingEdges: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Filter by number of incoming edges",
+  {
+    name: "nodeType",
+    label: "节点类型",
+    inputType: "select",
+    values: NODE_DATA_TYPES.map((type) => ({ name: type, label: type })),
   },
-  outgoingEdges: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Filter by number of outgoing edges",
+  {
+    name: "createdAt",
+    label: "创建时间",
+    inputType: "date",
   },
-  referenceCount: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Filter by reference count",
+  {
+    name: "updatedAt",
+    label: "更新时间",
+    inputType: "date",
   },
-};
+];
 
-/**
- * Metadata: Which operators are applicable to which contexts
- */
-export const FILTER_OPERATOR_META: Record<
-  FilterOperator,
-  { views: boolean; collections: boolean; search: boolean; description: string }
-> = {
-  equals: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Exact match",
+// Edge filter fields for react-querybuilder
+export const EDGE_FILTER_FIELDS: Field[] = [
+  {
+    name: "id",
+    label: "ID",
+    inputType: "text",
   },
-  notEquals: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Not equal to",
+  {
+    name: "from",
+    label: "起始节点",
+    inputType: "text",
   },
-  contains: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Contains substring",
+  {
+    name: "to",
+    label: "目标节点",
+    inputType: "text",
   },
-  startsWith: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Starts with",
+  {
+    name: "direction",
+    label: "方向",
+    inputType: "select",
+    values: (["forward", "reverse", "bidirectional"] as EdgeDirection[]).map(
+      (d) => ({
+        name: d,
+        label: d === "forward" ? "正向" : d === "reverse" ? "反向" : "双向",
+      }),
+    ),
   },
-  endsWith: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Ends with",
+  {
+    name: "semanticId",
+    label: "语义标签",
+    inputType: "text",
   },
-  gt: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Greater than",
+  {
+    name: "category",
+    label: "边类别",
+    inputType: "select",
+    values: (
+      ["hierarchy", "flow", "association", "interaction"] as EdgeCategory[]
+    ).map((c) => ({
+      name: c,
+      label:
+        c === "hierarchy"
+          ? "层级"
+          : c === "flow"
+            ? "流动"
+            : c === "association"
+              ? "关联"
+              : "交互",
+    })),
   },
-  lt: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Less than",
+  {
+    name: "weight",
+    label: "权重",
+    inputType: "number",
+    values: [
+      { name: "1", label: "1 (最近)" },
+      { name: "2", label: "2" },
+      { name: "3", label: "3" },
+      { name: "4", label: "4" },
+      { name: "5", label: "5 (最远)" },
+    ],
   },
-  between: {
-    views: true,
-    collections: true,
-    search: true,
-    description: "Between two values (inclusive)",
+  {
+    name: "createdAt",
+    label: "创建时间",
+    inputType: "date",
   },
-  in: {
-    views: true,
-    collections: false,
-    search: true,
-    description: "Matches any value in array",
+  {
+    name: "updatedAt",
+    label: "更新时间",
+    inputType: "date",
   },
-};
+];
 
-/**
- * Helper type: Get fields applicable to a specific context
- */
-export type FilterFieldsForContext<
-  T extends "views" | "collections" | "search",
-> = T extends "views"
-  ? FilterField
-  : T extends "collections"
-    ? "type" | "tags" | "createdAt" | "updatedAt" | "customProperty"
-    : FilterField;
-
-/**
- * Helper type: Get operators applicable to a specific context
- */
-export type FilterOperatorsForContext<
-  T extends "views" | "collections" | "search",
-> = T extends "views"
-  ? FilterOperator
-  : T extends "collections"
-    ?
-        | "equals"
-        | "contains"
-        | "startsWith"
-        | "endsWith"
-        | "gt"
-        | "lt"
-        | "between"
-    : FilterOperator;
+// All filter fields combined
+export const ALL_FILTER_FIELDS: Field[] = [
+  {
+    name: "node",
+    label: "节点",
+    subFields: NODE_FILTER_FIELDS,
+  },
+  {
+    name: "edge",
+    label: "边",
+    subFields: EDGE_FILTER_FIELDS,
+  },
+];

@@ -3,7 +3,7 @@ export type { CollectionNodeData } from "./collection";
 export type {
   RichTextNodeData,
   RichTextBlock,
-  RichTextBlockType,
-  BaseTextBlock,
+  BaseBlock,
   ReferenceBlock,
+  RichTextContent
 } from "./rich-text";

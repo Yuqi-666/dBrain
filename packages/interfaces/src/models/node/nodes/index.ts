@@ -31,13 +31,12 @@ export type { WebsiteNodeData } from "./single/website";
 
 export type {
   CollectionNodeData,
-  CollectionType,
 } from "./complex/collection";
 
 export type {
   RichTextNodeData,
   RichTextBlock,
-  RichTextBlockType,
-  BaseTextBlock,
+  BaseBlock,
   ReferenceBlock,
+  RichTextContent
 } from "./complex/rich-text";

@@ -1,7 +1,6 @@
 export { Graph, type GraphProps } from "./graph";
 export {
   transformToG6Data,
-  filterByViewScope,
   adaptNodesToG6,
   adaptEdgesToG6,
   adaptNodesToTree,

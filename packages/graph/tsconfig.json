@@ -18,12 +18,18 @@
       "@workspace/ui/*": [
         "../ui/src/*"
       ],
+      "@workspace/utils/*": [
+        "./utils/src/*"
+      ],
+      "@workspace/utils": [
+        "./utils/src"
+      ],
       "@workspace/graph/*": [
         "./src/*"
       ],
       "@workspace/graph": [
         "./src"
-      ]
+      ],
     }
   },
   "include": [

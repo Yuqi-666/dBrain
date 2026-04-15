@@ -3,9 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/utils/*": [
-        "./src/*"
-      ]
+      "@workspace/interfaces": [
+        "../interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../interfaces/src/*"
+      ],
     }
   },
   "include": [

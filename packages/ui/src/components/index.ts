@@ -5,3 +5,4 @@ export {
 } from "./graph-context-menu";
 export { CognitiveGraphLayout } from "./layout/cognitive-graph-layout";
 export { CognitiveSidebar } from "./sidebar/cognitive-sidebar";
+export { default as FilterPanel } from "./filter/filter";

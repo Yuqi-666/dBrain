@@ -1,0 +1,325 @@
+import type {
+  EdgeData,
+  EdgeId,
+  NodeData,
+  NodeId,
+  View,
+} from "@workspace/interfaces";
+import type { RuleGroupType, RuleType } from "react-querybuilder";
+
+type RuleObject = RuleType;
+
+interface FilterResult {
+  filteredNodes: Map<NodeId, NodeData>;
+  filteredEdges: Map<EdgeId, EdgeData>;
+}
+
+function getNodeFieldValue(node: NodeData, field: string): unknown {
+  switch (field) {
+    case "id":
+      return node.id;
+    case "title":
+      return node.title;
+    case "abstract":
+      return node.abstract;
+    case "permission":
+      return node.permission;
+    case "semanticId":
+      return node.semanticId;
+    case "tags":
+      return node.tags;
+    case "nodeType":
+      return node.nodeType;
+    case "createdAt":
+      return node.createdAt;
+    case "updatedAt":
+      return node.updatedAt;
+    default:
+      return undefined;
+  }
+}
+
+function getEdgeFieldValue(edge: EdgeData, field: string): unknown {
+  switch (field) {
+    case "id":
+      return edge.id;
+    case "from":
+      return edge.from;
+    case "to":
+      return edge.to;
+    case "direction":
+      return edge.direction;
+    case "semanticId":
+      return edge.semanticId;
+    case "category":
+      return edge.category;
+    case "weight":
+      return edge.weight;
+    case "createdAt":
+      return edge.createdAt;
+    case "updatedAt":
+      return edge.updatedAt;
+    default:
+      return undefined;
+  }
+}
+
+function compareValues(
+  actual: unknown,
+  operator: string,
+  expected: unknown,
+): boolean {
+  if (operator === "null") {
+    return actual === null || actual === undefined;
+  }
+  if (operator === "notNull") {
+    return actual !== null && actual !== undefined;
+  }
+
+  if (actual === null || actual === undefined) {
+    return false;
+  }
+
+  switch (operator) {
+    case "=":
+    case "==":
+      return actual === expected;
+    case "!=":
+      return actual !== expected;
+    case ">":
+      return (
+        typeof actual === "number" &&
+        typeof expected === "number" &&
+        actual > expected
+      );
+    case ">=":
+      return (
+        typeof actual === "number" &&
+        typeof expected === "number" &&
+        actual >= expected
+      );
+    case "<":
+      return (
+        typeof actual === "number" &&
+        typeof expected === "number" &&
+        actual < expected
+      );
+    case "<=":
+      return (
+        typeof actual === "number" &&
+        typeof expected === "number" &&
+        actual <= expected
+      );
+    case "contains":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return actual.toLowerCase().includes(expected.toLowerCase());
+      }
+      if (Array.isArray(actual)) {
+        return actual.includes(expected);
+      }
+      return false;
+    case "notContains":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return !actual.toLowerCase().includes(expected.toLowerCase());
+      }
+      if (Array.isArray(actual)) {
+        return !actual.includes(expected);
+      }
+      return true;
+    case "beginsWith":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return actual.toLowerCase().startsWith(expected.toLowerCase());
+      }
+      return false;
+    case "endsWith":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return actual.toLowerCase().endsWith(expected.toLowerCase());
+      }
+      return false;
+    case "in":
+      if (Array.isArray(expected)) {
+        return expected.includes(actual);
+      }
+      return false;
+    case "notIn":
+      if (Array.isArray(expected)) {
+        return !expected.includes(actual);
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
+function evaluateRule(
+  rule: RuleObject,
+  nodes: Map<NodeId, NodeData>,
+  edges: Map<EdgeId, EdgeData>,
+): boolean {
+  const { field, operator, value } = rule;
+
+  const isNodeFilter =
+    field in {} ||
+    [
+      "id",
+      "title",
+      "abstract",
+      "permission",
+      "semanticId",
+      "tags",
+      "nodeType",
+      "createdAt",
+      "updatedAt",
+    ].includes(field);
+  const isEdgeFilter = [
+    "id",
+    "from",
+    "to",
+    "direction",
+    "semanticId",
+    "category",
+    "weight",
+    "createdAt",
+    "updatedAt",
+  ].includes(field);
+
+  if (isNodeFilter) {
+    for (const node of nodes.values()) {
+      const fieldValue = getNodeFieldValue(node, field);
+      if (compareValues(fieldValue, operator, value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (isEdgeFilter) {
+    for (const edge of edges.values()) {
+      const fieldValue = getEdgeFieldValue(edge, field);
+      if (compareValues(fieldValue, operator, value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return true;
+}
+
+function evaluateRuleGroup(
+  ruleGroup: RuleGroupType,
+  nodes: Map<NodeId, NodeData>,
+  edges: Map<EdgeId, EdgeData>,
+): boolean {
+  const { combinator, rules } = ruleGroup;
+
+  if (!rules || rules.length === 0) {
+    return true;
+  }
+
+  const results = rules.map((rule) => {
+    if ("rules" in rule) {
+      return evaluateRuleGroup(rule as RuleGroupType, nodes, edges);
+    }
+    return evaluateRule(rule as RuleObject, nodes, edges);
+  });
+
+  if (combinator === "and") {
+    return results.every((r) => r);
+  } else {
+    return results.some((r) => r);
+  }
+}
+
+function filterByRuleGroup(
+  nodes: Map<NodeId, NodeData>,
+  edges: Map<EdgeId, EdgeData>,
+  ruleGroup?: RuleGroupType,
+): FilterResult {
+  if (!ruleGroup) {
+    return {
+      filteredNodes: new Map(nodes),
+      filteredEdges: new Map(edges),
+    };
+  }
+
+  const shouldIncludeNode = (nodeId: NodeId, node: NodeData): boolean => {
+    const tempNodes = new Map<NodeId, NodeData>([[nodeId, node]]);
+    return evaluateRuleGroup(ruleGroup, tempNodes, edges);
+  };
+
+  const shouldIncludeEdge = (edgeId: EdgeId, edge: EdgeData): boolean => {
+    const tempEdges = new Map<EdgeId, EdgeData>([[edgeId, edge]]);
+    return evaluateRuleGroup(ruleGroup, nodes, tempEdges);
+  };
+
+  const filteredNodes = new Map<NodeId, NodeData>();
+  const filteredEdges = new Map<EdgeId, EdgeData>();
+
+  nodes.forEach((node, nodeId) => {
+    if (shouldIncludeNode(nodeId, node)) {
+      filteredNodes.set(nodeId, node);
+    }
+  });
+
+  edges.forEach((edge, edgeId) => {
+    const sourceInNodes = filteredNodes.has(edge.from);
+    const targetInNodes = filteredNodes.has(edge.to);
+    if (sourceInNodes && targetInNodes && shouldIncludeEdge(edgeId, edge)) {
+      filteredEdges.set(edgeId, edge);
+    }
+  });
+
+  return { filteredNodes, filteredEdges };
+}
+
+export function filterByViewFilterConfig(
+  nodes: Map<NodeId, NodeData>,
+  edges: Map<EdgeId, EdgeData>,
+  view?: View,
+): FilterResult {
+  const filterConfig = view?.filterConfig;
+
+  if (!filterConfig) {
+    return {
+      filteredNodes: new Map(nodes),
+      filteredEdges: new Map(edges),
+    };
+  }
+
+  let result: FilterResult = { filteredNodes: nodes, filteredEdges: edges };
+
+  if (filterConfig.selectedNodes && filterConfig.selectedNodes.length > 0) {
+    const selectedSet = new Set(filterConfig.selectedNodes);
+    const selectedNodesMap = new Map<NodeId, NodeData>();
+    const selectedEdgesMap = new Map<EdgeId, EdgeData>();
+
+    result.filteredNodes.forEach((node, nodeId) => {
+      if (selectedSet.has(nodeId)) {
+        selectedNodesMap.set(nodeId, node);
+      }
+    });
+
+    result.filteredEdges.forEach((edge, edgeId) => {
+      if (selectedSet.has(edge.from) && selectedSet.has(edge.to)) {
+        selectedEdgesMap.set(edgeId, edge);
+      }
+    });
+
+    result = {
+      filteredNodes: selectedNodesMap,
+      filteredEdges: selectedEdgesMap,
+    };
+  }
+
+  if (filterConfig.ruleGroup) {
+    const byRuleGroup = filterByRuleGroup(
+      result.filteredNodes,
+      result.filteredEdges,
+      filterConfig.ruleGroup,
+    );
+    result = byRuleGroup;
+  }
+
+  return result;
+}
