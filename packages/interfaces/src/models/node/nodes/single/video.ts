@@ -10,4 +10,10 @@ export interface VideoNodeData extends NodeBase, NodeType<"video"> {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
+
+  content: VideoContent;
+}
+
+export interface VideoContent {
+  url: string;
 }

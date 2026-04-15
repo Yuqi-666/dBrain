@@ -7,4 +7,10 @@ export interface ImageNodeData extends NodeBase, NodeType<"image"> {
   fileSize: number;
   location?: string;
   shootingTime?: string;
+
+  content: ImageContent;
+}
+
+export interface ImageContent {
+  url: string;
 }

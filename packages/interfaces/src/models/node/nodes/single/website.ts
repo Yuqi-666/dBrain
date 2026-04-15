@@ -5,4 +5,11 @@ export interface WebsiteNodeData extends NodeBase, NodeType<"website"> {
   targetUrl: string;
   favicon?: string;
   lastVisitedAt?: string;
+
+  content: WebsiteContent;
+}
+
+export interface WebsiteContent {
+  homepageUrl: string;
+  faviconUrl?: string;
 }
