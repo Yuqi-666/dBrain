@@ -3,17 +3,51 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@workspace/ui/*": ["../../packages/ui/src/*"],
-      "@workspace/store": ["./node_modules/@workspace/store/src"],
-      "@workspace/store/*": ["./node_modules/@workspace/store/src/*"],
-      "@workspace/graph": ["./node_modules/@workspace/graph/src"],
-      "@workspace/graph/*": ["./node_modules/@workspace/graph/src/*"],
-      "@workspace/interfaces": ["./node_modules/@workspace/interfaces/src"],
-      "@workspace/interfaces/*": ["./node_modules/@workspace/interfaces/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@workspace/store": [
+        "./node_modules/@workspace/store/src"
+      ],
+      "@workspace/store/*": [
+        "./node_modules/@workspace/store/src/*"
+      ],
+      "@workspace/graph": [
+        "./node_modules/@workspace/graph/src"
+      ],
+      "@workspace/graph/*": [
+        "./node_modules/@workspace/graph/src/*"
+      ],
+      "@workspace/interfaces": [
+        "./node_modules/@workspace/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "./node_modules/@workspace/interfaces/src/*"
+      ],
+      "@workspace/dev": [
+        "./node_modules/@workspace/dev/src"
+      ],
+      "@workspace/dev/*": [
+        "./node_modules/@workspace/dev/src/*"
+      ]
     },
-    "plugins": [{"name": "next"}]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "next.config.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

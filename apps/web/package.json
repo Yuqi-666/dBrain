@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@antv/g6": "5.0.51",
+    "@workspace/dev": "workspace:*",
     "@workspace/graph": "workspace:*",
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",

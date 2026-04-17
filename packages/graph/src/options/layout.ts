@@ -1,6 +1,5 @@
 import type { LayoutOptions, EdgeData } from "@antv/g6";
 import type { LayoutType } from "@workspace/interfaces";
-// TODO: 改造为数据驱动布局参数，为一部分布局参数配备布局参数函数，输入数据字段，输出对应参数值
 export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
   D3force:
   {
@@ -28,6 +27,7 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
     center: {
       strength: 0.05,
     },
+    // enableWorker: true,
   },
   dagre: { type: "dagre", rankdir: "TB", nodesep: 30, ranksep: 50 },
   radial: { type: "radial", unitRadius: 200, preventOverlap: true },

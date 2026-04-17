@@ -16,4 +16,5 @@ export interface VideoNodeData extends NodeBase, NodeType<"video"> {
 
 export interface VideoContent {
   url: string;
+  cover_url: string;
 }
