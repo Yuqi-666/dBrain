@@ -155,9 +155,6 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@types/socket.io-client':
         specifier: ^3.0.0
         version: 3.0.0
@@ -174,9 +171,6 @@ importers:
 
   packages/dev:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -186,10 +180,6 @@ importers:
         version: 5.9.3
 
   packages/eslint-config:
-    dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -227,6 +217,9 @@ importers:
 
   packages/graph:
     dependencies:
+      '@antv/g-svg':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@antv/g-webgl':
         specifier: ^2.1.1
         version: 2.1.1
@@ -266,10 +259,6 @@ importers:
         version: 5.9.3
 
   packages/hooks:
-    dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -277,9 +266,6 @@ importers:
 
   packages/interfaces:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@workspace/utils':
         specifier: workspace:*
         version: link:../utils
@@ -290,9 +276,6 @@ importers:
 
   packages/store:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -304,17 +287,10 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
-  packages/typescript-config:
-    dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
+  packages/typescript-config: {}
 
   packages/ui:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -391,9 +367,6 @@ importers:
 
   packages/utils:
     dependencies:
-      '@antv/g6':
-        specifier: 5.0.51
-        version: 5.0.51(workerize-loader@2.0.2(webpack@5.106.2))
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -444,6 +417,9 @@ packages:
 
   '@antv/g-shader-components@2.0.0':
     resolution: {integrity: sha512-qdUAz0ZZSrAFrBKxne7kUMWt2v+kncnpWwdDD7SGa7OCtcnWADl6lUUiL0r29gBMcoDtPXJijsjS/e/w9cVWuQ==}
+
+  '@antv/g-svg@2.1.1':
+    resolution: {integrity: sha512-gVzBkjqA8FzDTbkuIxj6L0Omz/X/hFbYLzK6alWr0sHTfywqP6czcjDUJU8DF2MRIY1Twy55uZYW4dqqLXOXXg==}
 
   '@antv/g-webgl@2.1.1':
     resolution: {integrity: sha512-Fhg21NruxSxYaQETXTSa9guTI9XlUE7M3Kjz8iFh3ihnMKkuUGlL8P8Gn5CQ8O/WWiFPqskoE82TPhqMAIup5Q==}
@@ -5925,6 +5901,14 @@ snapshots:
       tslib: 2.8.1
 
   '@antv/g-shader-components@2.0.0': {}
+
+  '@antv/g-svg@2.1.1':
+    dependencies:
+      '@antv/g-lite': 2.7.0
+      '@antv/util': 3.3.11
+      '@babel/runtime': 7.29.2
+      gl-matrix: 3.4.4
+      tslib: 2.8.1
 
   '@antv/g-webgl@2.1.1':
     dependencies:

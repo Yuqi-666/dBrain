@@ -17,7 +17,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@antv/g-webgl": "^2.1.1",
     "@antv/g6": "^5.0.51",
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",

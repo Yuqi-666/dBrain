@@ -36,12 +36,19 @@ export function getNodeConfig(layoutType?: LayoutType): NodeOptions {
         };
       },
       state: {
+        active: {
+          stroke: "#FF7D00",
+          lineWidth: 3,
+          shadowColor: "rgba(255, 125, 0, 0.3)",
+          shadowBlur: 5,
+        },
         selected: {
           stroke: "#FF7D00",
           lineWidth: 3,
           shadowColor: "rgba(255, 125, 0, 0.3)",
-          shadowBlur: 10,
+          shadowBlur: 5,
         },
+
         hover: {
           stroke: "#4080FF",
           lineWidth: 2.5,
@@ -53,6 +60,20 @@ export function getNodeConfig(layoutType?: LayoutType): NodeOptions {
           stroke: "#d1d5db",
           labelFill: "#9ca3af",
         },
+        // 新增：相邻元素激活时的状态（如地图/图表中相邻高亮）
+        neighborActive: {
+          stroke: "#FFB266", // 比 active 稍浅的橙色
+          lineWidth: 2.5,
+          shadowColor: "rgba(255, 125, 0, 0.15)",
+          shadowBlur: 5,
+        },
+        // 新增：默认未激活状态
+        inactive: {
+          stroke: "#9ca3af",
+          lineWidth: 2,
+          shadowColor: "transparent",
+          shadowBlur: 0,
+        }
       },
       animation: false,
     };

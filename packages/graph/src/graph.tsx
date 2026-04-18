@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import type { StoreApi } from "zustand";
-import { Graph as G6Graph } from "@antv/g6";
+import { CommonEvent, Graph as G6Graph } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
 import type { View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu";
@@ -18,7 +18,6 @@ import {
   getEdgeConfig,
 } from "./options";
 import type { Mutation } from "./types";
-
 import { NodeEvent, EdgeEvent, CanvasEvent } from "@antv/g6";
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
@@ -51,8 +50,6 @@ interface LocalGraphUIState {
   };
   previewBlock: {
     nodeId: string | null;
-    x: number;
-    y: number;
     visible: boolean;
   };
   setSelectedNodeIds: (ids: Set<string>) => void;
@@ -137,11 +134,9 @@ export function Graph({
   const performFullSync = (graph: G6Graph) => {
     const state = useGraphStore.getState();
     const { nodes, edges, views } = state;
-    console.log("performing full sync");
     // Stop any running layout before making changes
     if (isMountedRef.current) {
       graph.stopLayout();
-      console.log("stoped layouting");
     }
 
     // 解析当前 View
@@ -162,24 +157,31 @@ export function Graph({
     );
     graph.setData(g6Data);
     graph.setLayout(getLayoutConfig(currentView?.layout));
-    graph.setBehaviors(
-      getBehaviorsConfig(
-        enableNodeDragging,
-        enableEdgeInteractions,
-        currentView?.layout,
-      ),
-    );
+    if (currentView?.layout === "D3force") {
+      graph.updateBehavior({
+        key: 'drag-element-force',
+        enable: true,
+      })
+      graph.updateBehavior({
+        key: 'drag-element',
+        enable: false,
+      })
+    } else {
+      graph.updateBehavior({
+        key: 'drag-element-force',
+        enable: false,
+      })
+      graph.updateBehavior({
+        key: 'drag-element',
+        enable: true,
+      })
+    }
+
     if (isMountedRef.current) {
-      graph.draw().then(() => {
-        graph.layout().then(() => graph.fitCenter());
-        // graph.zoomTo(0.6, {
-        //   duration: 1200,
-        // }).then(
-        //   () => {
-        //     graph.fitCenter();
-        //   })
-      });
-      console.log("synced");
+      // graph.draw().then(() => {
+      //   graph.layout().then(() => graph.fitCenter());
+      // });
+      graph.render().then(() => graph.fitCenter())
     }
   };
 
@@ -270,7 +272,6 @@ export function Graph({
         case "addView":
           break;
         case "updateView": {
-          console.log("detected updateview");
           const updatedView = mutation.payload;
           const currentViewId = resolvedViewRef.current?.id;
           if (currentViewId && updatedView.id === currentViewId) {
@@ -302,11 +303,7 @@ export function Graph({
       height: containerRef.current.clientHeight,
       data: { nodes: [], edges: [] },
       layout: getLayoutConfig(),
-      behaviors: getBehaviorsConfig(
-        enableNodeDragging,
-        enableEdgeInteractions,
-        resolvedViewRef.current?.layout,
-      ),
+      behaviors: getBehaviorsConfig(),
       plugins: getPluginsConfig(enableMinimap, enableGrid, enableFisheye),
       node: nodeConfig,
       edge: edgeConfig,
@@ -351,30 +348,46 @@ export function Graph({
       closeContextMenu();
     });
 
-    // 两个定时器：一个控制显示，一个控制隐藏
-    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-    let leaveTimer: ReturnType<typeof setTimeout> | null = null;
+    graph.on(CommonEvent.KEY_DOWN, (e: any) => {
+      if (e.key == "Control") {
+        graph.updateBehavior({
+          key: 'drag-canvas-1',
+          enable: false,
+        })
+        graph.updateBehavior({
+          key: 'scroll-canvas-1',
+          enable: false,
+        })
+      }
+    })
+    graph.on(CommonEvent.KEY_UP, (e: any) => {
+      if (e.key == "Control") {
+        graph.updateBehavior({
+          key: 'drag-canvas-1',
+          enable: (event: any) => {
+            if ('targetType' in event) return event.targetType === 'canvas';
+            return true;
+          },
+        })
+        graph.updateBehavior({
+          key: 'scroll-canvas-1',
+          enable: true,
+        })
+      }
+    })
 
-    const HOVER_DELAY = 150;  // 进入延迟
-    const LEAVE_DELAY = 70;  // 离开延迟
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
     graph.on(NodeEvent.POINTER_ENTER, (e: any) => {
+      const HOVER_DELAY = 150;  // 进入延迟
       const nodeId = e.target?.id;
       if (!nodeId || isDragging.current) return;
-
-      // 关键：鼠标重新进入 → 清除离开的延迟，不让预览关掉
-      if (leaveTimer) {
-        clearTimeout(leaveTimer);
-        leaveTimer = null;
-      }
-
       // 清除旧的显示定时器
       if (hoverTimer) clearTimeout(hoverTimer);
 
       hoverTimer = setTimeout(() => {
         setPreviewBlock({
           nodeId,
-          x: e.client.x,
-          y: e.client.y,
           visible: true,
         });
       }, HOVER_DELAY);
@@ -386,20 +399,17 @@ export function Graph({
         clearTimeout(hoverTimer);
         hoverTimer = null;
       }
-
-      // 关键：离开后延迟关闭
-      if (leaveTimer) clearTimeout(leaveTimer);
-      leaveTimer = setTimeout(() => {
-        closePreviewBlock();
-      }, LEAVE_DELAY);
+      closePreviewBlock()
     });
-    // graph.on(CanvasEvent.POINTER_ENTER, () => {
-    //   closePreviewBlock();
-    // });
+
+    graph.on(CanvasEvent.POINTER_ENTER, () => {
+      closePreviewBlock();
+    });
 
     graph.on(NodeEvent.DRAG, () => {
       if (isDragging.current) return;
       isDragging.current = true;
+      closePreviewBlock();
     })
     graph.on(NodeEvent.DRAG_END, () => {
       isDragging.current = false;
@@ -439,7 +449,6 @@ export function Graph({
 
   // 3. View 变化触发全量重绘
   useEffect(() => {
-    console.log("view changed");
     if (!graphRef.current) return;
     if (!isMountedRef.current) {
       graphRef.current.render().then(() => {
@@ -483,9 +492,9 @@ export function Graph({
       {previewBlock.visible && previewBlock.nodeId && (
         <PreviewBlock
           node={nodes.get(previewBlock.nodeId)!}
-          position={{ x: previewBlock.x, y: previewBlock.y }}
           containerRef={containerRef}
           onClose={closePreviewBlock}
+          visible={previewBlock.visible}
         />
       )}
     </div>

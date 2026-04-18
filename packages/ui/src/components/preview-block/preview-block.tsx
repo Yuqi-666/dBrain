@@ -15,46 +15,53 @@ import { WebsitePreview } from "./previews/website-preview";
 import { CollectionPreview } from "./previews/collection-preview";
 import { RichTextPreview } from "./previews/rich-text-preview";
 
-export interface PreviewBlockProps {
-  node: NodeData;
-  position: { x: number; y: number };
-  containerRef: React.RefObject<HTMLElement | null>;
-  onClose?: () => void;
+let latestMousePosition = { x: 0, y: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener("mousemove", (e: MouseEvent) => {
+    latestMousePosition = { x: e.clientX, y: e.clientY };
+  });
 }
 
+export interface PreviewBlockProps {
+  node: NodeData;
+  containerRef: React.RefObject<HTMLElement | null>;
+  onClose?: () => void;
+  visible: boolean;
+}
+
+// 边界计算函数（使用实际尺寸）
 function calculatePosition(
-  cursorX: number,
-  cursorY: number,
+  mouseX: number,
+  mouseY: number,
   containerRef: React.RefObject<HTMLElement | null>,
+  previewWidth: number,
+  previewHeight: number,
 ): { left: number; top: number } {
-  let left = cursorX + PREVIEW_MARGIN;
-  let top = cursorY + PREVIEW_MARGIN;
+  let left = mouseX + PREVIEW_MARGIN;
+  let top = mouseY + PREVIEW_MARGIN;
 
-  if (containerRef.current) {
-    const rect = containerRef.current.getBoundingClientRect();
-    const exceedsRight = left + PREVIEW_WIDTH > rect.right;
-    const exceedsBottom = top + PREVIEW_MAX_HEIGHT > rect.bottom;
+  if (!containerRef.current) return { left, top };
 
-    if (exceedsRight) {
-      left = cursorX - PREVIEW_WIDTH - PREVIEW_MARGIN;
-    }
-    if (exceedsBottom) {
-      top = cursorY - PREVIEW_MAX_HEIGHT - PREVIEW_MARGIN;
-    }
+  const rect = containerRef.current.getBoundingClientRect();
+  const exceedsRight = left + previewWidth > rect.right;
+  const exceedsBottom = top + previewHeight > rect.bottom;
 
-    left = Math.max(
-      rect.left + PREVIEW_MARGIN,
-      Math.min(left, rect.right - PREVIEW_WIDTH - PREVIEW_MARGIN),
-    );
-    top = Math.max(
-      rect.top + PREVIEW_MARGIN,
-      Math.min(top, rect.bottom - PREVIEW_MAX_HEIGHT - PREVIEW_MARGIN),
-    );
-  }
+  if (exceedsRight) left = mouseX - previewWidth - PREVIEW_MARGIN;
+  if (exceedsBottom) top = mouseY - previewHeight - PREVIEW_MARGIN;
+
+  left = Math.max(
+    rect.left + PREVIEW_MARGIN,
+    Math.min(left, rect.right - previewWidth - PREVIEW_MARGIN),
+  );
+  top = Math.max(
+    rect.top + PREVIEW_MARGIN,
+    Math.min(top, rect.bottom - previewHeight - PREVIEW_MARGIN),
+  );
 
   return { left, top };
 }
 
+// 渲染预览（不变）
 function renderNodePreview(node: NodeData): React.ReactNode {
   switch (node.nodeType) {
     case "text":
@@ -82,37 +89,84 @@ function renderNodePreview(node: NodeData): React.ReactNode {
 
 export function PreviewBlock({
   node,
-  position,
   containerRef,
   onClose,
+  visible,
 }: PreviewBlockProps) {
   const [isHovered, setIsHovered] = React.useState(false);
-  const pos = calculatePosition(position.x, position.y, containerRef);
+  const previewRef = React.useRef<HTMLDivElement>(null);
+  const [previewSize, setPreviewSize] = React.useState({
+    width: PREVIEW_WIDTH,
+    height: PREVIEW_MAX_HEIGHT,
+  });
+  const [, setTick] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    const handleMouseMove = () => setTick((prev) => prev + 1);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [visible]);
+
+  React.useEffect(() => {
+    if (!previewRef.current) return;
+    const updateSize = () => {
+      const el = previewRef.current;
+      if (el) {
+        setPreviewSize({ width: el.offsetWidth, height: el.offsetHeight });
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(previewRef.current);
+    return () => observer.disconnect();
+  }, [visible, node]);
+
+  const pos = calculatePosition(
+    latestMousePosition.x,
+    latestMousePosition.y,
+    containerRef,
+    previewSize.width,
+    previewSize.height,
+  );
+
+  // ESC 关闭
+  const handleClose = React.useCallback(() => onClose?.(), [onClose]);
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) =>
+      e.key === "Escape" && handleClose();
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleClose]);
+
+  if (!visible) return null;
 
   return (
     <div
+      ref={previewRef}
       style={{
         position: "fixed",
         left: pos.left,
         top: pos.top,
-        width: PREVIEW_WIDTH,
-        maxHeight: PREVIEW_MAX_HEIGHT,
+        width: previewSize.width || PREVIEW_WIDTH,
+        maxHeight: previewSize.height || PREVIEW_MAX_HEIGHT,
         zIndex: 9999,
       }}
-      className="overflow-hidden rounded-xl border bg-background shadow-xl animate-in fade-in zoom-in-95 duration-150"
+      className="overflow-hidden rounded-xl border bg-background shadow-xl "
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <PreviewHeader node={node} />
-      {isHovered && onClose && (
+      {onClose && (
         <button
-          onClick={onClose}
+          onClick={handleClose}
+          aria-label="关闭预览"
           className="absolute right-2 top-2 rounded-full p-1 hover:bg-accent/80 transition-colors"
         >
           <X className="size-3.5 text-muted-foreground" />
         </button>
       )}
-      <div className="p-3 pt-2">{renderNodePreview(node)}</div>
+      <div className="p-3 pt-2 overflow-y-auto">{renderNodePreview(node)}</div>
     </div>
   );
 }

@@ -18,15 +18,12 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
     manyBody: {
       strength: -500,
     },
-    // 配置碰撞力 - 防止节点重叠
-    collide: {
-      radius: 35,
-      strength: 0.8,
-    },
     // 配置中心力 - 保持图形在画布中心
     center: {
       strength: 0.05,
     },
+    iterations: 100,
+    alphaDecay: 0.04,
     // enableWorker: true,
   },
   dagre: { type: "dagre", rankdir: "TB", nodesep: 30, ranksep: 50 },
