@@ -19,11 +19,11 @@ export const INITIAL_NODE_SEMANTICS: NodeSemantic[] = [
 ];
 
 export const INITIAL_EDGE_SEMANTICS: EdgeSemantic[] = [
-  { id: "belongs_to", name: "Belongs To", color: "#3B82F6" },
-  { id: "depends_on", name: "Depends On", color: "#10B981" },
-  { id: "calls", name: "Calls", color: "#8B5CF6" },
-  { id: "references", name: "References", color: "#F59E0B" },
-  { id: "embeds", name: "Embeds", color: "#EF4444" },
+  { id: "belongs_to", name: "Belongs To", color: "#3B82F6", category: "hierarchy" },
+  { id: "depends_on", name: "Depends On", color: "#10B981", category: "association" },
+  { id: "calls", name: "Calls", color: "#8B5CF6", category: "interaction" },
+  { id: "references", name: "References", color: "#F59E0B", category: "association" },
+  { id: "embeds", name: "Embeds", color: "#EF4444", category: "association" },
 ];
 
 export const INITIAL_NODES: (
@@ -701,6 +701,7 @@ export const DEMO_VIEW: View = {
   id: "demo-view",
   name: "Demo View",
   layout: "D3force",
+  isPinned: true,
   filterConfig: {},
   visualConfig: {
     showMinimap: true,

@@ -7,6 +7,7 @@ declare module "@antv/g6" {
     title?: string;
     semanticId?: NodeSemanticId;
     tags?: string[];
+    isPinned?: boolean;
     stateData?: Record<string, any>;
     [key: string]: any;
   }

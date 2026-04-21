@@ -2,7 +2,7 @@
 
 import { useUIStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 interface CognitiveGraphLayoutProps {
   children: React.ReactNode;
@@ -14,11 +14,8 @@ export function CognitiveGraphLayout({
   sidebar,
 }: CognitiveGraphLayoutProps) {
   const sidebarMode = useUIStore((state) => state.sidebarMode);
-  const convertTempToFixed = useUIStore((state) => state.convertTempToFixed);
   const closeSidebar = useUIStore((state) => state.closeSidebar);
   const showTempSidebar = useUIStore((state) => state.showTempSidebar);
-
-  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnterEdge = useCallback(() => {
     if (sidebarMode === "closed") {
@@ -31,12 +28,6 @@ export function CognitiveGraphLayout({
       closeSidebar();
     }
   }, [sidebarMode, closeSidebar]);
-
-  const handleSidebarClick = useCallback(() => {
-    if (sidebarMode === "temp") {
-      convertTempToFixed();
-    }
-  }, [sidebarMode, convertTempToFixed]);
 
   const isSidebarVisible = sidebarMode !== "closed";
   const isFixedMode = sidebarMode === "fixed";
@@ -53,14 +44,12 @@ export function CognitiveGraphLayout({
 
       {isSidebarVisible && (
         <div
-          ref={sidebarRef}
           className={cn(
             "h-full shrink-0 transition-all duration-200 ease-in-out",
             isFixedMode && "w-70 relative z-30",
             isTempMode && "fixed left-0 top-0 z-40 w-70 shadow-lg",
           )}
           onMouseLeave={handleMouseLeaveSidebar}
-          onClick={handleSidebarClick}
         >
           {sidebar}
         </div>

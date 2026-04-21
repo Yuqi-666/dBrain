@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUIStore, useGraphStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -29,23 +29,29 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
 import LogoIcon from "../../img/icon/logo.svg"
 
 export function CognitiveSidebar() {
-  const { sidebarMode, closeSidebar, toggleSidebar } = useUIStore();
+  const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
+    useUIStore();
   const { views, nodes } = useGraphStore();
 
   const pinnedViews = Array.from(views.values()).filter(
     (view) => view.isPinned,
   );
+  const recentViews = Array.from(views.values())
+    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))
+    .slice(0, 5);
   const recentNodes = Array.from(nodes.values()).slice(0, 5);
 
   const handleToggleSidebar = () => {
     if (sidebarMode === "temp") {
-      toggleSidebar();
+      convertTempToFixed();
+    } else if (sidebarMode === "fixed") {
       closeSidebar();
     } else {
-      closeSidebar();
+      toggleSidebar();
     }
   };
 
@@ -76,9 +82,10 @@ export function CognitiveSidebar() {
 
       <div className="flex-1 overflow-y-auto p-3">
         <div className="flex flex-col gap-4">
-          <ViewsList views={pinnedViews} />
+          <ViewsList pinnedViews={pinnedViews} recentViews={recentViews} />
+          <NodeSemanticList />
+          <EdgeSemanticList />
           <NodesList nodes={recentNodes} />
-          <RelationshipsList />
         </div>
       </div>
     </div>
@@ -145,8 +152,10 @@ function SpaceSelector() {
 
 function ViewItem({
   view,
+  onTogglePin,
 }: {
   view: { id: string; name: string; isPinned?: boolean };
+  onTogglePin: (id: string, isPinned: boolean) => void;
 }) {
   return (
     <div className="group flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-muted transition-colors">
@@ -159,8 +168,9 @@ function ViewItem({
           variant="ghost"
           size="icon"
           className="size-6 text-muted-foreground hover:text-foreground"
+          onClick={() => onTogglePin(view.id, !view.isPinned)}
         >
-          <Pin className="size-3 fill-current" />
+          <Pin className={cn("size-3", view.isPinned && "fill-current")} />
         </Button>
         <Button
           variant="ghost"
@@ -175,11 +185,22 @@ function ViewItem({
 }
 
 function ViewsList({
-  views,
+  pinnedViews,
+  recentViews,
 }: {
-  views: Array<{ id: string; name: string; isPinned?: boolean }>;
+  pinnedViews: Array<{ id: string; name: string; isPinned?: boolean; updatedAt?: string }>;
+  recentViews: Array<{ id: string; name: string; isPinned?: boolean; updatedAt?: string }>;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+  const updateView = useGraphStore((state) => state.updateView);
+
+  const handleTogglePin = (id: string, isPinned: boolean) => {
+    updateView(id, { isPinned });
+  };
+
+  const nonPinnedRecentViews = recentViews.filter(
+    (rv) => !pinnedViews.some((pv) => pv.id === rv.id),
+  );
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
@@ -203,14 +224,38 @@ function ViewsList({
           <Plus className="size-3.5" />
         </Button>
       </div>
-      <CollapsibleContent className="pt-1.5">
-        <div className="flex flex-col gap-0.5">
-          {views.length > 0 ? (
-            views.map((view) => <ViewItem key={view.id} view={view} />)
-          ) : (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">
-              No pinned views
-            </p>
+      <CollapsibleContent className="pt-1.5 max-h-60 overflow-y-auto">
+        <div className="flex flex-col gap-2">
+          {pinnedViews.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              <p className="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                Pinned
+              </p>
+              {pinnedViews.map((view) => (
+                <ViewItem
+                  key={view.id}
+                  view={view}
+                  onTogglePin={handleTogglePin}
+                />
+              ))}
+            </div>
+          )}
+          {nonPinnedRecentViews.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              <p className="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                Recent
+              </p>
+              {nonPinnedRecentViews.map((view) => (
+                <ViewItem
+                  key={view.id}
+                  view={view}
+                  onTogglePin={handleTogglePin}
+                />
+              ))}
+            </div>
+          )}
+          {pinnedViews.length === 0 && nonPinnedRecentViews.length === 0 && (
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">No views</p>
           )}
         </div>
       </CollapsibleContent>
@@ -220,8 +265,10 @@ function ViewsList({
 
 function NodeItem({
   node,
+  onTogglePin,
 }: {
-  node: { id: string; title: string; semanticId?: string };
+  node: { id: string; title: string; semanticId?: string; isPinned?: boolean };
+  onTogglePin: (id: string, isPinned: boolean) => void;
 }) {
   return (
     <div className="group flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-muted transition-colors">
@@ -239,8 +286,9 @@ function NodeItem({
           variant="ghost"
           size="icon"
           className="size-6 text-muted-foreground hover:text-foreground"
+          onClick={() => onTogglePin(node.id, !node.isPinned)}
         >
-          <Pin className="size-3 fill-current" />
+          <Pin className={cn("size-3", node.isPinned && "fill-current")} />
         </Button>
         <Button
           variant="ghost"
@@ -257,9 +305,14 @@ function NodeItem({
 function NodesList({
   nodes,
 }: {
-  nodes: Array<{ id: string; title: string; semanticId?: string }>;
+  nodes: Array<{ id: string; title: string; semanticId?: string; isPinned?: boolean }>;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+  const updateNode = useGraphStore((state) => state.updateNode);
+
+  const handleTogglePin = (id: string, isPinned: boolean) => {
+    updateNode(id, { isPinned });
+  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
@@ -283,10 +336,12 @@ function NodesList({
           <Plus className="size-3.5" />
         </Button>
       </div>
-      <CollapsibleContent className="pt-1.5">
+      <CollapsibleContent className="pt-1.5 max-h-40 overflow-y-auto">
         <div className="flex flex-col gap-0.5">
           {nodes.length > 0 ? (
-            nodes.map((node) => <NodeItem key={node.id} node={node} />)
+            nodes.map((node) => (
+              <NodeItem key={node.id} node={node} onTogglePin={handleTogglePin} />
+            ))
           ) : (
             <p className="px-2 py-1.5 text-xs text-muted-foreground">
               No recent nodes
@@ -298,33 +353,50 @@ function NodesList({
   );
 }
 
-function RelationshipItem({
-  name,
-  count = 0,
+function NodeSemanticItem({
+  semantic,
 }: {
-  name: string;
-  count?: number;
+  semantic: { id: string; name: string; color?: string };
 }) {
   return (
     <div className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-muted transition-colors">
       <div className="flex items-center gap-2">
-        <Link2 className="size-4 text-muted-foreground" />
-        <span className="text-sm">{name}</span>
+        <CircleDot className="size-4 text-muted-foreground" />
+        <span className="text-sm">{semantic.name}</span>
+        {semantic.color && (
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: semantic.color }}
+          />
+        )}
       </div>
-      <span className="text-xs text-muted-foreground">{count}</span>
+      <div className="hidden items-center gap-1 group-hover:flex">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <Pin className="size-3 fill-current" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 text-muted-foreground hover:text-foreground"
+        >
+          <MoreHorizontal className="size-3" />
+        </Button>
+      </div>
     </div>
   );
 }
 
-function RelationshipsList() {
+function NodeSemanticList() {
   const [isOpen, setIsOpen] = useState(true);
-
-  const relationshipCategories = [
-    { name: "层次关系", count: 0 },
-    { name: "流向关系", count: 0 },
-    { name: "关联关系", count: 0 },
-    { name: "交互关系", count: 0 },
-  ];
+  const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
+  const nodeSemantics = useMemo(() =>
+    Array.from(nodeSemanticsMap.values()),
+    [nodeSemanticsMap]
+  );
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
@@ -340,7 +412,7 @@ function RelationshipsList() {
               ) : (
                 <ChevronRight className="size-4" />
               )}
-              <span className="text-sm font-medium">Relationships</span>
+              <span className="text-sm font-medium">Node Semantics</span>
             </div>
           </Button>
         </CollapsibleTrigger>
@@ -348,13 +420,129 @@ function RelationshipsList() {
           <Plus className="size-3.5" />
         </Button>
       </div>
-      <CollapsibleContent className="pt-1.5">
+      <CollapsibleContent className="pt-1.5 max-h-40 overflow-y-auto">
         <div className="flex flex-col gap-0.5">
-          {relationshipCategories.map((rel) => (
-            <RelationshipItem
-              key={rel.name}
-              name={rel.name}
-              count={rel.count}
+          {nodeSemantics.length > 0 ? (
+            nodeSemantics.map((semantic) => (
+              <NodeSemanticItem key={semantic.id} semantic={semantic} />
+            ))
+          ) : (
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+              No node semantics
+            </p>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function EdgeSemanticCategory({
+  category,
+  semantics,
+}: {
+  category: string;
+  semantics: Array<{ id: string; name: string; color?: string }>;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full pl-2">
+      <div className="flex items-center justify-between">
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="flex-1 justify-start p-0 h-auto hover:bg-transparent"
+          >
+            <div className="flex items-center gap-1.5">
+              {isOpen ? (
+                <ChevronDown className="size-3" />
+              ) : (
+                <ChevronRight className="size-3" />
+              )}
+              <span className="text-xs font-medium">{category}</span>
+            </div>
+          </Button>
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent className="pt-1 pl-4 max-h-32 overflow-y-auto">
+        <div className="flex flex-col gap-0.5">
+          {semantics.map((semantic) => (
+            <div
+              key={semantic.id}
+              className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted transition-colors"
+            >
+              <Link2 className="size-3 text-muted-foreground" />
+              <span className="text-xs">{semantic.name}</span>
+              {semantic.color && (
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: semantic.color }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function EdgeSemanticList() {
+  const [isOpen, setIsOpen] = useState(true);
+  const edgeSemanticsMap = useGraphStore((state) => state.edgeSemantics);
+  const edgeSemantics = useMemo(() =>
+    Array.from(edgeSemanticsMap.values()),
+    [edgeSemanticsMap]
+  );
+
+  const categories = [
+    { key: "hierarchy", label: "层次关系" },
+    { key: "flow", label: "流向关系" },
+    { key: "association", label: "关联关系" },
+    { key: "interaction", label: "交互关系" },
+  ] as const;
+
+  const groupedSemantics = useMemo(() =>
+    categories.reduce(
+      (acc, cat) => {
+        acc[cat.key] = edgeSemantics.filter((s) => s.category === cat.key);
+        return acc;
+      },
+      { hierarchy: [] as typeof edgeSemantics, flow: [] as typeof edgeSemantics, association: [] as typeof edgeSemantics, interaction: [] as typeof edgeSemantics }
+    ),
+    [edgeSemantics, categories]
+  );
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
+      <div className="flex items-center justify-between">
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="flex-1 justify-start p-0 h-auto hover:bg-transparent"
+          >
+            <div className="flex items-center gap-1.5">
+              {isOpen ? (
+                <ChevronDown className="size-4" />
+              ) : (
+                <ChevronRight className="size-4" />
+              )}
+              <span className="text-sm font-medium">Edge Semantics</span>
+            </div>
+          </Button>
+        </CollapsibleTrigger>
+        <Button variant="ghost" size="icon" className="size-6">
+          <Plus className="size-3.5" />
+        </Button>
+      </div>
+      <CollapsibleContent className="pt-1.5 max-h-48 overflow-y-auto">
+        <div className="flex flex-col gap-1">
+          {categories.map((cat) => (
+            <EdgeSemanticCategory
+              key={cat.key}
+              category={cat.label}
+              semantics={groupedSemantics[cat.key] || []}
             />
           ))}
         </div>

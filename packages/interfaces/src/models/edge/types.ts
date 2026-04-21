@@ -11,6 +11,7 @@ export type EdgeWeight = 1 | 2 | 3 | 4 | 5;//数字越小关系越近
 export interface EdgeSemantic {
   id: EdgeSemanticId;
   name: string;
+  category: EdgeType;
   color?: string;
   description?: string;
 }

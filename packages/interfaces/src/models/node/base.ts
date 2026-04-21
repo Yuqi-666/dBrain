@@ -18,6 +18,7 @@ export interface NodeBase {
   permission: Permission;
   semanticId: NodeSemanticId;
   tags?: string[];
+  isPinned?: boolean;
   stateData?: Record<string, any>;
   createdAt: string;
   updatedAt: string;

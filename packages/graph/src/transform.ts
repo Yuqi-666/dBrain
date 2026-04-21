@@ -28,6 +28,7 @@ export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
       abstract: node.abstract,
       semanticId: node.semanticId,
       tags: node.tags,
+      isPinned: node.isPinned || false,
       stateData: node.stateData,
     });
   });
