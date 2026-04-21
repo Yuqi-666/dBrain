@@ -49,7 +49,7 @@ export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
         weight: edge.weight,
         stateData: edge.stateData,
       },
-      category: edge.category,
+      edgeType: edge.edgeType,
       weight: edge.weight,
       stateData: edge.stateData,
     });
@@ -71,7 +71,7 @@ export function adaptNodesToTree(
     // Use edgeSemanticId if specified, otherwise use category === 'hierarchy'
     const isHierarchyEdge = edgeSemanticId
       ? edge.semanticId === edgeSemanticId
-      : edge.category === "hierarchy";
+      : edge.edgeType === "hierarchy";
 
     if (isHierarchyEdge) {
       const parent = edge.from;

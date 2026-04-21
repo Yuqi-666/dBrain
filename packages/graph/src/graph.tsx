@@ -1,8 +1,5 @@
 "use client";
-import React, { useRef, useEffect, useState } from "react";
-import { create } from "zustand";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import type { StoreApi } from "zustand";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { CommonEvent, Graph as G6Graph } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
 import type { View, ViewId } from "@workspace/interfaces";
@@ -19,6 +16,7 @@ import {
 } from "./options";
 import type { Mutation } from "./types";
 import { NodeEvent, EdgeEvent, CanvasEvent } from "@antv/g6";
+
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
 // ----------------------------------------------------------------------
@@ -37,7 +35,7 @@ export interface GraphProps {
 }
 
 // ----------------------------------------------------------------------
-// 2. 定义局部 Zustand Store (用于内部 UI 状态)
+// 2. 定义局部状态类型 (保留原接口用于类型提示)
 // ----------------------------------------------------------------------
 interface LocalGraphUIState {
   selectedNodeIds: Set<string>;
@@ -52,12 +50,6 @@ interface LocalGraphUIState {
     nodeId: string | null;
     visible: boolean;
   };
-  setSelectedNodeIds: (ids: Set<string>) => void;
-  setSelectedEdgeIds: (ids: Set<string>) => void;
-  setContextMenu: (menu: LocalGraphUIState["contextMenu"]) => void;
-  closeContextMenu: () => void;
-  setPreviewBlock: (block: LocalGraphUIState["previewBlock"]) => void;
-  closePreviewBlock: () => void;
 }
 
 // ----------------------------------------------------------------------
@@ -70,8 +62,6 @@ export function Graph({
   enableMinimap = true,
   enableGrid = true,
   enableFisheye = false,
-  enableNodeDragging = true,
-  enableEdgeInteractions = true,
   className,
   style,
   onLoad,
@@ -82,46 +72,47 @@ export function Graph({
   const resolvedViewRef = useRef<View | undefined>(undefined);
 
   // ----------------------------------------------------------------------
-  // 初始化局部 Zustand Store (仅在组件内部使用)
+  // 替换 Zustand：使用 useState 管理局部 UI 状态
   // ----------------------------------------------------------------------
-  const localStoreRef = useRef<StoreApi<LocalGraphUIState> | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(new Set());
 
-  if (!localStoreRef.current) {
-    localStoreRef.current = create<LocalGraphUIState>((set) => ({
-      selectedNodeIds: new Set(),
-      selectedEdgeIds: new Set(),
-      contextMenu: { x: 0, y: 0, target: null, visible: false },
-      previewBlock: { nodeId: null, x: 0, y: 0, visible: false },
+  const handleNodeSelect = useCallback((nodeIds: string[]) => {
+    setSelectedNodeIds(new Set(nodeIds));
+  }, []);
 
-      setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
-      setSelectedEdgeIds: (ids) => set({ selectedEdgeIds: ids }),
-      setContextMenu: (menu) => set({ contextMenu: menu }),
-      closeContextMenu: () =>
-        set((state) => ({
-          contextMenu: { ...state.contextMenu, visible: false },
-        })),
-      setPreviewBlock: (block) => set({ previewBlock: block }),
-      closePreviewBlock: () =>
-        set((state) => ({
-          previewBlock: { ...state.previewBlock, visible: false },
-        })),
-    }));
-  }
+  const handleEdgeSelect = useCallback((edgeIds: string[]) => {
+    setSelectedEdgeIds(new Set(edgeIds));
+  }, []);
 
-  // 便捷 Hook 用于消费局部状态
-  const useLocalStore = <T,>(selector: (state: LocalGraphUIState) => T) => {
-    return useStoreWithEqualityFn(localStoreRef.current!, selector);
-  };
+  const [contextMenu, setContextMenuState] = useState<LocalGraphUIState["contextMenu"]>({
+    x: 0,
+    y: 0,
+    target: null,
+    visible: false,
+  });
+  const [previewBlock, setPreviewBlockState] = useState<LocalGraphUIState["previewBlock"]>({
+    nodeId: null,
+    visible: false,
+  });
 
-  // 消费局部状态
-  const contextMenu = useLocalStore((s) => s.contextMenu);
-  const previewBlock = useLocalStore((s) => s.previewBlock);
-  const setSelectedNodeIds = useLocalStore((s) => s.setSelectedNodeIds);
-  const setSelectedEdgeIds = useLocalStore((s) => s.setSelectedEdgeIds);
-  const setContextMenu = useLocalStore((s) => s.setContextMenu);
-  const closeContextMenu = useLocalStore((s) => s.closeContextMenu);
-  const setPreviewBlock = useLocalStore((s) => s.setPreviewBlock);
-  const closePreviewBlock = useLocalStore((s) => s.closePreviewBlock);
+  // 状态操作方法 (使用 useCallback 优化性能，避免不必要的重渲染)
+  const setContextMenu = useCallback((menu: LocalGraphUIState["contextMenu"]) => {
+    setContextMenuState(menu);
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenuState(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  const setPreviewBlock = useCallback((block: LocalGraphUIState["previewBlock"]) => {
+    setPreviewBlockState(block);
+  }, []);
+
+  const closePreviewBlock = useCallback(() => {
+    setPreviewBlockState(prev => ({ ...prev, visible: false }));
+  }, []);
+
   const nodes = useGraphStore((state) => state.nodes);
 
   const isMountedRef = useRef(false);
@@ -302,16 +293,24 @@ export function Graph({
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
       data: { nodes: [], edges: [] },
-      layout: getLayoutConfig(),
-      behaviors: getBehaviorsConfig(),
-      plugins: getPluginsConfig(enableMinimap, enableGrid, enableFisheye),
-      node: nodeConfig,
-      edge: edgeConfig,
-      background: getThemeConfig(theme).background,
-    } as any);
+    });
 
     graphRef.current = graph;
 
+    graph.setOptions(
+      {
+        layout: getLayoutConfig(),
+        behaviors: getBehaviorsConfig({
+          onNodeSelect: handleNodeSelect,
+          onEdgeSelect: handleEdgeSelect,
+          graph
+        }),
+        plugins: getPluginsConfig(),
+        node: nodeConfig,
+        edge: edgeConfig,
+        background: getThemeConfig(theme).background,
+      }
+    )
     graph.on(NodeEvent.CONTEXT_MENU, (e: any) => {
       e.preventDefault();
       let id: string = e.target.id;
@@ -435,7 +434,7 @@ export function Graph({
       graph.destroy();
       graphRef.current = null;
     };
-  }, []);
+  }, [closeContextMenu, closePreviewBlock, setContextMenu, setPreviewBlock, theme]);
 
   // 2. 订阅全局 Store 的增量更新
   useEffect(() => {

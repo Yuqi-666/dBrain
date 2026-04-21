@@ -10,7 +10,5 @@
   "devDependencies": {
     "docsify-cli": "^4.4.4"
   },
-  "dependencies": {
-    "@antv/g6": "5.0.51"
-  }
+  "dependencies": {}
 }

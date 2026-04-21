@@ -12,7 +12,7 @@ export function getEdgeConfig(
       const semantic = getEdgeSemantic(data.semanticId!);
       const direction = data.direction || "forward";
       if (direction === "bidirectional") return "cubic";
-      switch (data.category) {
+      switch (data.edgeType) {
         case "hierarchy":
           return "polyline";
         case "flow":
@@ -44,7 +44,7 @@ export function getEdgeConfig(
         labelBackgroundColor: theme.background,
         labelBackgroundPadding: [2, 4],
         labelBackgroundRadius: 4,
-        lineDash: data.category === "association" ? [6, 4] : undefined,
+        lineDash: data.edgeType === "association" ? [6, 4] : undefined,
       };
     },
     state: {

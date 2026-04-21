@@ -2,7 +2,7 @@ import type { NodeId } from "../node/base";
 
 export type EdgeDirection = "forward" | "reverse" | "bidirectional";
 
-export type EdgeCategory = "hierarchy" | "flow" | "association" | "interaction";
+export type EdgeType = "hierarchy" | "flow" | "association" | "interaction";
 
 export type EdgeSemanticId = string;
 
@@ -21,7 +21,7 @@ export interface EdgeBase {
   to: NodeId;
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
-  category: EdgeCategory;
+  edgeType: EdgeType;
   weight?: EdgeWeight;
   stateData?: Record<string, any>;
   createdAt: string;

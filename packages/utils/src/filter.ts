@@ -52,7 +52,7 @@ function getEdgeFieldValue(edge: EdgeData, field: string): unknown {
     case "semanticId":
       return edge.semanticId;
     case "category":
-      return edge.category;
+      return edge.edgeType;
     case "weight":
       return edge.weight;
     case "createdAt":

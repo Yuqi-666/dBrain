@@ -1,7 +1,7 @@
 import type { RuleGroupType, Field } from "@workspace/utils";
 import type { NodeId } from "./node";
 import { NODE_DATA_TYPES } from "./node/types";
-import type { EdgeCategory, EdgeDirection } from "./edge/types";
+import type { EdgeType, EdgeDirection } from "./edge/types";
 
 export interface FilterConfig {
   //Filter->selectedNodes AND ruleGroup
@@ -106,7 +106,7 @@ export const EDGE_FILTER_FIELDS: Field[] = [
     label: "边类别",
     inputType: "select",
     values: (
-      ["hierarchy", "flow", "association", "interaction"] as EdgeCategory[]
+      ["hierarchy", "flow", "association", "interaction"] as EdgeType[]
     ).map((c) => ({
       name: c,
       label:

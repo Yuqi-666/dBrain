@@ -1,4 +1,4 @@
-import type { EdgeCategory, EdgeDirection, EdgeSemanticId, EdgeWeight, NodeDataType, NodeSemanticId } from "@workspace/interfaces";
+import type { EdgeType, EdgeDirection, EdgeSemanticId, EdgeWeight, NodeDataType, NodeSemanticId } from "@workspace/interfaces";
 
 // 全局扩展G6原生类型
 declare module "@antv/g6" {
@@ -14,7 +14,7 @@ declare module "@antv/g6" {
   export interface EdgeData {
     semanticId?: EdgeSemanticId;
     direction?: EdgeDirection;
-    category: EdgeCategory;
+    edgeType: EdgeType;
     weight?: EdgeWeight;
     stateData?: Record<string, any>;
     [key: string]: any;
