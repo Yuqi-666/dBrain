@@ -27,6 +27,7 @@ export interface PreviewBlockProps {
   containerRef: React.RefObject<HTMLElement | null>;
   onClose?: () => void;
   visible: boolean;
+  isFocus?: boolean;
 }
 
 // 边界计算函数（使用实际尺寸）
@@ -92,14 +93,15 @@ export function PreviewBlock({
   containerRef,
   onClose,
   visible,
+  isFocus,
 }: PreviewBlockProps) {
-  const [isHovered, setIsHovered] = React.useState(false);
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [previewSize, setPreviewSize] = React.useState({
     width: PREVIEW_WIDTH,
     height: PREVIEW_MAX_HEIGHT,
   });
   const [, setTick] = React.useState(0);
+  const [frozenPosition, setFrozenPosition] = React.useState<{ x: number; y: number } | null>(null);
 
   React.useEffect(() => {
     if (!visible) return;
@@ -107,6 +109,14 @@ export function PreviewBlock({
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [visible]);
+
+  React.useEffect(() => {
+    if (isFocus && !frozenPosition) {
+      setFrozenPosition({ x: latestMousePosition.x, y: latestMousePosition.y });
+    } else if (!isFocus) {
+      setFrozenPosition(null);
+    }
+  }, [isFocus, frozenPosition]);
 
   React.useEffect(() => {
     if (!previewRef.current) return;
@@ -123,8 +133,8 @@ export function PreviewBlock({
   }, [visible, node]);
 
   const pos = calculatePosition(
-    latestMousePosition.x,
-    latestMousePosition.y,
+    isFocus && frozenPosition ? frozenPosition.x : latestMousePosition.x,
+    isFocus && frozenPosition ? frozenPosition.y : latestMousePosition.y,
     containerRef,
     previewSize.width,
     previewSize.height,
@@ -153,8 +163,6 @@ export function PreviewBlock({
         zIndex: 9999,
       }}
       className="overflow-hidden rounded-xl border bg-background shadow-xl "
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <PreviewHeader node={node} />
       {onClose && (

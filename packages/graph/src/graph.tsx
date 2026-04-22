@@ -49,6 +49,7 @@ interface LocalGraphUIState {
   previewBlock: {
     nodeId: string | null;
     visible: boolean;
+    isFocus: boolean;
   };
 }
 
@@ -59,9 +60,6 @@ export function Graph({
   viewId,
   view,
   theme = "light",
-  enableMinimap = true,
-  enableGrid = true,
-  enableFisheye = false,
   className,
   style,
   onLoad,
@@ -94,7 +92,13 @@ export function Graph({
   const [previewBlock, setPreviewBlockState] = useState<LocalGraphUIState["previewBlock"]>({
     nodeId: null,
     visible: false,
+    isFocus: false,
   });
+
+  // Sync isFocusRef with previewBlock.isFocus to avoid stale closure in event handlers
+  React.useEffect(() => {
+    isNodeFocusRef.current = previewBlock.isFocus;
+  }, [previewBlock.isFocus]);
 
   // 状态操作方法 (使用 useCallback 优化性能，避免不必要的重渲染)
   const setContextMenu = useCallback((menu: LocalGraphUIState["contextMenu"]) => {
@@ -110,13 +114,22 @@ export function Graph({
   }, []);
 
   const closePreviewBlock = useCallback(() => {
-    setPreviewBlockState(prev => ({ ...prev, visible: false }));
+    setPreviewBlockState(prev => ({ ...prev, visible: false, isFocus: false }));
+  }, []);
+
+  const fixPreviewOnFocus = useCallback((nodeId: string) => {
+    setPreviewBlock({
+      nodeId,
+      visible: true,
+      isFocus: true,
+    });
   }, []);
 
   const nodes = useGraphStore((state) => state.nodes);
 
   const isMountedRef = useRef(false);
   const isDragging = useRef(false);
+  const isNodeFocusRef = useRef(false);
   // ----------------------------------------------------------------------
   // 数据同步逻辑
   // ----------------------------------------------------------------------
@@ -303,6 +316,7 @@ export function Graph({
         behaviors: getBehaviorsConfig({
           onNodeSelect: handleNodeSelect,
           onEdgeSelect: handleEdgeSelect,
+          onPreviewShow: fixPreviewOnFocus,
           graph
         }),
         plugins: getPluginsConfig(),
@@ -345,6 +359,7 @@ export function Graph({
     });
     graph.on(CanvasEvent.CLICK, (e: any) => {
       closeContextMenu();
+      closePreviewBlock();
     });
 
     graph.on(CommonEvent.KEY_DOWN, (e: any) => {
@@ -383,31 +398,34 @@ export function Graph({
       if (!nodeId || isDragging.current) return;
       // 清除旧的显示定时器
       if (hoverTimer) clearTimeout(hoverTimer);
-
+      if (isNodeFocusRef.current) return;
       hoverTimer = setTimeout(() => {
         setPreviewBlock({
           nodeId,
           visible: true,
+          isFocus: false,
         });
       }, HOVER_DELAY);
     });
 
     graph.on(NodeEvent.POINTER_LEAVE, () => {
-      // 进入关闭流程：先清除显示定时器
       if (hoverTimer) {
         clearTimeout(hoverTimer);
         hoverTimer = null;
       }
+      if (isNodeFocusRef.current) return;
       closePreviewBlock()
     });
 
     graph.on(CanvasEvent.POINTER_ENTER, () => {
+      if (isNodeFocusRef.current) return;
       closePreviewBlock();
     });
 
     graph.on(NodeEvent.DRAG, () => {
       if (isDragging.current) return;
       isDragging.current = true;
+      if (isNodeFocusRef.current) return;
       closePreviewBlock();
     })
     graph.on(NodeEvent.DRAG_END, () => {
@@ -434,7 +452,7 @@ export function Graph({
       graph.destroy();
       graphRef.current = null;
     };
-  }, [closeContextMenu, closePreviewBlock, setContextMenu, setPreviewBlock, theme]);
+  }, [closeContextMenu, closePreviewBlock, setContextMenu, setPreviewBlock, fixPreviewOnFocus, theme]);
 
   // 2. 订阅全局 Store 的增量更新
   useEffect(() => {
@@ -494,6 +512,7 @@ export function Graph({
           containerRef={containerRef}
           onClose={closePreviewBlock}
           visible={previewBlock.visible}
+          isFocus={previewBlock.isFocus}
         />
       )}
     </div>

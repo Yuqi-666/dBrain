@@ -3,11 +3,12 @@ import type { BehaviorOptions, IPointerEvent, CustomBehaviorOption, Graph } from
 export interface SelectionCallbacks {
   onNodeSelect?: (nodeIds: string[]) => void;
   onEdgeSelect?: (edgeIds: string[]) => void;
+  onPreviewShow?: (nodeId: string) => void;
   graph?: Graph;
 }
 
 export function getBehaviorsConfig(callbacks?: SelectionCallbacks): BehaviorOptions {
-  const { onNodeSelect, onEdgeSelect, graph } = callbacks || {};
+  const { onNodeSelect, onEdgeSelect, onPreviewShow, graph } = callbacks || {};
 
   const BASE_BEHAVIORS: CustomBehaviorOption[] = [
     {
@@ -51,9 +52,10 @@ export function getBehaviorsConfig(callbacks?: SelectionCallbacks): BehaviorOpti
         if (!id) return;
 
         // Clear all selections first, then set new selection based on target type
-        if (targetType === 'node') {
+if (targetType === 'node') {
           onNodeSelect?.([id]);
           onEdgeSelect?.([]);
+          onPreviewShow?.(id);
         } else if (targetType === 'edge') {
           onNodeSelect?.([]);
           onEdgeSelect?.([id]);

@@ -4,6 +4,7 @@ import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils";
 import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
+import type { ReactNode } from "react";
 const notoSerifHeading = Noto_Serif({ subsets: ['latin'], variable: '--font-heading' });
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-sans' })
@@ -17,7 +18,7 @@ export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
-}>) {
+}>): ReactNode {
   return (
     <html
       lang="en"
