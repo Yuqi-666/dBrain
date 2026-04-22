@@ -46,8 +46,8 @@ export function CognitiveGraphLayout({
         <div
           className={cn(
             "h-full shrink-0 transition-all duration-200 ease-in-out",
-            isFixedMode && "w-70 relative z-30",
-            isTempMode && "fixed left-0 top-0 z-40 w-70 shadow-lg",
+            isFixedMode && "w-64 relative z-30",
+            isTempMode && "fixed left-0 top-0 z-40 w-64 shadow-lg",
           )}
           onMouseLeave={handleMouseLeaveSidebar}
         >
