@@ -41,7 +41,6 @@ export function CognitiveSidebar() {
     (view) => view.isPinned,
   );
   const recentViews = Array.from(views.values())
-    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))
     .slice(0, 5);
   const recentNodes = Array.from(nodes.values()).slice(0, 5);
 
