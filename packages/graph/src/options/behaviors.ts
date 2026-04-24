@@ -1,14 +1,14 @@
 import type { BehaviorOptions, IPointerEvent, CustomBehaviorOption, Graph } from "@antv/g6";
 
-export interface SelectionCallbacks {
+export interface BehaviorConfigOptions {
   onNodeSelect?: (nodeIds: string[]) => void;
   onEdgeSelect?: (edgeIds: string[]) => void;
   onPreviewShow?: (nodeId: string) => void;
   graph?: Graph;
 }
 
-export function getBehaviorsConfig(callbacks?: SelectionCallbacks): BehaviorOptions {
-  const { onNodeSelect, onEdgeSelect, onPreviewShow, graph } = callbacks || {};
+export function createBehaviorOptions(options?: BehaviorConfigOptions): BehaviorOptions {
+  const { onNodeSelect, onEdgeSelect, onPreviewShow, graph } = options || {};
 
   const BASE_BEHAVIORS: CustomBehaviorOption[] = [
     {
@@ -52,7 +52,7 @@ export function getBehaviorsConfig(callbacks?: SelectionCallbacks): BehaviorOpti
         if (!id) return;
 
         // Clear all selections first, then set new selection based on target type
-if (targetType === 'node') {
+        if (targetType === 'node') {
           onNodeSelect?.([id]);
           onEdgeSelect?.([]);
           onPreviewShow?.(id);

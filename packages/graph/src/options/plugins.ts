@@ -1,7 +1,8 @@
 import type { PluginOptions } from "@antv/g6";
 
-export function getPluginsConfig(
-): PluginOptions {
+export interface PluginConfigOptions {}
+
+export function createPluginOptions(options?: PluginConfigOptions): PluginOptions {
   const PLUGINS: PluginOptions = [
 
     // {

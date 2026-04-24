@@ -1,5 +1,6 @@
 import type { LayoutOptions, EdgeData } from "@antv/g6";
 import type { LayoutType } from "@workspace/interfaces";
+
 export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
   D3force:
   {
@@ -48,6 +49,10 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
   mindmap: { type: "mindmap", direction: "H", radius: 20 },
 };
 
-export function getLayoutConfig(layoutType?: LayoutType) {
-  return LAYOUT_CONFIGS[layoutType || "dagre"];
+export interface LayoutConfigOptions {
+  layoutType?: LayoutType;
+}
+
+export function createLayoutOptions(options?: LayoutConfigOptions): LayoutOptions {
+  return LAYOUT_CONFIGS[options?.layoutType || "dagre"];
 }

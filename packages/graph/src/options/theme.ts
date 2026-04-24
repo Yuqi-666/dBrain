@@ -22,6 +22,10 @@ export const DARK_THEME: ThemeConfig = {
   labelColor: "#e5e5e5",
 };
 
-export function getThemeConfig(theme: "light" | "dark" = "light"): ThemeConfig {
-  return theme === "dark" ? DARK_THEME : LIGHT_THEME;
+export interface ThemeConfigOptions {
+  theme?: "light" | "dark";
+}
+
+export function createThemeOptions(options?: ThemeConfigOptions): ThemeConfig {
+  return options?.theme === "dark" ? DARK_THEME : LIGHT_THEME;
 }

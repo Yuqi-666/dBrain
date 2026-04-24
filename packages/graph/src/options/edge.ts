@@ -1,11 +1,12 @@
 import type { EdgeOptions, EdgeData } from "@antv/g6";
-import { getThemeConfig } from "./theme";
+import { createThemeOptions } from "./theme";
 import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
 import { graphStore } from "@workspace/store";
 
-export function getEdgeConfig(
-): EdgeOptions {
+export interface EdgeConfigOptions { }
+
+export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
   const getEdgeSemantic = graphStore.getState().getEdgeSemantic;
   return {
     type: (data: EdgeData) => {
@@ -14,7 +15,7 @@ export function getEdgeConfig(
       if (direction === "bidirectional") return "cubic";
       switch (data.edgeType) {
         case "hierarchy":
-          return "polyline";
+          return "line";
         case "flow":
           return "quadratic";
         case "interaction":
@@ -24,7 +25,7 @@ export function getEdgeConfig(
       }
     },
     style: (data: EdgeData): EdgeStyle => {
-      const theme = getThemeConfig();
+      const theme = createThemeOptions();
       const semantic = getEdgeSemantic(data.semanticId!);
       const direction = data.direction || "forward";
       return {
