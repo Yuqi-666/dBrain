@@ -10,14 +10,6 @@ import {
 } from "../options";
 import { registerExtensions } from "../extensions";
 
-const DEBUG_PREFIX = "[GraphInstance]";
-
-function debugLog(component: string, message: string, data?: unknown) {
-  const timestamp = new Date().toISOString();
-  const dataStr = data !== undefined ? ` ${JSON.stringify(data)}` : "";
-  console.log(`${DEBUG_PREFIX}[${timestamp}][${component}] ${message}${dataStr}`);
-}
-
 interface UseGraphInstanceProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   theme: "light" | "dark";
@@ -36,13 +28,10 @@ export function useGraphInstance({
   const graphRef = useRef<G6Graph | null>(null);
 
   useEffect(() => {
-    debugLog("useEffect", "Effect started", { hasContainer: !!containerRef.current });
     if (!containerRef.current) {
-      debugLog("useEffect", "No container - skipping graph creation");
       return;
     }
 
-    debugLog("useEffect", "Creating G6Graph instance");
     const nodeConfig = createNodeOptions();
     const edgeConfig = createEdgeOptions();
     registerExtensions();
@@ -53,10 +42,8 @@ export function useGraphInstance({
       data: { nodes: [], edges: [] },
     });
 
-    debugLog("useEffect", "G6Graph created", { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
     graphRef.current = graph;
 
-    debugLog("useEffect", "Setting graph options");
     graph.setOptions({
       layout: createLayoutOptions(),
       behaviors: createBehaviorOptions({
@@ -71,12 +58,9 @@ export function useGraphInstance({
       background: createThemeOptions({ theme: theme }).background,
     });
 
-    debugLog("useEffect", "Graph initialization complete");
     return () => {
-      debugLog("useEffect", "Cleanup - destroying graph");
       graph.destroy();
       graphRef.current = null;
-      debugLog("useEffect", "Graph destroyed");
     };
   }, [containerRef, theme, handleNodeSelect, handleEdgeSelect, fixPreviewOnFocus]);
 

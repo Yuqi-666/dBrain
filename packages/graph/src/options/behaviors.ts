@@ -1,4 +1,6 @@
 import type { BehaviorOptions, IPointerEvent, CustomBehaviorOption, Graph } from "@antv/g6";
+// Import to register the custom behavior
+import "../extensions/behaviors/custom-canvas-gesture";
 
 export interface BehaviorConfigOptions {
   onNodeSelect?: (nodeIds: string[]) => void;
@@ -12,22 +14,11 @@ export function createBehaviorOptions(options?: BehaviorConfigOptions): Behavior
 
   const BASE_BEHAVIORS: CustomBehaviorOption[] = [
     {
-      type: 'drag-canvas',
-      key: 'drag-canvas-1',
-      direction: 'both',
-    },
-    {
-      type: 'zoom-canvas',
-      key: 'zoom-canvas-1', // 为交互指定标识符，方便动态更新
-      sensitivity: 0.7, // 设置灵敏度
-      animation: true,
-      trigger: ['Control'],
-    },
-    {
-      type: 'scroll-canvas',
-      key: 'scroll-canvas-1', // 为交互指定标识符，方便动态更新
-      sensitivity: 1.5, // 设置灵敏度
-      direction: 'both',
+      type: 'custom-canvas-gesture',
+      key: 'custom-canvas-gesture',
+      minScale: 0.1,
+      maxScale: 10,
+      sensitivity: 1,
     },
     // {
     //   type: 'optimize-viewport-transform',

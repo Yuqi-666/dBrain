@@ -17,16 +17,7 @@ import type {
   TreeData as G6TreeData,
 } from "@antv/g6";
 
-const DEBUG_PREFIX = "[Transform]";
-
-function debugLog(component: string, message: string, data?: unknown) {
-  const timestamp = new Date().toISOString();
-  const dataStr = data !== undefined ? ` ${JSON.stringify(data)}` : "";
-  console.log(`${DEBUG_PREFIX}[${timestamp}][${component}] ${message}${dataStr}`);
-}
-
 export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
-  debugLog("adaptNodesToG6", "Adapting nodes to G6 format", { count: nodes.size });
   const g6Nodes: G6NodeData[] = [];
 
   nodes.forEach((node) => {
@@ -42,12 +33,10 @@ export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
     });
   });
 
-  debugLog("adaptNodesToG6", "Nodes adapted", { count: g6Nodes.length });
   return g6Nodes;
 }
 
 export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
-  debugLog("adaptEdgesToG6", "Adapting edges to G6 format", { count: edges.size });
   const g6Edges: G6EdgeData[] = [];
 
   edges.forEach((edge) => {
@@ -67,7 +56,6 @@ export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
     });
   });
 
-  debugLog("adaptEdgesToG6", "Edges adapted", { count: g6Edges.length });
   return g6Edges;
 }
 
@@ -117,7 +105,6 @@ export function adaptNodesToTree(
   const buildTree = (nodeId: NodeId, path: Set<NodeId>): G6TreeData | null => {
     // Cycle detection
     if (path.has(nodeId)) {
-      console.warn(`Cycle detected at node ${nodeId}, breaking cycle`);
       return null;
     }
 
@@ -180,30 +167,23 @@ export function transformToG6Data(
   view?: View,
   layoutType?: LayoutType,
 ): GraphData {
-  debugLog("transformToG6Data", "Transforming data to G6 format", { nodeCount: nodes.size, edgeCount: edges.size, layoutType, viewId: view?.id });
   const { filteredNodes, filteredEdges } = filterByViewFilterConfig(
     nodes,
     edges,
     view,
   );
 
-  debugLog("transformToG6Data", "After filtering", { filteredNodeCount: filteredNodes.size, filteredEdgeCount: filteredEdges.size });
-
   const treeLayouts: LayoutType[] = ["compactBox", "fishbone", "mindmap"];
   const isTreeLayout = layoutType && treeLayouts.includes(layoutType);
 
   if (isTreeLayout) {
-    debugLog("transformToG6Data", "Using tree layout", { layoutType });
     const treeData = adaptNodesToTree(filteredNodes, filteredEdges);
     const result = treeToGraphData(treeData);
-    debugLog("transformToG6Data", "Tree layout transform complete", { nodes: result.nodes?.length, edges: result.edges?.length });
     return result;
   } else {
-    debugLog("transformToG6Data", "Using graph layout", { layoutType });
     const adaptedNodes = adaptNodesToG6(filteredNodes);
     const adaptedEdges = adaptEdgesToG6(filteredEdges);
 
-    debugLog("transformToG6Data", "Graph layout transform complete", { nodes: adaptedNodes.length, edges: adaptedEdges.length });
     return {
       nodes: adaptedNodes,
       edges: adaptedEdges,

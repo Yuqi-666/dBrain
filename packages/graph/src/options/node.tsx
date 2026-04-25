@@ -4,7 +4,7 @@ import type { NodeStyle } from "@antv/g6/lib/spec/element/node";
 import { createThemeOptions } from "./theme";
 import { graphStore } from "@workspace/store";
 import type { LayoutType } from "@workspace/interfaces";
-import { createNodeComponent } from "../custom-nodes";
+import { createNodeComponent } from "../extensions/custom-nodes";
 
 export interface NodeConfigOptions {
   layoutType?: LayoutType;

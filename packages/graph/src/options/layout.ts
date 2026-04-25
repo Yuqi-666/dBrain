@@ -7,7 +7,6 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
     type: "d3-force",
     link: {
       distance: (d) => {
-        // console.log(d)
         return (d.data.weight || 2) * 24 + 76
       },
       strength: (d) => {

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { NodeData } from "@antv/g6";
 import { graphStore } from "@workspace/store";
-import { createThemeOptions } from "../options/theme";
+import { createThemeOptions } from "../../options/theme";
 
 export interface ImageNodeProps {
   data: NodeData;

@@ -1,18 +1,16 @@
 import React from "react";
 import type { NodeData } from "@antv/g6";
 import { graphStore } from "@workspace/store";
-import { createThemeOptions } from "../options/theme";
+import { createThemeOptions } from "../../options/theme";
 
-export interface RichTextNodeProps {
+export interface TextNodeProps {
   data: NodeData;
 }
 
-export const RichTextNodeComponent = ({ data }: RichTextNodeProps) => {
+export const TextNodeComponent = ({ data }: TextNodeProps) => {
   const getNodeSemantic = graphStore.getState().getNodeSemantic;
   const theme = createThemeOptions();
   const nodeSemantic = getNodeSemantic(data.semanticId!);
-
-  const content = (data as any).content || (data as any).richText || "";
 
   return (
     <div
@@ -20,35 +18,19 @@ export const RichTextNodeComponent = ({ data }: RichTextNodeProps) => {
         width: "100%",
         height: "100%",
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         backgroundColor: nodeSemantic?.color || theme.nodeColor,
         borderRadius: "8px",
         padding: "8px",
         boxSizing: "border-box",
-        overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          flex: 1,
-          color: theme.labelColor,
-          fontSize: "12px",
-          lineHeight: "1.4",
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
-        }}
-      >
-        {content}
-      </div>
       <span
         style={{
           color: theme.labelColor,
-          fontSize: "10px",
+          fontSize: "14px",
           textAlign: "center",
-          opacity: 0.7,
-          marginTop: "4px",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
