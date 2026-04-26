@@ -9,15 +9,16 @@
     "typecheck": "tsc --noemit"
   },
   "dependencies": {
-    "@types/socket.io-client": "^3.0.0",
-    "@workspace/interfaces": "workspace:*",
-    "socket.io-client": "^4.8.3"
+    "@trpc/client": "^11.0.0",
+    "@trpc/react-query": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@workspace/interfaces": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./socket": "./src/socket.ts"
+    ".": "./src/index.ts"
   }
 }

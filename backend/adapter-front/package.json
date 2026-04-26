@@ -8,7 +8,14 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noemit"
   },
+  "dependencies": {
+    "@trpc/server": "^11.0.0",
+    "superjson": "^2.2.1",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
+    "@types/ws": "^8.18.0",
     "typescript": "^5.0.0"
   },
   "exports": {

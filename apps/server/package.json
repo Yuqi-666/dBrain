@@ -18,7 +18,6 @@
     "@workspace/backend-application": "workspace:*",
     "@workspace/backend-domain": "workspace:*",
     "@workspace/backend-infrastructure": "workspace:*",
-    "@workspace/backend-tauri-core": "workspace:*",
     "@workspace/interfaces": "workspace:*"
   },
   "devDependencies": {

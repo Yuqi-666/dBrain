@@ -1,3 +1,1 @@
-// Frontend adapter for DDD architecture
-// This package bridges the gap between backend domain logic and frontend
-export {};
+export type { AppRouter } from "./trpc/router/index";

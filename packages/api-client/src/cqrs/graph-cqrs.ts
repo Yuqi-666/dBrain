@@ -1,23 +1,4 @@
 import {
-  CommandMessageType,
-  QueryMessageType,
-  type AddNodeSemanticAck,
-  type UpdateNodeSemanticAck,
-  type DeleteNodeSemanticAck,
-  type AddEdgeSemanticAck,
-  type UpdateEdgeSemanticAck,
-  type DeleteEdgeSemanticAck,
-  type AddNodeAck,
-  type UpdateNodeAck,
-  type DeleteNodeAck,
-  type AddEdgeAck,
-  type UpdateEdgeAck,
-  type DeleteEdgeAck,
-  type AddViewAck,
-  type UpdateViewAck,
-  type DeleteViewAck,
-  type SyncAck,
-  type SyncQuery,
   type NodeData,
   type EdgeData,
   type NodeSemantic,
@@ -28,11 +9,10 @@ import {
   type NodeId,
   type EdgeId,
   type ViewId,
+  type SyncQuery,
 } from "@workspace/interfaces";
-import { socketClient as socketClientInstance } from "@workspace/api-client";
+import { trpcClient } from "../trpc/client";
 import { useGraphStore } from "@workspace/store";
-
-const socketClient = socketClientInstance;
 
 export const GraphCQRS = {
   // ================== Command ==================
@@ -45,18 +25,7 @@ export const GraphCQRS = {
     store.addNodeSemantic(semantic);
 
     try {
-      const ack = await socketClient.emitWithAck<AddNodeSemanticAck>(
-        "ADD_NODE_SEMANTIC",
-        {
-          type: CommandMessageType.ADD_NODE_SEMANTIC,
-          requestId: "",
-          payload: semantic,
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Add node semantic failed");
-      }
+      await trpcClient.nodeSemantic.add.mutate(semantic);
     } catch (error) {
       // Rollback
       store.deleteNodeSemantic(semantic.id);
@@ -79,18 +48,7 @@ export const GraphCQRS = {
     store.updateNodeSemantic(id, updates);
 
     try {
-      const ack = await socketClient.emitWithAck<UpdateNodeSemanticAck>(
-        "UPDATE_NODE_SEMANTIC",
-        {
-          type: CommandMessageType.UPDATE_NODE_SEMANTIC,
-          requestId: "",
-          payload: { id, updates },
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Update node semantic failed");
-      }
+      await trpcClient.nodeSemantic.update.mutate({ id, updates });
     } catch (error) {
       // Rollback
       store.updateNodeSemantic(id, oldSemantic);
@@ -110,18 +68,7 @@ export const GraphCQRS = {
     store.deleteNodeSemantic(id);
 
     try {
-      const ack = await socketClient.emitWithAck<DeleteNodeSemanticAck>(
-        "DELETE_NODE_SEMANTIC",
-        {
-          type: CommandMessageType.DELETE_NODE_SEMANTIC,
-          requestId: "",
-          payload: { id },
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Delete node semantic failed");
-      }
+      await trpcClient.nodeSemantic.delete.mutate({ id });
     } catch (error) {
       // Rollback
       store.addNodeSemantic(oldSemantic);
@@ -137,18 +84,7 @@ export const GraphCQRS = {
     store.addEdgeSemantic(semantic);
 
     try {
-      const ack = await socketClient.emitWithAck<AddEdgeSemanticAck>(
-        "ADD_EDGE_SEMANTIC",
-        {
-          type: CommandMessageType.ADD_EDGE_SEMANTIC,
-          requestId: "",
-          payload: semantic,
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Add edge semantic failed");
-      }
+      await trpcClient.edgeSemantic.add.mutate(semantic);
     } catch (error) {
       // Rollback
       store.deleteEdgeSemantic(semantic.id);
@@ -171,18 +107,7 @@ export const GraphCQRS = {
     store.updateEdgeSemantic(id, updates);
 
     try {
-      const ack = await socketClient.emitWithAck<UpdateEdgeSemanticAck>(
-        "UPDATE_EDGE_SEMANTIC",
-        {
-          type: CommandMessageType.UPDATE_EDGE_SEMANTIC,
-          requestId: "",
-          payload: { id, updates },
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Update edge semantic failed");
-      }
+      await trpcClient.edgeSemantic.update.mutate({ id, updates });
     } catch (error) {
       // Rollback
       store.updateEdgeSemantic(id, oldSemantic);
@@ -202,18 +127,7 @@ export const GraphCQRS = {
     store.deleteEdgeSemantic(id);
 
     try {
-      const ack = await socketClient.emitWithAck<DeleteEdgeSemanticAck>(
-        "DELETE_EDGE_SEMANTIC",
-        {
-          type: CommandMessageType.DELETE_EDGE_SEMANTIC,
-          requestId: "",
-          payload: { id },
-        },
-      );
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Delete edge semantic failed");
-      }
+      await trpcClient.edgeSemantic.delete.mutate({ id });
     } catch (error) {
       // Rollback
       store.addEdgeSemantic(oldSemantic);
@@ -229,15 +143,7 @@ export const GraphCQRS = {
     store.addNode(node);
 
     try {
-      const ack = await socketClient.emitWithAck<AddNodeAck>("ADD_NODE", {
-        type: CommandMessageType.ADD_NODE,
-        requestId: "",
-        payload: node,
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Add node failed");
-      }
+      await trpcClient.node.add.mutate(node);
     } catch (error) {
       // Rollback
       store.deleteNode(node.id);
@@ -257,15 +163,7 @@ export const GraphCQRS = {
     store.updateNode(id, updates);
 
     try {
-      const ack = await socketClient.emitWithAck<UpdateNodeAck>("UPDATE_NODE", {
-        type: CommandMessageType.UPDATE_NODE,
-        requestId: "",
-        payload: { id, updates },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Update node failed");
-      }
+      await trpcClient.node.update.mutate({ id, updates });
     } catch (error) {
       // Rollback
       store.updateNode(id, oldNode);
@@ -285,15 +183,7 @@ export const GraphCQRS = {
     store.deleteNode(id);
 
     try {
-      const ack = await socketClient.emitWithAck<DeleteNodeAck>("DELETE_NODE", {
-        type: CommandMessageType.DELETE_NODE,
-        requestId: "",
-        payload: { id },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Delete node failed");
-      }
+      await trpcClient.node.delete.mutate({ id });
     } catch (error) {
       // Rollback
       store.addNode(oldNode);
@@ -309,15 +199,7 @@ export const GraphCQRS = {
     store.addEdge(edge);
 
     try {
-      const ack = await socketClient.emitWithAck<AddEdgeAck>("ADD_EDGE", {
-        type: CommandMessageType.ADD_EDGE,
-        requestId: "",
-        payload: edge,
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Add edge failed");
-      }
+      await trpcClient.edge.add.mutate(edge);
     } catch (error) {
       // Rollback
       store.deleteEdge(edge.id);
@@ -337,15 +219,7 @@ export const GraphCQRS = {
     store.updateEdge(id, updates);
 
     try {
-      const ack = await socketClient.emitWithAck<UpdateEdgeAck>("UPDATE_EDGE", {
-        type: CommandMessageType.UPDATE_EDGE,
-        requestId: "",
-        payload: { id, updates },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Update edge failed");
-      }
+      await trpcClient.edge.update.mutate({ id, updates });
     } catch (error) {
       // Rollback
       store.updateEdge(id, oldEdge);
@@ -365,15 +239,7 @@ export const GraphCQRS = {
     store.deleteEdge(id);
 
     try {
-      const ack = await socketClient.emitWithAck<DeleteEdgeAck>("DELETE_EDGE", {
-        type: CommandMessageType.DELETE_EDGE,
-        requestId: "",
-        payload: { id },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Delete edge failed");
-      }
+      await trpcClient.edge.delete.mutate({ id });
     } catch (error) {
       // Rollback
       store.addEdge(oldEdge);
@@ -389,15 +255,7 @@ export const GraphCQRS = {
     store.addView(view);
 
     try {
-      const ack = await socketClient.emitWithAck<AddViewAck>("ADD_VIEW", {
-        type: CommandMessageType.ADD_VIEW,
-        requestId: "",
-        payload: view,
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Add view failed");
-      }
+      await trpcClient.view.add.mutate(view);
     } catch (error) {
       // Rollback
       store.deleteView(view.id);
@@ -417,15 +275,7 @@ export const GraphCQRS = {
     store.updateView(id, updates);
 
     try {
-      const ack = await socketClient.emitWithAck<UpdateViewAck>("UPDATE_VIEW", {
-        type: CommandMessageType.UPDATE_VIEW,
-        requestId: "",
-        payload: { id, updates },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Update view failed");
-      }
+      await trpcClient.view.update.mutate({ id, updates });
     } catch (error) {
       // Rollback
       store.updateView(id, oldView);
@@ -445,39 +295,24 @@ export const GraphCQRS = {
     store.deleteView(id);
 
     try {
-      const ack = await socketClient.emitWithAck<DeleteViewAck>("DELETE_VIEW", {
-        type: CommandMessageType.DELETE_VIEW,
-        requestId: "",
-        payload: { id },
-      });
-
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Delete view failed");
-      }
+      await trpcClient.view.delete.mutate({ id });
     } catch (error) {
       // Rollback
       store.addView(oldView);
       throw error;
     }
   },
+
   // ================== Query ==================
 
   async sync(query: SyncQuery): Promise<void> {
     const store = useGraphStore.getState();
 
     try {
-      const ack = await socketClient.emitWithAck<SyncAck>("SYNC", {
-        type: QueryMessageType.SYNC,
-        requestId: "",
-        payload: query,
-      });
+      const data = await trpcClient.graph.sync.query(query);
 
-      if (!ack.success) {
-        throw new Error(ack.error?.message || "Sync query failed");
-      }
-
-      if (ack.data) {
-        store.syncFromServer(ack.data);
+      if (data) {
+        store.syncFromServer(data);
       }
     } catch (error) {
       throw error;
