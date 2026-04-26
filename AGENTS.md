@@ -1,36 +1,39 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-04-22
+**Generated:** 2026-04-26
 **Commit:** 5ead259
 **Branch:** develop
 
 ## OVERVIEW
-dBrain is a hybrid monorepo combining a Tauri desktop app + Next.js web frontend with a Rust backend. Uses Turborepo + pnpm for JS/TS and clean architecture for Rust crates.
+dBrain is a hybrid monorepo combining a Tauri desktop app + Next.js web frontend with a TypeScript backend. Uses Turborepo + pnpm for JS/TS. **The backend is TypeScript DDD layers, NOT Rust** — only the Tauri desktop app is Rust.
 
 ## STRUCTURE
 ```
 dBrain/
 ├── apps/
-│   ├── desktop/     # Tauri + Next.js desktop app (port 3001)
-│   ├── web/         # Next.js web app (port 3000)
-│   ├── server/      # Rust backend server
-│   └── docs/        # Symlink to external docs
+│   ├── desktop/     # Tauri 2.x + Next.js (port 3001)
+│   ├── web/         # Next.js 16 web app (port 3000)
+│   ├── server/      # Placeholder (exports empty object)
+│   └── docs/         # Symlink to /mnt/f/dbrain (external)
 ├── packages/        # Shared npm packages
-│   ├── ui/          # shadcn/ui component library (largest)
+│   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # @antv/g6-based visualization
 │   ├── interfaces/  # Type definitions & models
-│   ├── store/       # Zustand state management
+│   ├── store/       # Zustand v5 state management
 │   ├── hooks/       # Custom React hooks
 │   ├── api-client/  # API client
 │   ├── utils/       # Utilities
-│   ├── dev/         # MOCK data for development
-│   ├── eslint-config/# Shared ESLint configs (flat format)
+│   ├── dev/         # Mock data for development
+│   ├── eslint-config/# Flat ESLint configs
 │   └── typescript-config/# Shared TS configs
-└── crates/          # Rust clean architecture crates
-    ├── domain/      # Domain entities
-    ├── application/ # Use cases
-    ├── infrastructure/# Data access
-    └── adapters*/   # Front/back/tauri adapters
+├── backend/         # TypeScript DDD backend (NOT Rust)
+│   ├── domain/      # Domain entities (no framework deps)
+│   ├── application/ # Use cases, services
+│   ├── infrastructure/# Repositories, external APIs
+│   ├── adapter-back/# REST API adapter
+│   ├── adapter-front/# Frontend adapter
+│   └── adapter-tauri/# Tauri IPC adapter
+└── crates/          # ⚠️ DOES NOT EXIST — see backend/
 ```
 
 ## WHERE TO LOOK
@@ -43,16 +46,17 @@ dBrain/
 | Desktop app | apps/desktop/src | Tauri + Next.js |
 | Web app | apps/web/src | Next.js 16, React 19 |
 
-## CODE MAP (Rust Crates)
+## CODE MAP (TypeScript Backend DDD)
 ```
-domain/       → entities, value objects
-application/  → use cases, services
-infrastructure/ → repositories, external APIs
-adapter-back/ → REST API adapter
-adapter-front/ → Frontend adapter
-adapter-tauri/ → Tauri IPC adapter
-tauri-core/   → Shared Tauri logic
+backend/domain/       → entities, value objects (no framework deps)
+backend/application/  → use cases, services
+backend/infrastructure/ → repositories, external APIs
+backend/adapter-back/ → REST API adapter
+backend/adapter-front/ → Frontend adapter
+backend/adapter-tauri/ → Tauri IPC adapter
 ```
+
+**Rust code ONLY exists in:** `apps/desktop/src-tauri/` (Cargo.toml exists there, not in backend/)
 
 ## CONVENTIONS
 - **Package scope:** `@workspace/*` (not `@repo/*`)
@@ -70,8 +74,8 @@ tauri-core/   → Shared Tauri logic
 - `@workspace/*` path aliases in apps/web point to node_modules (unusual)
 
 ## UNIQUE STYLES
-- Hybrid Rust+TypeScript monorepo (uncommon structure)
-- Clean architecture applied to Rust crates
+- Hybrid TypeScript+Rust monorepo (TypeScript backend DDD + Tauri desktop app)
+- Clean architecture applied to TypeScript backend layers
 - Tailwind CSS v4 with shadcn/ui
 - Uses Zustand v5 for state, React 19, Next.js 16
 
@@ -92,4 +96,5 @@ pnpm --filter=desktop tauri # Tauri CLI
 ## NOTES
 - Desktop app uses Tauri 2.x with Next.js frontend
 - Graph package uses @antv/g6 for node graph visualization
-- All 7 Rust crates have placeholder tests (2+2=4)
+- No actual Rust backend — backend is TypeScript DDD layers
+- ⚠️ `crates/` directory does not exist — backend code is in `backend/`

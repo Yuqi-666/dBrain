@@ -1,0 +1,32 @@
+{
+  "name": "@workspace/server",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "lint": "eslint",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/backend-adapter-back": "workspace:*",
+    "@workspace/backend-adapter-front": "workspace:*",
+    "@workspace/backend-adapter-tauri": "workspace:*",
+    "@workspace/backend-application": "workspace:*",
+    "@workspace/backend-domain": "workspace:*",
+    "@workspace/backend-infrastructure": "workspace:*",
+    "@workspace/backend-tauri-core": "workspace:*",
+    "@workspace/interfaces": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "@workspace/eslint-config": "workspace:^",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9.39.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}

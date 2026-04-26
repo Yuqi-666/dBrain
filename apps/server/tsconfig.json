@@ -1,0 +1,26 @@
+{
+  "extends": "@workspace/typescript-config/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/server/*": ["./src/*"],
+      "@workspace/backend-domain": ["../../backend/domain/src"],
+      "@workspace/backend-domain/*": ["../../backend/domain/src/*"],
+      "@workspace/backend-application": ["../../backend/application/src"],
+      "@workspace/backend-application/*": ["../../backend/application/src/*"],
+      "@workspace/backend-infrastructure": ["../../backend/infrastructure/src"],
+      "@workspace/backend-infrastructure/*": ["../../backend/infrastructure/src/*"],
+      "@workspace/backend-adapter-back": ["../../backend/adapter-back/src"],
+      "@workspace/backend-adapter-back/*": ["../../backend/adapter-back/src/*"],
+      "@workspace/backend-adapter-front": ["../../backend/adapter-front/src"],
+      "@workspace/backend-adapter-front/*": ["../../backend/adapter-front/src/*"],
+      "@workspace/backend-adapter-tauri": ["../../backend/adapter-tauri/src"],
+      "@workspace/backend-adapter-tauri/*": ["../../backend/adapter-tauri/src/*"],
+      "@workspace/backend-tauri-core": ["../../backend/tauri-core/src"],
+      "@workspace/backend-tauri-core/*": ["../../backend/tauri-core/src/*"]
+    },
+    "outDir": "./dist"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
