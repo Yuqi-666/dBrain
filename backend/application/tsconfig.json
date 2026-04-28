@@ -4,10 +4,10 @@
     "baseUrl": ".",
     "paths": {
       "@workspace/interfaces": [
-        "../interfaces/src"
+        "../../packages/interfaces/src"
       ],
       "@workspace/interfaces/*": [
-        "../interfaces/src/*"
+        "../../packages/interfaces/src/*"
       ]
     }
   },

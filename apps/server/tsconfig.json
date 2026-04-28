@@ -15,9 +15,7 @@
       "@workspace/backend-adapter-front": ["../../backend/adapter-front/src"],
       "@workspace/backend-adapter-front/*": ["../../backend/adapter-front/src/*"],
       "@workspace/backend-adapter-tauri": ["../../backend/adapter-tauri/src"],
-      "@workspace/backend-adapter-tauri/*": ["../../backend/adapter-tauri/src/*"],
-      "@workspace/backend-tauri-core": ["../../backend/tauri-core/src"],
-      "@workspace/backend-tauri-core/*": ["../../backend/tauri-core/src/*"]
+      "@workspace/backend-adapter-tauri/*": ["../../backend/adapter-tauri/src/*"]
     },
     "outDir": "./dist"
   },

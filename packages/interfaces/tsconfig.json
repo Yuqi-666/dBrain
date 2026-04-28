@@ -3,22 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/interfaces/*": [
-        "./src/*"
-      ],
-      "@workspace/utils": [
-        "./utils/src"
-      ],
-      "@workspace/utils/*": [
-        "./utils/src/*"
-      ]
+      "@workspace/interfaces/*": ["./src/*"],
+      "@workspace/utils": ["../utils/src"],
+      "@workspace/utils/*": ["../utils/src/*"]
     }
   },
-  "include": [
-    "."
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

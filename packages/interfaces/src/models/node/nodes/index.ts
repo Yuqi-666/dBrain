@@ -35,8 +35,5 @@ export type {
 
 export type {
   RichTextNodeData,
-  RichTextBlock,
-  BaseBlock,
-  ReferenceBlock,
   RichTextContent
 } from "./complex/rich-text";
