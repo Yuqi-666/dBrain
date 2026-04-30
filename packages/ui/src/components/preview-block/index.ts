@@ -1,4 +1,4 @@
-export { PreviewBlock, type PreviewBlockProps } from "./preview-block";
+export { PreviewBlock } from "./preview-block";
 export { PreviewHeader } from "./preview-header";
 export { TextPreview } from "./previews/text-preview";
 export { ImagePreview } from "./previews/image-preview";

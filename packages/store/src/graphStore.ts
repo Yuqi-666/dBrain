@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type {
   NodeSemantic,
   NodeSemanticId,
+  NodeTag,
+  NodeTagId,
   NodeData,
   NodeId,
   EdgeSemantic,
@@ -20,6 +22,12 @@ type Mutation =
     payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
   }
   | { type: "deleteNodeSemantic"; payload: { id: NodeSemanticId } }
+  | { type: "addNodeTag"; payload: NodeTag }
+  | {
+    type: "updateNodeTag";
+    payload: { id: NodeTagId; updates: Partial<NodeTag> };
+  }
+  | { type: "deleteNodeTag"; payload: { id: NodeTagId } }
   | { type: "addEdgeSemantic"; payload: EdgeSemantic }
   | {
     type: "updateEdgeSemantic";
@@ -42,12 +50,19 @@ type Mutation =
   | { type: "updateView"; payload: { id: ViewId; updates: Partial<View> } }
   | { type: "deleteView"; payload: { id: ViewId } };
 
+const MUTATION_TYPES = {
+  addNodeTag: "addNodeTag" as const,
+  updateNodeTag: "updateNodeTag" as const,
+  deleteNodeTag: "deleteNodeTag" as const,
+};
+
 /**
  * Unified Zustand store for managing all cognitive graph data
  */
 export interface GraphStore {
   // ==================== 核心状态 ====================
   nodeSemantics: Map<NodeSemanticId, NodeSemantic>;
+  nodeTags: Map<NodeTagId, NodeTag>;
   edgeSemantics: Map<EdgeSemanticId, EdgeSemantic>;
   nodes: Map<NodeId, NodeData>;
   edges: Map<EdgeId, EdgeData>;
@@ -69,6 +84,12 @@ export interface GraphStore {
   ) => void;
   deleteNodeSemantic: (id: NodeSemanticId) => void;
   setNodeSemantics: (semantics: NodeSemantic[]) => void;
+
+  // -- Node Tag --
+  addNodeTag: (tag: NodeTag) => void;
+  updateNodeTag: (id: NodeTagId, updates: Partial<NodeTag>) => void;
+  deleteNodeTag: (id: NodeTagId) => void;
+  setNodeTags: (tags: NodeTag[]) => void;
 
   // -- Edge Semantic --
   addEdgeSemantic: (semantic: EdgeSemantic) => void;
@@ -103,6 +124,8 @@ export interface GraphStore {
   // ==================== Getters ====================
   getNodeSemantic: (id: NodeSemanticId) => NodeSemantic | undefined;
   getAllNodeSemantics: () => NodeSemantic[];
+  getNodeTag: (id: NodeTagId) => NodeTag | undefined;
+  getAllNodeTags: () => NodeTag[];
   getEdgeSemantic: (id: EdgeSemanticId) => EdgeSemantic | undefined;
   getAllEdgeSemantics: () => EdgeSemantic[];
   getNode: (id: NodeId) => NodeData | undefined;
@@ -130,6 +153,7 @@ interface ServerSyncPayload {
 export const useGraphStore = create<GraphStore>((set, get) => ({
   // ==================== 初始状态 ====================
   nodeSemantics: new Map(),
+  nodeTags: new Map(),
   edgeSemantics: new Map(),
   nodes: new Map(),
   edges: new Map(),
@@ -190,6 +214,54 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   setNodeSemantics: (semantics) => {
     set({ nodeSemantics: new Map(semantics.map((s) => [s.id, s])) });
+  },
+
+  addNodeTag: (tag) => {
+    set((state) => {
+      const newTags = new Map(state.nodeTags);
+      newTags.set(tag.id, tag);
+      return { nodeTags: newTags };
+    });
+    set((state) => ({
+      latestMutations: [
+        ...state.latestMutations,
+        { type: "addNodeTag", payload: tag },
+      ],
+    }));
+  },
+
+  updateNodeTag: (id, updates) => {
+    set((state) => {
+      if (!state.nodeTags.has(id)) return state;
+      const newTags = new Map(state.nodeTags);
+      const existing = newTags.get(id)!;
+      newTags.set(id, { ...existing, ...updates });
+      return { nodeTags: newTags };
+    });
+    set((state) => ({
+      latestMutations: [
+        ...state.latestMutations,
+        { type: "updateNodeTag", payload: { id, updates } },
+      ],
+    }));
+  },
+
+  deleteNodeTag: (id) => {
+    set((state) => {
+      const newTags = new Map(state.nodeTags);
+      newTags.delete(id);
+      return { nodeTags: newTags };
+    });
+    set((state) => ({
+      latestMutations: [
+        ...state.latestMutations,
+        { type: "deleteNodeTag", payload: { id } },
+      ],
+    }));
+  },
+
+  setNodeTags: (tags) => {
+    set({ nodeTags: new Map(tags.map((t) => [t.id, t])) });
   },
 
   // ==================== Edge Semantic Actions ====================
@@ -409,6 +481,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   // ==================== Getters  ====================
   getNodeSemantic: (id) => get().nodeSemantics.get(id),
   getAllNodeSemantics: () => Array.from(get().nodeSemantics.values()),
+  getNodeTag: (id) => get().nodeTags.get(id),
+  getAllNodeTags: () => Array.from(get().nodeTags.values()),
   getEdgeSemantic: (id) => get().edgeSemantics.get(id),
   getAllEdgeSemantics: () => Array.from(get().edgeSemantics.values()),
   getNode: (id) => get().nodes.get(id),

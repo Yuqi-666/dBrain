@@ -1,13 +1,14 @@
 "use client";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { useUIStore, useNodeEditorStore } from "@workspace/store";
-import { useNodeEditor } from "@workspace/hooks";
+import { useUIStore, useNodeEditorStore, useGraphStore } from "@workspace/store";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
 import { RelationshipQuickBar } from "./quick-bar";
 import { EditorHeader } from "../header/editor-header/editor-header";
 import { AttributesSidebar } from "../header/editor-header/attributes-sidebar";
+import type { NodeData } from "@workspace/interfaces";
+import { useEffect } from "react";
 
 interface NodeEditorProps {
   className?: string;
@@ -19,17 +20,11 @@ interface NodeEditorProps {
  * - Fullscreen mode (mainViewType === "editor"): 全屏独占, 隐藏QuickBar
  */
 export function NodeEditor({ className }: NodeEditorProps) {
-  const { node, nodeId, isEditing } = useNodeEditor();
   const mainViewType = useUIStore((state) => state.mainViewType);
+  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
   const setCurrentEditingNodeId = useNodeEditorStore((state) => state.setCurrentEditingNodeId);
-
-  // Window mode: Dialog弹窗
-  const isWindowMode = mainViewType === "graph" && isEditing;
-  // Fullscreen mode: 全屏独占
-  const isFullscreenMode = mainViewType === "editor" && isEditing;
-
-  // Not editing - don't render
-  if (!isEditing || !node || !nodeId) {
+  const node = useGraphStore((state) => currentEditingNodeId ? state.nodes.get(currentEditingNodeId) : undefined);
+  if (!node) {
     return null;
   }
 
@@ -41,9 +36,9 @@ export function NodeEditor({ className }: NodeEditorProps) {
   return (
     <>
       {/* Window Mode: Dialog */}
-      {isWindowMode && (
+      {mainViewType === "graph" && (
         <Dialog
-          open={isWindowMode}
+          open={true}
           onOpenChange={(open) => {
             if (!open) handleClose();
           }}
@@ -61,7 +56,6 @@ export function NodeEditor({ className }: NodeEditorProps) {
           >
             <NodeEditorContent
               node={node}
-              nodeId={nodeId}
               showQuickBar={true}
             />
           </DialogContent>
@@ -69,11 +63,10 @@ export function NodeEditor({ className }: NodeEditorProps) {
       )}
 
       {/* Fullscreen Mode */}
-      {isFullscreenMode && (
+      {mainViewType === "editor" && (
         <div className={cn("absolute inset-0 z-50 bg-background flex flex-col", className)}>
           <NodeEditorContent
             node={node}
-            nodeId={nodeId}
             showQuickBar={false}
           />
         </div>
@@ -87,13 +80,12 @@ export function NodeEditor({ className }: NodeEditorProps) {
  * 被 Window Mode 和 Fullscreen Mode 共用
  */
 interface NodeEditorContentProps {
-  node: any;
-  nodeId: string;
+  node: NodeData;
   showQuickBar: boolean;
   className?: string;
 }
 
-function NodeEditorContent({ node, nodeId, showQuickBar, className }: NodeEditorContentProps) {
+function NodeEditorContent({ node, showQuickBar, className }: NodeEditorContentProps) {
   const attributesSidebarOpen = useNodeEditorStore((state) => state.attributesSidebarOpen);
 
   return (
@@ -102,7 +94,7 @@ function NodeEditorContent({ node, nodeId, showQuickBar, className }: NodeEditor
 
       <div className="flex-1  flex overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          <NodeContentEditor node={node} nodeId={nodeId} />
+          <NodeContentEditor node={node} />
         </div>
         {attributesSidebarOpen && (
           <AttributesSidebar className="w-80 flex-shrink-0" />
@@ -110,7 +102,7 @@ function NodeEditorContent({ node, nodeId, showQuickBar, className }: NodeEditor
       </div>
 
       {showQuickBar && (
-        <RelationshipQuickBar nodeId={nodeId} />
+        <RelationshipQuickBar node={node} />
       )}
     </div>
   );

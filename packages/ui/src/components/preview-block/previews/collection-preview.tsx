@@ -4,8 +4,7 @@ import type { CollectionNodeData } from "@workspace/interfaces";
 import { Folder, Filter } from "lucide-react";
 
 export function CollectionPreview({ node }: { node: CollectionNodeData }) {
-  const { content } = node;
-  const filterConfig = content?.filterConfig;
+  const filterConfig = node.content?.filterConfig;
 
   return (
     <div className="space-y-2">

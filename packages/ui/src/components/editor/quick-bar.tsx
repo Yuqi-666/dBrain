@@ -11,9 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { LinkIcon, PlusIcon, ArrowRightIcon, ArrowLeftIcon } from "lucide-react";
+import type { NodeData } from "@workspace/interfaces";
 
 interface RelationshipQuickBarProps {
-  nodeId: string;
+  node: NodeData;
   className?: string;
 }
 
@@ -21,19 +22,18 @@ interface RelationshipQuickBarProps {
  * RelationshipQuickBar - Quick actions for managing node relationships
  * Positioned at bottom of NodeEditor in window mode
  */
-export function RelationshipQuickBar({ nodeId, className }: RelationshipQuickBarProps) {
+export function RelationshipQuickBar({ node, className }: RelationshipQuickBarProps) {
   const [isVisible, setIsVisible] = useState(true);
   const edges = useGraphStore((state) => state.edges);
   const nodes = useGraphStore((state) => state.nodes);
 
   // Get connected nodes
   const connectedEdges = Array.from(edges.values()).filter(
-    (edge) => edge.from === nodeId || edge.to === nodeId
-  );
+    (edge) => edge.from === node.id || edge.to === node.id);
 
   // Separate inbound and outbound
-  const inboundEdges = connectedEdges.filter((edge) => edge.to === nodeId);
-  const outboundEdges = connectedEdges.filter((edge) => edge.from === nodeId);
+  const inboundEdges = connectedEdges.filter((edge) => edge.to === node.id);
+  const outboundEdges = connectedEdges.filter((edge) => edge.from === node.id);
 
   return (
     <div

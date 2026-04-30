@@ -306,7 +306,7 @@ export function Graph({
       )}
       {previewBlock.visible && previewBlock.nodeId && (
         <PreviewBlock
-          node={nodes.get(previewBlock.nodeId)!}
+          nodeId={previewBlock.nodeId}
           containerRef={containerRef}
           onClose={closePreviewBlock}
           visible={previewBlock.visible}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import type { NodeData } from "@workspace/interfaces";
+import { useGraphStore } from "@workspace/store";
 import { PREVIEW_WIDTH, PREVIEW_MAX_HEIGHT, PREVIEW_MARGIN } from "./types";
 import { PreviewHeader } from "./preview-header";
 import { TextPreview } from "./previews/text-preview";
@@ -23,7 +24,7 @@ if (typeof window !== "undefined") {
 }
 
 export interface PreviewBlockProps {
-  node: NodeData;
+  nodeId: string;
   containerRef: React.RefObject<HTMLElement | null>;
   onClose?: () => void;
   visible: boolean;
@@ -89,12 +90,13 @@ function renderNodePreview(node: NodeData): React.ReactNode {
 }
 
 export function PreviewBlock({
-  node,
+  nodeId,
   containerRef,
   onClose,
   visible,
   isFocus,
 }: PreviewBlockProps) {
+  const node = useGraphStore((state) => state.nodes.get(nodeId));
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [previewSize, setPreviewSize] = React.useState({
     width: PREVIEW_WIDTH,
@@ -149,7 +151,7 @@ export function PreviewBlock({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleClose]);
 
-  if (!visible) return null;
+  if (!visible || !node) return null;
 
   return (
     <div

@@ -24,9 +24,6 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
   // 状态：控制是否播放视频
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 安全取值
-  const { content, duration = 0, source, fileSize = 0, title = "Video" } = node ?? {};
-
   return (
     <div className="space-y-2">
       {/* 鼠标移入/移出 控制播放 */}
@@ -38,10 +35,10 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
         {/* 1. 默认显示：封面图 */}
         {!isPlaying && (
           <>
-            {content?.cover_url ? (
+            {node.content?.cover_url ? (
               <img
-                src={content.cover_url}
-                alt={title}
+                src={node.content.cover_url}
+                alt={node.title}
                 className="size-full object-cover"
               />
             ) : (
@@ -51,18 +48,18 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
             )}
 
             {/* 时长 */}
-            {duration > 0 && (
+            {(node.duration ?? 0) > 0 && (
               <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs text-white">
-                {formatDuration(duration)}
+                {formatDuration(node.duration ?? 0)}
               </div>
             )}
           </>
         )}
 
         {/* 2. 鼠标移入后显示：视频自动播放 */}
-        {isPlaying && content.url && (
+        {isPlaying && node.content?.url && (
           <video
-            src={content.url}
+            src={node.content.url}
             autoPlay
             muted          // 必须静音才能自动播放（浏览器规则）
             loop           // 循环播放（更像预览效果）
@@ -76,8 +73,8 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
 
       {/* 底部信息 */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="capitalize">{source || "Unknown"}</span>
-        {fileSize > 0 && <span>{formatSize(fileSize)}</span>}
+        <span className="capitalize">{node.source || "Unknown"}</span>
+        {(node.fileSize ?? 0) > 0 && <span>{formatSize(node.fileSize ?? 0)}</span>}
       </div>
     </div>
   );

@@ -10,14 +10,12 @@ function formatSize(bytes: number) {
 }
 
 export function PdfPreview({ node }: { node: PdfNodeData }) {
-  const { content, pageCount, fileSize } = node;
-
   return (
     <div className="space-y-2">
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
-        {content?.cover_url ? (
+        {node.content?.cover_url ? (
           <img
-            src={content.cover_url}
+            src={node.content.cover_url}
             alt={node.title}
             className="size-full object-cover"
           />
@@ -29,8 +27,8 @@ export function PdfPreview({ node }: { node: PdfNodeData }) {
         )}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{pageCount} pages</span>
-        <span>{formatSize(fileSize)}</span>
+        <span>{node.pageCount} pages</span>
+        <span>{formatSize(node.fileSize)}</span>
       </div>
     </div>
   );

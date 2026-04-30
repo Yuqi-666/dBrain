@@ -20,11 +20,10 @@ function extractTextContent(docs: Record<string, any>): string {
 }
 
 export function RichTextPreview({ node }: { node: RichTextNodeData }) {
-  const { content } = node;
-  const docsText = content?.docs ? extractTextContent(content.docs) : "";
+  const docsText = node.content?.docs ? extractTextContent(node.content.docs) : "";
   const previewText =
     docsText.slice(0, 150) + (docsText.length > 150 ? "..." : "");
-  const referencedCount = content?.referencedNodes?.length || 0;
+  const referencedCount = node.content?.referencedNodes?.length || 0;
 
   return (
     <div className="space-y-2">

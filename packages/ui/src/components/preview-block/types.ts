@@ -1,12 +1,3 @@
-import type { NodeData, NodeDataType } from "@workspace/interfaces";
-
-export interface PreviewBlockProps {
-  node: NodeData;
-  position: { x: number; y: number };
-  containerRef: React.RefObject<HTMLElement | null>;
-  onClose?: () => void;
-}
-
 export interface PreviewPosition {
   left: number;
   top: number;

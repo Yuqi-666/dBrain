@@ -9,6 +9,13 @@ export interface NodeSemantic {
   icon?: string;
 }
 
+export type NodeTagId = string;
+export interface NodeTag {
+  id: NodeTagId;
+  name: string;
+  color?: string;
+}
+
 export type NodeId = string;
 
 export interface NodeBase {
@@ -17,7 +24,7 @@ export interface NodeBase {
   abstract?: string;
   permission: Permission;
   semanticId: NodeSemanticId;
-  tags?: string[];
+  tags?: NodeTagId[];
   isPinned?: boolean;
   stateData?: Record<string, any>;
   createdAt: string;

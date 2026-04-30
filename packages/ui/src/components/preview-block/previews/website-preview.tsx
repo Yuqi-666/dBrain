@@ -4,7 +4,6 @@ import type { WebsiteNodeData } from "@workspace/interfaces";
 import { Globe, ExternalLink } from "lucide-react";
 
 export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
-  const { content, targetUrl, favicon } = node;
 
   const getDomain = (url: string) => {
     try {
@@ -17,9 +16,9 @@ export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
-        {content?.faviconUrl || favicon ? (
+        {node.content?.faviconUrl ? (
           <img
-            src={content?.faviconUrl || favicon}
+            src={node.content?.faviconUrl}
             alt=""
             className="size-8 rounded"
           />
@@ -31,13 +30,13 @@ export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{node.title}</p>
           <p className="text-xs text-muted-foreground truncate">
-            {getDomain(targetUrl || content?.homepageUrl || "")}
+            {getDomain(node.content.url || "")}
           </p>
         </div>
       </div>
-      {targetUrl && (
+      {node.content.url && (
         <a
-          href={targetUrl}
+          href={node.content.url}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"

@@ -16,8 +16,6 @@ function formatSize(bytes: number) {
 }
 
 export function AudioPreview({ node }: { node: AudioNodeData }) {
-  const { content, duration, fileSize } = node;
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
@@ -27,8 +25,8 @@ export function AudioPreview({ node }: { node: AudioNodeData }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{node.title}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {duration > 0 && <span>{formatDuration(duration)}</span>}
-            {fileSize && <span>{formatSize(fileSize)}</span>}
+            {node.duration && node.duration > 0 && <span>{formatDuration(node.duration)}</span>}
+            {node.fileSize && <span>{formatSize(node.fileSize)}</span>}
           </div>
         </div>
         <Volume className="size-5 text-muted-foreground shrink-0" />
