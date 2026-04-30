@@ -5,6 +5,18 @@
     "paths": {
       "@workspace/hooks/*": [
         "./src/*"
+      ],
+      "@workspace/store": [
+        "../store/src"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
+      ],
+      "@workspace/interfaces": [
+        "../interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../interfaces/src/*"
       ]
     }
   },

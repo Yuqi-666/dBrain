@@ -20,7 +20,7 @@ export function OptionsButton({
   return (
     <Button
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       onClick={onClick}
       className={className}
       aria-label="更多选项"

@@ -2,27 +2,38 @@
 
 import { PinIcon, PinOffIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { useUIStore } from "@workspace/store";
+import { useNodeEditorStore, useGraphStore } from "@workspace/store";
 
 interface PinButtonProps {
   className?: string;
 }
 
 /**
- * 图钉按钮 - 切换编辑器置顶状态
+ * 图钉按钮 - 切换节点置顶状态
  */
 export function PinButton({ className }: PinButtonProps) {
-  const { editorPinned, toggleEditorPinned } = useUIStore();
+  const currentEditingNodeId = useNodeEditorStore((s) => s.currentEditingNodeId);
+  const node = useGraphStore((s) =>
+    currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined
+  );
+  const updateNode = useGraphStore((s) => s.updateNode);
+
+  const isPinned = node?.isPinned ?? false;
+
+  const handleTogglePin = () => {
+    if (!currentEditingNodeId) return;
+    updateNode(currentEditingNodeId, { isPinned: !isPinned });
+  };
 
   return (
     <Button
       variant="ghost"
-      size="icon-sm"
-      onClick={toggleEditorPinned}
+      size="icon"
+      onClick={handleTogglePin}
       className={className}
-      aria-label={editorPinned ? "取消置顶" : "置顶编辑器"}
+      aria-label={isPinned ? "取消置顶" : "置顶节点"}
     >
-      {editorPinned ? <PinIcon className="fill-current" /> : <PinOffIcon />}
+      {isPinned ? <PinIcon className="fill-current" /> : <PinOffIcon />}
     </Button>
   );
 }

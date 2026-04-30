@@ -19,7 +19,7 @@ export function ToggleSearchCommandButton({
   return (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size="icon"
       onClick={toggleCommandDialog}
       className={className}
       aria-label="打开搜索命令面板"

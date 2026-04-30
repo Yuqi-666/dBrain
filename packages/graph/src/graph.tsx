@@ -57,6 +57,7 @@ export function Graph({
     setPreviewBlock,
     closePreviewBlock,
     fixPreviewOnFocus,
+    handleNodeEdit,
   } = useGraphStateManage();
 
   // 图实例 Hook
@@ -76,6 +77,7 @@ export function Graph({
     setContextMenu,
     setPreviewBlock,
     isNodeFocusRef,
+    handleNodeEdit,
   });
 
   const nodes = useGraphStore((state) => state.nodes);

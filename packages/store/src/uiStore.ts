@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ViewId, NodeId } from "@workspace/interfaces";
+import type { ViewId } from "@workspace/interfaces";
 
 /**
  * UI 状态类型定义
@@ -44,18 +44,6 @@ export interface UIStore {
   /** 设置当前选中的视图 */
   setCurrentViewId: (viewId: ViewId | null) => void;
 
-  // ==================== 编辑器状态 ====================
-  /** 当前正在编辑的节点ID */
-  currentEditingNodeId: NodeId | null;
-  /** 设置当前正在编辑的节点 */
-  setCurrentEditingNodeId: (nodeId: NodeId | null) => void;
-  /** 编辑器是否置顶 */
-  editorPinned: boolean;
-  /** 切换编辑器置顶状态 */
-  toggleEditorPinned: () => void;
-  /** 设置编辑器置顶状态 */
-  setEditorPinned: (pinned: boolean) => void;
-
   // ==================== 命令面板状态 ====================
   /** 命令面板是否显示 */
   commandDialogOpen: boolean;
@@ -70,10 +58,6 @@ export interface UIStore {
   /** 设置视图配置面板显示状态 */
   setViewConfigPanelOpen: (open: boolean) => void;
 
-  /** 节点信息面板是否显示 */
-  nodeInfoPanelOpen: boolean;
-  /** 设置节点信息面板显示状态 */
-  setNodeInfoPanelOpen: (open: boolean) => void;
 
   /** 选项菜单是否显示 */
   optionsMenuOpen: boolean;
@@ -88,7 +72,6 @@ export const useUIStore = create<UIStore>((set) => ({
 
   currentViewId: null,
 
-  currentEditingNodeId: null,
   editorPinned: false,
 
   commandDialogOpen: false,
@@ -116,21 +99,6 @@ export const useUIStore = create<UIStore>((set) => ({
   // ==================== 视图 Actions ====================
   setCurrentViewId: (viewId) => set({ currentViewId: viewId }),
 
-  // ==================== 编辑器 Actions ====================
-  setCurrentEditingNodeId: (nodeId) =>
-    set({
-      currentEditingNodeId: nodeId,
-      // 打开编辑器时，主视图类型切换为 editor
-      mainViewType: nodeId ? "editor" : "graph",
-    }),
-
-  toggleEditorPinned: () =>
-    set((state) => ({
-      editorPinned: !state.editorPinned,
-    })),
-
-  setEditorPinned: (pinned) => set({ editorPinned: pinned }),
-
   // ==================== 命令面板 Actions ====================
   setCommandDialogOpen: (open) => set({ commandDialogOpen: open }),
 
@@ -141,6 +109,5 @@ export const useUIStore = create<UIStore>((set) => ({
 
   // ==================== 面板 Actions ====================
   setViewConfigPanelOpen: (open) => set({ viewConfigPanelOpen: open }),
-  setNodeInfoPanelOpen: (open) => set({ nodeInfoPanelOpen: open }),
   setOptionsMenuOpen: (open) => set({ optionsMenuOpen: open }),
 }));

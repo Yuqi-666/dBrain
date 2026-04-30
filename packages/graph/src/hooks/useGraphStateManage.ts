@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useNodeEditorStore, useUIStore } from "@workspace/store";
+import React, { useState, useCallback, useRef, useEffect, use } from "react";
 
 // 定义局部状态类型
 export interface LocalGraphUIState {
@@ -32,7 +33,7 @@ export function useGraphStateManage() {
     visible: false,
     isFocus: false,
   });
-
+  const setCurrentEditingNode = useNodeEditorStore((state) => state.setCurrentEditingNodeId)
   // Ref 用于避免闭包问题
   const isNodeFocusRef = useRef(false);
 
@@ -64,6 +65,7 @@ export function useGraphStateManage() {
 
   const closePreviewBlock = useCallback(() => {
     setPreviewBlockState(prev => ({ ...prev, visible: false, isFocus: false }));
+    console.log("closed")
   }, []);
 
   const fixPreviewOnFocus = useCallback((nodeId: string) => {
@@ -73,7 +75,9 @@ export function useGraphStateManage() {
       isFocus: true,
     });
   }, [setPreviewBlock]);
-
+  const handleNodeEdit = useCallback((nodeId: string) => {
+    setCurrentEditingNode(nodeId)
+  }, [setCurrentEditingNode]);
   return {
     selectedNodeIds,
     selectedEdgeIds,
@@ -87,5 +91,6 @@ export function useGraphStateManage() {
     setPreviewBlock,
     closePreviewBlock,
     fixPreviewOnFocus,
+    handleNodeEdit,
   };
 }

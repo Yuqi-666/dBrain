@@ -5,9 +5,11 @@
 **Branch:** develop
 
 ## OVERVIEW
+
 dBrain is a hybrid monorepo combining a Tauri desktop app + Next.js web frontend with a TypeScript backend. Uses Turborepo + pnpm for JS/TS. **The backend is TypeScript DDD layers, NOT Rust** — only the Tauri desktop app is Rust.
 
 ## STRUCTURE
+
 ```
 dBrain/
 ├── apps/
@@ -18,6 +20,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # @antv/g6-based visualization
+│   ├── editor/      # Tiptap Pro rich text editor (Notion-like, with Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
 │   ├── hooks/       # Custom React hooks
@@ -37,16 +40,19 @@ dBrain/
 ```
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| UI components | packages/ui/src/components | shadcn/ui + custom |
-| Graph visualization | packages/graph/src | @antv/g6 |
-| Type definitions | packages/interfaces/src | Models, nodes, API types |
-| State management | packages/store/src | Zustand stores |
-| Desktop app | apps/desktop/src | Tauri + Next.js |
-| Web app | apps/web/src | Next.js 16, React 19 |
+
+| Task                 | Location                   | Notes                                |
+| -------------------- | -------------------------- | ------------------------------------ |
+| UI components        | packages/ui/src/components | shadcn/ui + custom                   |
+| Graph visualization  | packages/graph/src         | @antv/g6                             |
+| **Rich text editor** | packages/editor/           | Tiptap Pro + Yjs, Notion-like editor |
+| Type definitions     | packages/interfaces/src    | Models, nodes, API types             |
+| State management     | packages/store/src         | Zustand stores                       |
+| Desktop app          | apps/desktop/src           | Tauri + Next.js                      |
+| Web app              | apps/web/src               | Next.js 16, React 19                 |
 
 ## CODE MAP (TypeScript Backend DDD)
+
 ```
 backend/domain/       → entities, value objects (no framework deps)
 backend/application/  → use cases, services
@@ -59,6 +65,7 @@ backend/adapter-tauri/ → Tauri IPC adapter
 **Rust code ONLY exists in:** `apps/desktop/src-tauri/` (Cargo.toml exists there, not in backend/)
 
 ## CONVENTIONS
+
 - **Package scope:** `@workspace/*` (not `@repo/*`)
 - **ESLint:** Flat config, `eslint-plugin-only-warn` (errors→warnings)
 - **TS:** `strict: true`, `verbatimModuleSyntax: true`, `alwaysStrict: false`
@@ -67,6 +74,7 @@ backend/adapter-tauri/ → Tauri IPC adapter
 - **Format:** Prettier (no .editorconfig)
 
 ## ANTI-PATTERNS (THIS PROJECT)
+
 - NO test infrastructure for JS/TS (no Jest/Vitest configs)
 - NO CI/CD checked in (no GitHub Actions, no Dockerfile)
 - NO `__tests__` or `*.test.*` files in JS/TS
@@ -74,12 +82,14 @@ backend/adapter-tauri/ → Tauri IPC adapter
 - `@workspace/*` path aliases in apps/web point to node_modules (unusual)
 
 ## UNIQUE STYLES
+
 - Hybrid TypeScript+Rust monorepo (TypeScript backend DDD + Tauri desktop app)
 - Clean architecture applied to TypeScript backend layers
 - Tailwind CSS v4 with shadcn/ui
 - Uses Zustand v5 for state, React 19, Next.js 16
 
 ## COMMANDS
+
 ```bash
 pnpm build      # Build all via turbo
 pnpm dev        # Dev all via turbo
@@ -94,6 +104,7 @@ pnpm --filter=desktop tauri # Tauri CLI
 ```
 
 ## NOTES
+
 - Desktop app uses Tauri 2.x with Next.js frontend
 - Graph package uses @antv/g6 for node graph visualization
 - No actual Rust backend — backend is TypeScript DDD layers

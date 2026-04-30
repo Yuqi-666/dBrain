@@ -10,6 +10,7 @@ interface UseGraphEventHandlersProps {
   setContextMenu: (menu: LocalGraphUIState["contextMenu"]) => void;
   setPreviewBlock: (block: LocalGraphUIState["previewBlock"]) => void;
   isNodeFocusRef: React.MutableRefObject<boolean>;
+  handleNodeEdit: (nodeId: string) => void;
 }
 
 export function useGraphEventHandlers({
@@ -20,6 +21,7 @@ export function useGraphEventHandlers({
   setContextMenu,
   setPreviewBlock,
   isNodeFocusRef,
+  handleNodeEdit,
 }: UseGraphEventHandlersProps) {
   const isDraggingRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +134,12 @@ export function useGraphEventHandlers({
       isDraggingRef.current = false;
     };
 
+    const handleNodeDBClick = (e: any) => {
+      const nodeId = e.target?.id;
+      handleNodeEdit(nodeId);
+      closePreviewBlock();
+    }
+
     // 绑定事件
     graph.on(NodeEvent.CONTEXT_MENU, handleNodeContextMenu);
     graph.on(EdgeEvent.CONTEXT_MENU, handleEdgeContextMenu);
@@ -139,6 +147,7 @@ export function useGraphEventHandlers({
     graph.on(CanvasEvent.CLICK, handleCanvasClick);
     graph.on(NodeEvent.POINTER_ENTER, handleNodePointerEnter);
     graph.on(NodeEvent.POINTER_LEAVE, handleNodePointerLeave);
+    graph.on(NodeEvent.DBLCLICK, handleNodeDBClick);
     graph.on(CanvasEvent.POINTER_ENTER, handleCanvasPointerEnter);
     graph.on(NodeEvent.DRAG, handleNodeDrag);
     graph.on(NodeEvent.DRAG_END, handleNodeDragEnd);

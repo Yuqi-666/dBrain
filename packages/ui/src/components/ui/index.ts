@@ -18,3 +18,4 @@ export * from "./slider";
 export * from "./tabs";
 export * from "./textarea";
 export * from "./tooltip";
+export * from "./label";

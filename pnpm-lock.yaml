@@ -526,7 +526,26 @@ importers:
         version: 5.9.3
 
   packages/hooks:
+    dependencies:
+      '@workspace/interfaces':
+        specifier: workspace:*
+        version: link:../interfaces
+      '@workspace/store':
+        specifier: workspace:*
+        version: link:../store
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.10
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -558,6 +577,12 @@ importers:
 
   packages/ui:
     dependencies:
+      '@workspace/editor':
+        specifier: workspace:*
+        version: link:../editor
+      '@workspace/hooks':
+        specifier: workspace:*
+        version: link:../hooks
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces

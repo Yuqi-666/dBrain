@@ -32,7 +32,7 @@ export function ToggleSidebarButton({ className }: ToggleSidebarButtonProps) {
       onClick={handleClick}
       className={cn(className)}
     >
-      <PanelLeftIcon className="size-4" />
+      <PanelLeftIcon />
     </Button>
   );
 }

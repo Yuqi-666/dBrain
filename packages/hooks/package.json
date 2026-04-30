@@ -8,8 +8,16 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noemit"
   },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/store": "workspace:*"
+  },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3"
   },
   "exports": {
     ".": "./src"
