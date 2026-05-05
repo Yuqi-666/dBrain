@@ -8,6 +8,7 @@ import { createPortal } from "react-dom"
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
+import { Markdown } from "@tiptap/markdown"
 import { Mention } from "@tiptap/extension-mention"
 import { TaskList, TaskItem } from "@tiptap/extension-list"
 import { Color, TextStyle } from "@tiptap/extension-text-style"
@@ -19,7 +20,6 @@ import { Highlight } from "@tiptap/extension-highlight"
 import { Superscript } from "@tiptap/extension-superscript"
 import { Subscript } from "@tiptap/extension-subscript"
 import { TextAlign } from "@tiptap/extension-text-align"
-import { Mathematics } from "@tiptap/extension-mathematics"
 import { MockAi as Ai } from "@workspace/editor/lib/mock-ai"
 import { UniqueID } from "@tiptap/extension-unique-id"
 import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji"
@@ -33,12 +33,15 @@ import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state"
 import { useScrollToHash } from "@workspace/editor/components/tiptap-ui/copy-anchor-link-button/use-scroll-to-hash"
 
 // --- Custom Extensions ---
+import { PasteMarkdown } from "@workspace/editor/components/tiptap-extension/paste-markdown-extension"
 import { HorizontalRule } from "@workspace/editor/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
 import { UiState } from "@workspace/editor/components/tiptap-extension/ui-state-extension"
 import { Image } from "@workspace/editor/components/tiptap-node/image-node/image-node-extension"
 import { NodeBackground } from "@workspace/editor/components/tiptap-extension/node-background-extension"
 import { NodeAlignment } from "@workspace/editor/components/tiptap-extension/node-alignment-extension"
 import { TocNode } from "@workspace/editor/components/tiptap-node/toc-node/extensions/toc-node-extension"
+import { Excalidraw } from "../../tiptap-node/excalidraw/excalidraw-extension"
+import { LatexInline, LatexBlock } from "../../tiptap-node/latex-node"
 
 // --- Tiptap Node ---
 import { ImageUploadNode } from "@workspace/editor/components/tiptap-node/image-upload-node/image-upload-node-extension"
@@ -203,6 +206,8 @@ export function EditorProvider(props: EditorProviderProps) {
         },
         link: { openOnClick: false },
       }),
+      Markdown,
+      PasteMarkdown,
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Collaboration.configure({ document: ydoc }),
@@ -242,7 +247,6 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       NodeAlignment,
       TextStyle,
-      Mathematics,
       Superscript,
       Subscript,
       Indent,
@@ -278,6 +282,8 @@ export function EditorProvider(props: EditorProviderProps) {
           "blockquote",
           "codeBlock",
           "tocNode",
+          "inlineMath",
+          "blockMath",
         ],
         filterTransaction: (transaction) => !isChangeOrigin(transaction),
       }),
@@ -304,6 +310,9 @@ export function EditorProvider(props: EditorProviderProps) {
           editor!.commands.aiGenerationHasMessage(false)
         },
       }),
+      Excalidraw,
+      LatexInline,
+      LatexBlock,
     ],
   })
 

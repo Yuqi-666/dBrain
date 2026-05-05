@@ -5,6 +5,12 @@
     "paths": {
       "@workspace/editor/*": [
         "./*"
+      ],
+      "@workspace/interfaces": [
+        "../interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../interfaces/src/*"
       ]
     }
   },

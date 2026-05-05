@@ -21,6 +21,8 @@ export const TURN_INTO_BLOCKS = [
   "taskList",
   "blockquote",
   "codeBlock",
+  "latexBlock",
+  "latexInline",
 ]
 
 /**
@@ -38,7 +40,7 @@ export interface UseTurnIntoDropdownConfig {
   hideWhenUnavailable?: boolean
   /**
    * Which block types to show in the dropdown
-   * @default ["paragraph", "heading", "bulletList", "orderedList", "taskList", "blockquote", "codeBlock"]
+   * @default ["paragraph", "heading", "bulletList", "orderedList", "taskList", "blockquote", "codeBlock", "latexBlock"]
    */
   blockTypes?: string[]
   /**
@@ -58,7 +60,9 @@ export const blockTypeOptions = [
       !editor.isActive("orderedList") &&
       !editor.isActive("taskList") &&
       !editor.isActive("blockquote") &&
-      !editor.isActive("codeBlock"),
+      !editor.isActive("codeBlock") &&
+      !editor.isActive("latexBlock") &&
+      !editor.isActive("latexInline"),
   },
   {
     type: "heading",
@@ -102,6 +106,16 @@ export const blockTypeOptions = [
     type: "codeBlock",
     label: "Code block",
     isActive: (editor: Editor) => editor.isActive("codeBlock"),
+  },
+  {
+    type: "latexBlock",
+    label: "Latex block",
+    isActive: (editor: Editor) => editor.isActive("latexBlock"),
+  },
+  {
+    type: "latexInline",
+    label: "Latex inline",
+    isActive: (editor: Editor) => editor.isActive("latexInline"),
   },
 ]
 

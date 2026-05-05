@@ -19,6 +19,8 @@ import { HeadingButton } from "@workspace/editor/components/tiptap-ui/heading-bu
 import { ListButton } from "@workspace/editor/components/tiptap-ui/list-button"
 import { BlockquoteButton } from "@workspace/editor/components/tiptap-ui/blockquote-button"
 import { CodeBlockButton } from "@workspace/editor/components/tiptap-ui/code-block-button"
+import { LatexBlockButton } from "@workspace/editor/components/tiptap-ui/latex-block-button"
+import { LatexInlineButton } from "@workspace/editor/components/tiptap-ui/latex-inline-button"
 
 // --- UI Primitives ---
 import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
@@ -134,6 +136,28 @@ function renderBlockTypeButton(
       return (
         <DropdownMenuItem key={key} asChild>
           <CodeBlockButton
+            editor={editor}
+            showTooltip={false}
+            text={option.label}
+          />
+        </DropdownMenuItem>
+      )
+
+    case "latexBlock":
+      return (
+        <DropdownMenuItem key={key} asChild>
+          <LatexBlockButton
+            editor={editor}
+            showTooltip={false}
+            text={option.label}
+          />
+        </DropdownMenuItem>
+      )
+
+    case "latexInline":
+      return (
+        <DropdownMenuItem key={key} asChild>
+          <LatexInlineButton
             editor={editor}
             showTooltip={false}
             text={option.label}

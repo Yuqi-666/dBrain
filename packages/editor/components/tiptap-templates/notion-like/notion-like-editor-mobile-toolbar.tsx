@@ -71,6 +71,7 @@ import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chev
 import { HighlighterIcon } from "@workspace/editor/components/tiptap-icons/highlighter-icon"
 import { LinkIcon } from "@workspace/editor/components/tiptap-icons/link-icon"
 import { MoreVerticalIcon } from "@workspace/editor/components/tiptap-icons/more-vertical-icon"
+import { Sigma } from "lucide-react"
 import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
 import {
   Toolbar,
@@ -481,8 +482,8 @@ function ToolbarViewButton({
 
   return view.desktopComponent
     ? cloneElement(view.desktopComponent as React.ReactElement, {
-        key: view.id,
-      })
+      key: view.id,
+    })
     : null
 }
 
@@ -638,8 +639,8 @@ export function MobileToolbar({ editor: providedEditor }: MobileToolbarProps) {
   const currentView = toolbarState.isMainView
     ? null
     : toolbarViews[
-        toolbarState.viewId as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>
-      ]
+    toolbarState.viewId as Exclude<ToolbarViewId, typeof TOOLBAR_VIEWS.MAIN>
+    ]
 
   const { height } = useWindowSize()
   const rect = useCursorVisibility({
@@ -657,8 +658,8 @@ export function MobileToolbar({ editor: providedEditor }: MobileToolbarProps) {
       style={{
         ...(isMobile
           ? {
-              bottom: `calc(100% - ${height - rect.y}px)`,
-            }
+            bottom: `calc(100% - ${height - rect.y}px)`,
+          }
           : {}),
       }}
     >

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react"
 import type { Editor } from "@tiptap/react"
+import type { Range } from "@tiptap/core";
 
 // --- Icons ---
 import { CodeBlockIcon } from "@workspace/editor/components/tiptap-icons/code-block-icon"
@@ -20,6 +21,8 @@ import { AtSignIcon } from "@workspace/editor/components/tiptap-icons/at-sign-ic
 import { SmilePlusIcon } from "@workspace/editor/components/tiptap-icons/smile-plus-icon"
 import { TableIcon } from "@workspace/editor/components/tiptap-icons/table-icon"
 import { ListIndentedIcon } from "@workspace/editor/components/tiptap-icons/list-indented-icon"
+import IconExcalidraw from "../../tiptap-icons/excalidraw"
+import { FunctionSquare, Sigma } from "lucide-react"
 
 // --- Lib ---
 import {
@@ -161,6 +164,27 @@ const texts = {
     subtext: "Insert a table of contents",
     keywords: ["toc", "tableofcontents", "table of contents"],
     badge: ListIndentedIcon,
+    group: "Insert",
+  },
+  excalidraw: {
+    title: "Excalidraw diagram",
+    subtext: "Draw and sketch excalidraw diagrams",
+    keywords: ["excalidraw", "diagrams", "draw", "sketch", "whiteboard"],
+    badge: IconExcalidraw,
+    group: "Insert",
+  },
+  inline_latex: {
+    title: "Inline LaTeX",
+    subtext: "Insert inline mathematical formula",
+    keywords: ["latex", "math", "inline", "formula", "equation", "$"],
+    badge: Sigma,
+    group: "Insert",
+  },
+  block_latex: {
+    title: "Block LaTeX",
+    subtext: "Insert block-level mathematical formula",
+    keywords: ["latex", "math", "block", "formula", "equation", "$$"],
+    badge: Sigma,
     group: "Insert",
   },
 
@@ -343,6 +367,35 @@ const getItemImplementations = () => {
       },
     },
 
+    excalidraw: {
+      check: (editor: Editor) => isNodeInSchema("excalidraw", editor),
+      action: ({ editor }: { editor: Editor }) => {
+        editor.chain().focus().setExcalidraw().run()
+      },
+    },
+
+    inline_latex: {
+      check: (editor: Editor) => isNodeInSchema("latexInline", editor),
+      action: ({ editor, range }: { editor: Editor, range: Range }) => {
+        editor.chain()
+          .focus()
+          .deleteRange(range)
+          .setLatexInline()
+          .setNodeSelection(range.from)
+          .run()
+      },
+    },
+    block_latex: {
+      check: (editor: Editor) => isNodeInSchema("latexBlock", editor),
+      action: ({ editor, range }: { editor: Editor, range: Range }) => {
+        editor.chain()
+          .focus()
+          .deleteRange(range)
+          .setLatexBlock()
+          .run()
+      },
+    },
+
     // Upload
     image: {
       check: (editor: Editor) => isNodeInSchema("image", editor),
@@ -407,7 +460,8 @@ export function useSlashDropdownMenu(config?: SlashMenuConfig) {
 
         if (itemImpl && itemText && itemImpl.check(editor)) {
           const item: SuggestionItem = {
-            onSelect: ({ editor }) => itemImpl.action({ editor }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onSelect: ({ editor, range }: { editor: Editor, range: Range }) => itemImpl.action({ editor, range } as any),
             ...itemText,
           }
 

@@ -99,7 +99,7 @@ export function getElementOverflowPosition(
 export const isSelectionValid = (
   editor: Editor | null,
   selection?: Selection,
-  excludedNodeTypes: string[] = ["imageUpload", "horizontalRule"]
+  excludedNodeTypes: string[] = ["imageUpload", "horizontalRule", "latexBlock", "latexInline"]
 ): boolean => {
   if (!editor) return false
   if (!selection) selection = editor.state.selection

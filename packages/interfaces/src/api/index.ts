@@ -1,3 +1,4 @@
+export * from "./attachment";
 export * from "./command";
 export * from "./query";
 export * from "./responses";

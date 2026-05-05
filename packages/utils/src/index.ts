@@ -6,3 +6,4 @@ export {
   type ControlElementsProp,
 } from "react-querybuilder";
 export * from "./filter"
+export * from "./file"
