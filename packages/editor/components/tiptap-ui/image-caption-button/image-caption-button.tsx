@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
-import type { UseImageCaptionConfig } from "@workspace/editor/components/tiptap-ui/image-caption-button"
-import { useImageCaption } from "@workspace/editor/components/tiptap-ui/image-caption-button"
+import type { UseImageCaptionConfig } from "@workspace/editor/components/tiptap-ui/image-caption-button";
+import { useImageCaption } from "@workspace/editor/components/tiptap-ui/image-caption-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 
 export interface ImageCaptionButtonProps
   extends Omit<ButtonProps, "type">, UseImageCaptionConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -41,27 +41,27 @@ export const ImageCaptionButton = React.forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, isActive, canToggle, handleToggleCaption, label, Icon } =
       useImageCaption({
         editor,
         hideWhenUnavailable,
         onSet,
-      })
+      });
 
     const handleClick = React.useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggleCaption()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggleCaption();
       },
-      [handleToggleCaption, onClick]
-    )
+      [handleToggleCaption, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -86,8 +86,8 @@ export const ImageCaptionButton = React.forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-ImageCaptionButton.displayName = "ImageCaptionButton"
+ImageCaptionButton.displayName = "ImageCaptionButton";

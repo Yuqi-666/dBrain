@@ -1,38 +1,38 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { type Editor } from "@tiptap/react"
-import { NodeSelection, TextSelection } from "@tiptap/pm/state"
+import { useCallback, useEffect, useState } from "react";
+import { type Editor } from "@tiptap/react";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Lib ---
 import {
   isNodeInSchema,
   selectionWithinConvertibleTypes,
-} from "@workspace/editor/lib/tiptap-utils"
+} from "@workspace/editor/lib/tiptap-utils";
 
 // --- Icons ---
-import { TypeIcon } from "@workspace/editor/components/tiptap-icons/type-icon"
+import { TypeIcon } from "@workspace/editor/components/tiptap-icons/type-icon";
 
-export const LATEX_BLOCK_SHORTCUT_KEY = "mod+shift+m"
+export const LATEX_BLOCK_SHORTCUT_KEY = "mod+shift+m";
 
 export interface UseLatexBlockConfig {
-  editor?: Editor | null
-  hideWhenUnavailable?: boolean
-  onToggled?: () => void
+  editor?: Editor | null;
+  hideWhenUnavailable?: boolean;
+  onToggled?: () => void;
 }
 
 export function canToggleLatexBlock(
   editor: Editor | null,
-  turnInto: boolean = true
+  turnInto: boolean = true,
 ): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!isNodeInSchema("latexBlock", editor)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!isNodeInSchema("latexBlock", editor)) return false;
 
   if (!turnInto) {
-    return editor.can().setLatexBlock()
+    return editor.can().setLatexBlock();
   }
 
   if (
@@ -47,38 +47,45 @@ export function canToggleLatexBlock(
       "latexBlock",
     ])
   )
-    return false
+    return false;
 
-  return editor.can().setLatexBlock()
+  return editor.can().setLatexBlock();
 }
 
 /**
  * Toggles latex block in the editor (精确替换选中部分)
  */
 export function toggleLatexBlock(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!canToggleLatexBlock(editor)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!canToggleLatexBlock(editor)) return false;
 
   try {
-    const { state } = editor
-    const { selection } = state
+    const { state } = editor;
+    const { selection } = state;
 
     // 1. 如果已经是块级公式，再次触发则取消它（变为普通段落）
     if (editor.isActive("latexBlock")) {
-      if (selection instanceof NodeSelection && selection.node.type.name === "latexBlock") {
-        const text = selection.node.attrs.text || ""
-        editor.chain().focus().insertContent({
-          type: "paragraph",
-          content: text ? [{ type: "text", text }] : [],
-        }).run()
-        return true
+      if (
+        selection instanceof NodeSelection &&
+        selection.node.type.name === "latexBlock"
+      ) {
+        const text = selection.node.attrs.text || "";
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "paragraph",
+            content: text ? [{ type: "text", text }] : [],
+          })
+          .run();
+        return true;
       }
     }
 
     // 2. 将选中的文本转为块级公式
-    let latexText = ""
+    let latexText = "";
     if (!selection.empty && selection instanceof TextSelection) {
-      latexText = state.doc.textBetween(selection.from, selection.to, "\n")
+      latexText = state.doc.textBetween(selection.from, selection.to, "\n");
     }
 
     // 删除选中片段并替换为公式块 (Tiptap 会自动在这个位置打断段落并插入 Block)
@@ -87,30 +94,30 @@ export function toggleLatexBlock(editor: Editor | null): boolean {
       .focus()
       .deleteSelection()
       .setLatexBlock({ text: latexText })
-      .run()
+      .run();
 
-    return true
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 export function shouldShowLatexButton(props: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  const { editor, hideWhenUnavailable } = props
+  const { editor, hideWhenUnavailable } = props;
 
-  if (!editor) return false
+  if (!editor) return false;
 
   if (!hideWhenUnavailable) {
-    return true
+    return true;
   }
 
-  if (!editor.isEditable) return false
-  if (!isNodeInSchema("latexBlock", editor)) return false
+  if (!editor.isEditable) return false;
+  if (!isNodeInSchema("latexBlock", editor)) return false;
 
-  return canToggleLatexBlock(editor)
+  return canToggleLatexBlock(editor);
 }
 
 export function useLatexBlock(config?: UseLatexBlockConfig) {
@@ -118,38 +125,38 @@ export function useLatexBlock(config?: UseLatexBlockConfig) {
     editor: providedEditor,
     hideWhenUnavailable = false,
     onToggled,
-  } = config || {}
+  } = config || {};
 
-  const { editor } = useTiptapEditor(providedEditor)
-  const [isVisible, setIsVisible] = useState<boolean>(true)
-  const canToggleState = canToggleLatexBlock(editor)
-  const isActive = editor?.isActive("latexBlock") || false
+  const { editor } = useTiptapEditor(providedEditor);
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const canToggleState = canToggleLatexBlock(editor);
+  const isActive = editor?.isActive("latexBlock") || false;
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const handleSelectionUpdate = () => {
-      setIsVisible(shouldShowLatexButton({ editor, hideWhenUnavailable }))
-    }
+      setIsVisible(shouldShowLatexButton({ editor, hideWhenUnavailable }));
+    };
 
-    handleSelectionUpdate()
+    handleSelectionUpdate();
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, hideWhenUnavailable])
+      editor.off("selectionUpdate", handleSelectionUpdate);
+    };
+  }, [editor, hideWhenUnavailable]);
 
   const handleToggle = useCallback(() => {
-    if (!editor) return false
+    if (!editor) return false;
 
-    const success = toggleLatexBlock(editor)
+    const success = toggleLatexBlock(editor);
     if (success) {
-      onToggled?.()
+      onToggled?.();
     }
-    return success
-  }, [editor, onToggled])
+    return success;
+  }, [editor, onToggled]);
 
   return {
     isVisible,
@@ -159,5 +166,5 @@ export function useLatexBlock(config?: UseLatexBlockConfig) {
     label: "Math block",
     shortcutKeys: LATEX_BLOCK_SHORTCUT_KEY,
     Icon: TypeIcon,
-  }
+  };
 }

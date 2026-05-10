@@ -6,7 +6,11 @@ import type { View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
-import { createLayoutOptions, createNodeOptions, createThemeOptions } from "./options";
+import {
+  createLayoutOptions,
+  createNodeOptions,
+  createThemeOptions,
+} from "./options";
 import type { Mutation } from "./types";
 import { useGraphStateManage } from "./hooks/useGraphStateManage";
 import { useGraphInstance } from "./hooks/useGraphInstance";
@@ -113,30 +117,34 @@ export function Graph({
     );
     graph.setData(g6Data);
     graph.setLayout(createLayoutOptions({ layoutType: currentView?.layout }));
-    graph.setOptions({ node: createNodeOptions({ layoutType: currentView?.layout }) });
+    graph.setOptions({
+      node: createNodeOptions({ layoutType: currentView?.layout }),
+    });
     if (currentView?.layout === "D3force") {
       graph.updateBehavior({
-        key: 'drag-element-force',
+        key: "drag-element-force",
         enable: true,
       });
       graph.updateBehavior({
-        key: 'drag-element',
+        key: "drag-element",
         enable: false,
       });
     } else {
       graph.updateBehavior({
-        key: 'drag-element-force',
+        key: "drag-element-force",
         enable: false,
       });
       graph.updateBehavior({
-        key: 'drag-element',
+        key: "drag-element",
         enable: true,
       });
     }
 
     if (isMountedRef.current) {
       graph.render().then(() => {
-        graph.fitCenter();
+        if (currentView?.layout != "D3force") {
+          graph.fitCenter();
+        }
       });
     }
   };

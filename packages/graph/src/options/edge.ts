@@ -4,7 +4,7 @@ import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
 import { graphStore } from "@workspace/store";
 
-export interface EdgeConfigOptions { }
+export interface EdgeConfigOptions {}
 
 export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
   const getEdgeSemantic = graphStore.getState().getEdgeSemantic;
@@ -85,7 +85,7 @@ export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
         lineWidth: 2,
         shadowColor: "transparent",
         shadowBlur: 0,
-      }
+      },
     },
     animation: false,
   };

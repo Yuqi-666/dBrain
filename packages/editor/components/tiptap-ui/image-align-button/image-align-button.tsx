@@ -1,49 +1,49 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Lib ---
-import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils"
+import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
 import type {
   ImageAlign,
   UseImageAlignConfig,
-} from "@workspace/editor/components/tiptap-ui/image-align-button"
+} from "@workspace/editor/components/tiptap-ui/image-align-button";
 import {
   IMAGE_ALIGN_SHORTCUT_KEYS,
   useImageAlign,
-} from "@workspace/editor/components/tiptap-ui/image-align-button"
+} from "@workspace/editor/components/tiptap-ui/image-align-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge";
 
 export interface ImageAlignButtonProps
   extends Omit<ButtonProps, "type">, UseImageAlignConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
 }
 
 export function ImageAlignShortcutBadge({
   align,
   shortcutKeys = IMAGE_ALIGN_SHORTCUT_KEYS[align],
 }: {
-  align: ImageAlign
-  shortcutKeys?: string
+  align: ImageAlign;
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -69,9 +69,9 @@ export const ImageAlignButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
       handleImageAlign,
@@ -87,19 +87,19 @@ export const ImageAlignButton = forwardRef<
       attributeName,
       hideWhenUnavailable,
       onAligned,
-    })
+    });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleImageAlign()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleImageAlign();
       },
-      [handleImageAlign, onClick]
-    )
+      [handleImageAlign, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -131,8 +131,8 @@ export const ImageAlignButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-ImageAlignButton.displayName = "ImageAlignButton"
+ImageAlignButton.displayName = "ImageAlignButton";

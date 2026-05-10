@@ -1,7 +1,4 @@
-import {
-  router,
-  publicProcedure,
-} from "../server";
+import { router, publicProcedure } from "../server";
 import { z } from "zod";
 
 const addSchema = z.object({
@@ -39,7 +36,9 @@ export const viewRouter = router({
   list: publicProcedure.query(() => {
     return { items: [] };
   }),
-  getById: publicProcedure.input(z.object({ id: z.string() })).query(({ input }) => {
-    return null;
-  }),
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ input }) => {
+      return null;
+    }),
 });

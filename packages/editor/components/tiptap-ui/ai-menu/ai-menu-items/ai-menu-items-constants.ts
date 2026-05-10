@@ -1,8 +1,8 @@
-import type { Language } from "@workspace/editor/lib/mock-ai"
+import type { Language } from "@workspace/editor/lib/mock-ai";
 
 export const SUPPORTED_LANGUAGES: Array<{
-  label: string
-  value: Language
+  label: string;
+  value: Language;
 }> = [
   { label: "English", value: "en" },
   { label: "Korean", value: "ko" },
@@ -19,7 +19,7 @@ export const SUPPORTED_LANGUAGES: Array<{
   { label: "Vietnamese", value: "vi" },
   { label: "Turkish", value: "tr" },
   { label: "Arabic", value: "ar" },
-]
+];
 
 export const SUPPORTED_TONES: Array<{ label: string; value: string }> = [
   { label: "Academic", value: "academic" },
@@ -42,4 +42,4 @@ export const SUPPORTED_TONES: Array<{ label: string; value: string }> = [
   { label: "Objective", value: "objective" },
   { label: "Persuasive", value: "persuasive" },
   { label: "Poetic", value: "poetic" },
-]
+];

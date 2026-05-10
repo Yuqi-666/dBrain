@@ -1,7 +1,11 @@
 "use client";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { useUIStore, useNodeEditorStore, useGraphStore } from "@workspace/store";
+import {
+  useUIStore,
+  useNodeEditorStore,
+  useGraphStore,
+} from "@workspace/store";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
 import { RelationshipQuickBar } from "./quick-bar";
@@ -21,9 +25,16 @@ interface NodeEditorProps {
  */
 export function NodeEditor({ className }: NodeEditorProps) {
   const mainViewType = useUIStore((state) => state.mainViewType);
-  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
-  const setCurrentEditingNodeId = useNodeEditorStore((state) => state.setCurrentEditingNodeId);
-  const node = useGraphStore((state) => currentEditingNodeId ? state.nodes.get(currentEditingNodeId) : undefined);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
+  const setCurrentEditingNodeId = useNodeEditorStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
+  const node = useGraphStore((state) =>
+    currentEditingNodeId ? state.nodes.get(currentEditingNodeId) : undefined,
+  );
+  const updateNode = useGraphStore((state) => state.updateNode);
   if (!node) {
     return null;
   }
@@ -45,30 +56,30 @@ export function NodeEditor({ className }: NodeEditorProps) {
         >
           <DialogContent
             showCloseButton={false}
+            autoFocus={false}
             className={cn(
-              "!max-w-[1200px] w-full max-h-[85vh] flex flex-col p-2 pt-0",
+              "sm:max-w-[80%] w-[1200px] h-[80vh] flex flex-col p-2 pt-0",
               "rounded-2xl bg-popover/95 backdrop-blur-xl",
               "ring-1 ring-foreground/5 shadow-2xl shadow-foreground/5",
               "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
               "data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-              className
+              className,
             )}
           >
-            <NodeEditorContent
-              node={node}
-              showQuickBar={true}
-            />
+            <NodeEditorContent node={node} showQuickBar={true} />
           </DialogContent>
         </Dialog>
       )}
 
       {/* Fullscreen Mode */}
       {mainViewType === "editor" && (
-        <div className={cn("absolute inset-0 z-50 bg-background flex flex-col", className)}>
-          <NodeEditorContent
-            node={node}
-            showQuickBar={false}
-          />
+        <div
+          className={cn(
+            "absolute inset-0 z-50 bg-background flex flex-col",
+            className,
+          )}
+        >
+          <NodeEditorContent node={node} showQuickBar={false} />
         </div>
       )}
     </>
@@ -85,8 +96,14 @@ interface NodeEditorContentProps {
   className?: string;
 }
 
-function NodeEditorContent({ node, showQuickBar, className }: NodeEditorContentProps) {
-  const attributesSidebarOpen = useNodeEditorStore((state) => state.attributesSidebarOpen);
+function NodeEditorContent({
+  node,
+  showQuickBar,
+  className,
+}: NodeEditorContentProps) {
+  const attributesSidebarOpen = useNodeEditorStore(
+    (state) => state.attributesSidebarOpen,
+  );
 
   return (
     <div className={cn("flex flex-col h-full overflow-hidden", className)}>
@@ -101,9 +118,7 @@ function NodeEditorContent({ node, showQuickBar, className }: NodeEditorContentP
         )}
       </div>
 
-      {showQuickBar && (
-        <RelationshipQuickBar node={node} />
-      )}
+      {showQuickBar && <RelationshipQuickBar node={node} />}
     </div>
   );
 }

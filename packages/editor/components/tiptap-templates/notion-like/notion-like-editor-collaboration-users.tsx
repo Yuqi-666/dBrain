@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { getAvatar } from "@workspace/editor/lib/tiptap-collab-utils"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { getAvatar } from "@workspace/editor/lib/tiptap-collab-utils";
 import {
   Avatar,
   AvatarFallback,
   AvatarGroup,
   AvatarImage,
-} from "@workspace/editor/components/tiptap-ui-primitive/avatar"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+} from "@workspace/editor/components/tiptap-ui-primitive/avatar";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu"
+} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu";
 
-type User = { clientId: number; id: string; name: string; color: string }
+type User = { clientId: number; id: string; name: string; color: string };
 
 export function CollaborationUsers() {
-  const { editor } = useTiptapEditor()
+  const { editor } = useTiptapEditor();
 
   if (!editor || !editor.storage.collaborationCaret) {
-    return null
+    return null;
   }
 
   const collaborationUsers: User[] =
@@ -32,7 +32,7 @@ export function CollaborationUsers() {
       id: String(user.clientId),
       name: user.name || "Anonymous",
       color: user.color || "#000000",
-    }))
+    }));
 
   return (
     <DropdownMenu>
@@ -68,5 +68,5 @@ export function CollaborationUsers() {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

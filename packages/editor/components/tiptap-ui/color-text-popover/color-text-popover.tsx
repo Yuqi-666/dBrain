@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { useCallback, useMemo, useRef, useState } from "react"
-import type { Editor } from "@tiptap/react"
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { Editor } from "@tiptap/react";
 
 // --- Hooks ---
-import { useMenuNavigation } from "@workspace/editor/hooks/use-menu-navigation"
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useMenuNavigation } from "@workspace/editor/hooks/use-menu-navigation";
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Icons ---
-import { ChevronDownIcon } from "@workspace/editor/components/tiptap-icons/chevron-down-icon"
+import { ChevronDownIcon } from "@workspace/editor/components/tiptap-icons/chevron-down-icon";
 
 // --- Tiptap UI ---
 import type {
@@ -16,58 +16,58 @@ import type {
   ColorItem,
   RecentColor,
   UseColorTextPopoverConfig,
-} from "@workspace/editor/components/tiptap-ui/color-text-popover"
+} from "@workspace/editor/components/tiptap-ui/color-text-popover";
 import {
   useColorTextPopover,
   useRecentColors,
   getColorByValue,
-} from "@workspace/editor/components/tiptap-ui/color-text-popover"
+} from "@workspace/editor/components/tiptap-ui/color-text-popover";
 import {
   TEXT_COLORS,
   ColorTextButton,
-} from "@workspace/editor/components/tiptap-ui/color-text-button"
+} from "@workspace/editor/components/tiptap-ui/color-text-button";
 import {
   HIGHLIGHT_COLORS,
   ColorHighlightButton,
-} from "@workspace/editor/components/tiptap-ui/color-highlight-button"
+} from "@workspace/editor/components/tiptap-ui/color-highlight-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@workspace/editor/components/tiptap-ui-primitive/popover"
+} from "@workspace/editor/components/tiptap-ui-primitive/popover";
 import {
   Card,
   CardBody,
   CardGroupLabel,
   CardItemGroup,
-} from "@workspace/editor/components/tiptap-ui-primitive/card"
+} from "@workspace/editor/components/tiptap-ui-primitive/card";
 
 // --- Utils ---
-import { chunkArray } from "@workspace/editor/lib/tiptap-advanced-utils"
+import { chunkArray } from "@workspace/editor/lib/tiptap-advanced-utils";
 
 // --- Styles ---
-import "@workspace/editor/components/tiptap-ui/color-text-popover/color-text-popover.scss"
-import { ButtonGroup } from "@workspace/editor/components/tiptap-ui-primitive/button-group"
+import "@workspace/editor/components/tiptap-ui/color-text-popover/color-text-popover.scss";
+import { ButtonGroup } from "@workspace/editor/components/tiptap-ui-primitive/button-group";
 
 // ─── Shared types ────────────────────────────────────────────────────────────
 
 type ColorChangePayload = {
-  type: ColorType
-  label: string
-  value: string
-}
+  type: ColorType;
+  label: string;
+  value: string;
+};
 
 // ─── RecentColorButton ───────────────────────────────────────────────────────
 
 export interface RecentColorButtonProps extends ButtonProps {
-  colorObj: RecentColor
-  withLabel?: boolean
-  onColorChanged?: (payload: ColorChangePayload) => void
-  editor?: Editor | null
+  colorObj: RecentColor;
+  withLabel?: boolean;
+  onColorChanged?: (payload: ColorChangePayload) => void;
+  editor?: Editor | null;
 }
 
 export function RecentColorButton({
@@ -77,8 +77,8 @@ export function RecentColorButton({
   editor,
   ...props
 }: RecentColorButtonProps) {
-  const colorSet = colorObj.type === "text" ? TEXT_COLORS : HIGHLIGHT_COLORS
-  const color = getColorByValue(colorObj.value, colorSet)
+  const colorSet = colorObj.type === "text" ? TEXT_COLORS : HIGHLIGHT_COLORS;
+  const color = getColorByValue(colorObj.value, colorSet);
 
   const commonProps = {
     tooltip: color.label,
@@ -90,7 +90,7 @@ export function RecentColorButton({
         value: color.value,
       }),
     ...props,
-  }
+  };
 
   return colorObj.type === "text" ? (
     <ColorTextButton
@@ -106,18 +106,18 @@ export function RecentColorButton({
       editor={editor}
       {...commonProps}
     />
-  )
+  );
 }
 
 // ─── ColorGroup ──────────────────────────────────────────────────────────────
 
 export interface ColorGroupProps {
-  type: ColorType
-  colors: ColorItem[][]
-  onColorSelected: (payload: ColorChangePayload) => void
-  selectedIndex?: number
-  startIndexOffset: number
-  editor?: Editor | null
+  type: ColorType;
+  colors: ColorItem[][];
+  onColorSelected: (payload: ColorChangePayload) => void;
+  selectedIndex?: number;
+  startIndexOffset: number;
+  editor?: Editor | null;
 }
 
 export function ColorGroup({
@@ -134,9 +134,9 @@ export function ColorGroup({
         const itemIndex =
           startIndexOffset +
           colors.slice(0, groupIndex).reduce((acc, g) => acc + g.length, 0) +
-          colorIndex
+          colorIndex;
 
-        const isHighlighted = selectedIndex === itemIndex
+        const isHighlighted = selectedIndex === itemIndex;
 
         const commonProps = {
           tooltip: color.label,
@@ -145,7 +145,7 @@ export function ColorGroup({
           tabIndex: isHighlighted ? 0 : -1,
           "data-highlighted": isHighlighted,
           "aria-label": `${color.label} ${type === "text" ? "text" : "highlight"} color`,
-        }
+        };
 
         return type === "text" ? (
           <ButtonGroup key={`${type}-${color.value}-${colorIndex}`}>
@@ -165,19 +165,19 @@ export function ColorGroup({
               {...commonProps}
             />
           </ButtonGroup>
-        )
+        );
       })}
     </ButtonGroup>
-  ))
+  ));
 }
 
 // ─── RecentColorsSection ─────────────────────────────────────────────────────
 
 interface RecentColorsSectionProps {
-  recentColors: RecentColor[]
-  onColorSelected: (payload: ColorChangePayload) => void
-  selectedIndex?: number
-  editor?: Editor | null
+  recentColors: RecentColor[];
+  onColorSelected: (payload: ColorChangePayload) => void;
+  selectedIndex?: number;
+  editor?: Editor | null;
 }
 
 function RecentColorsSection({
@@ -186,7 +186,7 @@ function RecentColorsSection({
   selectedIndex,
   editor,
 }: RecentColorsSectionProps) {
-  if (recentColors.length === 0) return null
+  if (recentColors.length === 0) return null;
 
   return (
     <CardItemGroup>
@@ -204,16 +204,16 @@ function RecentColorsSection({
         ))}
       </ButtonGroup>
     </CardItemGroup>
-  )
+  );
 }
 
 // ─── TextStyleColorPanel ─────────────────────────────────────────────────────
 
 export interface TextStyleColorPanelProps {
-  maxColorsPerGroup?: number
-  maxRecentColors?: number
-  onColorChanged?: (payload: ColorChangePayload) => void
-  editor?: Editor | null
+  maxColorsPerGroup?: number;
+  maxRecentColors?: number;
+  onColorChanged?: (payload: ColorChangePayload) => void;
+  editor?: Editor | null;
 }
 
 export function TextStyleColorPanel({
@@ -223,37 +223,40 @@ export function TextStyleColorPanel({
   editor,
 }: TextStyleColorPanelProps) {
   const { recentColors, addRecentColor, isInitialized } =
-    useRecentColors(maxRecentColors)
-  const containerRef = useRef<HTMLDivElement>(null)
+    useRecentColors(maxRecentColors);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const textColorGroups = useMemo(
     () => chunkArray(TEXT_COLORS, maxColorsPerGroup),
-    [maxColorsPerGroup]
-  )
+    [maxColorsPerGroup],
+  );
 
   const highlightColorGroups = useMemo(
     () => chunkArray(HIGHLIGHT_COLORS, maxColorsPerGroup),
-    [maxColorsPerGroup]
-  )
+    [maxColorsPerGroup],
+  );
 
-  const allTextColors = useMemo(() => textColorGroups.flat(), [textColorGroups])
+  const allTextColors = useMemo(
+    () => textColorGroups.flat(),
+    [textColorGroups],
+  );
   const allHighlightColors = useMemo(
     () => highlightColorGroups.flat(),
-    [highlightColorGroups]
-  )
+    [highlightColorGroups],
+  );
 
   const textColorStartIndex = useMemo(
     () => (isInitialized ? recentColors.length : 0),
-    [isInitialized, recentColors.length]
-  )
+    [isInitialized, recentColors.length],
+  );
 
   const highlightColorStartIndex = useMemo(
     () => textColorStartIndex + allTextColors.length,
-    [textColorStartIndex, allTextColors.length]
-  )
+    [textColorStartIndex, allTextColors.length],
+  );
 
   const menuItems = useMemo(() => {
-    const items = []
+    const items = [];
 
     if (isInitialized && recentColors.length > 0) {
       items.push(
@@ -262,8 +265,8 @@ export function TextStyleColorPanel({
           value: color.value,
           label: `Recent ${color.type === "text" ? "text" : "highlight"} color`,
           group: "recent",
-        }))
-      )
+        })),
+      );
     }
 
     items.push(
@@ -272,8 +275,8 @@ export function TextStyleColorPanel({
         value: color.value,
         label: color.label,
         group: "text",
-      }))
-    )
+      })),
+    );
 
     items.push(
       ...allHighlightColors.map((color) => ({
@@ -281,27 +284,27 @@ export function TextStyleColorPanel({
         value: color.value,
         label: color.label,
         group: "highlight",
-      }))
-    )
+      })),
+    );
 
-    return items
-  }, [isInitialized, recentColors, allTextColors, allHighlightColors])
+    return items;
+  }, [isInitialized, recentColors, allTextColors, allHighlightColors]);
 
   const handleColorSelected = useCallback(
     ({ type, label, value }: ColorChangePayload) => {
-      if (!containerRef.current) return false
+      if (!containerRef.current) return false;
 
       const highlighted = containerRef.current.querySelector(
-        '[data-highlighted="true"]'
-      ) as HTMLElement | null
+        '[data-highlighted="true"]',
+      ) as HTMLElement | null;
 
-      highlighted?.click()
+      highlighted?.click();
 
-      addRecentColor({ type, label, value })
-      onColorChanged?.({ type, label, value })
+      addRecentColor({ type, label, value });
+      onColorChanged?.({ type, label, value });
     },
-    [addRecentColor, onColorChanged]
-  )
+    [addRecentColor, onColorChanged],
+  );
 
   const { selectedIndex } = useMenuNavigation({
     containerRef,
@@ -312,11 +315,11 @@ export function TextStyleColorPanel({
           type: item.type,
           label: item.label,
           value: item.value,
-        })
+        });
     },
     orientation: "both",
     autoSelectFirstItem: false,
-  })
+  });
 
   return (
     <Card ref={containerRef} tabIndex={0} role="menu">
@@ -355,7 +358,7 @@ export function TextStyleColorPanel({
         </CardItemGroup>
       </CardBody>
     </Card>
-  )
+  );
 }
 
 // ─── ColorTextPopover ────────────────────────────────────────────────────────
@@ -379,8 +382,8 @@ export function ColorTextPopover({
   ref,
   ...buttonProps
 }: ColorTextPopoverProps) {
-  const { editor } = useTiptapEditor(providedEditor)
-  const [isOpen, setIsOpen] = useState(false)
+  const { editor } = useTiptapEditor(providedEditor);
+  const [isOpen, setIsOpen] = useState(false);
   const {
     isVisible,
     canToggle,
@@ -389,18 +392,18 @@ export function ColorTextPopover({
     handleColorChanged,
     label,
     Icon,
-  } = useColorTextPopover({ editor, hideWhenUnavailable, onColorChanged })
+  } = useColorTextPopover({ editor, hideWhenUnavailable, onColorChanged });
 
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
-      onClick?.(event)
-      if (event.defaultPrevented) return
-      setIsOpen((prev) => !prev)
+      onClick?.(event);
+      if (event.defaultPrevented) return;
+      setIsOpen((prev) => !prev);
     },
-    [onClick]
-  )
+    [onClick],
+  );
 
-  if (!isVisible) return null
+  if (!isVisible) return null;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -452,7 +455,7 @@ export function ColorTextPopover({
         />
       </PopoverContent>
     </Popover>
-  )
+  );
 }
 
-export default ColorTextPopover
+export default ColorTextPopover;

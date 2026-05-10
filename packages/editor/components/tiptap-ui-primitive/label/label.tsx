@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { cn } from "@workspace/editor/lib/tiptap-utils"
+import * as React from "react";
+import { cn } from "@workspace/editor/lib/tiptap-utils";
 
-import "./label.scss"
+import "./label.scss";
 
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
@@ -12,7 +12,7 @@ function Label({ className, ...props }: React.ComponentProps<"label">) {
       className={cn("tiptap-label", className)}
       {...props}
     />
-  )
+  );
 }
 
-export { Label }
+export { Label };

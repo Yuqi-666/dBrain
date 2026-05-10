@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
-import type { UseTableAlignCellConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button"
-import { useTableAlignCell } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button"
+import type { UseTableAlignCellConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button";
+import { useTableAlignCell } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 
 export interface TableAlignCellButtonProps
   extends Omit<ButtonProps, "type">, UseTableAlignCellConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -71,9 +71,9 @@ export const TableAlignCellButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleAlign, label, canAlignCell, Icon, isActive } =
       useTableAlignCell({
         editor,
@@ -83,19 +83,19 @@ export const TableAlignCellButton = forwardRef<
         orientation,
         hideWhenUnavailable,
         onAligned,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleAlign()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleAlign();
       },
-      [handleAlign, onClick]
-    )
+      [handleAlign, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -121,8 +121,8 @@ export const TableAlignCellButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TableAlignCellButton.displayName = "TableAlignCellButton"
+TableAlignCellButton.displayName = "TableAlignCellButton";

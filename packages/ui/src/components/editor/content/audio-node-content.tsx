@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
+import { useGraphStore } from "@workspace/store";
+import { FileDropZone } from "./file-drop-zone";
+import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
+import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { AudioNodeData } from "@workspace/interfaces";
 
 interface AudioNodeContentProps {
@@ -10,16 +14,49 @@ interface AudioNodeContentProps {
 }
 
 export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const updateNode = useGraphStore((state) => state.updateNode);
+
+  const url = node.content?.url;
+  const hasUrl = !!url;
+
+  const { isLoading: uploadLoading, handlers } = useUploadState({
+    nodeId: node.id,
+    onUploadComplete: (attachment) => {
+      updateNode(node.id, { content: { url: attachment.url } });
+    },
+  });
+
+  useEffect(() => {
+    if (hasUrl) {
+      setMediaLoading(true);
+    }
+  }, [hasUrl]);
+
+  const isLoading = uploadLoading || mediaLoading;
+
+  if (!hasUrl) {
+    return (
+      <FileDropZone
+        accept="audio/*"
+        variant="audio"
+        onUploadStart={handlers.onUploadStart}
+        onUploadComplete={handlers.onUploadComplete}
+        onUploadError={handlers.onUploadError}
+        className={cn("w-full", className)}
+      />
+    );
+  }
 
   return (
-    <div className={cn("flex flex-col gap-6 p-6", className)}>
+    <div className={cn("flex items-center p-4 w-full h-full", className)}>
+      {isLoading && <LoadingPlaceholder variant="audio" />}
       <audio
-        src={node.content.url}
+        src={url}
         controls
-        className="w-full"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        className={cn("w-full", isLoading ? "hidden" : "block")}
+        onLoadedData={() => setMediaLoading(false)}
+        onError={() => setMediaLoading(false)}
       />
     </div>
   );

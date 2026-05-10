@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
 // --- Lib ---
-import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
 
 // --- UI ---
-import { useTableAlignCell } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button"
+import { useTableAlignCell } from "@workspace/editor/components/tiptap-node/table-node/ui/table-align-cell-button";
 
 // --- Icons ---
-import { AlignmentIcon } from "@workspace/editor/components/tiptap-icons/alignment-icon"
-import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chevron-right-icon"
+import { AlignmentIcon } from "@workspace/editor/components/tiptap-icons/alignment-icon";
+import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chevron-right-icon";
 
 // --- UI Primitives ---
 import {
@@ -18,26 +18,29 @@ import {
   MenuContent,
   MenuGroup,
   MenuItem,
-} from "@workspace/editor/components/tiptap-ui-primitive/menu"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { ComboboxList } from "@workspace/editor/components/tiptap-ui-primitive/combobox"
-import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator"
+} from "@workspace/editor/components/tiptap-ui-primitive/menu";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { ComboboxList } from "@workspace/editor/components/tiptap-ui-primitive/combobox";
+import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator";
 
 export interface ActionItemProps {
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  isActive?: boolean
-  shortcutBadge?: React.ReactNode
+  icon: React.ComponentType<{
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  isActive?: boolean;
+  shortcutBadge?: React.ReactNode;
 }
 
 export const TableAlignMenu = ({
   index,
   orientation,
 }: {
-  index?: number
-  orientation?: Orientation
+  index?: number;
+  orientation?: Orientation;
 }) => {
   const textAlign = {
     left: useTableAlignCell({
@@ -58,7 +61,7 @@ export const TableAlignMenu = ({
       index,
       orientation,
     }),
-  }
+  };
 
   const verticalAlign = {
     top: useTableAlignCell({
@@ -79,10 +82,10 @@ export const TableAlignMenu = ({
       index,
       orientation,
     }),
-  }
+  };
 
   if (!textAlign.left.canAlignCell()) {
-    return null
+    return null;
   }
 
   return (
@@ -132,8 +135,8 @@ export const TableAlignMenu = ({
         </ComboboxList>
       </MenuContent>
     </Menu>
-  )
-}
+  );
+};
 
 const ActionItem = ({
   icon: Icon,
@@ -154,6 +157,6 @@ const ActionItem = ({
     <span className="tiptap-button-text">{label}</span>
     {shortcutBadge}
   </MenuItem>
-)
+);
 
-ActionItem.displayName = "ActionItem"
+ActionItem.displayName = "ActionItem";

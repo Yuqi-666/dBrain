@@ -1,7 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { FileTextIcon } from "lucide-react";
+import { useGraphStore } from "@workspace/store";
+import { FileDropZone } from "./file-drop-zone";
+import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
+import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { PdfNodeData } from "@workspace/interfaces";
 
 interface PdfNodeContentProps {
@@ -9,28 +13,57 @@ interface PdfNodeContentProps {
   className?: string;
 }
 
-/**
- * PdfNodeContent - PDF node renderer
- * Simplified to only render PDF content - all metadata editing moved to attributes sidebar
- */
 export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const updateNode = useGraphStore((state) => state.updateNode);
+
+  const url = node.content?.url;
+  const hasUrl = !!url;
+
+  const { isLoading: uploadLoading, handlers } = useUploadState({
+    nodeId: node.id,
+    onUploadComplete: (attachment) => {
+      updateNode(node.id, {
+        content: { url: attachment.url, cover_url: "" },
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (hasUrl) {
+      setMediaLoading(true);
+    }
+  }, [hasUrl]);
+
+  const isLoading = uploadLoading || mediaLoading;
+
+  if (!hasUrl) {
+    return (
+      <FileDropZone
+        accept=".pdf,application/pdf"
+        variant="pdf"
+        onUploadStart={handlers.onUploadStart}
+        onUploadComplete={handlers.onUploadComplete}
+        onUploadError={handlers.onUploadError}
+        className={cn("w-full h-full min-h-[400px]", className)}
+      />
+    );
+  }
+
   return (
-    <div className={cn("flex flex-col p-6 h-full", className)}>
+    <div className={cn("flex p-4 w-full h-full", className)}>
       <div className="flex-1 rounded-lg overflow-hidden bg-muted/30">
-        {node.content?.url ? (
-          <iframe
-            src={node.content?.url}
-            className="w-full h-full min-h-[400px]"
-            title={node.title || "PDF文档"}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <FileTextIcon className="size-8 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">暂无 PDF 文档</p>
-          </div>
-        )}
+        {isLoading && <LoadingPlaceholder variant="pdf" />}
+        <iframe
+          src={url}
+          className={cn(
+            "w-full h-full",
+            isLoading ? "hidden" : "block"
+          )}
+          title={node.title || "PDF文档"}
+          onLoad={() => setMediaLoading(false)}
+          onError={() => setMediaLoading(false)}
+        />
       </div>
     </div>
   );

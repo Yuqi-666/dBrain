@@ -72,12 +72,12 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
     return {
       setLatexBlock:
         (attributes) =>
-          ({ commands }) => {
-            return commands.insertContent({
-              type: this.name,
-              attrs: attributes || { text: "" },
-            });
-          },
+        ({ commands }) => {
+          return commands.insertContent({
+            type: this.name,
+            attrs: attributes || { text: "" },
+          });
+        },
     };
   },
 
@@ -86,11 +86,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
       new InputRule({
         find: inputRegex,
         handler: ({ range, chain }) => {
-          return chain()
-            .focus()
-            .deleteRange(range)
-            .setLatexBlock()
-            .run();
+          return chain().focus().deleteRange(range).setLatexBlock().run();
         },
       }),
     ];

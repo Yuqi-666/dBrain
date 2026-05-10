@@ -3,12 +3,17 @@ import katex from "katex";
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Popover, PopoverTrigger, PopoverContent } from "@workspace/editor/components/tiptap-ui-primitive/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@workspace/editor/components/tiptap-ui-primitive/popover";
 import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primitive/textarea-autosize";
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 export default function LatexInlineView(props: NodeViewProps) {
-  const { node, updateAttributes, editor, getPos, deleteNode, selected } = props;
+  const { node, updateAttributes, editor, getPos, deleteNode, selected } =
+    props;
   const mathResultContainer = useRef<HTMLSpanElement>(null);
   const mathPreviewContainer = useRef<HTMLSpanElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -34,7 +39,7 @@ export default function LatexInlineView(props: NodeViewProps) {
         }
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -54,14 +59,16 @@ export default function LatexInlineView(props: NodeViewProps) {
   const wasSelected = useRef(false);
 
   const checkEmptyAndDelete = useCallback(() => {
-    if (typeof getPos !== 'function') return;
+    if (typeof getPos !== "function") return;
 
-    const currentText = previewRef.current !== null ? previewRef.current : node.attrs.text;
+    const currentText =
+      previewRef.current !== null ? previewRef.current : node.attrs.text;
 
     if (!currentText.trim()) {
       try {
         const pos = getPos();
-        editor.chain()
+        editor
+          .chain()
           .deleteRange({ from: pos, to: pos + node.nodeSize })
           .focus(pos)
           .run();
@@ -134,8 +141,9 @@ export default function LatexInlineView(props: NodeViewProps) {
             "inline-block whitespace-pre-wrap break-words rounded px-1 mx-0.5 select-none transition-colors duration-200 cursor-pointer",
             selected && "ProseMirror-selectednode",
             error && "text-red-8 bg-red-0",
-            ((isEditing && !preview?.trim().length) || (!isEditing && !node.attrs.text.trim().length)) &&
-            "text-gray-6 bg-gray-0"
+            ((isEditing && !preview?.trim().length) ||
+              (!isEditing && !node.attrs.text.trim().length)) &&
+              "text-gray-6 bg-gray-0",
           )}
         >
           <span
@@ -146,8 +154,11 @@ export default function LatexInlineView(props: NodeViewProps) {
             style={{ display: isEditing ? "none" : undefined }}
             ref={mathResultContainer}
           ></span>
-          {((isEditing && !preview?.trim().length) || (!isEditing && !node.attrs.text.trim().length)) && (
-            <span className="text-muted-foreground/60 italic text-sm">Empty</span>
+          {((isEditing && !preview?.trim().length) ||
+            (!isEditing && !node.attrs.text.trim().length)) && (
+            <span className="text-muted-foreground/60 italic text-sm">
+              Empty
+            </span>
           )}
           {error && <span className="text-red-500 text-sm">Invalid</span>}
         </NodeViewWrapper>
@@ -167,7 +178,9 @@ export default function LatexInlineView(props: NodeViewProps) {
       >
         <div className="flex flex-col">
           <div className="flex items-center px-3 py-1.5 border-b border-border bg-muted/30">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Inline Equation</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              Inline Equation
+            </span>
           </div>
 
           <div className="p-2.5 bg-muted/10">
@@ -188,11 +201,19 @@ export default function LatexInlineView(props: NodeViewProps) {
                 const target = e.target as HTMLTextAreaElement;
                 const valueLength = target.value?.length ?? 0;
 
-                if (e.key === "ArrowLeft" && selection.start === selection.end && selection.start === 0) {
+                if (
+                  e.key === "ArrowLeft" &&
+                  selection.start === selection.end &&
+                  selection.start === 0
+                ) {
                   editor.commands.focus(getPos());
                 }
 
-                if (e.key === "ArrowRight" && selection.start === selection.end && selection.start === valueLength) {
+                if (
+                  e.key === "ArrowRight" &&
+                  selection.start === selection.end &&
+                  selection.start === valueLength
+                ) {
                   editor.commands.focus(getPos() + node.nodeSize);
                 }
               }}

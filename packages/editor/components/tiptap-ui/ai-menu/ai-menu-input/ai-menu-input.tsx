@@ -1,46 +1,49 @@
-"use client"
+"use client";
 
-import { useCallback, useState } from "react"
+import { useCallback, useState } from "react";
 
 // Tiptap Core Extensions
-import type { Tone } from "@workspace/editor/lib/mock-ai"
+import type { Tone } from "@workspace/editor/lib/mock-ai";
 
 // Icons
-import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon"
-import { ArrowUpIcon } from "@workspace/editor/components/tiptap-icons/arrow-up-icon"
-import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon"
+import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon";
+import { ArrowUpIcon } from "@workspace/editor/components/tiptap-icons/arrow-up-icon";
+import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon";
 
 // UI Components
-import { SUPPORTED_TONES } from "@workspace/editor/components/tiptap-ui/ai-menu"
+import { SUPPORTED_TONES } from "@workspace/editor/components/tiptap-ui/ai-menu";
 
 // UI Primitives
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Spacer } from "@workspace/editor/components/tiptap-ui-primitive/spacer"
-import { Toolbar, ToolbarGroup } from "@workspace/editor/components/tiptap-ui-primitive/toolbar"
-import { useComboboxValueState } from "@workspace/editor/components/tiptap-ui-primitive/menu"
-import { Combobox } from "@workspace/editor/components/tiptap-ui-primitive/combobox"
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Spacer } from "@workspace/editor/components/tiptap-ui-primitive/spacer";
+import {
+  Toolbar,
+  ToolbarGroup,
+} from "@workspace/editor/components/tiptap-ui-primitive/toolbar";
+import { useComboboxValueState } from "@workspace/editor/components/tiptap-ui-primitive/menu";
+import { Combobox } from "@workspace/editor/components/tiptap-ui-primitive/combobox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu"
-import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primitive/textarea-autosize"
+} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu";
+import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primitive/textarea-autosize";
 
 import {
   useBlurHandler,
   useKeyboardHandlers,
-} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input-hooks"
-import type { AiMenuInputTextareaProps } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input-types"
+} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input-hooks";
+import type { AiMenuInputTextareaProps } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input-types";
 
 // Styles
-import "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input.scss"
+import "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input.scss";
 
 export function AiMenuInputPlaceholder({
   onPlaceholderClick,
 }: {
-  onPlaceholderClick: () => void
+  onPlaceholderClick: () => void;
 }) {
   return (
     <div
@@ -57,15 +60,15 @@ export function AiMenuInputPlaceholder({
         <ArrowUpIcon className="tiptap-button-icon" />
       </Button>
     </div>
-  )
+  );
 }
 
 export function ToneSelector({
   tone,
   onToneChange,
 }: {
-  tone: Tone | null
-  onToneChange: (tone: string) => void
+  tone: Tone | null;
+  onToneChange: (tone: string) => void;
 }) {
   return (
     <DropdownMenu modal={false}>
@@ -101,7 +104,7 @@ export function ToneSelector({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
 export function AiPromptInputToolbar({
@@ -110,25 +113,25 @@ export function AiPromptInputToolbar({
   onToneChange,
   isEmpty = false,
 }: {
-  showPlaceholder?: boolean
-  onInputSubmit: (prompt: string) => void
-  onToneChange?: (tone: string) => void
-  isEmpty?: boolean
+  showPlaceholder?: boolean;
+  onInputSubmit: (prompt: string) => void;
+  onToneChange?: (tone: string) => void;
+  isEmpty?: boolean;
 }) {
-  const [tone, setTone] = useState<Tone | null>(null)
-  const [promptValue] = useComboboxValueState()
+  const [tone, setTone] = useState<Tone | null>(null);
+  const [promptValue] = useComboboxValueState();
 
   const handleToneChange = useCallback(
     (newTone: string) => {
-      setTone(newTone)
-      onToneChange?.(newTone)
+      setTone(newTone);
+      onToneChange?.(newTone);
     },
-    [onToneChange]
-  )
+    [onToneChange],
+  );
 
   const handleSubmit = useCallback(() => {
-    onInputSubmit(promptValue)
-  }, [onInputSubmit, promptValue])
+    onInputSubmit(promptValue);
+  }, [onInputSubmit, promptValue]);
 
   return (
     <Toolbar
@@ -154,7 +157,7 @@ export function AiPromptInputToolbar({
         </Button>
       </ToolbarGroup>
     </Toolbar>
-  )
+  );
 }
 
 export function AiMenuInputTextarea({
@@ -169,45 +172,45 @@ export function AiMenuInputTextarea({
   placeholder = "Ask AI what you want...",
   ...props
 }: AiMenuInputTextareaProps) {
-  const [promptValue, setPromptValue] = useComboboxValueState()
-  const [isFocused, setIsFocused] = useState(false)
+  const [promptValue, setPromptValue] = useComboboxValueState();
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleSubmit = useCallback(() => {
-    const cleanedPrompt = promptValue?.trim()
+    const cleanedPrompt = promptValue?.trim();
     if (cleanedPrompt) {
-      onInputSubmit(cleanedPrompt)
-      setPromptValue("")
+      onInputSubmit(cleanedPrompt);
+      setPromptValue("");
     }
-  }, [onInputSubmit, promptValue, setPromptValue])
+  }, [onInputSubmit, promptValue, setPromptValue]);
 
-  const handleKeyDown = useKeyboardHandlers(promptValue, onClose, handleSubmit)
+  const handleKeyDown = useKeyboardHandlers(promptValue, onClose, handleSubmit);
 
   const handleBlur = useBlurHandler(
     promptValue.trim() === "",
     onInputBlur,
-    onEmptyBlur
-  )
+    onEmptyBlur,
+  );
 
   const handleOnPlaceholderClick = useCallback(() => {
     if (onPlaceholderClick) {
-      onPlaceholderClick()
+      onPlaceholderClick();
     }
-  }, [onPlaceholderClick])
+  }, [onPlaceholderClick]);
 
   const handleFocus = useCallback(() => {
-    setIsFocused(true)
+    setIsFocused(true);
     if (onInputFocus) {
-      onInputFocus()
+      onInputFocus();
     }
-  }, [onInputFocus])
+  }, [onInputFocus]);
 
   const handleTextareaBlur = useCallback(
     (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      setIsFocused(false)
-      handleBlur(e)
+      setIsFocused(false);
+      handleBlur(e);
     },
-    [handleBlur]
-  )
+    [handleBlur],
+  );
 
   return (
     <div
@@ -249,5 +252,5 @@ export function AiMenuInputTextarea({
         </>
       )}
     </div>
-  )
+  );
 }

@@ -1,41 +1,44 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Lib ---
-import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils"
+import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
-import type { UseTextConfig } from "@workspace/editor/components/tiptap-ui/text-button"
-import { TEXT_SHORTCUT_KEY, useText } from "@workspace/editor/components/tiptap-ui/text-button"
+import type { UseTextConfig } from "@workspace/editor/components/tiptap-ui/text-button";
+import {
+  TEXT_SHORTCUT_KEY,
+  useText,
+} from "@workspace/editor/components/tiptap-ui/text-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge";
 
 export interface TextButtonProps
   extends Omit<ButtonProps, "type">, UseTextConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
 }
 
 export function TextShortcutBadge({
   shortcutKeys = TEXT_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -55,9 +58,9 @@ export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
       canToggle,
@@ -70,19 +73,19 @@ export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(
       editor,
       hideWhenUnavailable,
       onToggled,
-    })
+    });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
-      [handleToggle, onClick]
-    )
+      [handleToggle, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -109,8 +112,8 @@ export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TextButton.displayName = "TextButton"
+TextButton.displayName = "TextButton";

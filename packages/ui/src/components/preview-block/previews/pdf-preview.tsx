@@ -12,7 +12,7 @@ function formatSize(bytes: number) {
 export function PdfPreview({ node }: { node: PdfNodeData }) {
   return (
     <div className="space-y-2">
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
         {node.content?.cover_url ? (
           <img
             src={node.content.cover_url}

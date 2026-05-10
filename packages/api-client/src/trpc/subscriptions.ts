@@ -14,7 +14,7 @@ import {
   useViewAdded,
   useViewUpdated,
   useViewDeleted,
-} from './hooks/useGraph';
+} from "./hooks/useGraph";
 import {
   handleNodeSemanticAdded,
   handleNodeSemanticUpdated,
@@ -31,7 +31,7 @@ import {
   handleViewAdded,
   handleViewUpdated,
   handleViewDeleted,
-} from '../handler/graph-handler';
+} from "../handler/graph-handler";
 
 /**
  * React hook that sets up all tRPC subscriptions to handle server push events.

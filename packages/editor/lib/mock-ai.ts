@@ -1,73 +1,117 @@
-import { Extension } from "@tiptap/core"
-import type { Editor } from "@tiptap/core"
-import type { Transaction } from "@tiptap/pm/state"
+import { Extension } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 
-export type Language = string
-export type Tone = string
-export type TextOptions = { stream?: boolean; format?: string; insertAt?: { from: number; to: number } | "start" | "end" | "cursor"; regenerate?: boolean; text?: string; tone?: string; language?: string }
+export type Language = string;
+export type Tone = string;
+export type TextOptions = {
+  stream?: boolean;
+  format?: string;
+  insertAt?: { from: number; to: number } | "start" | "end" | "cursor";
+  regenerate?: boolean;
+  text?: string;
+  tone?: string;
+  language?: string;
+};
 
 export interface AiContext {
-  editor: Editor
-  tr: Transaction | null
-  from: number
-  to: number
-  text: string
+  editor: Editor;
+  tr: Transaction | null;
+  from: number;
+  to: number;
+  text: string;
 }
 
 export interface AiErrorContext {
-  editor: Editor
-  error: Error
+  editor: Editor;
+  error: Error;
 }
 
 export interface AiOptions {
-  appId: string
-  token: string
-  autocompletion: boolean
-  showDecorations: boolean
-  hideDecorationsOnStreamEnd: boolean
-  onLoading?: (context: AiContext) => void
-  onChunk?: (context: AiContext) => void
-  onSuccess?: (context: AiContext) => void
-  onError?: (context: AiErrorContext) => void
+  appId: string;
+  token: string;
+  autocompletion: boolean;
+  showDecorations: boolean;
+  hideDecorationsOnStreamEnd: boolean;
+  onLoading?: (context: AiContext) => void;
+  onChunk?: (context: AiContext) => void;
+  onSuccess?: (context: AiContext) => void;
+  onError?: (context: AiErrorContext) => void;
 }
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     ai: {
-      aiComplete: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiAccept: () => ReturnType
-      aiReject: (options?: { type?: string }) => ReturnType
-      aiFixSpellingAndGrammar: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiExtend: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiShorten: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiSimplify: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiEmojify: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiSummarize: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiAdjustTone: (tone: string, options?: { stream?: boolean; format?: string }) => ReturnType
-      aiTranslate: (language: string, options?: { stream?: boolean; format?: string }) => ReturnType
-      aiGenerationSetIsLoading: (isLoading: boolean) => ReturnType
-      aiGenerationHasMessage: (hasMessage: boolean) => ReturnType
-      aiGenerationShow: () => ReturnType
-      aiGenerationHide: () => ReturnType
-      aiRegenerate: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiRephrase: (options?: { stream?: boolean; format?: string }) => ReturnType
-      aiTextPrompt: (options?: { text?: string; insert?: boolean; stream?: boolean; tone?: string; format?: string }) => ReturnType
-    }
+      aiComplete: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiAccept: () => ReturnType;
+      aiReject: (options?: { type?: string }) => ReturnType;
+      aiFixSpellingAndGrammar: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiExtend: (options?: { stream?: boolean; format?: string }) => ReturnType;
+      aiShorten: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiSimplify: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiEmojify: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiSummarize: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiAdjustTone: (
+        tone: string,
+        options?: { stream?: boolean; format?: string },
+      ) => ReturnType;
+      aiTranslate: (
+        language: string,
+        options?: { stream?: boolean; format?: string },
+      ) => ReturnType;
+      aiGenerationSetIsLoading: (isLoading: boolean) => ReturnType;
+      aiGenerationHasMessage: (hasMessage: boolean) => ReturnType;
+      aiGenerationShow: () => ReturnType;
+      aiGenerationHide: () => ReturnType;
+      aiRegenerate: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiRephrase: (options?: {
+        stream?: boolean;
+        format?: string;
+      }) => ReturnType;
+      aiTextPrompt: (options?: {
+        text?: string;
+        insert?: boolean;
+        stream?: boolean;
+        tone?: string;
+        format?: string;
+      }) => ReturnType;
+    };
   }
 
   interface Storage {
     ai: {
-      state: string
-      generatedWith?: { range?: { from: number; to: number } }
-      response?: string
-    }
+      state: string;
+      generatedWith?: { range?: { from: number; to: number } };
+      response?: string;
+    };
     aiAdvanced: {
-      state: string
-    }
+      state: string;
+    };
   }
 }
 
-const MOCK_AI_TEXT = "[AI: 功能在此版本中不可用]"
+const MOCK_AI_TEXT = "[AI: 功能在此版本中不可用]";
 
 export const MockAi = Extension.create<AiOptions>({
   name: "ai",
@@ -79,13 +123,13 @@ export const MockAi = Extension.create<AiOptions>({
       autocompletion: false,
       showDecorations: true,
       hideDecorationsOnStreamEnd: true,
-    }
+    };
   },
 
   addStorage() {
     return {
       state: "idle",
-    }
+    };
   },
 
   addCommands() {
@@ -93,8 +137,8 @@ export const MockAi = Extension.create<AiOptions>({
       aiComplete:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           if (this.options.onLoading) {
             this.options.onLoading({
@@ -103,16 +147,13 @@ export const MockAi = Extension.create<AiOptions>({
               from: 0,
               to: 0,
               text: "",
-            })
+            });
           }
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
+            editor.commands.aiGenerationSetIsLoading(false);
 
             if (this.options.onSuccess) {
               this.options.onSuccess({
@@ -121,226 +162,202 @@ export const MockAi = Extension.create<AiOptions>({
                 from: 0,
                 to: 0,
                 text: MOCK_AI_TEXT,
-              })
+              });
             }
-          }, 100)
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiAccept:
         () =>
         ({ editor, commands }) => {
-          editor.commands.aiGenerationHide()
-          editor.commands.aiGenerationHasMessage(false)
-          return commands.aiGenerationHide()
+          editor.commands.aiGenerationHide();
+          editor.commands.aiGenerationHasMessage(false);
+          return commands.aiGenerationHide();
         },
 
       aiReject:
         () =>
         ({ editor, commands }) => {
-          editor.commands.aiGenerationHide()
-          editor.commands.aiGenerationHasMessage(false)
-          return commands.aiGenerationHide()
+          editor.commands.aiGenerationHide();
+          editor.commands.aiGenerationHasMessage(false);
+          return commands.aiGenerationHide();
         },
 
       aiFixSpellingAndGrammar:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiExtend:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiShorten:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiSimplify:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiEmojify:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiSummarize:
         (options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiAdjustTone:
         (tone, options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiTranslate:
         (language, options) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
-            chain()
-              .focus()
-              .insertContent(MOCK_AI_TEXT)
-              .run()
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiGenerationSetIsLoading:
         (isLoading: boolean) =>
         ({ editor }) => {
           if ("aiGenerationSetIsLoading" in editor.commands) {
-            return editor.commands.aiGenerationSetIsLoading(isLoading)
+            return editor.commands.aiGenerationSetIsLoading(isLoading);
           }
-          return true
+          return true;
         },
 
       aiGenerationHasMessage:
         (hasMessage: boolean) =>
         ({ editor }) => {
           if ("aiGenerationHasMessage" in editor.commands) {
-            return editor.commands.aiGenerationHasMessage(hasMessage)
+            return editor.commands.aiGenerationHasMessage(hasMessage);
           }
-          return true
+          return true;
         },
 
       aiGenerationShow:
         () =>
         ({ editor }) => {
           if ("aiGenerationShow" in editor.commands) {
-            return editor.commands.aiGenerationShow()
+            return editor.commands.aiGenerationShow();
           }
-          return true
+          return true;
         },
 
       aiRegenerate:
         (options?) =>
         ({ editor, chain }) => {
-          editor.commands.aiGenerationSetIsLoading(true)
-          editor.commands.aiGenerationHasMessage(true)
+          editor.commands.aiGenerationSetIsLoading(true);
+          editor.commands.aiGenerationHasMessage(true);
 
           setTimeout(() => {
             chain()
               .focus()
               .deleteRange({ from: 0, to: editor.state.doc.content.size })
               .insertContent(MOCK_AI_TEXT)
-              .run()
+              .run();
 
-            editor.commands.aiGenerationSetIsLoading(false)
-          }, 100)
+            editor.commands.aiGenerationSetIsLoading(false);
+          }, 100);
 
-          return true
+          return true;
         },
 
       aiRephrase:
         (options?) =>
         ({ editor, chain }) => {
           setTimeout(() => {
-            chain().focus().insertContent(MOCK_AI_TEXT).run()
-          }, 100)
-          return true
+            chain().focus().insertContent(MOCK_AI_TEXT).run();
+          }, 100);
+          return true;
         },
 
       aiTextPrompt:
@@ -348,22 +365,22 @@ export const MockAi = Extension.create<AiOptions>({
         ({ editor, chain }) => {
           setTimeout(() => {
             if (options?.insert) {
-              chain().focus().insertContent(MOCK_AI_TEXT).run()
+              chain().focus().insertContent(MOCK_AI_TEXT).run();
             }
-          }, 100)
-          return true
+          }, 100);
+          return true;
         },
 
       aiGenerationHide:
         () =>
         ({ editor }) => {
           if ("aiGenerationHide" in editor.commands) {
-            return editor.commands.aiGenerationHide()
+            return editor.commands.aiGenerationHide();
           }
-          return true
+          return true;
         },
-    }
+    };
   },
-})
+});
 
-export default MockAi
+export default MockAi;

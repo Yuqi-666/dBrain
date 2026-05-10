@@ -12,9 +12,11 @@ interface PinButtonProps {
  * 图钉按钮 - 切换节点置顶状态
  */
 export function PinButton({ className }: PinButtonProps) {
-  const currentEditingNodeId = useNodeEditorStore((s) => s.currentEditingNodeId);
+  const currentEditingNodeId = useNodeEditorStore(
+    (s) => s.currentEditingNodeId,
+  );
   const node = useGraphStore((s) =>
-    currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined
+    currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined,
   );
   const updateNode = useGraphStore((s) => s.updateNode);
 

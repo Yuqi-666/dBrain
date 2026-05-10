@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Slider as SliderPrimitive } from "radix-ui"
+import * as React from "react";
+import { Slider as SliderPrimitive } from "radix-ui";
 
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@workspace/ui/lib/utils";
 
 function Slider({
   className,
@@ -14,7 +14,7 @@ function Slider({
       data-slot="slider"
       className={cn(
         "relative flex w-full touch-none select-none items-center",
-        className
+        className,
       )}
       {...props}
     >
@@ -23,7 +23,7 @@ function Slider({
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
     </SliderPrimitive.Root>
-  )
+  );
 }
 
-export { Slider }
+export { Slider };

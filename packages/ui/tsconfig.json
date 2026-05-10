@@ -12,6 +12,12 @@
       "@workspace/store/*": [
         "../store/src/*"
       ],
+      "@workspace/api-client": [
+        "../api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../api-client/src/*"
+      ],
       "@workspace/editor": [
         "../editor/src"
       ],

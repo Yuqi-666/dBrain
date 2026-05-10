@@ -74,9 +74,11 @@ export const nodeSemanticRouter = router({
   list: publicProcedure.query(() => {
     return { items: [] };
   }),
-  getById: publicProcedure.input(z.object({ id: z.string() })).query(({ input }) => {
-    return null;
-  }),
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ input }) => {
+      return null;
+    }),
   sync: publicProcedure.query(() => {
     return [];
   }),

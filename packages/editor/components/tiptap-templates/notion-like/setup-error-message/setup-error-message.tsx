@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import "./setup-error-message.scss"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { ExternalLinkIcon } from "@workspace/editor/components/tiptap-icons/external-link-icon"
+import "./setup-error-message.scss";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { ExternalLinkIcon } from "@workspace/editor/components/tiptap-icons/external-link-icon";
 
 export interface SetupErrorMessageProps {
-  aiSetupError: boolean
-  collabSetupError: boolean
+  aiSetupError: boolean;
+  collabSetupError: boolean;
 }
 
 export function SetupErrorMessage({
@@ -14,12 +14,12 @@ export function SetupErrorMessage({
   collabSetupError,
 }: SetupErrorMessageProps) {
   const guideUrl =
-    "https://tiptap.dev/docs/ui-components/templates/notion-like-editor"
+    "https://tiptap.dev/docs/ui-components/templates/notion-like-editor";
 
   const environmentVariables: Array<{
-    name: string
-    description: string
-  }> = []
+    name: string;
+    description: string;
+  }> = [];
 
   if (collabSetupError) {
     environmentVariables.push(
@@ -35,8 +35,8 @@ export function SetupErrorMessage({
         name: "TIPTAP_COLLAB_TOKEN",
         description:
           "JWT token for accessing Collaboration services (do not use in production)",
-      }
-    )
+      },
+    );
   }
 
   if (aiSetupError) {
@@ -49,13 +49,13 @@ export function SetupErrorMessage({
         name: "TIPTAP_AI_TOKEN",
         description:
           "JWT token for accessing AI services (do not use in production)",
-      }
-    )
+      },
+    );
   }
 
   const handleOpenGuide = () => {
-    window.open(guideUrl, "_blank")
-  }
+    window.open(guideUrl, "_blank");
+  };
 
   return (
     <div className="tiptap-setup-error" role="alert" aria-live="assertive">
@@ -96,5 +96,5 @@ export function SetupErrorMessage({
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -2,9 +2,10 @@ import type { PluginOptions } from "@antv/g6";
 
 export interface PluginConfigOptions {}
 
-export function createPluginOptions(options?: PluginConfigOptions): PluginOptions {
+export function createPluginOptions(
+  options?: PluginConfigOptions,
+): PluginOptions {
   const PLUGINS: PluginOptions = [
-
     // {
     //   type: "grid-line",
     //   size: 20,
@@ -22,6 +23,6 @@ export function createPluginOptions(options?: PluginConfigOptions): PluginOption
     //   d: 100,
     //   r: 200,
     // },
-  ]
+  ];
   return PLUGINS;
 }

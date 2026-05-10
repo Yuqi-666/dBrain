@@ -1,22 +1,22 @@
-import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
 import {
   offset,
   size,
   useFloating,
   useTransitionStyles,
   type Placement,
-} from "@floating-ui/react"
-import { useEffect, useMemo, useCallback } from "react"
+} from "@floating-ui/react";
+import { useEffect, useMemo, useCallback } from "react";
 
 interface TableExtendRowColumnButtonPositionResult {
-  isMounted: boolean
-  ref: (node: HTMLElement | null) => void
-  style: React.CSSProperties
+  isMounted: boolean;
+  ref: (node: HTMLElement | null) => void;
+  style: React.CSSProperties;
 }
 
 interface TableExtendRowColumnButtonsPositioningResult {
-  rowButton: TableExtendRowColumnButtonPositionResult
-  columnButton: TableExtendRowColumnButtonPositionResult
+  rowButton: TableExtendRowColumnButtonPositionResult;
+  columnButton: TableExtendRowColumnButtonPositionResult;
 }
 
 const ORIENTATION_CONFIG = {
@@ -28,7 +28,7 @@ const ORIENTATION_CONFIG = {
     placement: "right" as Placement,
     sizeProperty: "height",
   },
-} as const
+} as const;
 
 /**
  * Custom hook for positioning extend buttons using Floating UI
@@ -36,9 +36,9 @@ const ORIENTATION_CONFIG = {
 function useTableExtendRowColumnButtonPosition(
   orientation: Orientation,
   show: boolean,
-  referencePosTable: DOMRect | null
+  referencePosTable: DOMRect | null,
 ): TableExtendRowColumnButtonPositionResult {
-  const config = ORIENTATION_CONFIG[orientation]
+  const config = ORIENTATION_CONFIG[orientation];
 
   const { refs, update, context, floatingStyles } = useFloating({
     open: show,
@@ -47,32 +47,32 @@ function useTableExtendRowColumnButtonPosition(
       offset(4),
       size({
         apply({ rects, elements }) {
-          const floating = elements.floating
-          if (!floating) return
+          const floating = elements.floating;
+          if (!floating) return;
 
           // Apply size based on orientation
-          const sizeValue = `${rects.reference[config.sizeProperty]}px`
-          floating.style[config.sizeProperty] = sizeValue
+          const sizeValue = `${rects.reference[config.sizeProperty]}px`;
+          floating.style[config.sizeProperty] = sizeValue;
         },
       }),
     ],
-  })
+  });
 
-  const { isMounted, styles } = useTransitionStyles(context)
+  const { isMounted, styles } = useTransitionStyles(context);
 
   const createVirtualReference = useCallback(
     (rect: DOMRect) => ({
       getBoundingClientRect: () => rect,
     }),
-    []
-  )
+    [],
+  );
 
   useEffect(() => {
-    if (!referencePosTable) return
+    if (!referencePosTable) return;
 
-    refs.setReference(createVirtualReference(referencePosTable))
-    update()
-  }, [referencePosTable, refs, update, createVirtualReference])
+    refs.setReference(createVirtualReference(referencePosTable));
+    update();
+  }, [referencePosTable, refs, update, createVirtualReference]);
 
   return useMemo(
     () => ({
@@ -84,8 +84,8 @@ function useTableExtendRowColumnButtonPosition(
         ...floatingStyles,
       } as React.CSSProperties,
     }),
-    [floatingStyles, isMounted, refs.setFloating, styles]
-  )
+    [floatingStyles, isMounted, refs.setFloating, styles],
+  );
 }
 
 /**
@@ -94,25 +94,25 @@ function useTableExtendRowColumnButtonPosition(
 export function useTableExtendRowColumnButtonsPositioning(
   showAddOrRemoveColumnsButton: boolean,
   showAddOrRemoveRowsButton: boolean,
-  referencePosTable: DOMRect | null
+  referencePosTable: DOMRect | null,
 ): TableExtendRowColumnButtonsPositioningResult {
   const rowButton = useTableExtendRowColumnButtonPosition(
     "row",
     showAddOrRemoveRowsButton,
-    referencePosTable
-  )
+    referencePosTable,
+  );
 
   const columnButton = useTableExtendRowColumnButtonPosition(
     "column",
     showAddOrRemoveColumnsButton,
-    referencePosTable
-  )
+    referencePosTable,
+  );
 
   return useMemo(
     () => ({
       rowButton,
       columnButton,
     }),
-    [rowButton, columnButton]
-  )
+    [rowButton, columnButton],
+  );
 }

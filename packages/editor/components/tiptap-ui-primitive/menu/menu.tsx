@@ -1,43 +1,43 @@
-"use client"
+"use client";
 
-import * as Ariakit from "@ariakit/react"
-import { useCallback, useMemo, useRef, useState } from "react"
+import * as Ariakit from "@ariakit/react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 // -- Hooks --
-import { useOnClickOutside } from "@workspace/editor/hooks/use-on-click-outside"
-import { useComposedRef } from "@workspace/editor/hooks/use-composed-ref"
+import { useOnClickOutside } from "@workspace/editor/hooks/use-on-click-outside";
+import { useComposedRef } from "@workspace/editor/hooks/use-composed-ref";
 
 // -- Utils --
-import { cn } from "@workspace/editor/lib/tiptap-utils"
+import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 // -- UI Primitives --
 import {
   ComboboxItem,
   ComboboxProvider,
-} from "@workspace/editor/components/tiptap-ui-primitive/combobox"
+} from "@workspace/editor/components/tiptap-ui-primitive/combobox";
 
 // -- Local imports --
 import type {
   MenuProps,
   MenuContentProps,
   MenuItemProps,
-} from "@workspace/editor/components/tiptap-ui-primitive/menu"
+} from "@workspace/editor/components/tiptap-ui-primitive/menu";
 import {
   SearchableContext,
   MenuContext,
   useSearchableContext,
   useMenuContext,
-} from "@workspace/editor/components/tiptap-ui-primitive/menu"
+} from "@workspace/editor/components/tiptap-ui-primitive/menu";
 import {
   useMenuPlacement,
   useMenuItemClick,
-} from "@workspace/editor/components/tiptap-ui-primitive/menu"
+} from "@workspace/editor/components/tiptap-ui-primitive/menu";
 
 // -- Styles --
-import "@workspace/editor/components/tiptap-ui-primitive/menu/menu.scss"
+import "@workspace/editor/components/tiptap-ui-primitive/menu/menu.scss";
 
 export function MenuProvider({ ...props }: Ariakit.MenuProviderProps) {
-  return <Ariakit.MenuProvider {...props} />
+  return <Ariakit.MenuProvider {...props} />;
 }
 
 export function Menu({
@@ -49,27 +49,27 @@ export function Menu({
   onValuesChange,
   ...props
 }: MenuProps) {
-  const isRootMenu = !Ariakit.useMenuContext()
-  const [open, setOpen] = useState<boolean>(false)
-  const searchable = !!onValuesChange || isRootMenu
+  const isRootMenu = !Ariakit.useMenuContext();
+  const [open, setOpen] = useState<boolean>(false);
+  const searchable = !!onValuesChange || isRootMenu;
 
   const handleOpenChange = useCallback(
     (v: boolean) => {
       if (props.open === undefined) {
-        setOpen(v)
+        setOpen(v);
       }
-      onOpenChange?.(v)
+      onOpenChange?.(v);
     },
-    [props.open, onOpenChange]
-  )
+    [props.open, onOpenChange],
+  );
 
   const menuContextValue = useMemo(
     () => ({
       isRootMenu,
       open: props.open ?? open,
     }),
-    [isRootMenu, props.open, open]
-  )
+    [isRootMenu, props.open, open],
+  );
 
   const menuProvider = (
     <Ariakit.MenuProvider
@@ -86,17 +86,17 @@ export function Menu({
         </SearchableContext.Provider>
       </MenuContext.Provider>
     </Ariakit.MenuProvider>
-  )
+  );
 
   if (searchable) {
     return (
       <ComboboxProvider value={value} setValue={onValueChange}>
         {menuProvider}
       </ComboboxProvider>
-    )
+    );
   }
 
-  return menuProvider
+  return menuProvider;
 }
 
 export function MenuContent({
@@ -106,11 +106,11 @@ export function MenuContent({
   onClickOutside,
   ...props
 }: MenuContentProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const { open } = useMenuContext()
-  const side = useMenuPlacement()
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const { open } = useMenuContext();
+  const side = useMenuPlacement();
 
-  useOnClickOutside(menuRef, onClickOutside || (() => {}))
+  useOnClickOutside(menuRef, onClickOutside || (() => {}));
 
   return (
     <Ariakit.Menu
@@ -125,7 +125,7 @@ export function MenuContent({
     >
       {children}
     </Ariakit.Menu>
-  )
+  );
 }
 
 export function MenuList({ className, ...props }: Ariakit.MenuListProps) {
@@ -135,7 +135,7 @@ export function MenuList({ className, ...props }: Ariakit.MenuListProps) {
       className={cn("tiptap-menu-list", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuButton({ className, ...props }: Ariakit.MenuButtonProps) {
@@ -144,7 +144,7 @@ export function MenuButton({ className, ...props }: Ariakit.MenuButtonProps) {
       {...props}
       className={cn("tiptap-menu-button", className)}
     />
-  )
+  );
 }
 
 export function MenuButtonArrow({
@@ -156,7 +156,7 @@ export function MenuButtonArrow({
       {...props}
       className={cn("tiptap-menu-button-arrow", className)}
     />
-  )
+  );
 }
 
 export function MenuArrow({ className, ...props }: Ariakit.MenuArrowProps) {
@@ -166,7 +166,7 @@ export function MenuArrow({ className, ...props }: Ariakit.MenuArrowProps) {
       className={cn("tiptap-menu-arrow", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuHeading({ className, ...props }: Ariakit.MenuHeadingProps) {
@@ -176,7 +176,7 @@ export function MenuHeading({ className, ...props }: Ariakit.MenuHeadingProps) {
       className={cn("tiptap-menu-heading", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuDescription({
@@ -189,7 +189,7 @@ export function MenuDescription({
       className={cn("tiptap-menu-description", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuDismiss({ className, ...props }: Ariakit.MenuDismissProps) {
@@ -199,7 +199,7 @@ export function MenuDismiss({ className, ...props }: Ariakit.MenuDismissProps) {
       className={cn("tiptap-menu-dismiss", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuGroup({ className, ...props }: Ariakit.MenuGroupProps) {
@@ -208,7 +208,7 @@ export function MenuGroup({ className, ...props }: Ariakit.MenuGroupProps) {
       {...props}
       className={cn("tiptap-menu-group", className)}
     />
-  )
+  );
 }
 
 export function MenuGroupLabel({
@@ -220,7 +220,7 @@ export function MenuGroupLabel({
       {...props}
       className={cn("tiptap-menu-group-label", className)}
     />
-  )
+  );
 }
 
 export function MenuSeparator({
@@ -233,7 +233,7 @@ export function MenuSeparator({
       className={cn("tiptap-menu-separator", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuItemCheck({
@@ -245,7 +245,7 @@ export function MenuItemCheck({
       {...props}
       className={cn("tiptap-menu-item-check", className)}
     />
-  )
+  );
 }
 
 export function MenuItemCheckbox({
@@ -258,7 +258,7 @@ export function MenuItemCheckbox({
       className={cn("tiptap-menu-item-checkbox", className)}
       {...props}
     />
-  )
+  );
 }
 
 export function MenuItemRadio({
@@ -270,7 +270,7 @@ export function MenuItemRadio({
       {...props}
       className={cn("tiptap-menu-item-radio", className)}
     />
-  )
+  );
 }
 
 export function MenuItem({
@@ -280,17 +280,17 @@ export function MenuItem({
   className,
   ...props
 }: MenuItemProps) {
-  const menu = Ariakit.useMenuContext()
-  const searchable = useSearchableContext()
+  const menu = Ariakit.useMenuContext();
+  const searchable = useSearchableContext();
 
-  const hideOnClick = useMenuItemClick(menu, preventClose)
+  const hideOnClick = useMenuItemClick(menu, preventClose);
 
   const itemProps: MenuItemProps = {
     blurOnHoverEnd: false,
     focusOnHover: true,
     className: cn("tiptap-menu-item", className),
     ...props,
-  }
+  };
 
   if (!searchable) {
     if (name && value) {
@@ -301,11 +301,11 @@ export function MenuItem({
           name={name}
           value={value}
         />
-      )
+      );
     }
 
-    return <Ariakit.MenuItem {...itemProps} />
+    return <Ariakit.MenuItem {...itemProps} />;
   }
 
-  return <ComboboxItem {...itemProps} hideOnClick={hideOnClick} />
+  return <ComboboxItem {...itemProps} hideOnClick={hideOnClick} />;
 }

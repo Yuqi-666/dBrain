@@ -58,7 +58,6 @@ export interface UIStore {
   /** 设置视图配置面板显示状态 */
   setViewConfigPanelOpen: (open: boolean) => void;
 
-
   /** 选项菜单是否显示 */
   optionsMenuOpen: boolean;
   /** 设置选项菜单显示状态 */

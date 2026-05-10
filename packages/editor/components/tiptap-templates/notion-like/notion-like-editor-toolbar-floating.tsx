@@ -1,65 +1,68 @@
-import { useEffect, useState } from "react"
-import { type Editor } from "@tiptap/react"
+import { useEffect, useState } from "react";
+import { type Editor } from "@tiptap/react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state"
-import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint"
-import { useFloatingToolbarVisibility } from "@workspace/editor/hooks/use-floating-toolbar-visibility"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state";
+import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint";
+import { useFloatingToolbarVisibility } from "@workspace/editor/hooks/use-floating-toolbar-visibility";
 
 // --- Node ---
-import { ImageNodeFloating } from "@workspace/editor/components/tiptap-node/image-node/image-node-floating"
+import { ImageNodeFloating } from "@workspace/editor/components/tiptap-node/image-node/image-node-floating";
 
 // --- Icons ---
-import { MoreVerticalIcon } from "@workspace/editor/components/tiptap-icons/more-vertical-icon"
+import { MoreVerticalIcon } from "@workspace/editor/components/tiptap-icons/more-vertical-icon";
 
 // --- UI ---
-import { ColorTextPopover } from "@workspace/editor/components/tiptap-ui/color-text-popover"
-import { ImproveDropdown } from "@workspace/editor/components/tiptap-ui/improve-dropdown"
-import { LinkPopover } from "@workspace/editor/components/tiptap-ui/link-popover"
-import type { Mark } from "@workspace/editor/components/tiptap-ui/mark-button"
-import { canToggleMark, MarkButton } from "@workspace/editor/components/tiptap-ui/mark-button"
-import type { TextAlign } from "@workspace/editor/components/tiptap-ui/text-align-button"
+import { ColorTextPopover } from "@workspace/editor/components/tiptap-ui/color-text-popover";
+import { ImproveDropdown } from "@workspace/editor/components/tiptap-ui/improve-dropdown";
+import { LinkPopover } from "@workspace/editor/components/tiptap-ui/link-popover";
+import type { Mark } from "@workspace/editor/components/tiptap-ui/mark-button";
+import {
+  canToggleMark,
+  MarkButton,
+} from "@workspace/editor/components/tiptap-ui/mark-button";
+import type { TextAlign } from "@workspace/editor/components/tiptap-ui/text-align-button";
 import {
   canSetTextAlign,
   TextAlignButton,
-} from "@workspace/editor/components/tiptap-ui/text-align-button"
-import { TurnIntoDropdown } from "@workspace/editor/components/tiptap-ui/turn-into-dropdown"
-import { IndentButton } from "@workspace/editor/components/tiptap-ui/indent-button"
+} from "@workspace/editor/components/tiptap-ui/text-align-button";
+import { TurnIntoDropdown } from "@workspace/editor/components/tiptap-ui/turn-into-dropdown";
+import { IndentButton } from "@workspace/editor/components/tiptap-ui/indent-button";
 
 // --- Utils ---
-import { isSelectionValid } from "@workspace/editor/lib/tiptap-collab-utils"
+import { isSelectionValid } from "@workspace/editor/lib/tiptap-collab-utils";
 
 // --- Primitive UI Components ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@workspace/editor/components/tiptap-ui-primitive/popover"
+} from "@workspace/editor/components/tiptap-ui-primitive/popover";
 import {
   Toolbar,
   ToolbarGroup,
   ToolbarSeparator,
-} from "@workspace/editor/components/tiptap-ui-primitive/toolbar"
+} from "@workspace/editor/components/tiptap-ui-primitive/toolbar";
 
 // --- UI Utils ---
-import { FloatingElement } from "@workspace/editor/components/tiptap-ui-utils/floating-element"
+import { FloatingElement } from "@workspace/editor/components/tiptap-ui-utils/floating-element";
 
 export function NotionToolbarFloating() {
-  const { editor } = useTiptapEditor()
-  const isMobile = useIsBreakpoint("max", 480)
+  const { editor } = useTiptapEditor();
+  const isMobile = useIsBreakpoint("max", 480);
   const { lockDragHandle, aiGenerationActive, commentInputVisible } =
-    useUiEditorState(editor)
+    useUiEditorState(editor);
 
   const { shouldShow } = useFloatingToolbarVisibility({
     editor,
     isSelectionValid,
     extraHideWhen: Boolean(aiGenerationActive || commentInputVisible),
-  })
+  });
 
-  if (lockDragHandle || isMobile) return null
+  if (lockDragHandle || isMobile) return null;
 
   return (
     <FloatingElement shouldShow={shouldShow}>
@@ -101,52 +104,52 @@ export function NotionToolbarFloating() {
         <MoreOptions hideWhenUnavailable={true} />
       </Toolbar>
     </FloatingElement>
-  )
+  );
 }
 
 function canMoreOptions(editor: Editor | null): boolean {
   if (!editor) {
-    return false
+    return false;
   }
 
   const canTextAlignAny = ["left", "center", "right", "justify"].some((align) =>
-    canSetTextAlign(editor, align as TextAlign)
-  )
+    canSetTextAlign(editor, align as TextAlign),
+  );
 
   const canMarkAny = ["superscript", "subscript"].some((type) =>
-    canToggleMark(editor, type as Mark)
-  )
+    canToggleMark(editor, type as Mark),
+  );
 
-  return canMarkAny || canTextAlignAny
+  return canMarkAny || canTextAlignAny;
 }
 
 function shouldShowMoreOptions(params: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  const { editor, hideWhenUnavailable } = params
+  const { editor, hideWhenUnavailable } = params;
 
   if (!editor) {
-    return false
+    return false;
   }
 
   if (hideWhenUnavailable && !editor.isActive("code")) {
-    return canMoreOptions(editor)
+    return canMoreOptions(editor);
   }
 
-  return Boolean(editor?.isEditable)
+  return Boolean(editor?.isEditable);
 }
 
 export interface MoreOptionsProps extends Omit<ButtonProps, "type"> {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Whether to hide the dropdown when no options are available.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
 }
 
 export function MoreOptions({
@@ -154,32 +157,32 @@ export function MoreOptions({
   hideWhenUnavailable = false,
   ...props
 }: MoreOptionsProps) {
-  const { editor } = useTiptapEditor(providedEditor)
-  const [show, setShow] = useState(false)
+  const { editor } = useTiptapEditor(providedEditor);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const handleSelectionUpdate = () => {
       setShow(
         shouldShowMoreOptions({
           editor,
           hideWhenUnavailable,
-        })
-      )
-    }
+        }),
+      );
+    };
 
-    handleSelectionUpdate()
+    handleSelectionUpdate();
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, hideWhenUnavailable])
+      editor.off("selectionUpdate", handleSelectionUpdate);
+    };
+  }, [editor, hideWhenUnavailable]);
 
   if (!show || !editor || !editor.isEditable) {
-    return null
+    return null;
   }
 
   return (
@@ -233,5 +236,5 @@ export function MoreOptions({
         </Popover>
       </ToolbarGroup>
     </>
-  )
+  );
 }

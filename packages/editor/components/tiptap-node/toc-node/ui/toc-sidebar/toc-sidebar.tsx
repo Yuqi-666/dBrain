@@ -1,30 +1,30 @@
-"use client"
+"use client";
 
-import { useCallback, useMemo, useEffect, useRef, useState } from "react"
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 
-import { cn } from "@workspace/editor/lib/tiptap-utils"
+import { cn } from "@workspace/editor/lib/tiptap-utils";
 import {
   getScrollableAncestor,
   useToc,
-} from "@workspace/editor/components/tiptap-node/toc-node/context/toc-context"
+} from "@workspace/editor/components/tiptap-node/toc-node/context/toc-context";
 import type {
   TableOfContentData,
   TableOfContentDataItem,
-} from "@tiptap/extension-table-of-contents"
+} from "@tiptap/extension-table-of-contents";
 
-import "./toc-sidebar.scss"
+import "./toc-sidebar.scss";
 
 export interface TocSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * The maximum number of headings to show in the TOC.
    * @default 20
    */
-  maxShowCount?: number
+  maxShowCount?: number;
   /**
    * Offset from the top of the editor container (in pixels).
    * @default 0
    */
-  topOffset?: number
+  topOffset?: number;
 }
 
 export function TocSidebar({
@@ -33,86 +33,86 @@ export function TocSidebar({
   topOffset = 0,
   ...props
 }: TocSidebarProps) {
-  const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc()
-  const hasRestoredHashRef = useRef(false)
+  const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc();
+  const hasRestoredHashRef = useRef(false);
 
   // Track when a click happened so we can ignore scroll events
   // caused by our own programmatic scrolling for a short time.
-  const lastClickTimeRef = useRef<number | null>(null)
+  const lastClickTimeRef = useRef<number | null>(null);
 
   // Manual active id (from user clicks). This should override scroll-based
   // and selection-based active states while it's set.
-  const [manualActiveId, setManualActiveId] = useState<string | null>(null)
+  const [manualActiveId, setManualActiveId] = useState<string | null>(null);
 
   const headingList = useMemo<TableOfContentData>(
     () => tocContent ?? [],
-    [tocContent]
-  )
+    [tocContent],
+  );
 
   const visibleHeadings = useMemo(
     () => headingList.slice(0, maxShowCount),
-    [headingList, maxShowCount]
-  )
+    [headingList, maxShowCount],
+  );
 
   const normalizedDepths = useMemo(
     () => normalizeHeadingDepths(visibleHeadings),
-    [visibleHeadings, normalizeHeadingDepths]
-  )
+    [visibleHeadings, normalizeHeadingDepths],
+  );
 
   const depthById = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, number>();
     visibleHeadings.forEach((h, index) => {
-      map.set(h.id, normalizedDepths[index] ?? 1)
-    })
-    return map
-  }, [visibleHeadings, normalizedDepths])
+      map.set(h.id, normalizedDepths[index] ?? 1);
+    });
+    return map;
+  }, [visibleHeadings, normalizedDepths]);
 
   // Scroll-based highlighted heading (using isActive)
   const highlightedHeading = useMemo<TableOfContentDataItem | null>(
     () => [...headingList].reverse().find((h) => h.isActive) ?? null,
-    [headingList]
-  )
+    [headingList],
+  );
 
   // Selection-based active heading (isActive)
   const selectionActiveId = useMemo(
     () => headingList.find((h) => h.isActive)?.id ?? null,
-    [headingList]
-  )
+    [headingList],
+  );
 
   // Decide which heading is "active" for UI purposes
   const activeContentId = useMemo(() => {
     // 1. User clicked something: manual always wins.
     if (manualActiveId) {
-      return manualActiveId
+      return manualActiveId;
     }
 
     // 2. Scroll-highlighted heading (extension scroll logic).
     if (highlightedHeading?.id) {
-      return highlightedHeading.id
+      return highlightedHeading.id;
     }
 
     // 3. Selection-based active heading (cursor).
     if (selectionActiveId) {
-      return selectionActiveId
+      return selectionActiveId;
     }
 
     // 4. Fallback to first heading.
-    return headingList[0]?.id
-  }, [manualActiveId, highlightedHeading, selectionActiveId, headingList])
+    return headingList[0]?.id;
+  }, [manualActiveId, highlightedHeading, selectionActiveId, headingList]);
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>, item: TableOfContentDataItem) => {
-      e.preventDefault()
-      e.stopPropagation()
+      e.preventDefault();
+      e.stopPropagation();
 
       // Mark this heading as manually active
-      setManualActiveId(item.id)
-      lastClickTimeRef.current = Date.now()
+      setManualActiveId(item.id);
+      lastClickTimeRef.current = Date.now();
 
-      navigateToHeading(item, { topOffset })
+      navigateToHeading(item, { topOffset });
     },
-    [navigateToHeading, topOffset]
-  )
+    [navigateToHeading, topOffset],
+  );
 
   /**
    * Highlight the correct TOC entry when the page loads with a hash.
@@ -125,25 +125,25 @@ export function TocSidebar({
       hasRestoredHashRef.current ||
       !headingList.length
     ) {
-      return
+      return;
     }
 
-    const hash = window.location.hash.replace(/^#/, "")
-    if (!hash) return
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return;
 
-    const target = headingList.find((h) => h.id === hash)
+    const target = headingList.find((h) => h.id === hash);
     if (target) {
-      setManualActiveId(target.id)
-      hasRestoredHashRef.current = true
+      setManualActiveId(target.id);
+      hasRestoredHashRef.current = true;
     }
-  }, [headingList])
+  }, [headingList]);
 
-  const sidebarRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Keep a ref in sync so the scroll handler can read the latest value
   // without being recreated on every manualActiveId change.
-  const manualActiveIdRef = useRef(manualActiveId)
-  manualActiveIdRef.current = manualActiveId
+  const manualActiveIdRef = useRef(manualActiveId);
+  manualActiveIdRef.current = manualActiveId;
 
   /**
    * Clear manual active id when the user actually scrolls
@@ -151,44 +151,44 @@ export function TocSidebar({
    * programmatic scroll from a click).
    */
   useEffect(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined") return;
 
     const handleScroll = () => {
-      const now = Date.now()
-      const lastClickTime = lastClickTimeRef.current
+      const now = Date.now();
+      const lastClickTime = lastClickTimeRef.current;
 
       // Ignore scroll events within 500ms of a click
       if (lastClickTime && now - lastClickTime < 500) {
-        return
+        return;
       }
 
       // User is scrolling manually now; go back to scroll-based logic.
       if (manualActiveIdRef.current !== null) {
-        setManualActiveId(null)
+        setManualActiveId(null);
       }
-    }
+    };
 
     // Find the scrollable ancestor to also listen on it
     const scrollTarget = sidebarRef.current
       ? getScrollableAncestor(sidebarRef.current)
-      : null
+      : null;
 
-    window.addEventListener("scroll", handleScroll, { passive: true })
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     // If the scrollable ancestor is not the window, listen on it too
     if (scrollTarget && !(scrollTarget instanceof Window)) {
-      scrollTarget.addEventListener("scroll", handleScroll, { passive: true })
+      scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
     }
 
     return () => {
-      window.removeEventListener("scroll", handleScroll)
+      window.removeEventListener("scroll", handleScroll);
       if (scrollTarget && !(scrollTarget instanceof Window)) {
-        scrollTarget.removeEventListener("scroll", handleScroll)
+        scrollTarget.removeEventListener("scroll", handleScroll);
       }
-    }
-  }, [])
+    };
+  }, []);
 
-  const hasHeadings = headingList.length > 0
+  const hasHeadings = headingList.length > 0;
 
   return (
     <div ref={sidebarRef} className={cn("toc-sidebar", className)} {...props}>
@@ -197,20 +197,20 @@ export function TocSidebar({
           {/* Progress rail */}
           <div className="toc-sidebar-progress">
             {visibleHeadings.map((item) => {
-              const depth = depthById.get(item.id) ?? 1
-              const isActive = activeContentId === item.id
+              const depth = depthById.get(item.id) ?? 1;
+              const isActive = activeContentId === item.id;
 
               return (
                 <div
                   key={item.id}
                   className={cn(
                     "toc-sidebar-progress-line",
-                    isActive && "toc-sidebar-progress-line--active"
+                    isActive && "toc-sidebar-progress-line--active",
                   )}
                   data-depth={depth}
                   style={{ "--toc-depth": depth } as React.CSSProperties}
                 />
-              )
+              );
             })}
           </div>
 
@@ -218,14 +218,14 @@ export function TocSidebar({
           <nav
             className={cn(
               "toc-sidebar-nav",
-              !hasHeadings && "toc-sidebar-nav--hidden"
+              !hasHeadings && "toc-sidebar-nav--hidden",
             )}
             aria-label="Table of contents"
           >
             <div className="toc-sidebar-popover">
               {visibleHeadings.map((item) => {
-                const depth = depthById.get(item.id) ?? 1
-                const isActive = activeContentId === item.id
+                const depth = depthById.get(item.id) ?? 1;
+                const isActive = activeContentId === item.id;
 
                 return (
                   <a
@@ -234,7 +234,7 @@ export function TocSidebar({
                     rel="noopener noreferrer"
                     className={cn(
                       "toc-sidebar-item notranslate",
-                      isActive && "toc-sidebar-item--active"
+                      isActive && "toc-sidebar-item--active",
                     )}
                     data-depth={depth}
                     style={{ "--toc-depth": depth } as React.CSSProperties}
@@ -243,12 +243,12 @@ export function TocSidebar({
                   >
                     {item.textContent}
                   </a>
-                )
+                );
               })}
             </div>
           </nav>
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -11,6 +11,7 @@ export interface FilterConfig {
   //filter->[1,2,4,6]
   selectedNodes?: NodeId[];
   ruleGroup?: RuleGroupType;
+  collectionType?: string;
 }
 
 // Node filter fields for react-querybuilder

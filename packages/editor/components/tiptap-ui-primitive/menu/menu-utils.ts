@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import type { Action } from "@workspace/editor/components/tiptap-ui-primitive/menu/menu-types"
+import type { Action } from "@workspace/editor/components/tiptap-ui-primitive/menu/menu-types";
 
 /**
  * Filters menu items based on search value
@@ -10,31 +10,31 @@ import type { Action } from "@workspace/editor/components/tiptap-ui-primitive/me
  */
 export function filterMenuItems(
   { items = [], ...group }: Action,
-  searchValue: string
+  searchValue: string,
 ): Action[] {
-  if (!searchValue.trim()) return items
+  if (!searchValue.trim()) return items;
 
-  const normalizedSearchValue = searchValue.toLowerCase().trim()
+  const normalizedSearchValue = searchValue.toLowerCase().trim();
 
   const groupKeywords = [group.label, ...(group.keywords || [])]
     .filter(Boolean)
     .join(" ")
-    .toLowerCase()
+    .toLowerCase();
 
   if (groupKeywords.includes(normalizedSearchValue)) {
-    return items
+    return items;
   }
 
   return items.filter((item) => {
-    if (item.filterItems) return true
+    if (item.filterItems) return true;
 
     const itemKeywords = [item.label, item.value, ...(item.keywords || [])]
       .filter(Boolean)
       .join(" ")
-      .toLowerCase()
+      .toLowerCase();
 
-    return itemKeywords.includes(normalizedSearchValue)
-  })
+    return itemKeywords.includes(normalizedSearchValue);
+  });
 }
 
 /**
@@ -45,20 +45,20 @@ export function filterMenuItems(
  */
 export function filterMenuGroups(
   menuGroups: Action[],
-  searchValue: string
+  searchValue: string,
 ): Action[] {
-  if (!searchValue.trim()) return menuGroups
+  if (!searchValue.trim()) return menuGroups;
 
   return menuGroups.reduce<Action[]>((acc, group) => {
-    const filteredItems = filterMenuItems(group, searchValue)
+    const filteredItems = filterMenuItems(group, searchValue);
 
     if (filteredItems.length > 0) {
       acc.push({
         ...group,
         items: filteredItems,
-      })
+      });
     }
 
-    return acc
-  }, [])
+    return acc;
+  }, []);
 }

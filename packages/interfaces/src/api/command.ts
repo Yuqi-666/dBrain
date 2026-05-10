@@ -14,7 +14,7 @@ import type {
 /**
  * Node Semantic Commands
  */
-export interface AddNodeSemanticCommand extends NodeSemantic { }
+export interface AddNodeSemanticCommand extends NodeSemantic {}
 
 export interface UpdateNodeSemanticCommand {
   id: NodeSemanticId;
@@ -28,7 +28,7 @@ export interface DeleteNodeSemanticCommand {
 /**
  * Edge Semantic Commands
  */
-export interface AddEdgeSemanticCommand extends EdgeSemantic { }
+export interface AddEdgeSemanticCommand extends EdgeSemantic {}
 
 export interface UpdateEdgeSemanticCommand {
   id: EdgeSemanticId;
@@ -121,77 +121,77 @@ export enum CommandMessageType {
  */
 export type CommandMessage =
   | {
-    type: CommandMessageType.ADD_NODE_SEMANTIC;
-    requestId: string; // ULID for temp tracking
-    payload: AddNodeSemanticCommand;
-  }
+      type: CommandMessageType.ADD_NODE_SEMANTIC;
+      requestId: string; // ULID for temp tracking
+      payload: AddNodeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.UPDATE_NODE_SEMANTIC;
-    requestId: string;
-    payload: UpdateNodeSemanticCommand;
-  }
+      type: CommandMessageType.UPDATE_NODE_SEMANTIC;
+      requestId: string;
+      payload: UpdateNodeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.DELETE_NODE_SEMANTIC;
-    requestId: string;
-    payload: DeleteNodeSemanticCommand;
-  }
+      type: CommandMessageType.DELETE_NODE_SEMANTIC;
+      requestId: string;
+      payload: DeleteNodeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.ADD_EDGE_SEMANTIC;
-    requestId: string;
-    payload: AddEdgeSemanticCommand;
-  }
+      type: CommandMessageType.ADD_EDGE_SEMANTIC;
+      requestId: string;
+      payload: AddEdgeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.UPDATE_EDGE_SEMANTIC;
-    requestId: string;
-    payload: UpdateEdgeSemanticCommand;
-  }
+      type: CommandMessageType.UPDATE_EDGE_SEMANTIC;
+      requestId: string;
+      payload: UpdateEdgeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.DELETE_EDGE_SEMANTIC;
-    requestId: string;
-    payload: DeleteEdgeSemanticCommand;
-  }
+      type: CommandMessageType.DELETE_EDGE_SEMANTIC;
+      requestId: string;
+      payload: DeleteEdgeSemanticCommand;
+    }
   | {
-    type: CommandMessageType.ADD_NODE;
-    requestId: string;
-    payload: AddNodeCommand;
-  }
+      type: CommandMessageType.ADD_NODE;
+      requestId: string;
+      payload: AddNodeCommand;
+    }
   | {
-    type: CommandMessageType.UPDATE_NODE;
-    requestId: string;
-    payload: UpdateNodeCommand;
-  }
+      type: CommandMessageType.UPDATE_NODE;
+      requestId: string;
+      payload: UpdateNodeCommand;
+    }
   | {
-    type: CommandMessageType.DELETE_NODE;
-    requestId: string;
-    payload: DeleteNodeCommand;
-  }
+      type: CommandMessageType.DELETE_NODE;
+      requestId: string;
+      payload: DeleteNodeCommand;
+    }
   | {
-    type: CommandMessageType.ADD_EDGE;
-    requestId: string;
-    payload: AddEdgeCommand;
-  }
+      type: CommandMessageType.ADD_EDGE;
+      requestId: string;
+      payload: AddEdgeCommand;
+    }
   | {
-    type: CommandMessageType.UPDATE_EDGE;
-    requestId: string;
-    payload: UpdateEdgeCommand;
-  }
+      type: CommandMessageType.UPDATE_EDGE;
+      requestId: string;
+      payload: UpdateEdgeCommand;
+    }
   | {
-    type: CommandMessageType.DELETE_EDGE;
-    requestId: string;
-    payload: DeleteEdgeCommand;
-  }
+      type: CommandMessageType.DELETE_EDGE;
+      requestId: string;
+      payload: DeleteEdgeCommand;
+    }
   | {
-    type: CommandMessageType.ADD_VIEW;
-    requestId: string;
-    payload: AddViewCommand;
-  }
+      type: CommandMessageType.ADD_VIEW;
+      requestId: string;
+      payload: AddViewCommand;
+    }
   | {
-    type: CommandMessageType.UPDATE_VIEW;
-    requestId: string;
-    payload: UpdateViewCommand;
-  }
+      type: CommandMessageType.UPDATE_VIEW;
+      requestId: string;
+      payload: UpdateViewCommand;
+    }
   | {
-    type: CommandMessageType.DELETE_VIEW;
-    requestId: string;
-    payload: DeleteViewCommand;
-  };
+      type: CommandMessageType.DELETE_VIEW;
+      requestId: string;
+      payload: DeleteViewCommand;
+    };

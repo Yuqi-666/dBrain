@@ -8,6 +8,6 @@ export function registerExtensions() {
   if (extensionsRegistered) return;
   extensionsRegistered = true;
 
-  register('behavior', 'custom-canvas-gesture', CustomCanvasGesture);
+  register("behavior", "custom-canvas-gesture", CustomCanvasGesture);
   register(ExtensionCategory.NODE, "react-node", ReactNode);
 }

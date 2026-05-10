@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, {
   createContext,
@@ -9,72 +9,74 @@ import React, {
   useId,
   useRef,
   useState,
-} from "react"
-import { useMergeRefs } from "@floating-ui/react"
-import "./sidebar.scss"
-import { Button } from "../button"
-import { cn, clamp } from "@workspace/editor/lib/tiptap-utils"
+} from "react";
+import { useMergeRefs } from "@floating-ui/react";
+import "./sidebar.scss";
+import { Button } from "../button";
+import { cn, clamp } from "@workspace/editor/lib/tiptap-utils";
 
-const SIDEBAR_COOKIE_NAME = "sidebar:state"
-const SIDEBAR_WIDTH_COOKIE_NAME = "sidebar:width"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const SIDEBAR_COOKIE_NAME = "sidebar:state";
+const SIDEBAR_WIDTH_COOKIE_NAME = "sidebar:width";
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 function getCookie(name: string): string | undefined {
-  if (typeof document === "undefined") return undefined
-  const value = `; ${document.cookie}`
-  const parts = value.split(`; ${name}=`)
-  if (parts.length === 2) return parts.pop()?.split(";").shift()
-  return undefined
+  if (typeof document === "undefined") return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift();
+  return undefined;
 }
 
 function setCookie(
   name: string,
   value: string,
-  maxAge = SIDEBAR_COOKIE_MAX_AGE
+  maxAge = SIDEBAR_COOKIE_MAX_AGE,
 ) {
-  if (typeof document === "undefined") return
-  document.cookie = `${name}=${value}; max-age=${maxAge}; path=/; SameSite=Lax`
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=${value}; max-age=${maxAge}; path=/; SameSite=Lax`;
 }
 
-export type SidebarMode = "push" | "overlay"
-export type SidebarSide = "left" | "right"
-export type SidebarStyle = "plain" | "elevated"
-export type SidebarAppearance = "default" | "subdued" | "emphasized"
-export type SidebarBreakpoint = "sm" | "md" | "lg" | "xl" | "2xl"
+export type SidebarMode = "push" | "overlay";
+export type SidebarSide = "left" | "right";
+export type SidebarStyle = "plain" | "elevated";
+export type SidebarAppearance = "default" | "subdued" | "emphasized";
+export type SidebarBreakpoint = "sm" | "md" | "lg" | "xl" | "2xl";
 
 interface SidebarContextValue {
-  id: string
-  open: boolean
-  setOpen: (open: boolean) => void
-  fullsize: boolean
-  setFullsize: (fullsize: boolean) => void
-  width: number
-  setWidth: (width: number) => void
-  isResizing: boolean
-  setIsResizing: (isResizing: boolean) => void
-  toggleSidebar: () => void
-  mode: SidebarMode
-  side: SidebarSide
-  variant: SidebarStyle
-  appearance: SidebarAppearance
-  resizable: boolean
-  minWidth: number
-  maxWidth: number
+  id: string;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  fullsize: boolean;
+  setFullsize: (fullsize: boolean) => void;
+  width: number;
+  setWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (isResizing: boolean) => void;
+  toggleSidebar: () => void;
+  mode: SidebarMode;
+  side: SidebarSide;
+  variant: SidebarStyle;
+  appearance: SidebarAppearance;
+  resizable: boolean;
+  minWidth: number;
+  maxWidth: number;
 }
 
-const SidebarContext = createContext<SidebarContextValue | undefined>(undefined)
+const SidebarContext = createContext<SidebarContextValue | undefined>(
+  undefined,
+);
 
 /**
  * Hook to access sidebar context.
  * @throws Error if used outside of SidebarProvider
  */
 export function useSidebar(): SidebarContextValue {
-  const context = useContext(SidebarContext)
+  const context = useContext(SidebarContext);
   if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider")
+    throw new Error("useSidebar must be used within a SidebarProvider");
   }
-  return context
+  return context;
 }
 
 /**
@@ -82,17 +84,17 @@ export function useSidebar(): SidebarContextValue {
  * Returns undefined if used outside of SidebarProvider.
  */
 export function useSidebarOptional(): SidebarContextValue | undefined {
-  return useContext(SidebarContext)
+  return useContext(SidebarContext);
 }
 
 interface UseResizableOptions {
-  side: SidebarSide
-  minWidth: number
-  maxWidth: number
-  initialWidth: number
-  enabled: boolean
-  onResize?: (width: number) => void
-  onResizeEnd?: (width: number) => void
+  side: SidebarSide;
+  minWidth: number;
+  maxWidth: number;
+  initialWidth: number;
+  enabled: boolean;
+  onResize?: (width: number) => void;
+  onResizeEnd?: (width: number) => void;
 }
 
 function useResizable({
@@ -104,104 +106,104 @@ function useResizable({
   onResize,
   onResizeEnd,
 }: UseResizableOptions) {
-  const elementRef = useRef<HTMLDivElement>(null)
-  const [isResizing, setIsResizing] = useState(false)
-  const [width, setWidth] = useState(initialWidth)
+  const elementRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [width, setWidth] = useState(initialWidth);
 
   const resizeState = useRef({
     startX: 0,
     startWidth: 0,
     currentWidth: initialWidth,
     rafId: null as number | null,
-  })
+  });
 
   // Keep current width in sync
   useEffect(() => {
-    resizeState.current.currentWidth = width
-  }, [width])
+    resizeState.current.currentWidth = width;
+  }, [width]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
-      if (!enabled) return
+      if (!enabled) return;
 
-      e.preventDefault()
-      e.stopPropagation()
+      e.preventDefault();
+      e.stopPropagation();
 
-      const state = resizeState.current
-      state.startX = e.clientX
-      state.startWidth = state.currentWidth
+      const state = resizeState.current;
+      state.startX = e.clientX;
+      state.startWidth = state.currentWidth;
 
       // Apply width directly to DOM to prevent flash
       if (elementRef.current) {
-        elementRef.current.style.width = `${state.currentWidth}px`
+        elementRef.current.style.width = `${state.currentWidth}px`;
       }
 
-      document.body.style.cursor = "ew-resize"
-      document.body.style.userSelect = "none"
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
 
-      setIsResizing(true)
+      setIsResizing(true);
     },
-    [enabled]
-  )
+    [enabled],
+  );
 
   useEffect(() => {
-    if (!isResizing) return
+    if (!isResizing) return;
 
-    const state = resizeState.current
+    const state = resizeState.current;
 
     const handleMouseMove = (e: MouseEvent) => {
-      e.preventDefault()
+      e.preventDefault();
 
       if (state.rafId !== null) {
-        cancelAnimationFrame(state.rafId)
+        cancelAnimationFrame(state.rafId);
       }
 
       state.rafId = requestAnimationFrame(() => {
         const deltaX =
-          side === "left" ? e.clientX - state.startX : state.startX - e.clientX
+          side === "left" ? e.clientX - state.startX : state.startX - e.clientX;
 
-        const newWidth = clamp(state.startWidth + deltaX, minWidth, maxWidth)
-        state.currentWidth = newWidth
+        const newWidth = clamp(state.startWidth + deltaX, minWidth, maxWidth);
+        state.currentWidth = newWidth;
 
         if (elementRef.current) {
-          elementRef.current.style.width = `${newWidth}px`
+          elementRef.current.style.width = `${newWidth}px`;
         }
 
-        onResize?.(newWidth)
-      })
-    }
+        onResize?.(newWidth);
+      });
+    };
 
     const handleMouseUp = () => {
-      const finalWidth = state.currentWidth
+      const finalWidth = state.currentWidth;
 
       // Cleanup
-      document.body.style.cursor = ""
-      document.body.style.userSelect = ""
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
 
       if (state.rafId !== null) {
-        cancelAnimationFrame(state.rafId)
-        state.rafId = null
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
       }
 
-      setIsResizing(false)
-      setWidth(finalWidth)
-      onResizeEnd?.(finalWidth)
-    }
+      setIsResizing(false);
+      setWidth(finalWidth);
+      onResizeEnd?.(finalWidth);
+    };
 
-    document.addEventListener("mousemove", handleMouseMove)
-    document.addEventListener("mouseup", handleMouseUp)
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove)
-      document.removeEventListener("mouseup", handleMouseUp)
-      document.body.style.cursor = ""
-      document.body.style.userSelect = ""
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
 
       if (state.rafId !== null) {
-        cancelAnimationFrame(state.rafId)
+        cancelAnimationFrame(state.rafId);
       }
-    }
-  }, [isResizing, side, minWidth, maxWidth, onResize, onResizeEnd])
+    };
+  }, [isResizing, side, minWidth, maxWidth, onResize, onResizeEnd]);
 
   return {
     elementRef,
@@ -209,34 +211,34 @@ function useResizable({
     width,
     setWidth,
     handleResizeStart,
-  }
+  };
 }
 
 export interface SidebarProviderProps extends React.ComponentProps<"div"> {
   /** Sidebar mode: "push" moves content, "overlay" floats above. @default "push" */
-  mode?: SidebarMode
+  mode?: SidebarMode;
   /** Which side the sidebar appears on. @default "left" */
-  side?: SidebarSide
+  side?: SidebarSide;
   /** Visual style variant. @default "plain" */
-  variant?: SidebarStyle
+  variant?: SidebarStyle;
   /** Visual prominence. @default "default" */
-  appearance?: SidebarAppearance
+  appearance?: SidebarAppearance;
   /** Whether sidebar can be resized. @default false */
-  resizable?: boolean
+  resizable?: boolean;
   /** Default open state. @default true */
-  defaultOpen?: boolean
+  defaultOpen?: boolean;
   /** Controlled open state. */
-  open?: boolean
+  open?: boolean;
   /** Callback when open state changes. */
-  onOpenChange?: (open: boolean) => void
+  onOpenChange?: (open: boolean) => void;
   /** Default fullsize state. @default false */
-  defaultFullsize?: boolean
+  defaultFullsize?: boolean;
   /** Default width in pixels. @default 320 */
-  defaultWidth?: number
+  defaultWidth?: number;
   /** Minimum width in pixels. @default 200 */
-  minWidth?: number
+  minWidth?: number;
   /** Maximum width in pixels. @default 600 */
-  maxWidth?: number
+  maxWidth?: number;
 }
 
 /**
@@ -261,72 +263,72 @@ export const SidebarProvider = forwardRef<HTMLDivElement, SidebarProviderProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
-    const generatedId = useId()
-    const id = idProp ?? `sidebar-${generatedId}`
+    const generatedId = useId();
+    const id = idProp ?? `sidebar-${generatedId}`;
 
     // Open state with cookie persistence
     const [open, setOpenState] = useState(() => {
-      if (controlledOpen !== undefined) return controlledOpen
-      const cookieValue = getCookie(SIDEBAR_COOKIE_NAME)
-      return cookieValue ? cookieValue === "true" : defaultOpen
-    })
+      if (controlledOpen !== undefined) return controlledOpen;
+      const cookieValue = getCookie(SIDEBAR_COOKIE_NAME);
+      return cookieValue ? cookieValue === "true" : defaultOpen;
+    });
 
-    const [fullsize, setFullsize] = useState(defaultFullsize)
-    const [isResizing, setIsResizing] = useState(false)
+    const [fullsize, setFullsize] = useState(defaultFullsize);
+    const [isResizing, setIsResizing] = useState(false);
 
     // Width state with cookie persistence
     const [width, setWidthState] = useState(() => {
-      const cookieValue = getCookie(SIDEBAR_WIDTH_COOKIE_NAME)
+      const cookieValue = getCookie(SIDEBAR_WIDTH_COOKIE_NAME);
       if (cookieValue) {
-        const parsed = parseInt(cookieValue, 10)
-        if (!isNaN(parsed)) return clamp(parsed, minWidth, maxWidth)
+        const parsed = parseInt(cookieValue, 10);
+        if (!isNaN(parsed)) return clamp(parsed, minWidth, maxWidth);
       }
-      return defaultWidth
-    })
+      return defaultWidth;
+    });
 
     // Sync controlled open prop
     useEffect(() => {
       if (controlledOpen !== undefined) {
-        setOpenState(controlledOpen)
+        setOpenState(controlledOpen);
       }
-    }, [controlledOpen])
+    }, [controlledOpen]);
 
     const setOpen = useCallback(
       (newOpen: boolean) => {
-        setOpenState(newOpen)
-        setCookie(SIDEBAR_COOKIE_NAME, String(newOpen))
-        onOpenChange?.(newOpen)
+        setOpenState(newOpen);
+        setCookie(SIDEBAR_COOKIE_NAME, String(newOpen));
+        onOpenChange?.(newOpen);
       },
-      [onOpenChange]
-    )
+      [onOpenChange],
+    );
 
     const setWidth = useCallback(
       (newWidth: number) => {
-        const clamped = clamp(newWidth, minWidth, maxWidth)
-        setWidthState(clamped)
-        setCookie(SIDEBAR_WIDTH_COOKIE_NAME, String(clamped))
+        const clamped = clamp(newWidth, minWidth, maxWidth);
+        setWidthState(clamped);
+        setCookie(SIDEBAR_WIDTH_COOKIE_NAME, String(clamped));
       },
-      [minWidth, maxWidth]
-    )
+      [minWidth, maxWidth],
+    );
 
     const toggleSidebar = useCallback(() => {
-      setOpen(!open)
-    }, [open, setOpen])
+      setOpen(!open);
+    }, [open, setOpen]);
 
     // Keyboard shortcut: Ctrl/Cmd + B
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === SIDEBAR_KEYBOARD_SHORTCUT) {
-          e.preventDefault()
-          toggleSidebar()
+          e.preventDefault();
+          toggleSidebar();
         }
-      }
+      };
 
-      document.addEventListener("keydown", handleKeyDown)
-      return () => document.removeEventListener("keydown", handleKeyDown)
-    }, [toggleSidebar])
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [toggleSidebar]);
 
     const contextValue: SidebarContextValue = {
       id,
@@ -346,7 +348,7 @@ export const SidebarProvider = forwardRef<HTMLDivElement, SidebarProviderProps>(
       resizable,
       minWidth,
       maxWidth,
-    }
+    };
 
     return (
       <SidebarContext.Provider value={contextValue}>
@@ -354,39 +356,39 @@ export const SidebarProvider = forwardRef<HTMLDivElement, SidebarProviderProps>(
           {children}
         </div>
       </SidebarContext.Provider>
-    )
-  }
-)
+    );
+  },
+);
 
-SidebarProvider.displayName = "SidebarProvider"
+SidebarProvider.displayName = "SidebarProvider";
 
 export interface SidebarProps extends React.ComponentProps<"div"> {
   /** Unique identifier. Auto-generated if not provided. */
-  id?: string
+  id?: string;
   /** Sidebar mode. @default "push" */
-  mode?: SidebarMode
+  mode?: SidebarMode;
   /** Which side the sidebar appears on. @default "left" */
-  side?: SidebarSide
+  side?: SidebarSide;
   /** Visual style variant. @default "plain" */
-  variant?: SidebarStyle
+  variant?: SidebarStyle;
   /** Visual prominence. @default "default" */
-  appearance?: SidebarAppearance
+  appearance?: SidebarAppearance;
   /** Whether sidebar can be resized. @default false */
-  resizable?: boolean
+  resizable?: boolean;
   /** Breakpoint for responsive behavior. @default "md" */
-  breakpoint?: SidebarBreakpoint
+  breakpoint?: SidebarBreakpoint;
   /** Whether the sidebar is open. @default false */
-  open?: boolean
+  open?: boolean;
   /** Whether the sidebar is fullsize. @default false */
-  fullsize?: boolean
+  fullsize?: boolean;
   /** Callback when sidebar is resized. */
-  onSidebarResize?: (width: number) => void
+  onSidebarResize?: (width: number) => void;
   /** Default width in pixels. @default 320 */
-  defaultWidth?: number
+  defaultWidth?: number;
   /** Minimum width in pixels. @default 200 */
-  minWidth?: number
+  minWidth?: number;
   /** Maximum width in pixels. @default 600 */
-  maxWidth?: number
+  maxWidth?: number;
 }
 
 /**
@@ -413,35 +415,36 @@ export const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
       style,
       ...props
     },
-    ref
+    ref,
   ) => {
-    const context = useSidebarOptional()
-    const generatedId = useId()
+    const context = useSidebarOptional();
+    const generatedId = useId();
 
-    const id = context?.id ?? idProp ?? `sidebar-${generatedId}`
-    const mode = context?.mode ?? modeProp ?? "push"
-    const side = context?.side ?? sideProp ?? "left"
-    const variant = context?.variant ?? variantProp ?? "plain"
-    const appearance = context?.appearance ?? appearanceProp ?? "default"
-    const resizable = context?.resizable ?? resizableProp ?? false
-    const minWidth = context?.minWidth ?? minWidthProp
-    const maxWidth = context?.maxWidth ?? maxWidthProp
+    const id = context?.id ?? idProp ?? `sidebar-${generatedId}`;
+    const mode = context?.mode ?? modeProp ?? "push";
+    const side = context?.side ?? sideProp ?? "left";
+    const variant = context?.variant ?? variantProp ?? "plain";
+    const appearance = context?.appearance ?? appearanceProp ?? "default";
+    const resizable = context?.resizable ?? resizableProp ?? false;
+    const minWidth = context?.minWidth ?? minWidthProp;
+    const maxWidth = context?.maxWidth ?? maxWidthProp;
 
     // State (from context or local)
-    const [localOpen, setLocalOpen] = useState(openProp ?? false)
-    const [localFullsize, setLocalFullsize] = useState(fullsizeProp ?? false)
+    const [localOpen, setLocalOpen] = useState(openProp ?? false);
+    const [localFullsize, setLocalFullsize] = useState(fullsizeProp ?? false);
 
-    const open = context?.open ?? localOpen
-    const fullsize = context?.fullsize ?? localFullsize
+    const open = context?.open ?? localOpen;
+    const fullsize = context?.fullsize ?? localFullsize;
 
     // Sync controlled props when not using context
     useEffect(() => {
-      if (!context && openProp !== undefined) setLocalOpen(openProp)
-    }, [openProp, context])
+      if (!context && openProp !== undefined) setLocalOpen(openProp);
+    }, [openProp, context]);
 
     useEffect(() => {
-      if (!context && fullsizeProp !== undefined) setLocalFullsize(fullsizeProp)
-    }, [fullsizeProp, context])
+      if (!context && fullsizeProp !== undefined)
+        setLocalFullsize(fullsizeProp);
+    }, [fullsizeProp, context]);
 
     // Resize handling
     const {
@@ -457,21 +460,21 @@ export const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
       enabled: resizable,
       onResize: onSidebarResize,
       onResizeEnd: context?.setWidth,
-    })
+    });
 
-    const isResizing = context?.isResizing ?? localIsResizing
-    const width = context?.width ?? localWidth
+    const isResizing = context?.isResizing ?? localIsResizing;
+    const width = context?.width ?? localWidth;
 
     useEffect(() => {
-      context?.setIsResizing(localIsResizing)
-    }, [localIsResizing, context])
+      context?.setIsResizing(localIsResizing);
+    }, [localIsResizing, context]);
 
-    const mergedRef = useMergeRefs([ref, resizeRef])
+    const mergedRef = useMergeRefs([ref, resizeRef]);
 
     const sidebarStyle: React.CSSProperties = {
       ...style,
       ...(resizable && { width: `${width}px` }),
-    }
+    };
 
     return (
       <div
@@ -503,11 +506,11 @@ export const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
           />
         )}
       </div>
-    )
-  }
-)
+    );
+  },
+);
 
-Sidebar.displayName = "Sidebar"
+Sidebar.displayName = "Sidebar";
 
 export const SidebarHeader = forwardRef<
   HTMLDivElement,
@@ -518,8 +521,8 @@ export const SidebarHeader = forwardRef<
     className={cn("tiptap-sidebar-header", className)}
     {...props}
   />
-))
-SidebarHeader.displayName = "SidebarHeader"
+));
+SidebarHeader.displayName = "SidebarHeader";
 
 export const SidebarContent = forwardRef<
   HTMLDivElement,
@@ -530,8 +533,8 @@ export const SidebarContent = forwardRef<
     className={cn("tiptap-sidebar-content", className)}
     {...props}
   />
-))
-SidebarContent.displayName = "SidebarContent"
+));
+SidebarContent.displayName = "SidebarContent";
 
 export const SidebarFooter = forwardRef<
   HTMLDivElement,
@@ -542,25 +545,25 @@ export const SidebarFooter = forwardRef<
     className={cn("tiptap-sidebar-footer", className)}
     {...props}
   />
-))
-SidebarFooter.displayName = "SidebarFooter"
+));
+SidebarFooter.displayName = "SidebarFooter";
 export interface SidebarTriggerProps extends React.ComponentProps<
   typeof Button
 > {
-  onToggle?: () => void
+  onToggle?: () => void;
 }
 
 export const SidebarTrigger = forwardRef<
   HTMLButtonElement,
   SidebarTriggerProps
 >(({ className, children, onClick, onToggle, ...props }, ref) => {
-  const context = useSidebar()
+  const context = useSidebar();
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    onClick?.(e)
-    onToggle?.()
-    context.toggleSidebar()
-  }
+    onClick?.(e);
+    onToggle?.();
+    context.toggleSidebar();
+  };
 
   return (
     <Button
@@ -573,33 +576,33 @@ export const SidebarTrigger = forwardRef<
     >
       {children}
     </Button>
-  )
-})
+  );
+});
 
-SidebarTrigger.displayName = "SidebarTrigger"
+SidebarTrigger.displayName = "SidebarTrigger";
 
 export const SidebarInset = forwardRef<
   HTMLElement,
   React.ComponentProps<"main">
 >(({ className, ...props }, ref) => (
   <main ref={ref} className={cn("tiptap-main-content", className)} {...props} />
-))
+));
 
-SidebarInset.displayName = "SidebarInset"
+SidebarInset.displayName = "SidebarInset";
 
 export interface SidebarBackdropProps extends React.ComponentProps<"div"> {
   /** Whether the backdrop is visible. */
-  visible?: boolean
+  visible?: boolean;
   /** Called when backdrop is clicked. */
-  onClose?: () => void
+  onClose?: () => void;
 }
 
 export const SidebarBackdrop = forwardRef<HTMLDivElement, SidebarBackdropProps>(
   ({ className, visible, onClose, onClick, ...props }, ref) => {
     const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-      onClick?.(e)
-      onClose?.()
-    }
+      onClick?.(e);
+      onClose?.();
+    };
 
     return (
       <div
@@ -610,8 +613,8 @@ export const SidebarBackdrop = forwardRef<HTMLDivElement, SidebarBackdropProps>(
         aria-hidden="true"
         {...props}
       />
-    )
-  }
-)
+    );
+  },
+);
 
-SidebarBackdrop.displayName = "SidebarBackdrop"
+SidebarBackdrop.displayName = "SidebarBackdrop";

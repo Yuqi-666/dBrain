@@ -12,16 +12,28 @@ interface TextNodeContentProps {
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
   const updateNode = useGraphStore((state) => state.updateNode);
-  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
+
+  // Get the first content string if docs is stored as object record
+  const getValue = (): string => {
+    if (!node.content?.docs) return "";
+    if (typeof node.content.docs === "string") return node.content.docs;
+    const firstKey = Object.keys(node.content.docs)[0];
+    return firstKey ? String(node.content.docs[firstKey]) : "";
+  };
 
   return (
     <div className={cn("flex flex-col gap-6 p-6", className)}>
       <div className="space-y-2 flex-1">
         <Textarea
-          value={(node.content?.docs as any) || ""}
+          value={getValue()}
           onChange={(e) => {
             if (!currentEditingNodeId) return;
-            updateNode(currentEditingNodeId, { content: { docs: e.target.value } as any });
+            updateNode(currentEditingNodeId, {
+              content: { docs: { content: e.target.value } },
+            });
           }}
           placeholder="输入正文内容..."
           className="min-h-[200px] resize-none font-mono text-sm"

@@ -3,13 +3,18 @@ import katex from "katex";
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Popover, PopoverTrigger, PopoverContent } from "@workspace/editor/components/tiptap-ui-primitive/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@workspace/editor/components/tiptap-ui-primitive/popover";
 import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primitive/textarea-autosize";
 import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 export default function LatexBlockView(props: NodeViewProps) {
-  const { node, updateAttributes, editor, getPos, deleteNode, selected } = props;
+  const { node, updateAttributes, editor, getPos, deleteNode, selected } =
+    props;
   const mathResultContainer = useRef<HTMLDivElement>(null);
   const mathPreviewContainer = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -37,7 +42,7 @@ export default function LatexBlockView(props: NodeViewProps) {
         if (e instanceof Error) setError(e.message);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -69,14 +74,16 @@ export default function LatexBlockView(props: NodeViewProps) {
   const wasSelected = useRef(false);
 
   const checkEmptyAndDelete = useCallback(() => {
-    if (typeof getPos !== 'function') return;
+    if (typeof getPos !== "function") return;
 
-    const currentText = previewRef.current !== null ? previewRef.current : node.attrs.text;
+    const currentText =
+      previewRef.current !== null ? previewRef.current : node.attrs.text;
 
     if (!currentText.trim()) {
       try {
         const pos = getPos();
-        editor.chain()
+        editor
+          .chain()
           .deleteRange({ from: pos, to: pos + node.nodeSize })
           .focus(pos)
           .run();
@@ -148,22 +155,30 @@ export default function LatexBlockView(props: NodeViewProps) {
             "block text-center px-px py-0 whitespace-pre-wrap break-words rounded transition-colors duration-200 mx-0.5 overflow-x-auto select-none",
             selected && "ProseMirror-selectednode",
             error && "text-red-8 bg-red-0",
-            ((isEditing && !preview?.trim().length) || (!isEditing && !node.attrs.text.trim().length)) &&
-            "text-gray-6 bg-gray-0"
+            ((isEditing && !preview?.trim().length) ||
+              (!isEditing && !node.attrs.text.trim().length)) &&
+              "text-gray-6 bg-gray-0",
           )}
         >
           <div
-            style={{ display: isEditing && preview?.length ? undefined : "none" }}
+            style={{
+              display: isEditing && preview?.length ? undefined : "none",
+            }}
             ref={mathPreviewContainer}
           ></div>
           <div
             style={{ display: isEditing ? "none" : undefined }}
             ref={mathResultContainer}
           ></div>
-          {((isEditing && !preview?.trim().length) || (!isEditing && !node.attrs.text.trim().length)) && (
-            <div className="py-2 text-sm text-muted-foreground/60 italic">Empty equation</div>
+          {((isEditing && !preview?.trim().length) ||
+            (!isEditing && !node.attrs.text.trim().length)) && (
+            <div className="py-2 text-sm text-muted-foreground/60 italic">
+              Empty equation
+            </div>
           )}
-          {error && <div className="py-2 text-sm text-red-500">Invalid equation</div>}
+          {error && (
+            <div className="py-2 text-sm text-red-500">Invalid equation</div>
+          )}
         </NodeViewWrapper>
       </PopoverTrigger>
       <PopoverContent
@@ -181,7 +196,9 @@ export default function LatexBlockView(props: NodeViewProps) {
       >
         <div className="flex flex-col">
           <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Block Equation</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Block Equation
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -210,11 +227,19 @@ export default function LatexBlockView(props: NodeViewProps) {
                 const target = e.target as HTMLTextAreaElement;
                 const valueLength = target.value?.length ?? 0;
 
-                if ((e.key === "ArrowLeft" || e.key === "ArrowUp") && selection.start === selection.end && selection.start === 0) {
+                if (
+                  (e.key === "ArrowLeft" || e.key === "ArrowUp") &&
+                  selection.start === selection.end &&
+                  selection.start === 0
+                ) {
                   editor.commands.focus(getPos() - 1);
                 }
 
-                if ((e.key === "ArrowRight" || e.key === "ArrowDown") && selection.start === selection.end && selection.start === valueLength) {
+                if (
+                  (e.key === "ArrowRight" || e.key === "ArrowDown") &&
+                  selection.start === selection.end &&
+                  selection.start === valueLength
+                ) {
                   editor.commands.focus(getPos() + node.nodeSize);
                 }
               }}

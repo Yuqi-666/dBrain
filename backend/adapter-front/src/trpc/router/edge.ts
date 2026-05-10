@@ -1,7 +1,4 @@
-import {
-  router,
-  publicProcedure,
-} from "../server";
+import { router, publicProcedure } from "../server";
 import { z } from "zod";
 
 const addSchema = z.object({
@@ -20,7 +17,9 @@ const updateSchema = z.object({
     to: z.string().optional(),
     direction: z.enum(["forward", "reverse", "bidirectional"]).optional(),
     semanticId: z.string().optional(),
-    edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
+    edgeType: z
+      .enum(["hierarchy", "flow", "association", "interaction"])
+      .optional(),
     weight: z.number().min(1).max(5).optional(),
     stateData: z.record(z.any()).optional(),
   }),
@@ -43,7 +42,9 @@ export const edgeRouter = router({
   list: publicProcedure.query(() => {
     return { items: [] };
   }),
-  getById: publicProcedure.input(z.object({ id: z.string() })).query(({ input }) => {
-    return null;
-  }),
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ input }) => {
+      return null;
+    }),
 });

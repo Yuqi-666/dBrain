@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from "react";
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<"svg">;
 
 export const AlignEndVerticalIcon = memo(
   ({ className, ...props }: SvgProps) => {
@@ -27,8 +27,8 @@ export const AlignEndVerticalIcon = memo(
           fill="currentColor"
         />
       </svg>
-    )
-  }
-)
+    );
+  },
+);
 
-AlignEndVerticalIcon.displayName = "AlignEndVerticalIcon"
+AlignEndVerticalIcon.displayName = "AlignEndVerticalIcon";

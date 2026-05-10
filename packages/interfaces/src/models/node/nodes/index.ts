@@ -29,11 +29,6 @@ export type { AudioNodeData } from "./single/audio";
 export type { WebpageNodeData } from "./single/webpage";
 export type { WebsiteNodeData } from "./single/website";
 
-export type {
-  CollectionNodeData,
-} from "./complex/collection";
+export type { CollectionNodeData } from "./complex/collection";
 
-export type {
-  RichTextNodeData,
-  RichTextContent
-} from "./complex/rich-text";
+export type { RichTextNodeData, RichTextContent } from "./complex/rich-text";

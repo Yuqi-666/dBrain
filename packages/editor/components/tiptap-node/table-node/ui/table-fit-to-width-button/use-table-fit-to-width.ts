@@ -1,36 +1,36 @@
-"use client"
+"use client";
 
-import { useCallback } from "react"
-import type { Editor } from "@tiptap/react"
+import { useCallback } from "react";
+import type { Editor } from "@tiptap/react";
 
 // --Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --Lib ---
-import { isExtensionAvailable } from "@workspace/editor/lib/tiptap-utils"
+import { isExtensionAvailable } from "@workspace/editor/lib/tiptap-utils";
 import {
   getTable,
   RESIZE_MIN_WIDTH,
-} from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils"
+} from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
 
 // --Icons ---
-import { MoveHorizontalIcon } from "@workspace/editor/components/tiptap-icons/move-horizontal-icon"
+import { MoveHorizontalIcon } from "@workspace/editor/components/tiptap-icons/move-horizontal-icon";
 
 export interface UseTableFitToWidthConfig {
   /**
    * The Tiptap editor instance. If omitted, the hook will use
    * the editor from `useTiptapEditor`.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Hide the button when the action isn't currently possible.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Called after the table width is successfully adjusted.
    */
-  onWidthAdjusted?: () => void
+  onWidthAdjusted?: () => void;
 }
 
 /**
@@ -38,7 +38,7 @@ export interface UseTableFitToWidthConfig {
  * - `table` to target the node and update attributes
  * - `tableHandleExtension` (or your table controls) to ensure table tooling is enabled
  */
-const REQUIRED_EXTENSIONS = ["table", "tableHandleExtension"]
+const REQUIRED_EXTENSIONS = ["table", "tableHandleExtension"];
 
 /**
  * Returns whether a "fit to width" action can run in the current state.
@@ -51,7 +51,7 @@ function canFitTableToWidth(editor: Editor | null): boolean {
     !editor.isEditable ||
     !isExtensionAvailable(editor, REQUIRED_EXTENSIONS)
   ) {
-    return false
+    return false;
   }
 
   try {
@@ -59,9 +59,9 @@ function canFitTableToWidth(editor: Editor | null): boolean {
       editor.isActive("table") ||
       editor.isActive("tableCell") ||
       editor.isActive("tableHeader")
-    )
+    );
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -76,57 +76,57 @@ function canFitTableToWidth(editor: Editor | null): boolean {
  * @returns true if the table width was successfully set, false otherwise
  */
 function setTableAutoWidth(editor: Editor | null): boolean {
-  if (!canFitTableToWidth(editor) || !editor) return false
+  if (!canFitTableToWidth(editor) || !editor) return false;
 
   try {
-    const table = getTable(editor)
-    if (!table) return false
+    const table = getTable(editor);
+    if (!table) return false;
 
     // Calculate the editor width available for the table
-    const editorElement = editor.view.dom as HTMLElement
-    const style = getComputedStyle(editorElement)
+    const editorElement = editor.view.dom as HTMLElement;
+    const style = getComputedStyle(editorElement);
 
-    const paddingLeft = parseFloat(style.paddingLeft) || 0
-    const paddingRight = parseFloat(style.paddingRight) || 0
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
 
-    const editorWidth = editorElement.clientWidth - paddingLeft - paddingRight
+    const editorWidth = editorElement.clientWidth - paddingLeft - paddingRight;
 
-    const columnCount = table.map.width
-    if (columnCount === 0) return false
+    const columnCount = table.map.width;
+    if (columnCount === 0) return false;
 
-    let colWidth = 0
-    const availableWidth = editorWidth - columnCount - 8
-    colWidth = Math.floor(availableWidth / columnCount)
+    let colWidth = 0;
+    const availableWidth = editorWidth - columnCount - 8;
+    colWidth = Math.floor(availableWidth / columnCount);
 
     // We are not using what what user set cellMinWidth
     // Instead, we use a reasonable minimum width for usability.
-    const finalColWidth = Math.max(colWidth, RESIZE_MIN_WIDTH)
+    const finalColWidth = Math.max(colWidth, RESIZE_MIN_WIDTH);
 
-    const tr = editor.state.tr
+    const tr = editor.state.tr;
     table.node.descendants((child, childPos) => {
       if (
         child.type.name === "tableCell" ||
         child.type.name === "tableHeader"
       ) {
-        const absolutePos = table.start + childPos
-        const colspan = child.attrs.colspan || 1
+        const absolutePos = table.start + childPos;
+        const colspan = child.attrs.colspan || 1;
 
-        const colwidthArray = Array(colspan).fill(finalColWidth)
+        const colwidthArray = Array(colspan).fill(finalColWidth);
         tr.setNodeMarkup(absolutePos, undefined, {
           ...child.attrs,
           colwidth: colwidthArray,
-        })
+        });
       }
-    })
+    });
 
     if (tr.docChanged) {
-      editor.view.dispatch(tr)
+      editor.view.dispatch(tr);
     }
 
-    return true
+    return true;
   } catch (error) {
-    console.error("Error setting table auto width:", error)
-    return false
+    console.error("Error setting table auto width:", error);
+    return false;
   }
 }
 
@@ -136,14 +136,14 @@ function setTableAutoWidth(editor: Editor | null): boolean {
  */
 function tableFitToWidth({ editor }: { editor: Editor | null }) {
   if (!canFitTableToWidth(editor) || !editor) {
-    return false
+    return false;
   }
 
   try {
-    return setTableAutoWidth(editor)
+    return setTableAutoWidth(editor);
   } catch (error) {
-    console.error("Error adjusting table width:", error)
-    return false
+    console.error("Error adjusting table width:", error);
+    return false;
   }
 }
 
@@ -155,13 +155,13 @@ function shouldShowButton({
   editor,
   hideWhenUnavailable,
 }: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!isExtensionAvailable(editor, REQUIRED_EXTENSIONS)) return false;
 
-  return hideWhenUnavailable ? canFitTableToWidth(editor) : true
+  return hideWhenUnavailable ? canFitTableToWidth(editor) : true;
 }
 
 /**
@@ -212,25 +212,25 @@ export function useTableFitToWidth(config: UseTableFitToWidthConfig = {}) {
     editor: providedEditor,
     hideWhenUnavailable = false,
     onWidthAdjusted,
-  } = config
+  } = config;
 
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
   const isVisible = shouldShowButton({
     editor,
     hideWhenUnavailable,
-  })
+  });
 
-  const canPerformAction = canFitTableToWidth(editor)
+  const canPerformAction = canFitTableToWidth(editor);
 
   const handleFitToWidth = useCallback(() => {
-    const success = tableFitToWidth({ editor })
-    if (success) onWidthAdjusted?.()
-    return success
-  }, [editor, onWidthAdjusted])
+    const success = tableFitToWidth({ editor });
+    if (success) onWidthAdjusted?.();
+    return success;
+  }, [editor, onWidthAdjusted]);
 
-  const label = "Fit to width"
-  const Icon = MoveHorizontalIcon
+  const label = "Fit to width";
+  const Icon = MoveHorizontalIcon;
 
   return {
     isVisible,
@@ -238,5 +238,5 @@ export function useTableFitToWidth(config: UseTableFitToWidthConfig = {}) {
     handleFitToWidth,
     label,
     Icon,
-  }
+  };
 }

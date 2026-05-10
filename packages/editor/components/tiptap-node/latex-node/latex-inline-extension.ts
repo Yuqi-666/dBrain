@@ -72,12 +72,12 @@ export const LatexInline = Node.create<LatexInlineOption>({
     return {
       setLatexInline:
         (attributes) =>
-          ({ commands }) => {
-            return commands.insertContent({
-              type: this.name,
-              attrs: attributes || { text: "" },
-            });
-          },
+        ({ commands }) => {
+          return commands.insertContent({
+            type: this.name,
+            attrs: attributes || { text: "" },
+          });
+        },
     };
   },
 

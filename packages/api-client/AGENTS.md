@@ -9,15 +9,15 @@ This package provides the typed tRPC client for frontend applications to communi
 
 ## WHERE TO LOOK
 
-| What | Location | Notes |
-|------|----------|-------|
-| Main exports | `./src/index.ts` | All public APIs |
-| tRPC client | `./src/trpc/client.ts` | HTTP + WS split link |
-| React Provider | `./src/trpc/provider.tsx` | TRPCProvider + QueryClientProvider |
-| Graph hooks | `./src/trpc/hooks/useGraph.ts` | Mutation + subscription hooks |
-| Subscriptions | `./src/trpc/subscriptions.ts` | useGraphSubscriptions |
-| CQRS operations | `./src/cqrs/graph-cqrs.ts` | Optimistic updates + rollback |
-| Store handlers | `./src/handler/graph-handler.ts` | Zustand store update callbacks |
+| What            | Location                         | Notes                              |
+| --------------- | -------------------------------- | ---------------------------------- |
+| Main exports    | `./src/index.ts`                 | All public APIs                    |
+| tRPC client     | `./src/trpc/client.ts`           | HTTP + WS split link               |
+| React Provider  | `./src/trpc/provider.tsx`        | TRPCProvider + QueryClientProvider |
+| Graph hooks     | `./src/trpc/hooks/useGraph.ts`   | Mutation + subscription hooks      |
+| Subscriptions   | `./src/trpc/subscriptions.ts`    | useGraphSubscriptions              |
+| CQRS operations | `./src/cqrs/graph-cqrs.ts`       | Optimistic updates + rollback      |
+| Store handlers  | `./src/handler/graph-handler.ts` | Zustand store update callbacks     |
 
 ## ARCHITECTURE
 
@@ -33,8 +33,12 @@ apps/web ──────► @workspace/api-client ──────► backe
 ## USAGE
 
 ### Provider Setup (once in app root)
+
 ```tsx
-import { TRPCReactProvider, useGraphSubscriptions } from '@workspace/api-client';
+import {
+  TRPCReactProvider,
+  useGraphSubscriptions,
+} from "@workspace/api-client";
 
 function App() {
   useGraphSubscriptions(); // Enable real-time updates
@@ -43,12 +47,13 @@ function App() {
 
 <TRPCReactProvider>
   <App />
-</TRPCReactProvider>
+</TRPCReactProvider>;
 ```
 
 ### Mutations (optimistic updates with rollback)
+
 ```typescript
-import { GraphCQRS } from '@workspace/api-client';
+import { GraphCQRS } from "@workspace/api-client";
 
 // All operations are optimistic - store updates first, rollback on error
 await GraphCQRS.addNode(nodeData);
@@ -58,8 +63,9 @@ await GraphCQRS.sync(query);
 ```
 
 ### Direct tRPC (for custom hooks)
+
 ```typescript
-import { trpc } from '@workspace/api-client';
+import { trpc } from "@workspace/api-client";
 
 const mutation = trpc.node.add.useMutation();
 await mutation.mutateAsync(nodeData);

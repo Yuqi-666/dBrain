@@ -25,7 +25,9 @@ export function AudioPreview({ node }: { node: AudioNodeData }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{node.title}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {node.duration && node.duration > 0 && <span>{formatDuration(node.duration)}</span>}
+            {node.duration && node.duration > 0 && (
+              <span>{formatDuration(node.duration)}</span>
+            )}
             {node.fileSize && <span>{formatSize(node.fileSize)}</span>}
           </div>
         </div>

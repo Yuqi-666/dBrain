@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { type Editor } from "@tiptap/react"
-import type { Node } from "@tiptap/pm/model"
-import { TableMap } from "@tiptap/pm/tables"
-import { FloatingPortal } from "@floating-ui/react"
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type Editor } from "@tiptap/react";
+import type { Node } from "@tiptap/pm/model";
+import { TableMap } from "@tiptap/pm/tables";
+import { FloatingPortal } from "@floating-ui/react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useTableHandleState } from "@workspace/editor/components/tiptap-node/table-node/hooks/use-table-handle-state"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useTableHandleState } from "@workspace/editor/components/tiptap-node/table-node/hooks/use-table-handle-state";
 
 // --- Lib ---
-import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils"
+import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
 import {
   EMPTY_CELL_HEIGHT,
   EMPTY_CELL_WIDTH,
@@ -20,23 +20,23 @@ import {
   marginRound,
   selectLastCell,
   runPreservingCursor,
-} from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils"
-import { cn } from "@workspace/editor/lib/tiptap-utils"
+} from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
+import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Icons ---
-import { PlusSmallIcon } from "@workspace/editor/components/tiptap-icons/plus-small-icon"
+import { PlusSmallIcon } from "@workspace/editor/components/tiptap-icons/plus-small-icon";
 
 // --- Internal ---
-import { useTableExtendRowColumnButtonsPositioning } from "@workspace/editor/components/tiptap-node/table-node/ui/table-extend-row-column-button/use-table-extend-row-column"
-import "./table-extend-row-column-button.scss"
+import { useTableExtendRowColumnButtonsPositioning } from "@workspace/editor/components/tiptap-node/table-node/ui/table-extend-row-column-button/use-table-extend-row-column";
+import "./table-extend-row-column-button.scss";
 
 interface TableExtendRowColumnButtonProps {
-  editor?: Editor | null
-  block: Node
-  onMouseDown: () => void
-  onMouseUp: () => void
-  orientation: Orientation
-  children?: React.ReactNode
+  editor?: Editor | null;
+  block: Node;
+  onMouseDown: () => void;
+  onMouseUp: () => void;
+  orientation: Orientation;
+  children?: React.ReactNode;
 }
 
 /**
@@ -51,130 +51,130 @@ export const TableExtendRowColumnButton: React.FC<
   orientation,
   children,
 }) => {
-  const { editor } = useTiptapEditor(providedEditor)
-  const state = useTableHandleState({ editor })
-  const isRowOrientation = orientation === "row"
+  const { editor } = useTiptapEditor(providedEditor);
+  const state = useTableHandleState({ editor });
+  const isRowOrientation = orientation === "row";
 
-  const movedRef = useRef(false)
+  const movedRef = useRef(false);
   const [dragState, setDragState] = useState<{
-    startPos: number
-    originalHeight: number
-    originalWidth: number
-  } | null>(null)
+    startPos: number;
+    originalHeight: number;
+    originalWidth: number;
+  } | null>(null);
 
   const startDrag = useCallback(
     (ev: React.MouseEvent) => {
-      if (!state) return
+      if (!state) return;
 
-      const dims = TableMap.get(state.block)
-      movedRef.current = false
+      const dims = TableMap.get(state.block);
+      movedRef.current = false;
 
       setDragState({
         startPos: isRowOrientation ? ev.clientY : ev.clientX,
         originalHeight: dims.height,
         originalWidth: dims.width,
-      })
+      });
 
-      onMouseDown()
-      ev.preventDefault()
+      onMouseDown();
+      ev.preventDefault();
     },
-    [state, isRowOrientation, onMouseDown]
-  )
+    [state, isRowOrientation, onMouseDown],
+  );
 
   const handleClick = useCallback(() => {
-    if (movedRef.current || !editor || !state) return
+    if (movedRef.current || !editor || !state) return;
 
     runPreservingCursor(editor, () => {
-      selectLastCell(editor, state.block, state.blockPos, orientation)
+      selectLastCell(editor, state.block, state.blockPos, orientation);
 
       if (isRowOrientation) {
-        editor.commands.addRowAfter()
+        editor.commands.addRowAfter();
       } else {
-        editor.commands.addColumnAfter()
+        editor.commands.addColumnAfter();
       }
-    })
-  }, [editor, isRowOrientation, orientation, state])
+    });
+  }, [editor, isRowOrientation, orientation, state]);
 
   useEffect(() => {
-    if (!dragState || !editor || !state) return
+    if (!dragState || !editor || !state) return;
 
     const handleMove = (ev: MouseEvent) => {
-      movedRef.current = true
+      movedRef.current = true;
 
-      const currentPos = isRowOrientation ? ev.clientY : ev.clientX
-      const diff = currentPos - dragState.startPos
-      const cellSize = isRowOrientation ? EMPTY_CELL_HEIGHT : EMPTY_CELL_WIDTH
+      const currentPos = isRowOrientation ? ev.clientY : ev.clientX;
+      const diff = currentPos - dragState.startPos;
+      const cellSize = isRowOrientation ? EMPTY_CELL_HEIGHT : EMPTY_CELL_WIDTH;
 
-      const currentDims = TableMap.get(state.block)
+      const currentDims = TableMap.get(state.block);
       const currentCount = isRowOrientation
         ? currentDims.height
-        : currentDims.width
+        : currentDims.width;
       const originalCount = isRowOrientation
         ? dragState.originalHeight
-        : dragState.originalWidth
+        : dragState.originalWidth;
 
       const newCount = Math.max(
         1,
-        originalCount + marginRound(diff / cellSize, 0.3)
-      )
-      const delta = newCount - currentCount
+        originalCount + marginRound(diff / cellSize, 0.3),
+      );
+      const delta = newCount - currentCount;
 
-      if (delta === 0) return
+      if (delta === 0) return;
 
       // Add rows/columns
       if (delta > 0) {
         runPreservingCursor(editor, () => {
-          selectLastCell(editor, state.block, state.blockPos, orientation)
+          selectLastCell(editor, state.block, state.blockPos, orientation);
 
           for (let i = 0; i < delta; i++) {
             if (isRowOrientation) {
-              editor.commands.addRowAfter()
+              editor.commands.addRowAfter();
             } else {
-              editor.commands.addColumnAfter()
+              editor.commands.addColumnAfter();
             }
           }
-        })
+        });
       }
       // Remove rows/columns - but only if they're empty
       else {
         runPreservingCursor(editor, () => {
-          const absDelta = Math.abs(delta)
+          const absDelta = Math.abs(delta);
 
           const emptyCount = isRowOrientation
             ? countEmptyRowsFromEnd(editor, state.blockPos)
-            : countEmptyColumnsFromEnd(editor, state.blockPos)
+            : countEmptyColumnsFromEnd(editor, state.blockPos);
 
           // Only remove up to the number of empty cells, and keep at least 1
-          const safeToRemove = Math.min(absDelta, emptyCount, currentCount - 1)
+          const safeToRemove = Math.min(absDelta, emptyCount, currentCount - 1);
 
-          selectLastCell(editor, state.block, state.blockPos, orientation)
+          selectLastCell(editor, state.block, state.blockPos, orientation);
 
           for (let i = 0; i < safeToRemove; i++) {
             if (isRowOrientation) {
-              editor.commands.deleteRow()
+              editor.commands.deleteRow();
             } else {
-              editor.commands.deleteColumn()
+              editor.commands.deleteColumn();
             }
           }
-        })
+        });
       }
-    }
+    };
 
     const handleUp = () => {
-      setDragState(null)
-      onMouseUp()
-    }
+      setDragState(null);
+      onMouseUp();
+    };
 
-    window.addEventListener("mousemove", handleMove)
-    window.addEventListener("mouseup", handleUp)
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMove)
-      window.removeEventListener("mouseup", handleUp)
-    }
-  }, [dragState, editor, isRowOrientation, orientation, onMouseUp, state])
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [dragState, editor, isRowOrientation, orientation, onMouseUp, state]);
 
-  if (!editor?.isEditable) return null
+  if (!editor?.isEditable) return null;
 
   return (
     <button
@@ -183,7 +183,7 @@ export const TableExtendRowColumnButton: React.FC<
         isRowOrientation
           ? "tiptap-table-row-end-add-remove"
           : "tiptap-table-column-end-add-remove",
-        dragState && "editing"
+        dragState && "editing",
       )}
       onClick={handleClick}
       onMouseDown={startDrag}
@@ -194,39 +194,39 @@ export const TableExtendRowColumnButton: React.FC<
     >
       {children ?? <PlusSmallIcon className="tiptap-button-icon" />}
     </button>
-  )
-}
+  );
+};
 
 export interface TableExtendRowColumnButtonsProps {
-  editor?: Editor | null
-  onMouseDown?: () => void
-  onMouseUp?: () => void
+  editor?: Editor | null;
+  onMouseDown?: () => void;
+  onMouseUp?: () => void;
 }
 
 export const TableExtendRowColumnButtons: React.FC<
   TableExtendRowColumnButtonsProps
 > = ({ editor: providedEditor, onMouseDown, onMouseUp }) => {
-  const { editor } = useTiptapEditor(providedEditor)
-  const state = useTableHandleState({ editor })
+  const { editor } = useTiptapEditor(providedEditor);
+  const state = useTableHandleState({ editor });
   const { columnButton, rowButton } = useTableExtendRowColumnButtonsPositioning(
     state?.showAddOrRemoveColumnsButton ?? false,
     state?.showAddOrRemoveRowsButton ?? false,
-    state?.referencePosTable ?? null
-  )
+    state?.referencePosTable ?? null,
+  );
 
   const handleDown = useCallback(() => {
-    if (!editor) return
-    editor.commands.freezeHandles()
-    onMouseDown?.()
-  }, [editor, onMouseDown])
+    if (!editor) return;
+    editor.commands.freezeHandles();
+    onMouseDown?.();
+  }, [editor, onMouseDown]);
 
   const handleUp = useCallback(() => {
-    if (!editor) return
-    editor.commands.unfreezeHandles()
-    onMouseUp?.()
-  }, [editor, onMouseUp])
+    if (!editor) return;
+    editor.commands.unfreezeHandles();
+    onMouseUp?.();
+  }, [editor, onMouseUp]);
 
-  if (!state) return null
+  if (!state) return null;
 
   return (
     <FloatingPortal root={state.widgetContainer}>
@@ -250,5 +250,5 @@ export const TableExtendRowColumnButtons: React.FC<
         />
       </div>
     </FloatingPortal>
-  )
-}
+  );
+};

@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import * as Ariakit from "@ariakit/react"
-import { cn } from "@workspace/editor/lib/tiptap-utils"
-import "@workspace/editor/components/tiptap-ui-primitive/combobox/combobox.scss"
+import * as Ariakit from "@ariakit/react";
+import { cn } from "@workspace/editor/lib/tiptap-utils";
+import "@workspace/editor/components/tiptap-ui-primitive/combobox/combobox.scss";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "../input-group"
+} from "../input-group";
 
 function ComboboxProvider({ ...props }: Ariakit.ComboboxProviderProps) {
   return (
@@ -17,7 +17,7 @@ function ComboboxProvider({ ...props }: Ariakit.ComboboxProviderProps) {
       resetValueOnHide
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxLabel({ className, ...props }: Ariakit.ComboboxLabelProps) {
@@ -27,7 +27,7 @@ function ComboboxLabel({ className, ...props }: Ariakit.ComboboxLabelProps) {
       className={cn("tiptap-combobox-label", className)}
       {...props}
     />
-  )
+  );
 }
 
 function Combobox({ className, ...props }: Ariakit.ComboboxProps) {
@@ -37,7 +37,7 @@ function Combobox({ className, ...props }: Ariakit.ComboboxProps) {
       {...props}
       className={cn("tiptap-combobox", className)}
     />
-  )
+  );
 }
 
 function ComboboxInput({
@@ -48,8 +48,8 @@ function ComboboxInput({
   showClear = false,
   ...props
 }: Ariakit.ComboboxProps & {
-  showTrigger?: boolean
-  showClear?: boolean
+  showTrigger?: boolean;
+  showClear?: boolean;
 }) {
   return (
     <InputGroup className={cn(className)}>
@@ -74,7 +74,7 @@ function ComboboxInput({
       </InputGroupAddon>
       {children}
     </InputGroup>
-  )
+  );
 }
 
 function ComboboxCancel({ className, ...props }: Ariakit.ComboboxCancelProps) {
@@ -84,7 +84,7 @@ function ComboboxCancel({ className, ...props }: Ariakit.ComboboxCancelProps) {
       className={cn("tiptap-combobox-cancel", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxDisclosure({
@@ -97,11 +97,11 @@ function ComboboxDisclosure({
       className={cn("tiptap-combobox-disclosure", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxValue({ ...props }: Ariakit.ComboboxValueProps) {
-  return <Ariakit.ComboboxValue data-slot="tiptap-combobox-value" {...props} />
+  return <Ariakit.ComboboxValue data-slot="tiptap-combobox-value" {...props} />;
 }
 
 function ComboboxList({ className, ...props }: Ariakit.ComboboxListProps) {
@@ -111,7 +111,7 @@ function ComboboxList({ className, ...props }: Ariakit.ComboboxListProps) {
       className={cn("tiptap-combobox-list", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxPopover({
@@ -124,7 +124,7 @@ function ComboboxPopover({
       className={cn("tiptap-combobox-popover", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxGroup({ className, ...props }: Ariakit.ComboboxGroupProps) {
@@ -134,7 +134,7 @@ function ComboboxGroup({ className, ...props }: Ariakit.ComboboxGroupProps) {
       className={cn("tiptap-combobox-group", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxGroupLabel({
@@ -147,7 +147,7 @@ function ComboboxGroupLabel({
       className={cn("tiptap-combobox-group-label", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxRow({ className, ...props }: Ariakit.ComboboxRowProps) {
@@ -157,7 +157,7 @@ function ComboboxRow({ className, ...props }: Ariakit.ComboboxRowProps) {
       className={cn("tiptap-combobox-row", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxItem({ className, ...props }: Ariakit.ComboboxItemProps) {
@@ -167,7 +167,7 @@ function ComboboxItem({ className, ...props }: Ariakit.ComboboxItemProps) {
       className={cn("tiptap-combobox-item", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxItemCheck({
@@ -180,7 +180,7 @@ function ComboboxItemCheck({
       className={cn("tiptap-combobox-item-check", className)}
       {...props}
     />
-  )
+  );
 }
 
 function ComboboxItemValue({
@@ -193,7 +193,7 @@ function ComboboxItemValue({
       className={cn("tiptap-combobox-item-value", className)}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -212,4 +212,4 @@ export {
   ComboboxItem,
   ComboboxItemCheck,
   ComboboxItemValue,
-}
+};

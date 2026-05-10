@@ -1,56 +1,56 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Lib ---
-import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils"
+import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
 import type {
   IndentAction,
   UseIndentConfig,
-} from "@workspace/editor/components/tiptap-ui/indent-button"
+} from "@workspace/editor/components/tiptap-ui/indent-button";
 import {
   INDENT_SHORTCUT_KEYS,
   useIndent,
-} from "@workspace/editor/components/tiptap-ui/indent-button"
+} from "@workspace/editor/components/tiptap-ui/indent-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge";
 
-type IconProps = React.SVGProps<SVGSVGElement>
-type IconComponent = ({ className, ...props }: IconProps) => React.ReactElement
+type IconProps = React.SVGProps<SVGSVGElement>;
+type IconComponent = ({ className, ...props }: IconProps) => React.ReactElement;
 
 export interface IndentButtonProps
   extends Omit<ButtonProps, "type">, UseIndentConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
   /**
    * Optional custom icon component to render instead of the default.
    */
-  icon?: React.MemoExoticComponent<IconComponent> | React.FC<IconProps>
+  icon?: React.MemoExoticComponent<IconComponent> | React.FC<IconProps>;
 }
 
 export function IndentShortcutBadge({
   action,
   shortcutKeys = INDENT_SHORTCUT_KEYS[action],
 }: {
-  action: IndentAction
-  shortcutKeys?: string
+  action: IndentAction;
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -72,31 +72,31 @@ export const IndentButton = forwardRef<HTMLButtonElement, IndentButtonProps>(
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleIndent, label, canIndent, Icon, shortcutKeys } =
       useIndent({
         editor,
         action,
         hideWhenUnavailable,
         onIndented,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleIndent()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleIndent();
       },
-      [handleIndent, onClick]
-    )
+      [handleIndent, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
-    const RenderIcon = CustomIcon ?? Icon
+    const RenderIcon = CustomIcon ?? Icon;
 
     return (
       <Button
@@ -125,8 +125,8 @@ export const IndentButton = forwardRef<HTMLButtonElement, IndentButtonProps>(
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-IndentButton.displayName = "IndentButton"
+IndentButton.displayName = "IndentButton";

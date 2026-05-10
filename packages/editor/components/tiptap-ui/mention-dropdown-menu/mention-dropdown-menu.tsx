@@ -1,45 +1,45 @@
-"use client"
+"use client";
 
-import { useEffect, useMemo, useRef } from "react"
-import type { Editor, Range } from "@tiptap/react"
+import { useEffect, useMemo, useRef } from "react";
+import type { Editor, Range } from "@tiptap/react";
 
 // --- Lib ---
-import { getElementOverflowPosition } from "@workspace/editor/lib/tiptap-collab-utils"
+import { getElementOverflowPosition } from "@workspace/editor/lib/tiptap-collab-utils";
 
 // --- Tiptap UI ---
 import type {
   SuggestionItem,
   SuggestionMenuProps,
   SuggestionMenuRenderProps,
-} from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu"
-import { SuggestionMenu } from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu"
+} from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu";
+import { SuggestionMenu } from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu";
 
 // --- UI Primitives ---
 import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-} from "@workspace/editor/components/tiptap-ui-primitive/avatar"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+} from "@workspace/editor/components/tiptap-ui-primitive/avatar";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   Card,
   CardBody,
   CardItemGroup,
-} from "@workspace/editor/components/tiptap-ui-primitive/card"
+} from "@workspace/editor/components/tiptap-ui-primitive/card";
 
 interface User {
-  id: number
-  name: string
-  position: string
-  avatarUrl: string
+  id: number;
+  name: string;
+  position: string;
+  avatarUrl: string;
 }
 
-type MentionDropdownMenuProps = Omit<SuggestionMenuProps, "items" | "children">
+type MentionDropdownMenuProps = Omit<SuggestionMenuProps, "items" | "children">;
 
 interface MentionItemProps {
-  item: SuggestionItem<User>
-  isSelected: boolean
-  onSelect: () => void
+  item: SuggestionItem<User>;
+  isSelected: boolean;
+  onSelect: () => void;
 }
 
 const fetchUsers = async (query: string): Promise<User[]> => {
@@ -64,38 +64,38 @@ const fetchUsers = async (query: string): Promise<User[]> => {
     ["Lucas Vargas", "Product Designer"],
     ["Chloe Rojas", "Graphic Designer"],
     ["Kai Zhang", "Sales Representative"],
-  ] as const
+  ] as const;
 
   const userData = {
     users: employeeData.map(([name, position], index) => {
-      const id = index + 1
-      const avatarNumber = id < 10 ? `0${id}` : `${id}`
+      const id = index + 1;
+      const avatarNumber = id < 10 ? `0${id}` : `${id}`;
 
       return {
         id,
         name,
         position,
         avatarUrl: `/avatars/memoji_${avatarNumber}.png`,
-      }
+      };
     }),
-  }
+  };
 
-  if (!query) return userData.users
+  if (!query) return userData.users;
 
   return userData.users.filter(
     (user) =>
       user.name.toLowerCase().includes(query.toLowerCase()) ||
-      user.position.toLowerCase().includes(query.toLowerCase())
-  )
-}
+      user.position.toLowerCase().includes(query.toLowerCase()),
+  );
+};
 
 export const MentionDropdownMenu = (props: MentionDropdownMenuProps) => {
   const handleItemSelect = (props: {
-    editor: Editor
-    range: Range
-    context?: User
+    editor: Editor;
+    range: Range;
+    context?: User;
   }) => {
-    if (!props.editor || !props.range || !props.context) return
+    if (!props.editor || !props.range || !props.context) return;
 
     props.editor
       .chain()
@@ -113,19 +113,19 @@ export const MentionDropdownMenu = (props: MentionDropdownMenuProps) => {
           text: " ",
         },
       ])
-      .run()
-  }
+      .run();
+  };
 
   const getSuggestionItems = async (props: { query: string }) => {
-    const users = await fetchUsers(props.query)
+    const users = await fetchUsers(props.query);
 
     return users.map((user) => ({
       title: user.name,
       subtext: user.name,
       context: user,
       onSelect: handleItemSelect,
-    }))
-  }
+    }));
+  };
 
   return (
     <SuggestionMenu
@@ -138,25 +138,25 @@ export const MentionDropdownMenu = (props: MentionDropdownMenuProps) => {
     >
       {(props) => <MentionList {...props} />}
     </SuggestionMenu>
-  )
-}
+  );
+};
 
 const MentionItem = ({ item, isSelected, onSelect }: MentionItemProps) => {
-  const itemRef = useRef<HTMLButtonElement>(null)
+  const itemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const menuElement = document.querySelector(
-      '[data-selector="tiptap-mention-dropdown-menu"]'
-    ) as HTMLElement
-    if (!itemRef.current || !isSelected || !menuElement) return
+      '[data-selector="tiptap-mention-dropdown-menu"]',
+    ) as HTMLElement;
+    if (!itemRef.current || !isSelected || !menuElement) return;
 
-    const overflow = getElementOverflowPosition(itemRef.current, menuElement)
+    const overflow = getElementOverflowPosition(itemRef.current, menuElement);
     if (overflow === "top") {
-      itemRef.current.scrollIntoView(true)
+      itemRef.current.scrollIntoView(true);
     } else if (overflow === "bottom") {
-      itemRef.current.scrollIntoView(false)
+      itemRef.current.scrollIntoView(false);
     }
-  }, [isSelected])
+  }, [isSelected]);
 
   return (
     <Button
@@ -173,8 +173,8 @@ const MentionItem = ({ item, isSelected, onSelect }: MentionItemProps) => {
 
       <span className="tiptap-button-text">{item.title}</span>
     </Button>
-  )
-}
+  );
+};
 
 const MentionList = ({
   items,
@@ -182,7 +182,7 @@ const MentionList = ({
   onSelect,
 }: SuggestionMenuRenderProps<User>) => {
   const renderedItems = useMemo(() => {
-    const rendered: React.ReactElement[] = []
+    const rendered: React.ReactElement[] = [];
 
     items.forEach((item, index) => {
       rendered.push(
@@ -191,15 +191,15 @@ const MentionList = ({
           item={item}
           isSelected={index === selectedIndex}
           onSelect={() => onSelect(item)}
-        />
-      )
-    })
+        />,
+      );
+    });
 
-    return rendered
-  }, [items, selectedIndex, onSelect])
+    return rendered;
+  }, [items, selectedIndex, onSelect]);
 
   if (!renderedItems.length) {
-    return null
+    return null;
   }
 
   return (
@@ -212,5 +212,5 @@ const MentionList = ({
         <CardItemGroup>{renderedItems}</CardItemGroup>
       </CardBody>
     </Card>
-  )
-}
+  );
+};

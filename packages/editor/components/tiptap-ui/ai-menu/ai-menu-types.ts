@@ -1,25 +1,25 @@
-import type { Language, Tone } from "@workspace/editor/lib/mock-ai"
+import type { Language, Tone } from "@workspace/editor/lib/mock-ai";
 
 export interface AiMenuPosition {
-  element: HTMLElement | null
-  rect: DOMRect | null
+  element: HTMLElement | null;
+  rect: DOMRect | null;
 }
 
 export interface AiMenuState {
-  isOpen: boolean
-  tone?: Tone
-  language: Language
-  shouldShowInput: boolean
-  inputIsFocused: boolean
-  fallbackAnchor: AiMenuPosition
+  isOpen: boolean;
+  tone?: Tone;
+  language: Language;
+  shouldShowInput: boolean;
+  inputIsFocused: boolean;
+  fallbackAnchor: AiMenuPosition;
 }
 
 export interface AiMenuStateContextValue {
-  state: AiMenuState
-  updateState: (updates: Partial<AiMenuState>) => void
+  state: AiMenuState;
+  updateState: (updates: Partial<AiMenuState>) => void;
   setFallbackAnchor: (
     element: HTMLElement | null,
-    rect?: DOMRect | null
-  ) => void
-  reset: () => void
+    rect?: DOMRect | null,
+  ) => void;
+  reset: () => void;
 }

@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { Graph as G6Graph, NodeEvent, EdgeEvent, CanvasEvent, CommonEvent } from "@antv/g6";
+import {
+  Graph as G6Graph,
+  NodeEvent,
+  EdgeEvent,
+  CanvasEvent,
+  CommonEvent,
+} from "@antv/g6";
 import type { LocalGraphUIState } from "./useGraphStateManage";
 
 interface UseGraphEventHandlersProps {
@@ -80,7 +86,6 @@ export function useGraphEventHandlers({
       closePreviewBlock();
     };
 
-
     // 节点悬停进入
     const handleNodePointerEnter = (e: any) => {
       const HOVER_DELAY = 150;
@@ -138,7 +143,7 @@ export function useGraphEventHandlers({
       const nodeId = e.target?.id;
       handleNodeEdit(nodeId);
       closePreviewBlock();
-    }
+    };
 
     // 绑定事件
     graph.on(NodeEvent.CONTEXT_MENU, handleNodeContextMenu);
@@ -184,7 +189,14 @@ export function useGraphEventHandlers({
 
       resizeObserver.disconnect();
     };
-  }, [graphRef, closeContextMenu, closePreviewBlock, setContextMenu, setPreviewBlock, isNodeFocusRef]);
+  }, [
+    graphRef,
+    closeContextMenu,
+    closePreviewBlock,
+    setContextMenu,
+    setPreviewBlock,
+    isNodeFocusRef,
+  ]);
 
   return { isDraggingRef };
 }

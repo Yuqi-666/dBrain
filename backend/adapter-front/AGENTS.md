@@ -10,12 +10,12 @@ tRPC server adapter — handles frontend API requests via tRPC procedures and br
 
 ## WHERE TO LOOK
 
-| What | Location | Notes |
-|------|----------|-------|
-| AppRouter export | `./src/index.ts` | Type export for frontend |
-| tRPC server | `./src/trpc/server.ts` | Context, emitters, init |
-| Root router | `./src/trpc/router/index.ts` | Merges all sub-routers |
-| Sub-routers | `./src/trpc/router/*.ts` | Per-entity CRUD + subs |
+| What             | Location                     | Notes                    |
+| ---------------- | ---------------------------- | ------------------------ |
+| AppRouter export | `./src/index.ts`             | Type export for frontend |
+| tRPC server      | `./src/trpc/server.ts`       | Context, emitters, init  |
+| Root router      | `./src/trpc/router/index.ts` | Merges all sub-routers   |
+| Sub-routers      | `./src/trpc/router/*.ts`     | Per-entity CRUD + subs   |
 
 ## ARCHITECTURE
 
@@ -37,15 +37,15 @@ backend/adapter-front
 
 Each entity router exposes:
 
-| Procedure | Type | Description |
-|----------|------|-------------|
-| `add` | mutation | Create new entity |
-| `update` | mutation | Update entity |
-| `delete` | mutation | Delete entity |
-| `list` | query | List all (stubbed) |
-| `getById` | query | Get by ID (stubbed) |
-| `sync` | query | Sync data (stubbed) |
-| `onAdded` | subscription | Real-time add events |
+| Procedure   | Type         | Description             |
+| ----------- | ------------ | ----------------------- |
+| `add`       | mutation     | Create new entity       |
+| `update`    | mutation     | Update entity           |
+| `delete`    | mutation     | Delete entity           |
+| `list`      | query        | List all (stubbed)      |
+| `getById`   | query        | Get by ID (stubbed)     |
+| `sync`      | query        | Sync data (stubbed)     |
+| `onAdded`   | subscription | Real-time add events    |
 | `onUpdated` | subscription | Real-time update events |
 | `onDeleted` | subscription | Real-time delete events |
 
@@ -89,9 +89,10 @@ pnpm --filter=@workspace/backend-adapter-front lint       # Lint
 ## WS SERVER SETUP (not yet wired)
 
 To start WebSocket server:
+
 ```typescript
-import { applyWSSHandler } from '@trpc/server/adapters/ws';
-import { WebSocketServer } from 'ws';
+import { applyWSSHandler } from "@trpc/server/adapters/ws";
+import { WebSocketServer } from "ws";
 
 const wss = new WebSocketServer({ port: 3001 });
 applyWSSHandler({ wss, router: appRouter, createContext });

@@ -1,32 +1,32 @@
-import type { Action } from "@workspace/editor/components/tiptap-ui-primitive/menu"
-import { type TextOptions } from "@workspace/editor/lib/mock-ai"
-import type { Editor } from "@tiptap/react"
+import type { Action } from "@workspace/editor/components/tiptap-ui-primitive/menu";
+import { type TextOptions } from "@workspace/editor/lib/mock-ai";
+import type { Editor } from "@tiptap/react";
 
 export interface MenuActionBase {
-  icon: React.ReactNode
-  label: string
-  value: string
+  icon: React.ReactNode;
+  label: string;
+  value: string;
 }
 
 export interface ExecutableMenuAction extends MenuActionBase {
-  type: "executable"
+  type: "executable";
   onSelect: (params: {
-    editor: Editor | null
-    onDone?: () => void
-    options?: TextOptions
-  }) => void
+    editor: Editor | null;
+    onDone?: () => void;
+    options?: TextOptions;
+  }) => void;
 }
 
 export interface NestedMenuAction extends MenuActionBase {
-  type: "nested"
+  type: "nested";
   component: React.ComponentType<{
-    editor: Editor | null
-  }>
-  filterItems?: boolean
-  items?: Array<{ label: string; value: string }>
+    editor: Editor | null;
+  }>;
+  filterItems?: boolean;
+  items?: Array<{ label: string; value: string }>;
 }
 
-export type EditorMenuAction = ExecutableMenuAction | NestedMenuAction
+export type EditorMenuAction = ExecutableMenuAction | NestedMenuAction;
 
 export type MenuActionIdentifier =
   | "adjustTone"
@@ -38,10 +38,10 @@ export type MenuActionIdentifier =
   | "emojify"
   | "continueWriting"
   | "summarize"
-  | "translateTo"
+  | "translateTo";
 
 export interface MenuActionRendererProps {
-  menuItem: Action
-  availableActions: Record<string, EditorMenuAction>
-  editor: Editor | null
+  menuItem: Action;
+  availableActions: Record<string, EditorMenuAction>;
+  editor: Editor | null;
 }

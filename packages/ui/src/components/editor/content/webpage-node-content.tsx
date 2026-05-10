@@ -1,7 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { GlobeIcon } from "lucide-react";
+import { useGraphStore } from "@workspace/store";
+import { FileDropZone } from "./file-drop-zone";
+import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
+import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { WebpageNodeData } from "@workspace/interfaces";
 
 interface WebpageNodeContentProps {
@@ -9,28 +13,78 @@ interface WebpageNodeContentProps {
   className?: string;
 }
 
-/**
- * WebpageNodeContent - Webpage node display
- * Simplified to only render the screenshot image
- */
-export function WebpageNodeContent({ node, className }: WebpageNodeContentProps) {
+export function WebpageNodeContent({
+  node,
+  className,
+}: WebpageNodeContentProps) {
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const updateNode = useGraphStore((state) => state.updateNode);
+
+  const screenshotUrl = node.content?.screenshotUrl;
+  const hasScreenshot = !!screenshotUrl;
+
+  const { isLoading: uploadLoading, handlers } = useUploadState({
+    nodeId: node.id,
+    onUploadComplete: (attachment) => {
+      updateNode(node.id, {
+        content: {
+          ...node.content,
+          screenshotUrl: attachment.url,
+        },
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (hasScreenshot) {
+      setMediaLoading(true);
+    }
+  }, [hasScreenshot]);
+
+  useEffect(() => {
+    if (!hasScreenshot) return;
+    setMediaLoading(true);
+    const img = new Image();
+    img.onload = () => setMediaLoading(false);
+    img.onerror = () => setMediaLoading(false);
+    img.src = screenshotUrl;
+  }, [hasScreenshot, screenshotUrl]);
+
+  const isLoading = uploadLoading || mediaLoading;
+
+  if (!hasScreenshot) {
+    return (
+      <FileDropZone
+        accept="image/*"
+        variant="webpage"
+        onUploadStart={handlers.onUploadStart}
+        onUploadComplete={handlers.onUploadComplete}
+        onUploadError={handlers.onUploadError}
+        className={cn("w-full h-full min-h-[300px]", className)}
+      />
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className={cn("flex flex-col p-6", className)}>
+        <div className="flex-1 min-h-[300px] bg-muted/30 rounded-lg flex items-center justify-center overflow-hidden">
+          <LoadingPlaceholder variant="image" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col p-6", className)}>
       <div className="flex-1 min-h-[300px] bg-muted/30 rounded-lg flex items-center justify-center overflow-hidden">
-        {node.content?.screenshotUrl ? (
-          <img
-            src={node.content?.screenshotUrl}
-            alt={node.title || "网页截图"}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="text-center space-y-4 p-8">
-            <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <GlobeIcon className="size-8 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">无截图</p>
-          </div>
-        )}
+        <img
+          src={screenshotUrl}
+          alt={node.title || "网页截图"}
+          className="w-full h-full object-cover"
+          onLoad={() => setMediaLoading(false)}
+          onError={() => setMediaLoading(false)}
+        />
       </div>
     </div>
   );

@@ -1,37 +1,37 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Lib ---
-import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils"
+import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Tiptap UI ---
-import type { UseLatexBlockConfig } from "@workspace/editor/components/tiptap-ui/latex-block-button"
+import type { UseLatexBlockConfig } from "@workspace/editor/components/tiptap-ui/latex-block-button";
 import {
   LATEX_BLOCK_SHORTCUT_KEY,
   useLatexBlock,
-} from "@workspace/editor/components/tiptap-ui/latex-block-button"
+} from "@workspace/editor/components/tiptap-ui/latex-block-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge";
 
 export interface LatexBlockButtonProps
   extends Omit<ButtonProps, "type">, UseLatexBlockConfig {
-  text?: string
-  showShortcut?: boolean
+  text?: string;
+  showShortcut?: boolean;
 }
 
 export function LatexBlockShortcutBadge({
   shortcutKeys = LATEX_BLOCK_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -52,9 +52,9 @@ export const LatexBlockButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
       canToggle,
@@ -67,19 +67,19 @@ export const LatexBlockButton = forwardRef<
       editor,
       hideWhenUnavailable,
       onToggled,
-    })
+    });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
-      [handleToggle, onClick]
-    )
+      [handleToggle, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -108,8 +108,8 @@ export const LatexBlockButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-LatexBlockButton.displayName = "LatexBlockButton"
+LatexBlockButton.displayName = "LatexBlockButton";

@@ -2,17 +2,15 @@ import type { LayoutOptions, EdgeData } from "@antv/g6";
 import type { LayoutType } from "@workspace/interfaces";
 
 export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
-  D3force:
-  {
+  D3force: {
     type: "d3-force",
     link: {
       distance: (d) => {
-        return (d.data.weight || 2) * 24 + 76
+        return (d.data.weight || 2) * 24 + 76;
       },
       strength: (d) => {
-        return 1.4 - (d.data.weight || 2) * 0.2
+        return 1.4 - (d.data.weight || 2) * 0.2;
       },
-
     },
     // 配置多体力 - 控制节点间的排斥力
     manyBody: {
@@ -29,8 +27,8 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
   dagre: { type: "dagre", rankdir: "TB", nodesep: 30, ranksep: 50 },
   radial: { type: "radial", unitRadius: 200, preventOverlap: true },
   compactBox: {
-    type: 'compact-box',
-    direction: 'LR',
+    type: "compact-box",
+    direction: "LR",
     getHeight: function getHeight() {
       return 32;
     },
@@ -52,6 +50,8 @@ export interface LayoutConfigOptions {
   layoutType?: LayoutType;
 }
 
-export function createLayoutOptions(options?: LayoutConfigOptions): LayoutOptions {
+export function createLayoutOptions(
+  options?: LayoutConfigOptions,
+): LayoutOptions {
   return LAYOUT_CONFIGS[options?.layoutType || "dagre"];
 }

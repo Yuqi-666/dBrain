@@ -19,11 +19,15 @@ export function EditorHeader({ className }: EditorHeaderProps) {
   const currentEditingNodeId = useNodeEditorStore(
     (state) => state.currentEditingNodeId,
   );
-  const setCurrentEditingNodeId = useNodeEditorStore((state) => state.setCurrentEditingNodeId);
+  const setCurrentEditingNodeId = useNodeEditorStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
   const sidebarMode = useUIStore((state) => state.sidebarMode);
   const mainViewType = useUIStore((state) => state.mainViewType);
   const setMainViewType = useUIStore((state) => state.setMainViewType);
-  const toggleAttributesSidebar = useNodeEditorStore((state) => state.toggleAttributesSidebar);
+  const toggleAttributesSidebar = useNodeEditorStore(
+    (state) => state.toggleAttributesSidebar,
+  );
   return (
     <header
       className={` z-10 flex flex-shrink-0 items-center justify-between pt-4 pb-2 px-6 ${className || ""}`}
@@ -43,7 +47,15 @@ export function EditorHeader({ className }: EditorHeaderProps) {
 
       <div className="flex items-center gap-4 pointer-events-auto">
         <NodeTitle className="text-center border-none" />
-        {mainViewType === "editor" ? <BackToGraphButton className={``} onClick={() => { setMainViewType("graph"); setCurrentEditingNodeId(null) }} /> : null}
+        {mainViewType === "editor" ? (
+          <BackToGraphButton
+            className={``}
+            onClick={() => {
+              setMainViewType("graph");
+              setCurrentEditingNodeId(null);
+            }}
+          />
+        ) : null}
       </div>
 
       <div

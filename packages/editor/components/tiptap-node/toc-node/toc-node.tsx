@@ -1,77 +1,77 @@
-"use client"
+"use client";
 
-import { useCallback, useMemo } from "react"
-import { NodeViewWrapper } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
+import { useCallback, useMemo } from "react";
+import { NodeViewWrapper } from "@tiptap/react";
+import type { NodeViewProps } from "@tiptap/react";
 import type {
   TableOfContentData,
   TableOfContentDataItem,
-} from "@tiptap/extension-table-of-contents"
+} from "@tiptap/extension-table-of-contents";
 
-import { useToc } from "@workspace/editor/components/tiptap-node/toc-node/context/toc-context"
+import { useToc } from "@workspace/editor/components/tiptap-node/toc-node/context/toc-context";
 
-import "./toc-node.scss"
+import "./toc-node.scss";
 
 type TocTreeNode = {
-  item: TableOfContentDataItem
-  depth: number
-}
+  item: TableOfContentDataItem;
+  depth: number;
+};
 
 export function TocNodeComponent(props: NodeViewProps) {
-  const { node, extension } = props
-  const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc()
+  const { node, extension } = props;
+  const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc();
 
   const {
     topOffset: optionTopOffset = 0,
     maxShowCount: optionMaxShowCount = 20,
     showTitle: optionShowTitle = true,
-  } = extension.options
+  } = extension.options;
 
-  const attrs = node.attrs ?? {}
-  const { backgroundColor } = attrs
-  const topOffset = attrs.topOffset ?? optionTopOffset
-  const maxShowCount = attrs.maxShowCount ?? optionMaxShowCount
-  const showTitle = attrs.showTitle ?? optionShowTitle
+  const attrs = node.attrs ?? {};
+  const { backgroundColor } = attrs;
+  const topOffset = attrs.topOffset ?? optionTopOffset;
+  const maxShowCount = attrs.maxShowCount ?? optionMaxShowCount;
+  const showTitle = attrs.showTitle ?? optionShowTitle;
 
   const headingList = useMemo<TableOfContentData>(
     () => tocContent ?? [],
-    [tocContent]
-  )
+    [tocContent],
+  );
 
   const visibleHeadings = useMemo(
     () => headingList.slice(0, maxShowCount),
-    [headingList, maxShowCount]
-  )
+    [headingList, maxShowCount],
+  );
 
   const normalizedDepths = useMemo<number[]>(
     () => normalizeHeadingDepths(visibleHeadings),
-    [visibleHeadings, normalizeHeadingDepths]
-  )
+    [visibleHeadings, normalizeHeadingDepths],
+  );
 
   const flatTocList = useMemo<TocTreeNode[]>(() => {
     return visibleHeadings.map((item, index) => ({
       item,
       depth: normalizedDepths[index] ?? 1,
-    }))
-  }, [visibleHeadings, normalizedDepths])
+    }));
+  }, [visibleHeadings, normalizedDepths]);
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent, item: TableOfContentDataItem) => {
-      e.preventDefault()
-      e.stopPropagation()
-      navigateToHeading(item, { topOffset })
+      e.preventDefault();
+      e.stopPropagation();
+      navigateToHeading(item, { topOffset });
     },
-    [navigateToHeading, topOffset]
-  )
+    [navigateToHeading, topOffset],
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { style: _, ...HTMLAttributes } = props.HTMLAttributes
+  const { style: _, ...HTMLAttributes } = props.HTMLAttributes;
 
   const wrapperProps = {
     className: "tiptap-table-of-contents-node",
     style: { backgroundColor: backgroundColor || undefined },
     ...HTMLAttributes,
-  }
+  };
 
   if (!visibleHeadings.length) {
     return (
@@ -80,7 +80,7 @@ export function TocNodeComponent(props: NodeViewProps) {
           Add headings to create a table of contents.
         </div>
       </NodeViewWrapper>
-    )
+    );
   }
 
   return (
@@ -107,7 +107,7 @@ export function TocNodeComponent(props: NodeViewProps) {
         ))}
       </nav>
     </NodeViewWrapper>
-  )
+  );
 }
 
-export default TocNodeComponent
+export default TocNodeComponent;

@@ -2,7 +2,6 @@ import type { NodeId } from "./node/base";
 import type { FilterConfig } from "./filter";
 import type { LayoutType } from "./layout";
 
-
 // export interface ViewportState {
 //   x: number;
 //   y: number;
@@ -18,7 +17,6 @@ export interface VisualConfig {
   snapToGrid?: boolean;
   showMinimap?: boolean;
 }
-
 
 export interface View {
   id: ViewId;

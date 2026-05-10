@@ -12,6 +12,7 @@
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",
     "@workspace/utils": "workspace:*",
+    "@workspace/api-client": "workspace:*",
     "@workspace/hooks": "workspace:*",
     "@workspace/editor": "workspace:*",
     "class-variance-authority": "^0.7.1",

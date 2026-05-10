@@ -6,7 +6,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
-  { ssr: false }
+  { ssr: false },
 );
 
 export function ExcalidrawWrapper(props: {
@@ -15,9 +15,7 @@ export function ExcalidrawWrapper(props: {
 }) {
   return (
     <div style={{ width: "100%", height: "100%", display: "flex" }}>
-      <Excalidraw
-        {...props}
-      />
+      <Excalidraw {...props} />
     </div>
   );
 }

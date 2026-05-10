@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { useHotkeys } from "react-hotkeys-hook"
-import { type Editor } from "@tiptap/react"
-import { NodeSelection } from "@tiptap/pm/state"
+import { useCallback, useEffect, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { type Editor } from "@tiptap/react";
+import { NodeSelection } from "@tiptap/pm/state";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint";
 
 // --- Icons ---
-import { TrashIcon } from "@workspace/editor/components/tiptap-icons/trash-icon"
+import { TrashIcon } from "@workspace/editor/components/tiptap-icons/trash-icon";
 
-export const DELETE_NODE_SHORTCUT_KEY = "backspace"
+export const DELETE_NODE_SHORTCUT_KEY = "backspace";
 
 /**
  * Configuration for the delete node functionality
@@ -21,45 +21,45 @@ export interface UseDeleteNodeConfig {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Whether the button should hide when node deletion is not available.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after a successful deletion.
    */
-  onDeleted?: () => void
+  onDeleted?: () => void;
 }
 
 /**
  * Checks if a node can be deleted based on the current selection
  */
 export function canDeleteNode(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
+  if (!editor || !editor.isEditable) return false;
 
-  const { state } = editor
-  const { selection } = state
+  const { state } = editor;
+  const { selection } = state;
 
   if (selection instanceof NodeSelection) {
-    return true
+    return true;
   }
 
-  const $pos = selection.$anchor
+  const $pos = selection.$anchor;
 
   for (let depth = $pos.depth; depth > 0; depth--) {
-    const node = $pos.node(depth)
-    const pos = $pos.before(depth)
+    const node = $pos.node(depth);
+    const pos = $pos.before(depth);
 
     // Check if we could delete the range from pos to pos + nodeSize
-    const tr = state.tr.delete(pos, pos + node.nodeSize)
+    const tr = state.tr.delete(pos, pos + node.nodeSize);
     if (tr.doc !== state.doc) {
-      return true
+      return true;
     }
   }
 
-  return false
+  return false;
 }
 
 /**
@@ -68,41 +68,41 @@ export function canDeleteNode(editor: Editor | null): boolean {
 export function deleteNodeAtPosition(
   editor: Editor,
   pos: number,
-  nodeSize: number
+  nodeSize: number,
 ): boolean {
-  const chain = editor.chain().focus()
-  const success = chain.deleteRange({ from: pos, to: pos + nodeSize }).run()
+  const chain = editor.chain().focus();
+  const success = chain.deleteRange({ from: pos, to: pos + nodeSize }).run();
 
-  if (success) return true
+  if (success) return true;
 
   // Fallback
-  return chain.setNodeSelection(pos).deleteSelection().run()
+  return chain.setNodeSelection(pos).deleteSelection().run();
 }
 
 /**
  * Deletes the selected node in the editor using current selection
  */
 export function deleteNode(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
+  if (!editor || !editor.isEditable) return false;
 
   try {
-    const { state } = editor
-    const { selection } = state
+    const { state } = editor;
+    const { selection } = state;
 
     if (selection instanceof NodeSelection) {
-      const pos = selection.from
-      const selectedNode = selection.node
+      const pos = selection.from;
+      const selectedNode = selection.node;
 
-      if (!selectedNode) return false
+      if (!selectedNode) return false;
 
-      return deleteNodeAtPosition(editor, pos, selectedNode.nodeSize)
+      return deleteNodeAtPosition(editor, pos, selectedNode.nodeSize);
     }
 
-    const $pos = selection.$from
+    const $pos = selection.$from;
 
     for (let depth = $pos.depth; depth > 0; depth--) {
-      const node = selection.$from.node(depth)
-      const pos = selection.$from.before(depth)
+      const node = selection.$from.node(depth);
+      const pos = selection.$from.before(depth);
 
       if (
         node &&
@@ -111,13 +111,13 @@ export function deleteNode(editor: Editor | null): boolean {
         node.type.name !== "tableHeader" &&
         node.type.name !== "tableCell"
       ) {
-        return deleteNodeAtPosition(editor, pos, node.nodeSize)
+        return deleteNodeAtPosition(editor, pos, node.nodeSize);
       }
     }
 
-    return false
+    return false;
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -125,24 +125,24 @@ export function deleteNode(editor: Editor | null): boolean {
  * Determines if the delete node button should be shown
  */
 export function shouldShowButton(props: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  const { editor, hideWhenUnavailable } = props
+  const { editor, hideWhenUnavailable } = props;
 
-  if (!editor) return false
+  if (!editor) return false;
 
   if (!hideWhenUnavailable) {
-    return true
+    return true;
   }
 
-  if (!editor.isEditable) return false
+  if (!editor.isEditable) return false;
 
   if (!editor.isActive("code")) {
-    return canDeleteNode(editor)
+    return canDeleteNode(editor);
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -185,51 +185,51 @@ export function useDeleteNode(config?: UseDeleteNodeConfig) {
     editor: providedEditor,
     hideWhenUnavailable = false,
     onDeleted,
-  } = config || {}
+  } = config || {};
 
-  const { editor } = useTiptapEditor(providedEditor)
-  const isMobile = useIsBreakpoint()
-  const [isVisible, setIsVisible] = useState<boolean>(true)
-  const canDeleteNodeState = canDeleteNode(editor)
+  const { editor } = useTiptapEditor(providedEditor);
+  const isMobile = useIsBreakpoint();
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const canDeleteNodeState = canDeleteNode(editor);
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const handleSelectionUpdate = () => {
-      setIsVisible(shouldShowButton({ editor, hideWhenUnavailable }))
-    }
+      setIsVisible(shouldShowButton({ editor, hideWhenUnavailable }));
+    };
 
-    handleSelectionUpdate()
+    handleSelectionUpdate();
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, hideWhenUnavailable])
+      editor.off("selectionUpdate", handleSelectionUpdate);
+    };
+  }, [editor, hideWhenUnavailable]);
 
   const handleDeleteNode = useCallback(() => {
-    if (!editor) return false
+    if (!editor) return false;
 
-    const success = deleteNode(editor)
+    const success = deleteNode(editor);
     if (success) {
-      onDeleted?.()
+      onDeleted?.();
     }
-    return success
-  }, [editor, onDeleted])
+    return success;
+  }, [editor, onDeleted]);
 
   useHotkeys(
     DELETE_NODE_SHORTCUT_KEY,
     (event) => {
-      event.preventDefault()
-      handleDeleteNode()
+      event.preventDefault();
+      handleDeleteNode();
     },
     {
       enabled: isVisible && canDeleteNodeState,
       enableOnContentEditable: !isMobile,
       enableOnFormTags: true,
-    }
-  )
+    },
+  );
 
   return {
     isVisible,
@@ -238,5 +238,5 @@ export function useDeleteNode(config?: UseDeleteNodeConfig) {
     label: "Delete",
     shortcutKeys: DELETE_NODE_SHORTCUT_KEY,
     Icon: TrashIcon,
-  }
+  };
 }

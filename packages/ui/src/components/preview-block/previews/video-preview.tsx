@@ -29,7 +29,7 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
       {/* 鼠标移入/移出 控制播放 */}
       <div
         className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
-        onMouseEnter={() => setIsPlaying(true)}  // 鼠标进来 → 播放
+        onMouseEnter={() => setIsPlaying(true)} // 鼠标进来 → 播放
         onMouseLeave={() => setIsPlaying(false)} // 鼠标离开 → 停止
       >
         {/* 1. 默认显示：封面图 */}
@@ -61,8 +61,8 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
           <video
             src={node.content.url}
             autoPlay
-            muted          // 必须静音才能自动播放（浏览器规则）
-            loop           // 循环播放（更像预览效果）
+            muted // 必须静音才能自动播放（浏览器规则）
+            loop // 循环播放（更像预览效果）
             className="size-full object-cover"
             playsInline
           />
@@ -74,8 +74,10 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
       {/* 底部信息 */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="capitalize">{node.source || "Unknown"}</span>
-        {(node.fileSize ?? 0) > 0 && <span>{formatSize(node.fileSize ?? 0)}</span>}
+        {(node.fileSize ?? 0) > 0 && (
+          <span>{formatSize(node.fileSize ?? 0)}</span>
+        )}
       </div>
     </div>
   );
-};
+}

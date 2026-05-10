@@ -141,76 +141,75 @@ export interface ViewDeletedEvent {
   timestamp: number;
 }
 
-
 /**
  * Server -> Client Push Message Union (unsolicited events from server)
  */
 export type ServerPushMessage =
   | {
-    type: EventMessageType.REMOTE_NODE_SEMANTIC_ADDED;
-    payload: NodeSemanticAddedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_SEMANTIC_ADDED;
+      payload: NodeSemanticAddedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_NODE_SEMANTIC_UPDATED;
-    payload: NodeSemanticUpdatedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_SEMANTIC_UPDATED;
+      payload: NodeSemanticUpdatedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_NODE_SEMANTIC_DELETED;
-    payload: NodeSemanticEventDeletedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_SEMANTIC_DELETED;
+      payload: NodeSemanticEventDeletedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_SEMANTIC_ADDED;
-    payload: EdgeSemanticAddedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_SEMANTIC_ADDED;
+      payload: EdgeSemanticAddedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_SEMANTIC_UPDATED;
-    payload: EdgeSemanticUpdatedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_SEMANTIC_UPDATED;
+      payload: EdgeSemanticUpdatedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_SEMANTIC_DELETED;
-    payload: EdgeSemanticEventDeletedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_SEMANTIC_DELETED;
+      payload: EdgeSemanticEventDeletedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_NODE_ADDED;
-    payload: NodeAddedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_ADDED;
+      payload: NodeAddedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_NODE_UPDATED;
-    payload: NodeUpdatedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_UPDATED;
+      payload: NodeUpdatedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_NODE_DELETED;
-    payload: NodeDeletedEvent;
-  }
+      type: EventMessageType.REMOTE_NODE_DELETED;
+      payload: NodeDeletedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_ADDED;
-    payload: EdgeAddedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_ADDED;
+      payload: EdgeAddedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_UPDATED;
-    payload: EdgeUpdatedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_UPDATED;
+      payload: EdgeUpdatedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_EDGE_DELETED;
-    payload: EdgeDeletedEvent;
-  }
+      type: EventMessageType.REMOTE_EDGE_DELETED;
+      payload: EdgeDeletedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_VIEW_ADDED;
-    payload: ViewAddedEvent;
-  }
+      type: EventMessageType.REMOTE_VIEW_ADDED;
+      payload: ViewAddedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_VIEW_UPDATED;
-    payload: ViewUpdatedEvent;
-  }
+      type: EventMessageType.REMOTE_VIEW_UPDATED;
+      payload: ViewUpdatedEvent;
+    }
   | {
-    type: EventMessageType.REMOTE_VIEW_DELETED;
-    payload: ViewDeletedEvent;
-  }
+      type: EventMessageType.REMOTE_VIEW_DELETED;
+      payload: ViewDeletedEvent;
+    }
   | {
-    type: EventMessageType.WS_CONNECTED;
-    payload: { connectionId: string; timestamp: number };
-  }
+      type: EventMessageType.WS_CONNECTED;
+      payload: { connectionId: string; timestamp: number };
+    }
   | {
-    type: EventMessageType.WS_DISCONNECTED;
-    payload: { reason?: string; timestamp: number };
-  };
+      type: EventMessageType.WS_DISCONNECTED;
+      payload: { reason?: string; timestamp: number };
+    };

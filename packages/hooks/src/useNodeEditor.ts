@@ -10,7 +10,9 @@ import type { NodeData, NodeId } from "@workspace/interfaces";
  */
 export function useNodeEditor() {
   // Get current editing node ID from UI store
-  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
 
   // Get graph store methods
   const getNode = useGraphStore((state) => state.getNode);
@@ -23,37 +25,49 @@ export function useNodeEditor() {
   }, [currentEditingNodeId, getNode]);
 
   // Update node title
-  const updateTitle = useCallback((title: string) => {
-    if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { title });
-  }, [currentEditingNodeId, updateNode]);
+  const updateTitle = useCallback(
+    (title: string) => {
+      if (!currentEditingNodeId) return;
+      updateNode(currentEditingNodeId, { title });
+    },
+    [currentEditingNodeId, updateNode],
+  );
 
   // Update node abstract (summary)
-  const updateAbstract = useCallback((abstract: string) => {
-    if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { abstract });
-  }, [currentEditingNodeId, updateNode]);
+  const updateAbstract = useCallback(
+    (abstract: string) => {
+      if (!currentEditingNodeId) return;
+      updateNode(currentEditingNodeId, { abstract });
+    },
+    [currentEditingNodeId, updateNode],
+  );
 
   // Update node tags
-  const updateTags = useCallback((tags: string[]) => {
-    if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { tags });
-  }, [currentEditingNodeId, updateNode]);
+  const updateTags = useCallback(
+    (tags: string[]) => {
+      if (!currentEditingNodeId) return;
+      updateNode(currentEditingNodeId, { tags });
+    },
+    [currentEditingNodeId, updateNode],
+  );
 
   // Update node semanticId
-  const updateSemanticId = useCallback((semanticId: string) => {
-    if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { semanticId: semanticId as any });
-  }, [currentEditingNodeId, updateNode]);
+  const updateSemanticId = useCallback(
+    (semanticId: string) => {
+      if (!currentEditingNodeId) return;
+      updateNode(currentEditingNodeId, { semanticId: semanticId as any });
+    },
+    [currentEditingNodeId, updateNode],
+  );
 
   // Generic update for any field
-  const updateField = useCallback(<K extends keyof NodeData>(
-    field: K,
-    value: NodeData[K]
-  ) => {
-    if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { [field]: value } as any);
-  }, [currentEditingNodeId, updateNode]);
+  const updateField = useCallback(
+    <K extends keyof NodeData>(field: K, value: NodeData[K]) => {
+      if (!currentEditingNodeId) return;
+      updateNode(currentEditingNodeId, { [field]: value } as any);
+    },
+    [currentEditingNodeId, updateNode],
+  );
 
   return {
     // Current editing node ID

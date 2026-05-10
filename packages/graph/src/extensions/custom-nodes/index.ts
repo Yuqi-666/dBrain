@@ -5,7 +5,9 @@ import { ImageNodeComponent } from "./img-node";
 import { RichTextNodeComponent } from "./rich-text-node";
 import { VideoNodeComponent } from "./video-node";
 
-export function createNodeComponent(nodeType: string): React.FC<{ data: NodeData }> {
+export function createNodeComponent(
+  nodeType: string,
+): React.FC<{ data: NodeData }> {
   switch (nodeType) {
     case "text":
       return TextNodeComponent;
@@ -20,4 +22,9 @@ export function createNodeComponent(nodeType: string): React.FC<{ data: NodeData
   }
 }
 
-export { TextNodeComponent, ImageNodeComponent, RichTextNodeComponent, VideoNodeComponent };
+export {
+  TextNodeComponent,
+  ImageNodeComponent,
+  RichTextNodeComponent,
+  VideoNodeComponent,
+};

@@ -26,7 +26,7 @@ import {
   PanelLeftIcon,
   Pin,
   Plus,
-  Search
+  Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import LogoIcon from "../../img/icon/logo.svg";
@@ -195,7 +195,13 @@ interface SectionProps {
   action?: React.ReactNode;
 }
 
-function Section({ title, icon, children, defaultOpen = true, action }: SectionProps) {
+function Section({
+  title,
+  icon,
+  children,
+  defaultOpen = true,
+  action,
+}: SectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -203,7 +209,12 @@ function Section({ title, icon, children, defaultOpen = true, action }: SectionP
       <div className="flex items-center justify-between mb-1">
         <CollapsibleTrigger asChild>
           <button className="flex items-center gap-2 py-1 hover:opacity-70 transition-opacity duration-200 cursor-pointer">
-            <span className={cn("transition-transform duration-200", isOpen ? "rotate-90" : "rotate-0")}>
+            <span
+              className={cn(
+                "transition-transform duration-200",
+                isOpen ? "rotate-90" : "rotate-0",
+              )}
+            >
               <ChevronRight className="size-3.5 text-sidebar-foreground/40" />
             </span>
             {icon}
@@ -244,11 +255,16 @@ function ViewItem({
             "size-7 text-sidebar-foreground/30 hover:text-sidebar-primary hover:bg-sidebar-primary/10 transition-colors rounded-md",
             view.isPinned
               ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+              : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150",
           )}
           onClick={() => onTogglePin(view.id, !view.isPinned)}
         >
-          <Pin className={cn("size-3", view.isPinned && "fill-sidebar-primary text-sidebar-primary")} />
+          <Pin
+            className={cn(
+              "size-3",
+              view.isPinned && "fill-sidebar-primary text-sidebar-primary",
+            )}
+          />
         </Button>
         <Button
           variant="ghost"
@@ -266,8 +282,18 @@ function ViewsList({
   pinnedViews,
   recentViews,
 }: {
-  pinnedViews: Array<{ id: string; name: string; isPinned?: boolean; updatedAt?: string }>;
-  recentViews: Array<{ id: string; name: string; isPinned?: boolean; updatedAt?: string }>;
+  pinnedViews: Array<{
+    id: string;
+    name: string;
+    isPinned?: boolean;
+    updatedAt?: string;
+  }>;
+  recentViews: Array<{
+    id: string;
+    name: string;
+    isPinned?: boolean;
+    updatedAt?: string;
+  }>;
 }) {
   const updateView = useGraphStore((state) => state.updateView);
 
@@ -360,11 +386,16 @@ function NodeItem({
             "size-7 text-sidebar-foreground/30 hover:text-sidebar-primary hover:bg-sidebar-primary/10 transition-colors rounded-md",
             node.isPinned
               ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+              : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150",
           )}
           onClick={() => onTogglePin(node.id, !node.isPinned)}
         >
-          <Pin className={cn("size-3", node.isPinned && "fill-sidebar-primary text-sidebar-primary")} />
+          <Pin
+            className={cn(
+              "size-3",
+              node.isPinned && "fill-sidebar-primary text-sidebar-primary",
+            )}
+          />
         </Button>
         <Button
           variant="ghost"
@@ -381,7 +412,12 @@ function NodeItem({
 function NodesList({
   nodes,
 }: {
-  nodes: Array<{ id: string; title: string; semanticId?: string; isPinned?: boolean }>;
+  nodes: Array<{
+    id: string;
+    title: string;
+    semanticId?: string;
+    isPinned?: boolean;
+  }>;
 }) {
   const updateNode = useGraphStore((state) => state.updateNode);
 
@@ -449,9 +485,9 @@ function NodeSemanticItem({
 
 function NodeSemanticList() {
   const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
-  const nodeSemantics = useMemo(() =>
-    Array.from(nodeSemanticsMap.values()),
-    [nodeSemanticsMap]
+  const nodeSemantics = useMemo(
+    () => Array.from(nodeSemanticsMap.values()),
+    [nodeSemanticsMap],
   );
 
   return (
@@ -497,7 +533,12 @@ function EdgeSemanticCategory({
       <div className="flex items-center justify-between">
         <CollapsibleTrigger asChild>
           <button className="flex items-center gap-1.5 py-1 hover:opacity-70 transition-opacity duration-200 cursor-pointer">
-            <span className={cn("transition-transform duration-200", isOpen ? "rotate-90" : "rotate-0")}>
+            <span
+              className={cn(
+                "transition-transform duration-200",
+                isOpen ? "rotate-90" : "rotate-0",
+              )}
+            >
               <ChevronRight className="size-3 text-sidebar-foreground/40" />
             </span>
             <span className="text-[11px] font-semibold text-sidebar-foreground/60 tracking-wide uppercase">
@@ -542,9 +583,9 @@ function EdgeSemanticCategory({
 
 function EdgeSemanticList() {
   const edgeSemanticsMap = useGraphStore((state) => state.edgeSemantics);
-  const edgeSemantics = useMemo(() =>
-    Array.from(edgeSemanticsMap.values()),
-    [edgeSemanticsMap]
+  const edgeSemantics = useMemo(
+    () => Array.from(edgeSemanticsMap.values()),
+    [edgeSemanticsMap],
   );
 
   const categories = [
@@ -554,15 +595,21 @@ function EdgeSemanticList() {
     { key: "interaction", label: "交互关系" },
   ] as const;
 
-  const groupedSemantics = useMemo(() =>
-    categories.reduce(
-      (acc, cat) => {
-        acc[cat.key] = edgeSemantics.filter((s) => s.category === cat.key);
-        return acc;
-      },
-      { hierarchy: [] as typeof edgeSemantics, flow: [] as typeof edgeSemantics, association: [] as typeof edgeSemantics, interaction: [] as typeof edgeSemantics }
-    ),
-    [edgeSemantics, categories]
+  const groupedSemantics = useMemo(
+    () =>
+      categories.reduce(
+        (acc, cat) => {
+          acc[cat.key] = edgeSemantics.filter((s) => s.category === cat.key);
+          return acc;
+        },
+        {
+          hierarchy: [] as typeof edgeSemantics,
+          flow: [] as typeof edgeSemantics,
+          association: [] as typeof edgeSemantics,
+          interaction: [] as typeof edgeSemantics,
+        },
+      ),
+    [edgeSemantics, categories],
   );
 
   return (

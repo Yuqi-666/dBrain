@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef } from "react"
-import { type Editor } from "@tiptap/react"
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { getEditorExtension } from "@workspace/editor/lib/tiptap-advanced-utils"
-import { selectNodeAndHideFloating } from "@workspace/editor/hooks/use-floating-toolbar-visibility"
+import { useCallback, useEffect, useRef } from "react";
+import { type Editor } from "@tiptap/react";
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { getEditorExtension } from "@workspace/editor/lib/tiptap-advanced-utils";
+import { selectNodeAndHideFloating } from "@workspace/editor/hooks/use-floating-toolbar-visibility";
 
 export interface UseScrollToHashConfig {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Callback called when the target node is found.
    * @param nodeId The ID of the found node
    */
-  onTargetFound?: (nodeId: string) => void
+  onTargetFound?: (nodeId: string) => void;
   /**
    * Callback called when the target node is not found.
    * @param hash The hash that was attempted to be scrolled to
    */
-  onTargetNotFound?: (hash: string) => void
+  onTargetNotFound?: (hash: string) => void;
 }
 
 /**
@@ -35,105 +35,105 @@ export function useScrollToHash(config: UseScrollToHashConfig = {}) {
     editor: providedEditor,
     onTargetFound = () => {},
     onTargetNotFound = () => {},
-  } = config
+  } = config;
 
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
-  const lastProcessedHashRef = useRef<string | null>(null)
+  const lastProcessedHashRef = useRef<string | null>(null);
 
-  const onTargetFoundRef = useRef(onTargetFound)
-  const onTargetNotFoundRef = useRef(onTargetNotFound)
-  onTargetFoundRef.current = onTargetFound
-  onTargetNotFoundRef.current = onTargetNotFound
+  const onTargetFoundRef = useRef(onTargetFound);
+  const onTargetNotFoundRef = useRef(onTargetNotFound);
+  onTargetFoundRef.current = onTargetFound;
+  onTargetNotFoundRef.current = onTargetNotFound;
 
   const scrollToNode = useCallback(
     (id: string): boolean => {
-      if (!editor) return false
+      if (!editor) return false;
 
       const attributeName =
         getEditorExtension(editor, "uniqueID")?.options?.attributeName ??
-        "data-id"
-      let position: number | null = null
+        "data-id";
+      let position: number | null = null;
 
       editor.state.doc.descendants((node, pos) => {
         if (node.attrs?.[attributeName] === id) {
-          position = pos
-          return false
+          position = pos;
+          return false;
         }
-        return true
-      })
+        return true;
+      });
 
-      if (position === null) return false
+      if (position === null) return false;
 
-      selectNodeAndHideFloating(editor, position)
+      selectNodeAndHideFloating(editor, position);
 
       setTimeout(() => {
-        const dom = editor.view.nodeDOM(position!) as HTMLElement | null
+        const dom = editor.view.nodeDOM(position!) as HTMLElement | null;
 
         if (dom) {
-          dom.scrollIntoView({ behavior: "smooth", block: "center" })
+          dom.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-      }, 0)
+      }, 0);
 
-      return true
+      return true;
     },
-    [editor]
-  )
+    [editor],
+  );
 
   const handleScroll = useCallback(
     (delay = 0) => {
-      const hash = window.location.hash?.substring(1)
-      if (!hash) return
+      const hash = window.location.hash?.substring(1);
+      if (!hash) return;
 
       // Skip if we already scrolled to this exact hash
-      if (hash === lastProcessedHashRef.current) return
+      if (hash === lastProcessedHashRef.current) return;
 
       setTimeout(() => {
         if (scrollToNode(hash)) {
-          lastProcessedHashRef.current = hash
-          onTargetFoundRef.current(hash)
+          lastProcessedHashRef.current = hash;
+          onTargetFoundRef.current(hash);
         } else {
-          onTargetNotFoundRef.current(hash)
+          onTargetNotFoundRef.current(hash);
         }
-      }, delay)
+      }, delay);
     },
-    [scrollToNode]
-  )
+    [scrollToNode],
+  );
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     // Handle collaboration sync or immediate scroll
     const provider = editor.extensionManager.extensions.find(
-      (ext) => ext.name === "collaborationCaret"
-    )?.options?.provider
+      (ext) => ext.name === "collaborationCaret",
+    )?.options?.provider;
 
     if (provider?.on) {
-      const syncHandler = () => handleScroll(500)
-      provider.on("synced", syncHandler)
+      const syncHandler = () => handleScroll(500);
+      provider.on("synced", syncHandler);
 
       return () => {
-        provider.off?.("synced", syncHandler)
-      }
+        provider.off?.("synced", syncHandler);
+      };
     } else {
-      handleScroll(500)
+      handleScroll(500);
     }
-  }, [editor, handleScroll])
+  }, [editor, handleScroll]);
 
   useEffect(() => {
-    const immediateScroll = () => handleScroll()
-    const delayedScroll = () => handleScroll(500)
+    const immediateScroll = () => handleScroll();
+    const delayedScroll = () => handleScroll(500);
 
-    window.addEventListener("hashchange", immediateScroll)
-    window.addEventListener("pageshow", delayedScroll)
-    window.addEventListener("popstate", immediateScroll)
+    window.addEventListener("hashchange", immediateScroll);
+    window.addEventListener("pageshow", delayedScroll);
+    window.addEventListener("popstate", immediateScroll);
 
     return () => {
-      window.removeEventListener("hashchange", immediateScroll)
-      window.removeEventListener("pageshow", delayedScroll)
-      window.removeEventListener("popstate", immediateScroll)
-    }
-  }, [handleScroll])
+      window.removeEventListener("hashchange", immediateScroll);
+      window.removeEventListener("pageshow", delayedScroll);
+      window.removeEventListener("popstate", immediateScroll);
+    };
+  }, [handleScroll]);
 
-  return { scrollToHash: scrollToNode }
+  return { scrollToHash: scrollToNode };
 }

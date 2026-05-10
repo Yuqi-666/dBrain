@@ -1,63 +1,66 @@
-"use client"
+"use client";
 
-import { fetchAiToken, getUrlParam } from "@workspace/editor/lib/tiptap-collab-utils"
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import {
+  fetchAiToken,
+  getUrlParam,
+} from "@workspace/editor/lib/tiptap-collab-utils";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type AiContextValue = {
-  aiToken: string | null
-  hasAi: boolean
-  setupError: boolean
-}
+  aiToken: string | null;
+  hasAi: boolean;
+  setupError: boolean;
+};
 
 export const AiContext = createContext<AiContextValue>({
   hasAi: false,
   aiToken: null,
   setupError: false,
-})
+});
 
-export const AiConsumer = AiContext.Consumer
+export const AiConsumer = AiContext.Consumer;
 export const useAi = (): AiContextValue => {
-  const context = useContext(AiContext)
+  const context = useContext(AiContext);
   if (!context) {
-    throw new Error("useAi must be used within an AiProvider")
+    throw new Error("useAi must be used within an AiProvider");
   }
-  return context
-}
+  return context;
+};
 
 export const useAiToken = () => {
-  const [aiToken, setAiToken] = useState<string | null>(null)
-  const [hasAi, setHasAi] = useState<boolean>(true)
-  const [setupError, setSetupError] = useState<boolean>(false)
+  const [aiToken, setAiToken] = useState<string | null>(null);
+  const [hasAi, setHasAi] = useState<boolean>(true);
+  const [setupError, setSetupError] = useState<boolean>(false);
 
   useEffect(() => {
-    const noAiParam = getUrlParam("noAi")
-    setHasAi(parseInt(noAiParam || "0") !== 1)
-  }, [])
+    const noAiParam = getUrlParam("noAi");
+    setHasAi(parseInt(noAiParam || "0") !== 1);
+  }, []);
 
   useEffect(() => {
-    if (!hasAi) return
+    if (!hasAi) return;
 
     const getToken = async () => {
-      const token = await fetchAiToken()
-      setAiToken(token)
+      const token = await fetchAiToken();
+      setAiToken(token);
       // If hasAi is true but token is null, there's a setup error
       if (!token) {
-        setSetupError(true)
+        setSetupError(true);
       }
-    }
+    };
 
-    getToken()
-  }, [hasAi])
+    getToken();
+  }, [hasAi]);
 
-  return { aiToken, hasAi, setupError }
-}
+  return { aiToken, hasAi, setupError };
+};
 
 export function AiProvider({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-  const { hasAi, aiToken, setupError } = useAiToken()
+  const { hasAi, aiToken, setupError } = useAiToken();
 
   const value = useMemo<AiContextValue>(
     () => ({
@@ -65,8 +68,8 @@ export function AiProvider({
       aiToken,
       setupError,
     }),
-    [hasAi, aiToken, setupError]
-  )
+    [hasAi, aiToken, setupError],
+  );
 
-  return <AiContext.Provider value={value}>{children}</AiContext.Provider>
+  return <AiContext.Provider value={value}>{children}</AiContext.Provider>;
 }

@@ -8,7 +8,9 @@ interface NodeTitleProps {
 }
 
 export function NodeTitle({ className }: NodeTitleProps) {
-  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
   const nodes = useGraphStore((state) => state.nodes);
   const updateNode = useGraphStore((state) => state.updateNode);
 

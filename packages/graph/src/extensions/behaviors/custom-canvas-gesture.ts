@@ -1,7 +1,12 @@
-import { CommonEvent } from '@antv/g6';
-import { register, BaseBehavior } from '@antv/g6';
-import type { RuntimeContext, IPointerEvent, Point, IDragEvent } from '@antv/g6';
-import type { BaseBehaviorOptions } from '@antv/g6';
+import { CommonEvent } from "@antv/g6";
+import { register, BaseBehavior } from "@antv/g6";
+import type {
+  RuntimeContext,
+  IPointerEvent,
+  Point,
+  IDragEvent,
+} from "@antv/g6";
+import type { BaseBehaviorOptions } from "@antv/g6";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -17,7 +22,7 @@ export interface CustomCanvasGestureOptions extends BaseBehaviorOptions {
 export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions> {
   static defaultOptions: Partial<CustomCanvasGestureOptions> = {
     enable: (event: IDragEvent) => {
-      if ('targetType' in event) return event.targetType === 'canvas';
+      if ("targetType" in event) return event.targetType === "canvas";
       return true;
     },
     minScale: 0.1,
@@ -27,12 +32,16 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
 
   private isDragging = false;
   private ctrlPressed = false;
-  private defaultCursor = 'default';
+  private defaultCursor = "default";
   private container: HTMLElement | null = null;
 
   constructor(context: RuntimeContext, options: CustomCanvasGestureOptions) {
-    super(context, Object.assign({}, CustomCanvasGesture.defaultOptions, options));
-    this.defaultCursor = (this.context.canvas.getConfig().cursor as string) || 'default';
+    super(
+      context,
+      Object.assign({}, CustomCanvasGesture.defaultOptions, options),
+    );
+    this.defaultCursor =
+      (this.context.canvas.getConfig().cursor as string) || "default";
     this.container = context.canvas.getContainer() as HTMLElement;
     this.bindEvents();
   }
@@ -41,10 +50,10 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     if (!this.container) return;
 
     // Disable default touch actions to prevent browser gestures
-    this.container.style.touchAction = 'none';
+    this.container.style.touchAction = "none";
 
     // Bind DOM events for wheel and pinch to properly prevent default
-    this.container.addEventListener('wheel', this.onWheel, { passive: false });
+    this.container.addEventListener("wheel", this.onWheel, { passive: false });
 
     // Bind graph drag events
     const { graph } = this.context;
@@ -53,20 +62,20 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     graph.on(CommonEvent.DRAG_END, this.onDragEnd);
 
     // Bind keyboard events for ctrl key detection
-    this.container.addEventListener('keydown', this.onKeyDown);
-    this.container.addEventListener('keyup', this.onKeyUp);
+    this.container.addEventListener("keydown", this.onKeyDown);
+    this.container.addEventListener("keyup", this.onKeyUp);
 
     // Also bind on window to catch ctrl key when focus is elsewhere
-    window.addEventListener('keydown', this.onWindowKeyDown);
-    window.addEventListener('keyup', this.onWindowKeyUp);
+    window.addEventListener("keydown", this.onWindowKeyDown);
+    window.addEventListener("keyup", this.onWindowKeyUp);
   }
 
   private unbindEvents(): void {
     if (!this.container) return;
 
-    this.container.style.touchAction = '';
+    this.container.style.touchAction = "";
 
-    this.container.removeEventListener('wheel', this.onWheel);
+    this.container.removeEventListener("wheel", this.onWheel);
 
     // Unbind graph drag events
     const { graph } = this.context;
@@ -75,39 +84,39 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     graph.off(CommonEvent.DRAG_END, this.onDragEnd);
 
     // Unbind keyboard events
-    this.container.removeEventListener('keydown', this.onKeyDown);
-    this.container.removeEventListener('keyup', this.onKeyUp);
-    window.removeEventListener('keydown', this.onWindowKeyDown);
-    window.removeEventListener('keyup', this.onWindowKeyUp);
+    this.container.removeEventListener("keydown", this.onKeyDown);
+    this.container.removeEventListener("keyup", this.onKeyUp);
+    window.removeEventListener("keydown", this.onWindowKeyDown);
+    window.removeEventListener("keyup", this.onWindowKeyUp);
   }
 
   private validate(event: IDragEvent): boolean {
     if (this.destroyed) return false;
     const { enable } = this.options;
-    if (typeof enable === 'function') return enable(event);
+    if (typeof enable === "function") return enable(event);
     return !!enable;
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'Control' || event.key === 'Ctrl') {
+    if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = true;
     }
   };
 
   private onKeyUp = (event: KeyboardEvent): void => {
-    if (event.key === 'Control' || event.key === 'Ctrl') {
+    if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = false;
     }
   };
 
   private onWindowKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'Control' || event.key === 'Ctrl') {
+    if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = true;
     }
   };
 
   private onWindowKeyUp = (event: KeyboardEvent): void => {
-    if (event.key === 'Control' || event.key === 'Ctrl') {
+    if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = false;
     }
   };
@@ -116,12 +125,12 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     if (!this.validate(event)) return;
 
     // Stop dragging if not on canvas
-    if (event.targetType !== 'canvas') {
+    if (event.targetType !== "canvas") {
       return;
     }
 
     this.isDragging = true;
-    this.context.canvas.setCursor('grabbing' as any);
+    this.context.canvas.setCursor("grabbing" as any);
   };
 
   private onDrag = (event: IDragEvent): void => {
@@ -156,7 +165,11 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
       const currentZoom = this.context.graph.getZoom();
       const delta = -event.deltaY;
       const ratio = 1 + delta / 100;
-      const newZoom = clamp(currentZoom * ratio, minScale || 0.1, maxScale || 10);
+      const newZoom = clamp(
+        currentZoom * ratio,
+        minScale || 0.1,
+        maxScale || 10,
+      );
       const origin: Point = [event.clientX, event.clientY];
       this.context.graph.zoomTo(newZoom, false, origin);
       return;

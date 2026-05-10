@@ -7,7 +7,7 @@ export type EdgeType = "hierarchy" | "flow" | "association" | "interaction";
 export type EdgeSemanticId = string;
 
 export type EdgeId = string;
-export type EdgeWeight = 1 | 2 | 3 | 4 | 5;//数字越小关系越近
+export type EdgeWeight = 1 | 2 | 3 | 4 | 5; //数字越小关系越近
 export interface EdgeSemantic {
   id: EdgeSemanticId;
   name: string;
@@ -29,4 +29,4 @@ export interface EdgeBase {
   updatedAt: string;
 }
 
-export interface EdgeData extends EdgeBase { }
+export interface EdgeData extends EdgeBase {}

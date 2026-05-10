@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { type Editor } from "@tiptap/react"
-import { useHotkeys } from "react-hotkeys-hook"
-import { NodeSelection, TextSelection } from "@tiptap/pm/state"
+import { useCallback, useEffect, useState } from "react";
+import { type Editor } from "@tiptap/react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint";
 
 // --- Icons ---
-import { TypeIcon } from "@workspace/editor/components/tiptap-icons/type-icon"
+import { TypeIcon } from "@workspace/editor/components/tiptap-icons/type-icon";
 
 // --- Lib ---
 import {
@@ -19,9 +19,9 @@ import {
   isNodeInSchema,
   isValidPosition,
   selectionWithinConvertibleTypes,
-} from "@workspace/editor/lib/tiptap-utils"
+} from "@workspace/editor/lib/tiptap-utils";
 
-export const TEXT_SHORTCUT_KEY = "mod+alt+0"
+export const TEXT_SHORTCUT_KEY = "mod+alt+0";
 
 /**
  * Configuration for the text/paragraph functionality
@@ -30,16 +30,16 @@ export interface UseTextConfig {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Whether the button should hide when text conversion is not available.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after a successful conversion.
    */
-  onToggled?: () => void
+  onToggled?: () => void;
 }
 
 /**
@@ -49,13 +49,13 @@ export interface UseTextConfig {
  */
 export function canToggleText(
   editor: Editor | null,
-  turnInto: boolean = true
+  turnInto: boolean = true,
 ): boolean {
-  if (!editor) return false
-  if (!editor.schema.nodes.paragraph) return false
+  if (!editor) return false;
+  if (!editor.schema.nodes.paragraph) return false;
 
   if (!turnInto) {
-    return editor.can().setNode("paragraph")
+    return editor.can().setNode("paragraph");
   }
 
   // Ensure selection is in nodes we're allowed to convert
@@ -70,34 +70,34 @@ export function canToggleText(
       "codeBlock",
     ])
   )
-    return false
+    return false;
 
   // Either we can set paragraph directly on the selection,
   // or we can clear formatting/nodes to arrive at a paragraph.
-  return editor.can().setNode("paragraph") || editor.can().clearNodes()
+  return editor.can().setNode("paragraph") || editor.can().clearNodes();
 }
 
 /**
  * Checks if paragraph is currently active
  */
 export function isParagraphActive(editor: Editor | null): boolean {
-  if (!editor) return false
-  return editor.isActive("paragraph")
+  if (!editor) return false;
+  return editor.isActive("paragraph");
 }
 
 /**
  * Converts the current selection or node to paragraph
  */
 export function toggleParagraph(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!canToggleText(editor)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!canToggleText(editor)) return false;
 
   try {
-    const view = editor.view
-    let state = view.state
-    let tr = state.tr
+    const view = editor.view;
+    let state = view.state;
+    let tr = state.tr;
 
-    const blocks = getSelectedBlockNodes(editor)
+    const blocks = getSelectedBlockNodes(editor);
 
     // In case a selection contains multiple blocks, we only allow
     // toggling to nide if there's exactly one block selected
@@ -111,7 +111,7 @@ export function toggleParagraph(editor: Editor | null): boolean {
         "taskList",
         "blockquote",
         "codeBlock",
-      ]) && blocks.length === 1
+      ]) && blocks.length === 1;
 
     // No selection, find the the cursor position
     if (
@@ -121,47 +121,47 @@ export function toggleParagraph(editor: Editor | null): boolean {
       const pos = findNodePosition({
         editor,
         node: state.selection.$anchor.node(1),
-      })?.pos
-      if (!isValidPosition(pos)) return false
+      })?.pos;
+      if (!isValidPosition(pos)) return false;
 
-      tr = tr.setSelection(NodeSelection.create(state.doc, pos))
-      view.dispatch(tr)
-      state = view.state
+      tr = tr.setSelection(NodeSelection.create(state.doc, pos));
+      view.dispatch(tr);
+      state = view.state;
     }
 
-    const selection = state.selection
-    let chain = editor.chain().focus()
+    const selection = state.selection;
+    let chain = editor.chain().focus();
 
     // Handle NodeSelection
     if (selection instanceof NodeSelection) {
-      const firstChild = selection.node.firstChild?.firstChild
-      const lastChild = selection.node.lastChild?.lastChild
+      const firstChild = selection.node.firstChild?.firstChild;
+      const lastChild = selection.node.lastChild?.lastChild;
 
       const from = firstChild
         ? selection.from + firstChild.nodeSize
-        : selection.from + 1
+        : selection.from + 1;
 
       const to = lastChild
         ? selection.to - lastChild.nodeSize
-        : selection.to - 1
+        : selection.to - 1;
 
-      const resolvedFrom = state.doc.resolve(from)
-      const resolvedTo = state.doc.resolve(to)
+      const resolvedFrom = state.doc.resolve(from);
+      const resolvedTo = state.doc.resolve(to);
 
       chain = chain
         .setTextSelection(TextSelection.between(resolvedFrom, resolvedTo))
-        .clearNodes()
+        .clearNodes();
     }
 
     if (!editor.isActive("paragraph")) {
-      chain.setNode("paragraph").run()
+      chain.setNode("paragraph").run();
     }
 
-    editor.chain().focus().selectTextblockEnd().run()
+    editor.chain().focus().selectTextblockEnd().run();
 
-    return true
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -169,26 +169,26 @@ export function toggleParagraph(editor: Editor | null): boolean {
  * Determines if the text button should be shown
  */
 export function shouldShowButton(props: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  const { editor, hideWhenUnavailable } = props
+  const { editor, hideWhenUnavailable } = props;
 
-  if (!editor) return false
+  if (!editor) return false;
 
   if (!hideWhenUnavailable) {
-    return true
+    return true;
   }
 
-  if (!editor.isEditable) return false
+  if (!editor.isEditable) return false;
 
-  if (!isNodeInSchema("paragraph", editor)) return false
+  if (!isNodeInSchema("paragraph", editor)) return false;
 
   if (!editor.isActive("code")) {
-    return canToggleText(editor)
+    return canToggleText(editor);
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -232,52 +232,52 @@ export function useText(config?: UseTextConfig) {
     editor: providedEditor,
     hideWhenUnavailable = false,
     onToggled,
-  } = config || {}
+  } = config || {};
 
-  const { editor } = useTiptapEditor(providedEditor)
-  const isMobile = useIsBreakpoint()
-  const [isVisible, setIsVisible] = useState<boolean>(true)
-  const canToggle = canToggleText(editor)
-  const isActive = isParagraphActive(editor)
+  const { editor } = useTiptapEditor(providedEditor);
+  const isMobile = useIsBreakpoint();
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const canToggle = canToggleText(editor);
+  const isActive = isParagraphActive(editor);
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const handleSelectionUpdate = () => {
-      setIsVisible(shouldShowButton({ editor, hideWhenUnavailable }))
-    }
+      setIsVisible(shouldShowButton({ editor, hideWhenUnavailable }));
+    };
 
-    handleSelectionUpdate()
+    handleSelectionUpdate();
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, hideWhenUnavailable])
+      editor.off("selectionUpdate", handleSelectionUpdate);
+    };
+  }, [editor, hideWhenUnavailable]);
 
   const handleToggle = useCallback(() => {
-    if (!editor) return false
+    if (!editor) return false;
 
-    const success = toggleParagraph(editor)
+    const success = toggleParagraph(editor);
     if (success) {
-      onToggled?.()
+      onToggled?.();
     }
-    return success
-  }, [editor, onToggled])
+    return success;
+  }, [editor, onToggled]);
 
   useHotkeys(
     TEXT_SHORTCUT_KEY,
     (event) => {
-      event.preventDefault()
-      handleToggle()
+      event.preventDefault();
+      handleToggle();
     },
     {
       enabled: isVisible && canToggle,
       enableOnContentEditable: !isMobile,
       enableOnFormTags: true,
-    }
-  )
+    },
+  );
 
   return {
     isVisible,
@@ -287,5 +287,5 @@ export function useText(config?: UseTextConfig) {
     label: "Text",
     shortcutKeys: TEXT_SHORTCUT_KEY,
     Icon: TypeIcon,
-  }
+  };
 }

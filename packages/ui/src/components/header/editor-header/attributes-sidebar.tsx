@@ -4,7 +4,13 @@ import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useGraphStore, useNodeEditorStore } from "@workspace/store";
 import { LinkIcon, Plus, X } from "lucide-react";
-import type { EdgeData, NodeData, NodeSemantic, NodeTag, NodeTagId } from "@workspace/interfaces";
+import type {
+  EdgeData,
+  NodeData,
+  NodeSemantic,
+  NodeTag,
+  NodeTagId,
+} from "@workspace/interfaces";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import {
@@ -47,7 +53,9 @@ export function AttributesSidebar({ className }: AttributesSidebarProps) {
     "metadata",
   );
 
-  const currentEditingNodeId = useNodeEditorStore((state) => state.currentEditingNodeId);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
   const nodes = useGraphStore((state) => state.nodes);
   const edges = useGraphStore((state) => state.edges);
 
@@ -59,8 +67,7 @@ export function AttributesSidebar({ className }: AttributesSidebarProps) {
 
   const nodeEdges = Array.from(edges.values()).filter(
     (edge: EdgeData) =>
-      edge.from === currentEditingNodeId ||
-      edge.to === currentEditingNodeId,
+      edge.from === currentEditingNodeId || edge.to === currentEditingNodeId,
   );
 
   return (
@@ -89,7 +96,10 @@ export function AttributesSidebar({ className }: AttributesSidebarProps) {
 
       <div className="flex-1 overflow-y-auto p-3">
         {activeTab === "metadata" ? (
-          <MetadataTabContent node={currentNode} nodeId={currentEditingNodeId} />
+          <MetadataTabContent
+            node={currentNode}
+            nodeId={currentEditingNodeId}
+          />
         ) : (
           <RelationshipsTabContent
             edges={nodeEdges}
@@ -109,7 +119,9 @@ function MetadataTabContent({
   nodeId: string;
 }) {
   const updateNode = useGraphStore((state) => state.updateNode);
-  const getAllNodeSemantics = useGraphStore((state) => state.getAllNodeSemantics);
+  const getAllNodeSemantics = useGraphStore(
+    (state) => state.getAllNodeSemantics,
+  );
   const allSemantics = getAllNodeSemantics();
 
   const handleAbstractChange = (value: string) => {
@@ -139,9 +151,22 @@ function MetadataTabContent({
   const handleCreateTag = () => {
     if (!newTagName.trim()) return;
     const tagId = newTagName.trim().toLowerCase().replace(/\s+/g, "-");
-    const colors = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#6366F1", "#14B8A6"];
+    const colors = [
+      "#3B82F6",
+      "#10B981",
+      "#8B5CF6",
+      "#F59E0B",
+      "#EF4444",
+      "#EC4899",
+      "#6366F1",
+      "#14B8A6",
+    ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const newTag: NodeTag = { id: tagId, name: newTagName.trim(), color: randomColor };
+    const newTag: NodeTag = {
+      id: tagId,
+      name: newTagName.trim(),
+      color: randomColor,
+    };
     addNodeTag(newTag);
     const currentTags = node.tags || [];
     updateNode(nodeId, { tags: [...currentTags, tagId] });
@@ -397,7 +422,10 @@ function MetadataTabContent({
         <div className="space-y-1">
           <span className="text-muted-foreground text-xs">集合类型</span>
           <Select
-            value={(node as { collectionType?: string }).collectionType || "unordered"}
+            value={
+              (node as { collectionType?: string }).collectionType ||
+              "unordered"
+            }
             onValueChange={handleCollectionTypeChange}
           >
             <SelectTrigger className="text-xs">

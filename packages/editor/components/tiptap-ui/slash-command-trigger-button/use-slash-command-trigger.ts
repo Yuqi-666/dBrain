@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { useHotkeys } from "react-hotkeys-hook"
-import { type Editor } from "@tiptap/react"
-import type { Node } from "@tiptap/pm/model"
+import { useCallback, useEffect, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { type Editor } from "@tiptap/react";
+import type { Node } from "@tiptap/pm/model";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useIsBreakpoint } from "@workspace/editor/hooks/use-is-breakpoint";
 
 // --- Icons ---
-import { PlusIcon } from "@workspace/editor/components/tiptap-icons/plus-icon"
+import { PlusIcon } from "@workspace/editor/components/tiptap-icons/plus-icon";
 
 // --- Lib ---
 import {
   findNodePosition,
   isNodeTypeSelected,
   isValidPosition,
-} from "@workspace/editor/lib/tiptap-utils"
+} from "@workspace/editor/lib/tiptap-utils";
 
-export const SLASH_COMMAND_TRIGGER_SHORTCUT_KEY = "mod+/"
+export const SLASH_COMMAND_TRIGGER_SHORTCUT_KEY = "mod+/";
 
 /**
  * Configuration for the slash command functionality
@@ -28,29 +28,29 @@ export interface UseSlashCommandTriggerConfig {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * The node to apply trigger to
    */
-  node?: Node | null
+  node?: Node | null;
   /**
    * The position of the node in the document
    */
-  nodePos?: number | null
+  nodePos?: number | null;
   /**
    * The trigger text to insert
    * @default "/"
    */
-  trigger?: string
+  trigger?: string;
   /**
    * Whether the button should hide when insertion is not available.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after a successful trigger insertion.
    */
-  onTriggered?: (trigger: string) => void
+  onTriggered?: (trigger: string) => void;
 }
 
 /**
@@ -59,21 +59,21 @@ export interface UseSlashCommandTriggerConfig {
 export function canInsertSlashCommand(
   editor: Editor | null,
   node?: Node | null,
-  nodePos?: number | null
+  nodePos?: number | null,
 ): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (isNodeTypeSelected(editor, ["image"])) return false
+  if (!editor || !editor.isEditable) return false;
+  if (isNodeTypeSelected(editor, ["image"])) return false;
 
   if (node || isValidPosition(nodePos)) {
-    if (isValidPosition(nodePos) && nodePos! >= 0) return true
+    if (isValidPosition(nodePos) && nodePos! >= 0) return true;
 
     if (node) {
-      const foundPos = findNodePosition({ editor, node })
-      return foundPos !== null
+      const foundPos = findNodePosition({ editor, node });
+      return foundPos !== null;
     }
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -83,10 +83,10 @@ export function insertSlashCommand(
   editor: Editor | null,
   trigger: string = "/",
   node?: Node | null,
-  nodePos?: number | null
+  nodePos?: number | null,
 ): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!canInsertSlashCommand(editor, node, nodePos)) return false
+  if (!editor || !editor.isEditable) return false;
+  if (!canInsertSlashCommand(editor, node, nodePos)) return false;
 
   try {
     if ((node !== undefined && node !== null) || isValidPosition(nodePos)) {
@@ -94,48 +94,48 @@ export function insertSlashCommand(
         editor,
         node: node || undefined,
         nodePos: nodePos || undefined,
-      })
+      });
 
       if (!foundPos) {
-        return false
+        return false;
       }
 
       const isEmpty =
         foundPos.node.type.name === "paragraph" &&
-        foundPos.node.content.size === 0
+        foundPos.node.content.size === 0;
       const insertPos = isEmpty
         ? foundPos.pos
-        : foundPos.pos + foundPos.node.nodeSize
+        : foundPos.pos + foundPos.node.nodeSize;
 
       editor.view.dispatch(
         editor.view.state.tr
           .scrollIntoView()
-          .insertText(trigger, insertPos, insertPos)
-      )
+          .insertText(trigger, insertPos, insertPos),
+      );
 
-      const triggerLength = trigger.length + 1 // +1 for the space after the trigger
+      const triggerLength = trigger.length + 1; // +1 for the space after the trigger
       const focusPos = isEmpty
         ? foundPos.pos + triggerLength
-        : foundPos.pos + foundPos.node.nodeSize + triggerLength
-      editor.commands.focus(focusPos)
+        : foundPos.pos + foundPos.node.nodeSize + triggerLength;
+      editor.commands.focus(focusPos);
 
-      return true
+      return true;
     }
 
-    const { $from } = editor.state.selection
-    const currentNode = $from.node()
-    const isEmpty = currentNode.textContent.length === 0
-    const isStartOfBlock = $from.parentOffset === 0
+    const { $from } = editor.state.selection;
+    const currentNode = $from.node();
+    const isEmpty = currentNode.textContent.length === 0;
+    const isStartOfBlock = $from.parentOffset === 0;
 
     // Check if we're at the document node level
     // This is important if we dont have focus on the editor
     // and we want to insert the slash at the end of the document
-    const isTopLevel = $from.depth === 0
+    const isTopLevel = $from.depth === 0;
 
     if (!isEmpty || !isStartOfBlock) {
       const insertPosition = isTopLevel
         ? editor.state.doc.content.size
-        : $from.after()
+        : $from.after();
 
       return editor
         .chain()
@@ -144,16 +144,16 @@ export function insertSlashCommand(
           content: [{ type: "text", text: trigger }],
         })
         .focus()
-        .run()
+        .run();
     }
 
     return editor
       .chain()
       .insertContent({ type: "text", text: trigger })
       .focus()
-      .run()
+      .run();
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -161,26 +161,26 @@ export function insertSlashCommand(
  * Determines if the slash command button should be shown
  */
 export function shouldShowButton(props: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
-  node?: Node | null
-  nodePos?: number | null
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
+  node?: Node | null;
+  nodePos?: number | null;
 }): boolean {
-  const { editor, hideWhenUnavailable, node, nodePos } = props
+  const { editor, hideWhenUnavailable, node, nodePos } = props;
 
-  if (!editor) return false
+  if (!editor) return false;
 
   if (!hideWhenUnavailable) {
-    return true
+    return true;
   }
 
-  if (!editor.isEditable) return false
+  if (!editor.isEditable) return false;
 
   if (!editor.isActive("code")) {
-    return canInsertSlashCommand(editor, node, nodePos)
+    return canInsertSlashCommand(editor, node, nodePos);
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -227,54 +227,54 @@ export function useSlashCommandTrigger(config?: UseSlashCommandTriggerConfig) {
     trigger = "/",
     hideWhenUnavailable = false,
     onTriggered,
-  } = config || {}
+  } = config || {};
 
-  const { editor } = useTiptapEditor(providedEditor)
-  const isMobile = useIsBreakpoint()
-  const [isVisible, setIsVisible] = useState<boolean>(true)
-  const canInsert = canInsertSlashCommand(editor, node, nodePos)
+  const { editor } = useTiptapEditor(providedEditor);
+  const isMobile = useIsBreakpoint();
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const canInsert = canInsertSlashCommand(editor, node, nodePos);
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const handleSelectionUpdate = () => {
       setIsVisible(
-        shouldShowButton({ editor, hideWhenUnavailable, node, nodePos })
-      )
-    }
+        shouldShowButton({ editor, hideWhenUnavailable, node, nodePos }),
+      );
+    };
 
-    handleSelectionUpdate()
+    handleSelectionUpdate();
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
-    }
-  }, [editor, hideWhenUnavailable, node, nodePos])
+      editor.off("selectionUpdate", handleSelectionUpdate);
+    };
+  }, [editor, hideWhenUnavailable, node, nodePos]);
 
   const handleSlashCommand = useCallback(() => {
-    if (!editor) return false
+    if (!editor) return false;
 
-    const success = insertSlashCommand(editor, trigger, node, nodePos)
+    const success = insertSlashCommand(editor, trigger, node, nodePos);
     if (success) {
-      onTriggered?.(trigger)
+      onTriggered?.(trigger);
     }
-    return success
-  }, [editor, trigger, node, nodePos, onTriggered])
+    return success;
+  }, [editor, trigger, node, nodePos, onTriggered]);
 
   useHotkeys(
     SLASH_COMMAND_TRIGGER_SHORTCUT_KEY,
     (event) => {
-      event.preventDefault()
-      handleSlashCommand()
+      event.preventDefault();
+      handleSlashCommand();
     },
     {
       enabled: isVisible && canInsert,
       enableOnContentEditable: !isMobile,
       enableOnFormTags: true,
     },
-    [isVisible, canInsert, handleSlashCommand]
-  )
+    [isVisible, canInsert, handleSlashCommand],
+  );
 
   return {
     isVisible,
@@ -284,5 +284,5 @@ export function useSlashCommandTrigger(config?: UseSlashCommandTriggerConfig) {
     shortcutKeys: SLASH_COMMAND_TRIGGER_SHORTCUT_KEY,
     trigger,
     Icon: PlusIcon,
-  }
+  };
 }

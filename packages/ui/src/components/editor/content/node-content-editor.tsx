@@ -13,42 +13,50 @@ import { WebsiteNodeContent } from "./website-node-content";
 import { RichTextNodeContent } from "./rich-text-node-content";
 import { CollectionNodeContent } from "./collection-node-content";
 
+/** Props for the NodeContentEditor component */
 interface NodeContentEditorProps {
+  /** The node data to edit */
   node: NodeData;
+  /** Optional CSS class name */
   className?: string;
 }
 
+/** Router component that switches between different node type content editors */
 export function NodeContentEditor({ node, className }: NodeContentEditorProps) {
   const nodeType = node?.nodeType;
 
   const contentComponent = useMemo(() => {
     switch (nodeType) {
       case "text":
-        return <TextNodeContent node={node} />;
+        return <TextNodeContent node={node} className={className} />;
       case "image":
-        return <ImageNodeContent node={node} />;
+        return <ImageNodeContent node={node} className={className} />;
       case "pdf":
-        return <PdfNodeContent node={node} />;
+        return <PdfNodeContent node={node} className={className} />;
       case "video":
-        return <VideoNodeContent node={node} />;
+        return <VideoNodeContent node={node} className={className} />;
       case "audio":
-        return <AudioNodeContent node={node} />;
+        return <AudioNodeContent node={node} className={className} />;
       case "webpage":
-        return <WebpageNodeContent node={node} />;
+        return <WebpageNodeContent node={node} className={className} />;
       case "website":
-        return <WebsiteNodeContent node={node} />;
+        return <WebsiteNodeContent node={node} className={className} />;
       case "rich-text":
-        return <RichTextNodeContent node={node} />;
+        return <RichTextNodeContent node={node} className={className} />;
       case "collection":
-        return <CollectionNodeContent node={node} />;
+        return <CollectionNodeContent node={node} className={className} />;
       default:
-        return <div className="p-4 text-muted-foreground">Unsupported node type: {nodeType}</div>;
+        return (
+          <div
+            className={
+              "p-4 text-muted-foreground" + (className ? ` ${className}` : "")
+            }
+          >
+            Unsupported node type: {nodeType}
+          </div>
+        );
     }
-  }, [nodeType, node]);
+  }, [nodeType, node, className]);
 
-  return (
-    <div className={className}>
-      {contentComponent}
-    </div>
-  );
+  return <>{contentComponent}</>;
 }

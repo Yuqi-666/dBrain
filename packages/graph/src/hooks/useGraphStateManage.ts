@@ -20,20 +20,30 @@ export interface LocalGraphUIState {
 
 export function useGraphStateManage() {
   // 状态
-  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(new Set());
-  const [contextMenu, setContextMenuState] = useState<LocalGraphUIState["contextMenu"]>({
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [contextMenu, setContextMenuState] = useState<
+    LocalGraphUIState["contextMenu"]
+  >({
     x: 0,
     y: 0,
     target: null,
     visible: false,
   });
-  const [previewBlock, setPreviewBlockState] = useState<LocalGraphUIState["previewBlock"]>({
+  const [previewBlock, setPreviewBlockState] = useState<
+    LocalGraphUIState["previewBlock"]
+  >({
     nodeId: null,
     visible: false,
     isFocus: false,
   });
-  const setCurrentEditingNode = useNodeEditorStore((state) => state.setCurrentEditingNodeId)
+  const setCurrentEditingNode = useNodeEditorStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
   // Ref 用于避免闭包问题
   const isNodeFocusRef = useRef(false);
 
@@ -51,33 +61,48 @@ export function useGraphStateManage() {
     setSelectedEdgeIds(new Set(edgeIds));
   }, []);
 
-  const setContextMenu = useCallback((menu: LocalGraphUIState["contextMenu"]) => {
-    setContextMenuState(menu);
-  }, []);
+  const setContextMenu = useCallback(
+    (menu: LocalGraphUIState["contextMenu"]) => {
+      setContextMenuState(menu);
+    },
+    [],
+  );
 
   const closeContextMenu = useCallback(() => {
-    setContextMenuState(prev => ({ ...prev, visible: false }));
+    setContextMenuState((prev) => ({ ...prev, visible: false }));
   }, []);
 
-  const setPreviewBlock = useCallback((block: LocalGraphUIState["previewBlock"]) => {
-    setPreviewBlockState(block);
-  }, []);
+  const setPreviewBlock = useCallback(
+    (block: LocalGraphUIState["previewBlock"]) => {
+      setPreviewBlockState(block);
+    },
+    [],
+  );
 
   const closePreviewBlock = useCallback(() => {
-    setPreviewBlockState(prev => ({ ...prev, visible: false, isFocus: false }));
-    console.log("closed")
+    setPreviewBlockState((prev) => ({
+      ...prev,
+      visible: false,
+      isFocus: false,
+    }));
   }, []);
 
-  const fixPreviewOnFocus = useCallback((nodeId: string) => {
-    setPreviewBlock({
-      nodeId,
-      visible: true,
-      isFocus: true,
-    });
-  }, [setPreviewBlock]);
-  const handleNodeEdit = useCallback((nodeId: string) => {
-    setCurrentEditingNode(nodeId)
-  }, [setCurrentEditingNode]);
+  const fixPreviewOnFocus = useCallback(
+    (nodeId: string) => {
+      setPreviewBlock({
+        nodeId,
+        visible: true,
+        isFocus: true,
+      });
+    },
+    [setPreviewBlock],
+  );
+  const handleNodeEdit = useCallback(
+    (nodeId: string) => {
+      setCurrentEditingNode(nodeId);
+    },
+    [setCurrentEditingNode],
+  );
   return {
     selectedNodeIds,
     selectedEdgeIds,

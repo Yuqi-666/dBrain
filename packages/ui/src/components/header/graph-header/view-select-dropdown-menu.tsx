@@ -10,7 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
-import { ChevronDownIcon, ChevronUpIcon, LayoutDashboardIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  LayoutDashboardIcon,
+} from "lucide-react";
 
 interface ViewSelectDropdownMenuProps {
   className?: string;

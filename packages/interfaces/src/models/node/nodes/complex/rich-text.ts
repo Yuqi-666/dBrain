@@ -7,5 +7,4 @@ export interface RichTextNodeData extends NodeBase, NodeType<"rich-text"> {
 export interface RichTextContent {
   referencedNodes: NodeId[];
   docs: Record<string, any>;
-
 }

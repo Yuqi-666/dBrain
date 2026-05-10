@@ -1,38 +1,38 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { type Editor } from "@tiptap/react"
-import type { TextOptions, Tone } from "@workspace/editor/lib/mock-ai"
+import { useMemo } from "react";
+import { type Editor } from "@tiptap/react";
+import type { TextOptions, Tone } from "@workspace/editor/lib/mock-ai";
 
 // --- Hooks ---
 import {
   useImproveDropdown,
   type AICommand,
-} from "@workspace/editor/components/tiptap-ui/improve-dropdown"
+} from "@workspace/editor/components/tiptap-ui/improve-dropdown";
 
 // --- Icons ---
-import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon"
-import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon"
-import { CheckAiIcon } from "@workspace/editor/components/tiptap-icons/check-ai-icon"
-import { TextExtendIcon } from "@workspace/editor/components/tiptap-icons/text-extend-icon"
-import { TextReduceIcon } from "@workspace/editor/components/tiptap-icons/text-reduce-icon"
-import { Simplify2Icon } from "@workspace/editor/components/tiptap-icons/simplify-2-icon"
-import { SmileAiIcon } from "@workspace/editor/components/tiptap-icons/smile-ai-icon"
-import { CompleteSentenceIcon } from "@workspace/editor/components/tiptap-icons/complete-sentence-icon"
-import { SummarizeTextIcon } from "@workspace/editor/components/tiptap-icons/summarize-text-icon"
-import { LanguagesIcon } from "@workspace/editor/components/tiptap-icons/languages-icon"
-import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chevron-right-icon"
+import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon";
+import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon";
+import { CheckAiIcon } from "@workspace/editor/components/tiptap-icons/check-ai-icon";
+import { TextExtendIcon } from "@workspace/editor/components/tiptap-icons/text-extend-icon";
+import { TextReduceIcon } from "@workspace/editor/components/tiptap-icons/text-reduce-icon";
+import { Simplify2Icon } from "@workspace/editor/components/tiptap-icons/simplify-2-icon";
+import { SmileAiIcon } from "@workspace/editor/components/tiptap-icons/smile-ai-icon";
+import { CompleteSentenceIcon } from "@workspace/editor/components/tiptap-icons/complete-sentence-icon";
+import { SummarizeTextIcon } from "@workspace/editor/components/tiptap-icons/summarize-text-icon";
+import { LanguagesIcon } from "@workspace/editor/components/tiptap-icons/languages-icon";
+import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chevron-right-icon";
 
 // --- Tiptap UI ---
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_TONES,
-} from "@workspace/editor/components/tiptap-ui/ai-menu"
-import { AiAskButton } from "@workspace/editor/components/tiptap-ui/ai-ask-button"
+} from "@workspace/editor/components/tiptap-ui/ai-menu";
+import { AiAskButton } from "@workspace/editor/components/tiptap-ui/ai-ask-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -43,56 +43,56 @@ import {
   DropdownMenuSubContent,
   DropdownMenuGroup,
   DropdownMenuPortal,
-} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu"
-import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator"
+} from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu";
+import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator";
 
 export interface ToneOption {
-  label: string
-  value: Tone
-  icon?: React.ComponentType<{ className?: string }>
+  label: string;
+  value: Tone;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 export interface ImproveDropdownProps extends Omit<ButtonProps, "type"> {
   /**
    * Optional editor instance. If not provided, will use editor from context
    */
-  editor?: Editor
+  editor?: Editor;
   /**
    * List of AI command types to show in the dropdown.
    */
-  types?: Tone[]
+  types?: Tone[];
   /**
    * Optional text options for AI commands
    * @default { stream: true, format: "rich-text" }
    */
-  textOptions?: TextOptions
+  textOptions?: TextOptions;
   /**
    * Whether to hide the dropdown when AI features are not available
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Whether the dropdown should use a modal
    */
-  modal?: boolean
+  modal?: boolean;
 }
 
 interface MenuAction {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  command: AICommand
-  onClick: () => void
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  command: AICommand;
+  onClick: () => void;
 }
 
 interface SubMenuAction {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
   items: Array<{
-    label: string
-    value: string
-    icon?: React.ComponentType<{ className?: string }>
-    onClick: () => void
-  }>
+    label: string;
+    value: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    onClick: () => void;
+  }>;
 }
 
 function SubMenuButton({ action }: { action: SubMenuAction }) {
@@ -120,7 +120,7 @@ function SubMenuButton({ action }: { action: SubMenuAction }) {
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
-  )
+  );
 }
 
 export function ImproveDropdown({
@@ -142,7 +142,7 @@ export function ImproveDropdown({
     editor: providedEditor,
     hideWhenUnavailable,
     textOptions,
-  })
+  });
 
   const menuActions: MenuAction[] = useMemo(
     () => [
@@ -177,8 +177,8 @@ export function ImproveDropdown({
         onClick: () => executeAICommand("emojify"),
       },
     ],
-    [executeAICommand]
-  )
+    [executeAICommand],
+  );
 
   const secondaryActions: MenuAction[] = useMemo(
     () => [
@@ -195,8 +195,8 @@ export function ImproveDropdown({
         onClick: () => executeAICommand("summarize"),
       },
     ],
-    [executeAICommand]
-  )
+    [executeAICommand],
+  );
 
   const subMenuActions: SubMenuAction[] = useMemo(
     () => [
@@ -210,8 +210,8 @@ export function ImproveDropdown({
         })),
       },
     ],
-    [adjustTone]
-  )
+    [adjustTone],
+  );
 
   const translateSubMenu: SubMenuAction = useMemo(
     () => ({
@@ -224,11 +224,11 @@ export function ImproveDropdown({
         onClick: () => translate(option.value),
       })),
     }),
-    [translate]
-  )
+    [translate],
+  );
 
   if (!isVisible) {
-    return null
+    return null;
   }
 
   return (
@@ -286,7 +286,7 @@ export function ImproveDropdown({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
-export default ImproveDropdown
+export default ImproveDropdown;

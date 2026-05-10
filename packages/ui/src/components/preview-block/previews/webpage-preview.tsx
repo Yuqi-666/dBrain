@@ -4,15 +4,6 @@ import type { WebpageNodeData } from "@workspace/interfaces";
 import { Globe, ExternalLink } from "lucide-react";
 
 export function WebpagePreview({ node }: { node: WebpageNodeData }) {
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString();
-    } catch {
-      return dateStr;
-    }
-  };
-
   return (
     <div className="space-y-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
@@ -31,19 +22,14 @@ export function WebpagePreview({ node }: { node: WebpageNodeData }) {
       </div>
       <div className="space-y-1">
         <a
-          href={node.originalUrl}
+          href={node.content.url}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground truncate"
         >
           <ExternalLink className="size-3 shrink-0" />
-          <span className="truncate">{node.originalUrl}</span>
+          <span className="truncate">{node.content.url}</span>
         </a>
-        {node.capturedAt && (
-          <p className="text-xs text-muted-foreground">
-            Captured: {formatDate(node.capturedAt)}
-          </p>
-        )}
       </div>
     </div>
   );

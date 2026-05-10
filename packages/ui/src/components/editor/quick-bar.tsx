@@ -10,7 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { LinkIcon, PlusIcon, ArrowRightIcon, ArrowLeftIcon } from "lucide-react";
+import {
+  LinkIcon,
+  PlusIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon,
+} from "lucide-react";
 import type { NodeData } from "@workspace/interfaces";
 
 interface RelationshipQuickBarProps {
@@ -22,14 +27,18 @@ interface RelationshipQuickBarProps {
  * RelationshipQuickBar - Quick actions for managing node relationships
  * Positioned at bottom of NodeEditor in window mode
  */
-export function RelationshipQuickBar({ node, className }: RelationshipQuickBarProps) {
+export function RelationshipQuickBar({
+  node,
+  className,
+}: RelationshipQuickBarProps) {
   const [isVisible, setIsVisible] = useState(true);
   const edges = useGraphStore((state) => state.edges);
   const nodes = useGraphStore((state) => state.nodes);
 
   // Get connected nodes
   const connectedEdges = Array.from(edges.values()).filter(
-    (edge) => edge.from === node.id || edge.to === node.id);
+    (edge) => edge.from === node.id || edge.to === node.id,
+  );
 
   // Separate inbound and outbound
   const inboundEdges = connectedEdges.filter((edge) => edge.to === node.id);
@@ -40,11 +49,13 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
       className={cn(
         "flex items-center gap-3 px-4 py-2 flex-shrink-0 border-t bg-muted/30 transition-opacity",
         isVisible ? "opacity-100" : "opacity-0 pointer-events-none",
-        className
+        className,
       )}
     >
       {/* Label */}
-      <span className="text-xs text-muted-foreground font-medium">快速添加关联</span>
+      <span className="text-xs text-muted-foreground font-medium">
+        快速添加关联
+      </span>
 
       {/* Inbound dropdown */}
       <DropdownMenu>
@@ -60,9 +71,14 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">入边节点</div>
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+            入边节点
+          </div>
           {inboundEdges.length === 0 ? (
-            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+            <DropdownMenuItem
+              disabled
+              className="text-xs text-muted-foreground"
+            >
               暂无入边
             </DropdownMenuItem>
           ) : (
@@ -70,7 +86,9 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
               const sourceNode = nodes.get(edge.from);
               return (
                 <DropdownMenuItem key={edge.id} className="text-xs">
-                  <span className="truncate">{sourceNode?.title || edge.from}</span>
+                  <span className="truncate">
+                    {sourceNode?.title || edge.from}
+                  </span>
                 </DropdownMenuItem>
               );
             })
@@ -92,9 +110,14 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">出边节点</div>
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+            出边节点
+          </div>
           {outboundEdges.length === 0 ? (
-            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+            <DropdownMenuItem
+              disabled
+              className="text-xs text-muted-foreground"
+            >
               暂无出边
             </DropdownMenuItem>
           ) : (
@@ -102,7 +125,9 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
               const targetNode = nodes.get(edge.to);
               return (
                 <DropdownMenuItem key={edge.id} className="text-xs">
-                  <span className="truncate">{targetNode?.title || edge.to}</span>
+                  <span className="truncate">
+                    {targetNode?.title || edge.to}
+                  </span>
                 </DropdownMenuItem>
               );
             })
@@ -123,7 +148,9 @@ export function RelationshipQuickBar({ node, className }: RelationshipQuickBarPr
         className="h-7 w-7 p-0"
         onClick={() => setIsVisible(!isVisible)}
       >
-        <LinkIcon className={cn("size-3", !isVisible && "text-muted-foreground")} />
+        <LinkIcon
+          className={cn("size-3", !isVisible && "text-muted-foreground")}
+        />
       </Button>
     </div>
   );

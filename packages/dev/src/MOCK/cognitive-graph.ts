@@ -10,6 +10,8 @@ import type {
   WebpageNodeData,
   WebsiteNodeData,
   NodeSemantic,
+  RichTextNodeData,
+  ComplexNodeData,
 } from "@workspace/interfaces";
 
 export const INITIAL_NODE_SEMANTICS: NodeSemantic[] = [
@@ -19,10 +21,25 @@ export const INITIAL_NODE_SEMANTICS: NodeSemantic[] = [
 ];
 
 export const INITIAL_EDGE_SEMANTICS: EdgeSemantic[] = [
-  { id: "belongs_to", name: "Belongs To", color: "#3B82F6", category: "hierarchy" },
-  { id: "depends_on", name: "Depends On", color: "#10B981", category: "association" },
+  {
+    id: "belongs_to",
+    name: "Belongs To",
+    color: "#3B82F6",
+    category: "hierarchy",
+  },
+  {
+    id: "depends_on",
+    name: "Depends On",
+    color: "#10B981",
+    category: "association",
+  },
   { id: "calls", name: "Calls", color: "#8B5CF6", category: "interaction" },
-  { id: "references", name: "References", color: "#F59E0B", category: "association" },
+  {
+    id: "references",
+    name: "References",
+    color: "#F59E0B",
+    category: "association",
+  },
   { id: "embeds", name: "Embeds", color: "#EF4444", category: "association" },
 ];
 
@@ -34,379 +51,384 @@ export const INITIAL_NODES: (
   | PdfNodeData
   | WebpageNodeData
   | WebsiteNodeData
+  | RichTextNodeData
+  | ComplexNodeData
 )[] = [
-    // Text Nodes - System Architecture
-    {
-      id: "text-frontend",
-      title: "Frontend Architecture",
-      nodeType: "text",
-      semanticId: "layer",
-      permission: "public",
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-      content: {
-        docs: {
-          description: "The frontend layer handles user interface and client-side logic using Next.js and React",
-          technologies: ["Next.js", "React", "TailwindCSS", "shadcn/ui"],
-        },
+  // Text Nodes - System Architecture
+  {
+    id: "text-frontend",
+    title: "Frontend Architecture",
+    nodeType: "rich-text",
+    semanticId: "layer",
+    permission: "public",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    content: {
+      docs: {},
+    },
+  },
+  {
+    id: "text-backend",
+    title: "Backend Services",
+    nodeType: "text",
+    semanticId: "layer",
+    permission: "private",
+    createdAt: "2024-01-02T00:00:00Z",
+    updatedAt: "2024-01-02T00:00:00Z",
+    content: {
+      docs: {
+        description:
+          "Backend services powered by Rust and Salvo framework for high-performance API endpoints",
+        technologies: ["Rust", "Salvo", "Tokio"],
       },
     },
-    {
-      id: "text-backend",
-      title: "Backend Services",
-      nodeType: "text",
-      semanticId: "layer",
-      permission: "private",
-      createdAt: "2024-01-02T00:00:00Z",
-      updatedAt: "2024-01-02T00:00:00Z",
-      content: {
-        docs: {
-          description: "Backend services powered by Rust and Salvo framework for high-performance API endpoints",
-          technologies: ["Rust", "Salvo", "Tokio"],
-        },
+  },
+  {
+    id: "text-data",
+    title: "Data Storage",
+    nodeType: "text",
+    semanticId: "layer",
+    permission: "private",
+    createdAt: "2024-01-03T00:00:00Z",
+    updatedAt: "2024-01-03T00:00:00Z",
+    content: {
+      docs: {
+        description:
+          "Data layer managing SQLite databases and object storage via MinIO",
+        technologies: ["SQLite", "MinIO", "Diesel"],
       },
     },
-    {
-      id: "text-data",
-      title: "Data Storage",
-      nodeType: "text",
-      semanticId: "layer",
-      permission: "private",
-      createdAt: "2024-01-03T00:00:00Z",
-      updatedAt: "2024-01-03T00:00:00Z",
-      content: {
-        docs: {
-          description: "Data layer managing SQLite databases and object storage via MinIO",
-          technologies: ["SQLite", "MinIO", "Diesel"],
-        },
+  },
+  {
+    id: "text-auth",
+    title: "Authentication System",
+    nodeType: "text",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-04T00:00:00Z",
+    updatedAt: "2024-01-04T00:00:00Z",
+    content: {
+      docs: {
+        description:
+          "JWT-based authentication with secure password handling using bcrypt",
+        features: ["JWT tokens", "Password hashing", "Session management"],
       },
     },
-    {
-      id: "text-auth",
-      title: "Authentication System",
-      nodeType: "text",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-04T00:00:00Z",
-      updatedAt: "2024-01-04T00:00:00Z",
-      content: {
-        docs: {
-          description: "JWT-based authentication with secure password handling using bcrypt",
-          features: ["JWT tokens", "Password hashing", "Session management"],
-        },
+  },
+  {
+    id: "text-realtime",
+    title: "Real-time Communication",
+    nodeType: "text",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-05T00:00:00Z",
+    updatedAt: "2024-01-05T00:00:00Z",
+    content: {
+      docs: {
+        description: "WebSocket-based real-time communication for live updates",
+        features: ["WebSocket", "Live updates", "Event broadcasting"],
       },
     },
-    {
-      id: "text-realtime",
-      title: "Real-time Communication",
-      nodeType: "text",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-05T00:00:00Z",
-      updatedAt: "2024-01-05T00:00:00Z",
-      content: {
-        docs: {
-          description: "WebSocket-based real-time communication for live updates",
-          features: ["WebSocket", "Live updates", "Event broadcasting"],
-        },
-      },
-    },
+  },
 
-    // Image Nodes
-    {
-      id: "image-architecture",
-      title: "System Architecture Diagram",
-      nodeType: "image",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-06T00:00:00Z",
-      updatedAt: "2024-01-06T00:00:00Z",
-      width: 2048,
-      height: 1024,
-      fileSize: 524288,
-      shootingTime: "2024-01-15T10:30:00Z",
-      content: {
-        url: "https://picsum.photos/2048/1024",
-      },
+  // Image Nodes
+  {
+    id: "image-architecture",
+    title: "System Architecture Diagram",
+    nodeType: "image",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-06T00:00:00Z",
+    updatedAt: "2024-01-06T00:00:00Z",
+    width: 2048,
+    height: 1024,
+    fileSize: 524288,
+    shootingTime: "2024-01-15T10:30:00Z",
+    content: {
+      url: "https://picsum.photos/2048/1024",
     },
-    {
-      id: "image-ui-mockup",
-      title: "UI Design Mockup",
-      nodeType: "image",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-07T00:00:00Z",
-      updatedAt: "2024-01-07T00:00:00Z",
-      width: 2048,
-      height: 1024,
-      fileSize: 614400,
-      content: {
-        url: "https://picsum.photos/2048/1024",
-      },
+  },
+  {
+    id: "image-ui-mockup",
+    title: "UI Design Mockup",
+    nodeType: "image",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-07T00:00:00Z",
+    updatedAt: "2024-01-07T00:00:00Z",
+    width: 2048,
+    height: 1024,
+    fileSize: 614400,
+    content: {
+      url: "https://picsum.photos/2048/1024",
     },
-    {
-      id: "image-data-flow",
-      title: "Data Flow Visualization",
-      nodeType: "image",
-      semanticId: "component",
-      permission: "private",
-      createdAt: "2024-01-08T00:00:00Z",
-      updatedAt: "2024-01-08T00:00:00Z",
-      width: 2048,
-      height: 1024,
-      fileSize: 450562,
-      content: {
-        url: "https://picsum.photos/2048/1024",
-      },
+  },
+  {
+    id: "image-data-flow",
+    title: "Data Flow Visualization",
+    nodeType: "image",
+    semanticId: "component",
+    permission: "private",
+    createdAt: "2024-01-08T00:00:00Z",
+    updatedAt: "2024-01-08T00:00:00Z",
+    width: 2048,
+    height: 1024,
+    fileSize: 450562,
+    content: {
+      url: "https://picsum.photos/2048/1024",
     },
-    {
-      id: "image-screenshot",
-      title: "Application Screenshot",
-      nodeType: "image",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-09T00:00:00Z",
-      updatedAt: "2024-01-09T00:00:00Z",
-      width: 2048,
-      height: 1024,
-      fileSize: 589824,
-      content: {
-        url: "https://picsum.photos/2048/1024",
-      },
+  },
+  {
+    id: "image-screenshot",
+    title: "Application Screenshot",
+    nodeType: "image",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-09T00:00:00Z",
+    updatedAt: "2024-01-09T00:00:00Z",
+    width: 2048,
+    height: 1024,
+    fileSize: 589824,
+    content: {
+      url: "https://picsum.photos/2048/1024",
     },
+  },
 
-    // Video Nodes
-    {
-      id: "video-demo",
-      title: "Product Demo",
-      nodeType: "video",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-10T00:00:00Z",
-      updatedAt: "2024-01-10T00:00:00Z",
-      duration: 120,
-      source: "online",
-      fileSize: 10485760,
-      content: {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        cover_url: "",
-      },
+  // Video Nodes
+  {
+    id: "video-demo",
+    title: "Product Demo",
+    nodeType: "video",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-10T00:00:00Z",
+    updatedAt: "2024-01-10T00:00:00Z",
+    duration: 120,
+    source: "online",
+    fileSize: 10485760,
+    content: {
+      url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      cover_url: "",
     },
-    {
-      id: "video-tutorial",
-      title: "Getting Started Tutorial",
-      nodeType: "video",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-11T00:00:00Z",
-      updatedAt: "2024-01-11T00:00:00Z",
-      duration: 300,
-      source: "online",
-      fileSize: 26214400,
-      content: {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        cover_url: "",
-      },
+  },
+  {
+    id: "video-tutorial",
+    title: "Getting Started Tutorial",
+    nodeType: "video",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-11T00:00:00Z",
+    updatedAt: "2024-01-11T00:00:00Z",
+    duration: 300,
+    source: "online",
+    fileSize: 26214400,
+    content: {
+      url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      cover_url: "",
     },
-    {
-      id: "video-meeting",
-      title: "Team Meeting Record",
-      nodeType: "video",
-      semanticId: "component",
-      permission: "private",
-      createdAt: "2024-01-12T00:00:00Z",
-      updatedAt: "2024-01-12T00:00:00Z",
-      duration: 600,
-      source: "online",
-      fileSize: 52428800,
-      content: {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        cover_url: "",
-      },
+  },
+  {
+    id: "video-meeting",
+    title: "Team Meeting Record",
+    nodeType: "video",
+    semanticId: "component",
+    permission: "private",
+    createdAt: "2024-01-12T00:00:00Z",
+    updatedAt: "2024-01-12T00:00:00Z",
+    duration: 600,
+    source: "online",
+    fileSize: 52428800,
+    content: {
+      // url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      url: "",
+      cover_url: "",
     },
+  },
 
-    // Audio Nodes
-    {
-      id: "audio-podcast",
-      title: "Tech Podcast Episode",
-      nodeType: "audio",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-13T00:00:00Z",
-      updatedAt: "2024-01-13T00:00:00Z",
-      duration: 1800,
-      fileSize: 15728640,
-      content: {
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      },
+  // Audio Nodes
+  {
+    id: "audio-podcast",
+    title: "Tech Podcast Episode",
+    nodeType: "audio",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-13T00:00:00Z",
+    updatedAt: "2024-01-13T00:00:00Z",
+    duration: 1800,
+    fileSize: 15728640,
+    content: {
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     },
-    {
-      id: "audio-meeting",
-      title: "Team Meeting Recording",
-      nodeType: "audio",
-      semanticId: "component",
-      permission: "private",
-      createdAt: "2024-01-14T00:00:00Z",
-      updatedAt: "2024-01-14T00:00:00Z",
-      duration: 3600,
-      fileSize: 31457280,
-      content: {
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      },
+  },
+  {
+    id: "audio-meeting",
+    title: "Team Meeting Recording",
+    nodeType: "audio",
+    semanticId: "component",
+    permission: "private",
+    createdAt: "2024-01-14T00:00:00Z",
+    updatedAt: "2024-01-14T00:00:00Z",
+    duration: 3600,
+    fileSize: 31457280,
+    content: {
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     },
-    {
-      id: "audio-interview",
-      title: "Developer Interview",
-      nodeType: "audio",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-15T00:00:00Z",
-      updatedAt: "2024-01-15T00:00:00Z",
-      duration: 2700,
-      fileSize: 23592960,
-      content: {
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      },
+  },
+  {
+    id: "audio-interview",
+    title: "Developer Interview",
+    nodeType: "audio",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-15T00:00:00Z",
+    updatedAt: "2024-01-15T00:00:00Z",
+    duration: 2700,
+    fileSize: 23592960,
+    content: {
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     },
+  },
 
-    // PDF Nodes
-    {
-      id: "paper-ml",
-      title: "Machine Learning Research Paper",
-      nodeType: "pdf",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-16T00:00:00Z",
-      updatedAt: "2024-01-16T00:00:00Z",
-      pageCount: 24,
-      fileSize: 2097152,
-      content: {
-        url: "https://arxiv.org/pdf/2604.14020",
-        cover_url: "https://picsum.photos/1024/768",
-      },
+  // PDF Nodes
+  {
+    id: "paper-ml",
+    title: "Machine Learning Research Paper",
+    nodeType: "pdf",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-16T00:00:00Z",
+    updatedAt: "2024-01-16T00:00:00Z",
+    pageCount: 24,
+    fileSize: 2097152,
+    content: {
+      // url: "https://arxiv.org/pdf/2604.14020",
+      // cover_url: "https://picsum.photos/1024/768",
+      url: "",
+      cover_url: "",
     },
-    {
-      id: "document-api",
-      title: "API Documentation",
-      nodeType: "pdf",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-17T00:00:00Z",
-      updatedAt: "2024-01-17T00:00:00Z",
-      pageCount: 15,
-      fileSize: 1048576,
-      content: {
-        url: "https://arxiv.org/pdf/2604.14020",
-        cover_url: "https://picsum.photos/1024/768",
-      },
+  },
+  {
+    id: "document-api",
+    title: "API Documentation",
+    nodeType: "pdf",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-17T00:00:00Z",
+    updatedAt: "2024-01-17T00:00:00Z",
+    pageCount: 15,
+    fileSize: 1048576,
+    content: {
+      url: "https://arxiv.org/pdf/2604.14020",
+      cover_url: "https://picsum.photos/1024/768",
     },
-    {
-      id: "document-design",
-      title: "Design System Spec",
-      nodeType: "pdf",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-18T00:00:00Z",
-      updatedAt: "2024-01-18T00:00:00Z",
-      pageCount: 32,
-      fileSize: 3145728,
-      content: {
-        url: "https://arxiv.org/pdf/2604.14020",
-        cover_url: "https://picsum.photos/1024/768",
-      },
+  },
+  {
+    id: "document-design",
+    title: "Design System Spec",
+    nodeType: "pdf",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-18T00:00:00Z",
+    updatedAt: "2024-01-18T00:00:00Z",
+    pageCount: 32,
+    fileSize: 3145728,
+    content: {
+      url: "https://arxiv.org/pdf/2604.14020",
+      cover_url: "https://picsum.photos/1024/768",
     },
+  },
 
-    // Webpage Nodes
-    {
-      id: "webpage-article",
-      title: "Technical Article",
-      nodeType: "webpage",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-19T00:00:00Z",
-      updatedAt: "2024-01-19T00:00:00Z",
-      originalUrl: "https://arxiv.org/html/2604.14020v1",
-      capturedAt: "2024-01-19T10:00:00Z",
-      lastUpdatedAt: "2024-01-19T10:00:00Z",
-      content: {
-        html: "<html><body><h1>Captured Webpage</h1><p>Technical article about system architecture</p></body></html>",
-        screenshotUrl: "https://picsum.photos/1024/768",
-      },
+  // Webpage Nodes
+  {
+    id: "webpage-article",
+    title: "Technical Article",
+    nodeType: "webpage",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-19T00:00:00Z",
+    updatedAt: "2024-01-19T00:00:00Z",
+    content: {
+      // html: "<html><body><h1>Captured Webpage</h1><p>Technical article about system architecture</p></body></html>",
+      html: "",
+      url: "",
+      screenshotUrl: "",
+      // screenshotUrl: "https://picsum.photos/1024/768",
     },
-    {
-      id: "webpage-docs",
-      title: "Project Documentation",
-      nodeType: "webpage",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-20T00:00:00Z",
-      updatedAt: "2024-01-20T00:00:00Z",
-      originalUrl: "https://arxiv.org/html/2604.14020v1",
-      capturedAt: "2024-01-20T11:00:00Z",
-      lastUpdatedAt: "2024-01-20T11:00:00Z",
-      content: {
-        html: "<html><body><h1>Documentation Page</h1><p>API reference and usage guide</p></body></html>",
-        screenshotUrl: "https://picsum.photos/1024/768",
-      },
+  },
+  {
+    id: "webpage-docs",
+    title: "Project Documentation",
+    nodeType: "webpage",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-20T00:00:00Z",
+    updatedAt: "2024-01-20T00:00:00Z",
+    originalUrl: "https://arxiv.org/html/2604.14020v1",
+    capturedAt: "2024-01-20T11:00:00Z",
+    lastUpdatedAt: "2024-01-20T11:00:00Z",
+    content: {
+      html: "<html><body><h1>Documentation Page</h1><p>API reference and usage guide</p></body></html>",
+      screenshotUrl: "https://picsum.photos/1024/768",
     },
-    {
-      id: "webpage-tutorial",
-      title: "Interactive Tutorial",
-      nodeType: "webpage",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-21T00:00:00Z",
-      updatedAt: "2024-01-21T00:00:00Z",
-      originalUrl: "https://arxiv.org/html/2604.14020v1",
-      capturedAt: "2024-01-21T12:00:00Z",
-      lastUpdatedAt: "2024-01-21T12:00:00Z",
-      content: {
-        html: "<html><body><h1>Tutorial</h1><p>Step-by-step guide for beginners</p></body></html>",
-        screenshotUrl: "https://picsum.photos/1024/768",
-      },
+  },
+  {
+    id: "webpage-tutorial",
+    title: "Interactive Tutorial",
+    nodeType: "webpage",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-21T00:00:00Z",
+    updatedAt: "2024-01-21T00:00:00Z",
+    originalUrl: "https://arxiv.org/html/2604.14020v1",
+    capturedAt: "2024-01-21T12:00:00Z",
+    lastUpdatedAt: "2024-01-21T12:00:00Z",
+    content: {
+      html: "<html><body><h1>Tutorial</h1><p>Step-by-step guide for beginners</p></body></html>",
+      screenshotUrl: "https://picsum.photos/1024/768",
     },
+  },
 
-    // Website Nodes
-    {
-      id: "site-bilibili",
-      title: "Bilibili",
-      nodeType: "website",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-22T00:00:00Z",
-      updatedAt: "2024-01-22T00:00:00Z",
-      content: {
-        url: "https://bilibili.com",
-        faviconUrl: "https://bilibili.com/favicon.ico",
-      },
+  // Website Nodes
+  {
+    id: "site-bilibili",
+    title: "Bilibili",
+    nodeType: "website",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-22T00:00:00Z",
+    updatedAt: "2024-01-22T00:00:00Z",
+    content: {
+      url: "https://bilibili.com",
+      faviconUrl: "https://bilibili.com/favicon.ico",
     },
-    {
-      id: "site-github",
-      title: "GitHub Repository",
-      nodeType: "website",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-23T00:00:00Z",
-      updatedAt: "2024-01-23T00:00:00Z",
-      content: {
-        url: "https://github.com",
-        faviconUrl: "https://github.com/favicon.ico",
-      },
+  },
+  {
+    id: "site-github",
+    title: "GitHub Repository",
+    nodeType: "website",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-23T00:00:00Z",
+    updatedAt: "2024-01-23T00:00:00Z",
+    content: {
+      url: "https://github.com",
+      faviconUrl: "https://github.com/favicon.ico",
     },
-    {
-      id: "site-docs",
-      title: "Project Documentation Site",
-      nodeType: "website",
-      semanticId: "component",
-      permission: "public",
-      createdAt: "2024-01-24T00:00:00Z",
-      updatedAt: "2024-01-24T00:00:00Z",
-      content: {
-        url: "https://docs.example.com",
-        faviconUrl: "https://docs.example.com/favicon.ico",
-      },
+  },
+  {
+    id: "site-docs",
+    title: "Project Documentation Site",
+    nodeType: "website",
+    semanticId: "component",
+    permission: "public",
+    createdAt: "2024-01-24T00:00:00Z",
+    updatedAt: "2024-01-24T00:00:00Z",
+    content: {
+      url: "https://docs.example.com",
+      faviconUrl: "https://docs.example.com/favicon.ico",
     },
-  ];
+  },
+];
 
 export const INITIAL_EDGES: EdgeData[] = [
   // Layer structure

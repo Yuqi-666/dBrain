@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@workspace/ui/lib/utils";
 
 const alertVariants = cva(
   "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
@@ -18,11 +18,14 @@ const alertVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
-)
+  },
+);
 
-interface AlertProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof alertVariants> {
-  children?: React.ReactNode
+interface AlertProps
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof alertVariants> {
+  children?: React.ReactNode;
 }
 
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
@@ -35,9 +38,9 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
     >
       {children}
     </div>
-  )
-)
-Alert.displayName = "Alert"
+  ),
+);
+Alert.displayName = "Alert";
 
 const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
@@ -48,8 +51,8 @@ const AlertTitle = React.forwardRef<
     className={cn("mb-1 font-medium leading-none tracking-tight", className)}
     {...props}
   />
-))
-AlertTitle.displayName = "AlertTitle"
+));
+AlertTitle.displayName = "AlertTitle";
 
 const AlertDescription = React.forwardRef<
   HTMLParagraphElement,
@@ -60,7 +63,7 @@ const AlertDescription = React.forwardRef<
     className={cn("text-sm [&_p]:leading-relaxed", className)}
     {...props}
   />
-))
-AlertDescription.displayName = "AlertDescription"
+));
+AlertDescription.displayName = "AlertDescription";
 
-export { Alert, AlertTitle, AlertDescription, alertVariants }
+export { Alert, AlertTitle, AlertDescription, alertVariants };

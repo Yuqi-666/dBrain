@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
-import type { UseTableDeleteRowColumnConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-delete-row-column-button"
-import { useTableDeleteRowColumn } from "@workspace/editor/components/tiptap-node/table-node/ui/table-delete-row-column-button"
+import type { UseTableDeleteRowColumnConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-delete-row-column-button";
+import { useTableDeleteRowColumn } from "@workspace/editor/components/tiptap-node/table-node/ui/table-delete-row-column-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 
 export interface TableDeleteRowColumnButtonProps
   extends Omit<ButtonProps, "type">, UseTableDeleteRowColumnConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -43,9 +43,9 @@ export const TableDeleteRowColumnButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleDelete, label, canDeleteRowColumn, Icon } =
       useTableDeleteRowColumn({
         editor,
@@ -54,19 +54,19 @@ export const TableDeleteRowColumnButton = forwardRef<
         tablePos,
         hideWhenUnavailable,
         onDeleted,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleDelete()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleDelete();
       },
-      [handleDelete, onClick]
-    )
+      [handleDelete, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -92,8 +92,8 @@ export const TableDeleteRowColumnButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TableDeleteRowColumnButton.displayName = "TableDeleteRowColumnButton"
+TableDeleteRowColumnButton.displayName = "TableDeleteRowColumnButton";

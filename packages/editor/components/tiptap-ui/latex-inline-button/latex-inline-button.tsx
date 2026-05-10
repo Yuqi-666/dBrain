@@ -1,37 +1,37 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Lib ---
-import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils"
+import { parseShortcutKeys } from "@workspace/editor/lib/tiptap-utils";
 
 // --- Tiptap UI ---
-import type { UseLatexInlineConfig } from "@workspace/editor/components/tiptap-ui/latex-inline-button"
+import type { UseLatexInlineConfig } from "@workspace/editor/components/tiptap-ui/latex-inline-button";
 import {
   LATEX_INLINE_SHORTCUT_KEY,
   useLatexInline,
-} from "@workspace/editor/components/tiptap-ui/latex-inline-button"
+} from "@workspace/editor/components/tiptap-ui/latex-inline-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Badge } from "@workspace/editor/components/tiptap-ui-primitive/badge";
 
 export interface LatexInlineButtonProps
   extends Omit<ButtonProps, "type">, UseLatexInlineConfig {
-  text?: string
-  showShortcut?: boolean
+  text?: string;
+  showShortcut?: boolean;
 }
 
 export function LatexInlineShortcutBadge({
   shortcutKeys = LATEX_INLINE_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -52,9 +52,9 @@ export const LatexInlineButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
       canToggle,
@@ -67,19 +67,19 @@ export const LatexInlineButton = forwardRef<
       editor,
       hideWhenUnavailable,
       onToggled,
-    })
+    });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
-      [handleToggle, onClick]
-    )
+      [handleToggle, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -108,8 +108,8 @@ export const LatexInlineButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-LatexInlineButton.displayName = "LatexInlineButton"
+LatexInlineButton.displayName = "LatexInlineButton";

@@ -1,7 +1,7 @@
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 interface IconExcalidrawProps {
-  className?: string
+  className?: string;
 }
 
 export function IconExcalidraw({ className }: IconExcalidrawProps) {

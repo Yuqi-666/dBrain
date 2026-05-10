@@ -5,44 +5,50 @@
 ## WHERE TO LOOK
 
 ### Editor State
-| Hook | Purpose |
-|------|---------|
-| `use-tiptap-editor` | Core editor instance with selection/storage handling |
-| `use-ui-editor-state` | UI state from editor storage extension |
+
+| Hook                  | Purpose                                              |
+| --------------------- | ---------------------------------------------------- |
+| `use-tiptap-editor`   | Core editor instance with selection/storage handling |
+| `use-ui-editor-state` | UI state from editor storage extension               |
 
 ### Floating UI
-| Hook | Purpose |
-|------|---------|
-| `use-floating-element` | Floating element positioning via Floating UI |
+
+| Hook                              | Purpose                                       |
+| --------------------------------- | --------------------------------------------- |
+| `use-floating-element`            | Floating element positioning via Floating UI  |
 | `use-floating-toolbar-visibility` | Toolbar show/hide logic with transaction meta |
 
 ### Menu Navigation
-| Hook | Purpose |
-|------|---------|
+
+| Hook                  | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
 | `use-menu-navigation` | Keyboard navigation for menus (arrow keys, tab, enter, escape) |
 
 ### Cursor & Scrolling
-| Hook | Purpose |
-|------|---------|
+
+| Hook                    | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
 | `use-cursor-visibility` | Auto-scroll to keep cursor visible under toolbar |
-| `use-scrolling` | Scroll detection |
+| `use-scrolling`         | Scroll detection                                 |
 
 ### DOM Utilities
-| Hook | Purpose |
-|------|---------|
-| `use-window-size` | Window dimensions |
-| `use-element-rect` | Element bounding rect with ResizeObserver |
-| `use-body-rect` | Body bounding rect (throttled) |
-| `use-on-click-outside` | Click outside detection |
-| `use-composed-ref` | Compose multiple refs |
-| `use-unmount` | Unmount callbacks |
+
+| Hook                   | Purpose                                   |
+| ---------------------- | ----------------------------------------- |
+| `use-window-size`      | Window dimensions                         |
+| `use-element-rect`     | Element bounding rect with ResizeObserver |
+| `use-body-rect`        | Body bounding rect (throttled)            |
+| `use-on-click-outside` | Click outside detection                   |
+| `use-composed-ref`     | Compose multiple refs                     |
+| `use-unmount`          | Unmount callbacks                         |
 
 ### React Utilities
-| Hook | Purpose |
-|------|---------|
-| `use-isomorphic-layout-effect` | SSR-safe useLayoutEffect |
-| `use-is-breakpoint` | Responsive breakpoint detection |
-| `use-throttled-callback` | Throttled callback wrapper |
+
+| Hook                           | Purpose                         |
+| ------------------------------ | ------------------------------- |
+| `use-isomorphic-layout-effect` | SSR-safe useLayoutEffect        |
+| `use-is-breakpoint`            | Responsive breakpoint detection |
+| `use-throttled-callback`       | Throttled callback wrapper      |
 
 ## CONVENTIONS
 

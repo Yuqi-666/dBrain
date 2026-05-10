@@ -18,30 +18,30 @@ import type {
 type Mutation =
   | { type: "addNodeSemantic"; payload: NodeSemantic }
   | {
-    type: "updateNodeSemantic";
-    payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
-  }
+      type: "updateNodeSemantic";
+      payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
+    }
   | { type: "deleteNodeSemantic"; payload: { id: NodeSemanticId } }
   | { type: "addNodeTag"; payload: NodeTag }
   | {
-    type: "updateNodeTag";
-    payload: { id: NodeTagId; updates: Partial<NodeTag> };
-  }
+      type: "updateNodeTag";
+      payload: { id: NodeTagId; updates: Partial<NodeTag> };
+    }
   | { type: "deleteNodeTag"; payload: { id: NodeTagId } }
   | { type: "addEdgeSemantic"; payload: EdgeSemantic }
   | {
-    type: "updateEdgeSemantic";
-    payload: { id: EdgeSemanticId; updates: Partial<EdgeSemantic> };
-  }
+      type: "updateEdgeSemantic";
+      payload: { id: EdgeSemanticId; updates: Partial<EdgeSemantic> };
+    }
   | { type: "deleteEdgeSemantic"; payload: { id: EdgeSemanticId } }
   | { type: "addNode"; payload: NodeData }
   | {
-    type: "updateNode";
-    payload: {
-      id: NodeId;
-      updates: Partial<Omit<NodeData, "id" | "nodeType">>;
-    };
-  }
+      type: "updateNode";
+      payload: {
+        id: NodeId;
+        updates: Partial<Omit<NodeData, "id" | "nodeType">>;
+      };
+    }
   | { type: "deleteNode"; payload: { id: NodeId } }
   | { type: "addEdge"; payload: EdgeData }
   | { type: "updateEdge"; payload: { id: EdgeId; updates: Partial<EdgeData> } }

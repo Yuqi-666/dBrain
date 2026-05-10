@@ -7,7 +7,10 @@ interface RelationshipsTabProps {
   currentNodeId: string;
 }
 
-export function RelationshipsTab({ edges, currentNodeId }: RelationshipsTabProps) {
+export function RelationshipsTab({
+  edges,
+  currentNodeId,
+}: RelationshipsTabProps) {
   if (edges.length === 0) {
     return (
       <div className="text-sm text-muted-foreground text-center py-4">

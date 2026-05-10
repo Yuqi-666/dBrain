@@ -1,20 +1,20 @@
-import { Extension } from "@tiptap/core"
-import type { TableHandlesState } from "@workspace/editor/components/tiptap-node/table-node/extensions/table-handle"
+import { Extension } from "@tiptap/core";
+import type { TableHandlesState } from "@workspace/editor/components/tiptap-node/table-node/extensions/table-handle";
 import {
   TableHandlePlugin,
   tableHandlePluginKey,
-} from "@workspace/editor/components/tiptap-node/table-node/extensions/table-handle/table-handle-plugin"
+} from "@workspace/editor/components/tiptap-node/table-node/extensions/table-handle/table-handle-plugin";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     tableHandle: {
-      freezeHandles: () => ReturnType
-      unfreezeHandles: () => ReturnType
-    }
+      freezeHandles: () => ReturnType;
+      unfreezeHandles: () => ReturnType;
+    };
   }
 
   interface EditorEvents {
-    tableHandleState: TableHandlesState
+    tableHandleState: TableHandlesState;
   }
 }
 
@@ -26,25 +26,25 @@ export const TableHandleExtension = Extension.create({
       freezeHandles:
         () =>
         ({ tr, dispatch }) => {
-          if (dispatch) tr.setMeta(tableHandlePluginKey, true)
-          return true
+          if (dispatch) tr.setMeta(tableHandlePluginKey, true);
+          return true;
         },
 
       unfreezeHandles:
         () =>
         ({ tr, dispatch }) => {
-          if (dispatch) tr.setMeta(tableHandlePluginKey, false)
-          return true
+          if (dispatch) tr.setMeta(tableHandlePluginKey, false);
+          return true;
         },
-    }
+    };
   },
 
   addProseMirrorPlugins() {
-    const { editor } = this
+    const { editor } = this;
     return [
       TableHandlePlugin(editor, (state) => {
-        this.editor.emit("tableHandleState", state)
+        this.editor.emit("tableHandleState", state);
       }),
-    ]
+    ];
   },
-})
+});

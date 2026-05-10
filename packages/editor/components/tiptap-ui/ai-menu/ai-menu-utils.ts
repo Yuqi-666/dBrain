@@ -1,5 +1,5 @@
-import { type Editor } from "@tiptap/react"
-import { getSelectedDOMElement } from "@workspace/editor/lib/tiptap-advanced-utils"
+import { type Editor } from "@tiptap/react";
+import { getSelectedDOMElement } from "@workspace/editor/lib/tiptap-advanced-utils";
 
 /**
  * Computes the content-area rect of the editor (excluding padding/border).
@@ -7,19 +7,19 @@ import { getSelectedDOMElement } from "@workspace/editor/lib/tiptap-advanced-uti
  * @returns
  */
 export function getEditorContentRect(editorDom: HTMLElement) {
-  const editorRect = editorDom.getBoundingClientRect()
-  const style = getComputedStyle(editorDom)
+  const editorRect = editorDom.getBoundingClientRect();
+  const style = getComputedStyle(editorDom);
 
-  const paddingLeft = parseFloat(style.paddingLeft)
-  const paddingRight = parseFloat(style.paddingRight)
-  const borderLeft = parseFloat(style.borderLeftWidth)
-  const borderRight = parseFloat(style.borderRightWidth)
+  const paddingLeft = parseFloat(style.paddingLeft);
+  const paddingRight = parseFloat(style.paddingRight);
+  const borderLeft = parseFloat(style.borderLeftWidth);
+  const borderRight = parseFloat(style.borderRightWidth);
 
-  const left = editorRect.left + borderLeft + paddingLeft
+  const left = editorRect.left + borderLeft + paddingLeft;
   const width =
-    editorRect.width - paddingLeft - paddingRight - borderLeft - borderRight
+    editorRect.width - paddingLeft - paddingRight - borderLeft - borderRight;
 
-  return { left, width }
+  return { left, width };
 }
 
 /**
@@ -30,10 +30,10 @@ export function getEditorContentRect(editorDom: HTMLElement) {
  */
 export function createEditorWidthAnchorRect(
   editorDom: HTMLElement,
-  sourceRect: DOMRect
+  sourceRect: DOMRect,
 ): DOMRect {
-  const { left, width } = getEditorContentRect(editorDom)
-  return new DOMRect(left, sourceRect.top, width, sourceRect.height)
+  const { left, width } = getEditorContentRect(editorDom);
+  return new DOMRect(left, sourceRect.top, width, sourceRect.height);
 }
 
 /**
@@ -41,36 +41,36 @@ export function createEditorWidthAnchorRect(
  * Selection API, falling back to ProseMirror coordinates.
  */
 export function getSelectionRangeRect(editor: Editor): DOMRect | null {
-  const { state } = editor
-  const { selection } = state
+  const { state } = editor;
+  const { selection } = state;
 
-  if (selection.empty) return null
+  if (selection.empty) return null;
 
-  const domSelection = window.getSelection()
-  const editorDom = editor.view.dom as HTMLElement
+  const domSelection = window.getSelection();
+  const editorDom = editor.view.dom as HTMLElement;
 
   if (domSelection && domSelection.rangeCount > 0 && editorDom) {
-    const range = domSelection.getRangeAt(0)
-    const commonAncestor = range.commonAncestorContainer
+    const range = domSelection.getRangeAt(0);
+    const commonAncestor = range.commonAncestorContainer;
 
     if (commonAncestor && editorDom.contains(commonAncestor)) {
-      const rect = range.getBoundingClientRect()
+      const rect = range.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
-        return rect
+        return rect;
       }
     }
   }
 
   // Fallback: use ProseMirror coordinates
-  const fromCoords = editor.view.coordsAtPos(selection.from)
-  const toCoords = editor.view.coordsAtPos(selection.to)
+  const fromCoords = editor.view.coordsAtPos(selection.from);
+  const toCoords = editor.view.coordsAtPos(selection.to);
 
   return new DOMRect(
     Math.min(fromCoords.left, toCoords.left),
     Math.min(fromCoords.top, toCoords.top),
     Math.abs(toCoords.right - fromCoords.left),
-    Math.abs(toCoords.bottom - fromCoords.top)
-  )
+    Math.abs(toCoords.bottom - fromCoords.top),
+  );
 }
 
 /**
@@ -81,9 +81,9 @@ export function getSelectionRangeRect(editor: Editor): DOMRect | null {
  */
 export function createVirtualAnchor(
   rect: DOMRect,
-  referenceElement?: HTMLElement | null
+  referenceElement?: HTMLElement | null,
 ): HTMLElement {
-  const anchor = document.createElement("div")
+  const anchor = document.createElement("div");
   Object.assign(anchor.style, {
     position: "fixed",
     top: "0",
@@ -93,68 +93,68 @@ export function createVirtualAnchor(
     pointerEvents: "none",
     opacity: "0",
     zIndex: "-1",
-  })
+  });
 
   if (referenceElement) {
     // Store the offset relative to the reference element so that
     // getBoundingClientRect dynamically adjusts when the user scrolls.
-    const refRect = referenceElement.getBoundingClientRect()
-    const offsetTop = rect.top - refRect.top
-    const offsetLeft = rect.left - refRect.left
+    const refRect = referenceElement.getBoundingClientRect();
+    const offsetTop = rect.top - refRect.top;
+    const offsetLeft = rect.left - refRect.left;
 
     anchor.getBoundingClientRect = () => {
-      const currentRefRect = referenceElement.getBoundingClientRect()
+      const currentRefRect = referenceElement.getBoundingClientRect();
       return new DOMRect(
         currentRefRect.left + offsetLeft,
         currentRefRect.top + offsetTop,
         rect.width,
-        rect.height
-      )
-    }
+        rect.height,
+      );
+    };
   } else {
-    anchor.getBoundingClientRect = () => rect
+    anchor.getBoundingClientRect = () => rect;
   }
-  anchor.setAttribute("data-fallback-anchor", "true")
-  document.body.appendChild(anchor)
-  return anchor
+  anchor.setAttribute("data-fallback-anchor", "true");
+  document.body.appendChild(anchor);
+  return anchor;
 }
 
 export function getContextAndInsertAt(editor: Editor) {
-  let context: string | undefined = ""
-  let insertAt = { from: 0, to: 0 }
-  let isSelection = true
-  const generatedWith = editor.storage.ai.generatedWith
+  let context: string | undefined = "";
+  let insertAt = { from: 0, to: 0 };
+  let isSelection = true;
+  const generatedWith = editor.storage.ai.generatedWith;
 
   if (generatedWith && generatedWith.range) {
-    context = editor.storage.ai.response
-    insertAt = generatedWith.range
-    isSelection = false
+    context = editor.storage.ai.response;
+    insertAt = generatedWith.range;
+    isSelection = false;
   }
 
   if (!generatedWith || !generatedWith.range) {
-    const { state } = editor
-    const { selection } = state
-    const { from, to } = editor.state.selection
+    const { state } = editor;
+    const { selection } = state;
+    const { from, to } = editor.state.selection;
 
-    const selectionContent = selection.content()
+    const selectionContent = selection.content();
 
     const htmlContent =
-      editor.view.serializeForClipboard(selectionContent).dom.innerHTML
+      editor.view.serializeForClipboard(selectionContent).dom.innerHTML;
     const textContent = selectionContent.content.textBetween(
       0,
       selectionContent.content.size,
-      "\n"
-    )
+      "\n",
+    );
 
-    context = htmlContent || textContent
-    insertAt = { from, to }
+    context = htmlContent || textContent;
+    insertAt = { from, to };
   }
 
-  return { context, insertAt, isSelection }
+  return { context, insertAt, isSelection };
 }
 
 export function createPositionAnchor(rect: DOMRect): HTMLElement {
-  const anchor = document.createElement("div")
+  const anchor = document.createElement("div");
   Object.assign(anchor.style, {
     position: "absolute",
     left: `${rect.left}px`,
@@ -164,74 +164,74 @@ export function createPositionAnchor(rect: DOMRect): HTMLElement {
     pointerEvents: "none",
     opacity: "0",
     zIndex: "-1",
-  })
+  });
 
-  anchor.setAttribute("data-fallback-anchor", "true")
-  document.body.appendChild(anchor)
-  return anchor
+  anchor.setAttribute("data-fallback-anchor", "true");
+  document.body.appendChild(anchor);
+  return anchor;
 }
 
 export function cleanupFallbackAnchors(): void {
   document
     .querySelectorAll('[data-fallback-anchor="true"]')
-    .forEach((el) => el.remove())
+    .forEach((el) => el.remove());
 }
 
 export function getTopMostParentInsideEditor(
   element: HTMLElement,
-  editorRoot: HTMLElement
+  editorRoot: HTMLElement,
 ): HTMLElement {
   if (!element || !editorRoot) {
-    throw new Error("Both element and editorRoot must be provided")
+    throw new Error("Both element and editorRoot must be provided");
   }
 
-  if (element === editorRoot) return element
+  if (element === editorRoot) return element;
 
   if (!editorRoot.contains(element)) {
-    throw new Error("Element is not inside the editor root")
+    throw new Error("Element is not inside the editor root");
   }
 
-  let parent = element
+  let parent = element;
   while (parent.parentElement && parent.parentElement !== editorRoot) {
-    parent = parent.parentElement
+    parent = parent.parentElement;
   }
 
-  return parent
+  return parent;
 }
 
 export function findAiMarkedDOMElement(editor: Editor): HTMLElement | null {
-  const view = editor.view
+  const view = editor.view;
   const aiMarkedElements = view.dom.querySelectorAll(
-    ".tiptap-ai-insertion"
-  ) as NodeListOf<HTMLElement>
+    ".tiptap-ai-insertion",
+  ) as NodeListOf<HTMLElement>;
 
-  if (aiMarkedElements.length === 0) return null
+  if (aiMarkedElements.length === 0) return null;
 
-  const lastAiMarkElement = aiMarkedElements[aiMarkedElements.length - 1]
+  const lastAiMarkElement = aiMarkedElements[aiMarkedElements.length - 1];
 
   if (lastAiMarkElement && view.dom) {
     try {
-      return getTopMostParentInsideEditor(lastAiMarkElement, view.dom)
+      return getTopMostParentInsideEditor(lastAiMarkElement, view.dom);
     } catch {
-      return lastAiMarkElement || null
+      return lastAiMarkElement || null;
     }
   }
 
-  return lastAiMarkElement || null
+  return lastAiMarkElement || null;
 }
 
 export function findPrioritizedAIElement(editor: Editor): HTMLElement | null {
   // AI marked elements
-  const aiMarkedElement = findAiMarkedDOMElement(editor)
+  const aiMarkedElement = findAiMarkedDOMElement(editor);
   if (aiMarkedElement) {
-    return aiMarkedElement
+    return aiMarkedElement;
   }
 
   // Currently selected element
-  const selectedElement = getSelectedDOMElement(editor)
+  const selectedElement = getSelectedDOMElement(editor);
   if (selectedElement) {
-    return selectedElement
+    return selectedElement;
   }
 
-  return null
+  return null;
 }

@@ -1,8 +1,8 @@
-import { Extension } from "@tiptap/core"
-import { Plugin } from '@tiptap/pm/state'
+import { Extension } from "@tiptap/core";
+import { Plugin } from "@tiptap/pm/state";
 
 export const PasteMarkdown = Extension.create({
-  name: 'pasteMarkdown',
+  name: "pasteMarkdown",
 
   addProseMirrorPlugins() {
     const { editor } = this;
@@ -10,25 +10,25 @@ export const PasteMarkdown = Extension.create({
       new Plugin({
         props: {
           handlePaste(view, event, slice) {
-            const text = event.clipboardData?.getData('text/plain')
+            const text = event.clipboardData?.getData("text/plain");
 
             if (!text) {
-              return false
+              return false;
             }
 
             if (editor.markdown) {
               // Parse the Markdown text to Tiptap JSON using the Markdown manager
-              const json = editor.markdown.parse(text)
+              const json = editor.markdown.parse(text);
 
               // Insert the parsed JSON content at cursor position
-              editor.commands.insertContent(json)
-              return true
+              editor.commands.insertContent(json);
+              return true;
             }
 
-            return false
+            return false;
           },
         },
       }),
-    ]
+    ];
   },
-})
+});

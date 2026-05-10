@@ -1,11 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type {
-  NodeData,
-  NodeId,
-  EdgeData,
-  EdgeId,
-} from "@workspace/interfaces";
+import type { NodeData, NodeId, EdgeData, EdgeId } from "@workspace/interfaces";
 
 /**
  * tRPC Context - created for each request

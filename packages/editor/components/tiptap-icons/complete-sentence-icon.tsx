@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from "react";
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<"svg">;
 
 export const CompleteSentenceIcon = memo(
   ({ className, ...props }: SvgProps) => {
@@ -37,8 +37,8 @@ export const CompleteSentenceIcon = memo(
           fill="currentColor"
         />
       </svg>
-    )
-  }
-)
+    );
+  },
+);
 
-CompleteSentenceIcon.displayName = "CompleteSentenceIcon"
+CompleteSentenceIcon.displayName = "CompleteSentenceIcon";

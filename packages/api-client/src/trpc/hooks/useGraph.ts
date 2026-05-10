@@ -1,5 +1,11 @@
-import { trpc } from '../provider';
-import type { NodeData, EdgeData, NodeSemantic, EdgeSemantic, View } from '@workspace/interfaces';
+import { trpc } from "../provider";
+import type {
+  NodeData,
+  EdgeData,
+  NodeSemantic,
+  EdgeSemantic,
+  View,
+} from "@workspace/interfaces";
 
 export const useAddNode = () => trpc.node.add.useMutation();
 export const useUpdateNode = () => trpc.node.update.useMutation();
@@ -48,8 +54,10 @@ export const useEdgeDeleted = (onData: (event: any) => void) => {
 };
 
 export const useAddNodeSemantic = () => trpc.nodeSemantic.add.useMutation();
-export const useUpdateNodeSemantic = () => trpc.nodeSemantic.update.useMutation();
-export const useDeleteNodeSemantic = () => trpc.nodeSemantic.delete.useMutation();
+export const useUpdateNodeSemantic = () =>
+  trpc.nodeSemantic.update.useMutation();
+export const useDeleteNodeSemantic = () =>
+  trpc.nodeSemantic.delete.useMutation();
 
 // Node semantic subscriptions
 export const useNodeSemanticAdded = (onData: (event: any) => void) => {
@@ -71,8 +79,10 @@ export const useNodeSemanticDeleted = (onData: (event: any) => void) => {
 };
 
 export const useAddEdgeSemantic = () => trpc.edgeSemantic.add.useMutation();
-export const useUpdateEdgeSemantic = () => trpc.edgeSemantic.update.useMutation();
-export const useDeleteEdgeSemantic = () => trpc.edgeSemantic.delete.useMutation();
+export const useUpdateEdgeSemantic = () =>
+  trpc.edgeSemantic.update.useMutation();
+export const useDeleteEdgeSemantic = () =>
+  trpc.edgeSemantic.delete.useMutation();
 
 // Edge semantic subscriptions
 export const useEdgeSemanticAdded = (onData: (event: any) => void) => {

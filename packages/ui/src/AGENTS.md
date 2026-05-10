@@ -5,9 +5,11 @@
 **Parent:** /home/lyq/workspace/project/dBrain/AGENTS.md
 
 ## OVERVIEW
+
 Shared UI component library for all dBrain applications. Combines shadcn/ui primitives with custom application-specific components. Largest UI package.
 
 ## STRUCTURE
+
 ```
 components/
 ├── ui/              # Base shadcn components (DO NOT modify)
@@ -24,15 +26,17 @@ styles/
 ```
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Base shadcn | components/ui/ | Add custom variants, don't modify originals |
-| Custom components | components/*.tsx | App-specific UI (KnowledgeGraph, etc.) |
-| Header variants | components/header/ | Graph and editor header bars |
-| Preview blocks | components/preview-block/ | Node content renderers |
-| Class utility | utils/cn.ts | `cn()` for merging Tailwind classes |
+
+| Task              | Location                  | Notes                                       |
+| ----------------- | ------------------------- | ------------------------------------------- |
+| Base shadcn       | components/ui/            | Add custom variants, don't modify originals |
+| Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)      |
+| Header variants   | components/header/        | Graph and editor header bars                |
+| Preview blocks    | components/preview-block/ | Node content renderers                      |
+| Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes         |
 
 ## CONVENTIONS
+
 - **Named exports only** — no default exports
 - **Always use `cn()`** from `@workspace/ui/utils/cn` for class merging
 - **Filename = Component name** in PascalCase (e.g., `KnowledgeGraph.tsx`)
@@ -42,6 +46,7 @@ styles/
 - shadcn components in `components/ui/` are base — extend in custom components
 
 ## ANTI-PATTERNS
+
 - **NEVER** inline custom CSS when Tailwind utility exists
 - **NEVER** modify shadcn base components after adding — extend instead
 - **NEVER** duplicate components — extend or compose

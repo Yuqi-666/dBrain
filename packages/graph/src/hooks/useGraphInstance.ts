@@ -62,7 +62,13 @@ export function useGraphInstance({
       graph.destroy();
       graphRef.current = null;
     };
-  }, [containerRef, theme, handleNodeSelect, handleEdgeSelect, fixPreviewOnFocus]);
+  }, [
+    containerRef,
+    theme,
+    handleNodeSelect,
+    handleEdgeSelect,
+    fixPreviewOnFocus,
+  ]);
 
   return graphRef;
 }

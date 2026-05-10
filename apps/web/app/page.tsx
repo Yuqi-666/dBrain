@@ -16,8 +16,6 @@ import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sid
 import { EditorHeader } from "@workspace/ui/components/header/editor-header/editor-header";
 import { NodeEditor } from "@workspace/ui/components/editor";
 
-
-
 export default function GraphDemoPage(): ReactNode {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isInitialized, setIsInitialized] = useState(false);
@@ -52,7 +50,9 @@ export default function GraphDemoPage(): ReactNode {
                 enableNodeDragging={true}
                 enableEdgeInteractions={true}
                 className="w-full h-full"
-                onLoad={(graph) => console.log("[GraphDemo] Graph loaded", graph)}
+                onLoad={(graph) =>
+                  console.log("[GraphDemo] Graph loaded", graph)
+                }
               />
             )}
             <NodeEditor />

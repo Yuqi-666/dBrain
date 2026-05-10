@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import { getAvatar } from "@workspace/editor/lib/tiptap-collab-utils"
-import { createContext, useContext, useEffect, useState } from "react"
+import { getAvatar } from "@workspace/editor/lib/tiptap-collab-utils";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export type User = {
-  id: string
-  name: string
-  color: string
-  avatar: string
-}
+  id: string;
+  name: string;
+  color: string;
+  avatar: string;
+};
 
 export type UserContextValue = {
-  user: User
-}
+  user: User;
+};
 
 export const UserContext = createContext<UserContextValue>({
   user: { color: "", id: "", name: "", avatar: "" },
-})
+});
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user] = useState<User>({
@@ -24,20 +24,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     name: getUsernameFromLocalStorage(),
     id: getUserIdFromLocalStorage(),
     avatar: getAvatar(getUsernameFromLocalStorage()),
-  })
+  });
 
   useEffect(() => {
-    window.localStorage.setItem("_tiptap_username", user.name)
-    window.localStorage.setItem("_tiptap_color", user.color)
-    window.localStorage.setItem("_tiptap_user_id", user.id)
-  }, [user])
+    window.localStorage.setItem("_tiptap_username", user.name);
+    window.localStorage.setItem("_tiptap_color", user.color);
+    window.localStorage.setItem("_tiptap_user_id", user.id);
+  }, [user]);
 
   return (
     <UserContext.Provider value={{ user }}>{children}</UserContext.Provider>
-  )
+  );
 }
 
-export const useUser = () => useContext(UserContext)
+export const useUser = () => useContext(UserContext);
 
 export const FIRST_NAMES = [
   "John",
@@ -52,7 +52,7 @@ export const FIRST_NAMES = [
   "Helen",
   "Rob Lowe",
   "Rob",
-]
+];
 
 export const LAST_NAMES = [
   "Smith",
@@ -68,7 +68,7 @@ export const LAST_NAMES = [
   "Anderson",
   "Thomas",
   "Lowe",
-]
+];
 
 export const USER_COLORS = [
   "#fb7185",
@@ -81,59 +81,59 @@ export const USER_COLORS = [
   "#fda58d",
   "#f2cc8f",
   "#9ae6b4",
-]
+];
 
 const uuid = (): string => {
-  const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+  const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
   return template.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    const v = c === "x" ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 const getRandomArrayItem = (array: string[]) => {
   if (array.length === 0) {
-    throw new Error("Cannot get random item from empty array")
+    throw new Error("Cannot get random item from empty array");
   }
-  return array[Math.floor(Math.random() * array.length)]!
-}
+  return array[Math.floor(Math.random() * array.length)]!;
+};
 
 const generateRandomUsername = (): string => {
-  const names = [getRandomArrayItem(FIRST_NAMES)]
+  const names = [getRandomArrayItem(FIRST_NAMES)];
 
   if (Math.random() > 0.85) {
-    names.push(getRandomArrayItem(FIRST_NAMES))
+    names.push(getRandomArrayItem(FIRST_NAMES));
   }
-  names.push(getRandomArrayItem(LAST_NAMES))
+  names.push(getRandomArrayItem(LAST_NAMES));
 
-  return names.join(" ")
-}
+  return names.join(" ");
+};
 
 const generateRandomColor = (): string => {
-  return getRandomArrayItem(USER_COLORS) ?? "#9ae6b4"
-}
+  return getRandomArrayItem(USER_COLORS) ?? "#9ae6b4";
+};
 
 const getFromLocalStorage = (
   key: string,
   fallback: () => string,
-  isServer: boolean = typeof window === "undefined"
+  isServer: boolean = typeof window === "undefined",
 ): string => {
   if (isServer) {
-    return fallback()
+    return fallback();
   }
-  const value = window.localStorage.getItem(key)
-  return value !== null ? value : fallback()
-}
+  const value = window.localStorage.getItem(key);
+  return value !== null ? value : fallback();
+};
 
 const getUsernameFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_username", generateRandomUsername)
-}
+  return getFromLocalStorage("_tiptap_username", generateRandomUsername);
+};
 
 const getColorFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_color", generateRandomColor)
-}
+  return getFromLocalStorage("_tiptap_color", generateRandomColor);
+};
 
 const getUserIdFromLocalStorage = (): string => {
-  return getFromLocalStorage("_tiptap_user_id", () => uuid())
-}
+  return getFromLocalStorage("_tiptap_user_id", () => uuid());
+};

@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from "react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap UI ---
-import type { UseTableAddRowColumnConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-add-row-column-button"
-import { useTableAddRowColumn } from "@workspace/editor/components/tiptap-node/table-node/ui/table-add-row-column-button"
+import type { UseTableAddRowColumnConfig } from "@workspace/editor/components/tiptap-node/table-node/ui/table-add-row-column-button";
+import { useTableAddRowColumn } from "@workspace/editor/components/tiptap-node/table-node/ui/table-add-row-column-button";
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 
 export interface TableAddRowColumnButtonProps
   extends Omit<ButtonProps, "type">, UseTableAddRowColumnConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
 }
 
 /**
@@ -44,9 +44,9 @@ export const TableAddRowColumnButton = forwardRef<
       children,
       ...buttonProps
     },
-    ref
+    ref,
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
+    const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleAdd, label, canAddRowColumn, Icon } =
       useTableAddRowColumn({
         editor,
@@ -56,19 +56,19 @@ export const TableAddRowColumnButton = forwardRef<
         tablePos,
         hideWhenUnavailable,
         onAdded,
-      })
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleAdd()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleAdd();
       },
-      [handleAdd, onClick]
-    )
+      [handleAdd, onClick],
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
@@ -94,8 +94,8 @@ export const TableAddRowColumnButton = forwardRef<
           </>
         )}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-TableAddRowColumnButton.displayName = "TableAddRowColumnButton"
+TableAddRowColumnButton.displayName = "TableAddRowColumnButton";

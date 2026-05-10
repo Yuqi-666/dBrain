@@ -103,7 +103,10 @@ export function PreviewBlock({
     height: PREVIEW_MAX_HEIGHT,
   });
   const [, setTick] = React.useState(0);
-  const [frozenPosition, setFrozenPosition] = React.useState<{ x: number; y: number } | null>(null);
+  const [frozenPosition, setFrozenPosition] = React.useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!visible) return;

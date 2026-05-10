@@ -1,119 +1,119 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef } from "react"
-import { type Editor } from "@tiptap/react"
+import { useCallback, useEffect, useRef } from "react";
+import { type Editor } from "@tiptap/react";
 
-import { AiMenuItems } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-items/ai-menu-items"
+import { AiMenuItems } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-items/ai-menu-items";
 
 // -- Hooks --
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
-import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
+import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state";
 
 // -- Utils --
 import {
   getSelectedDOMElement,
   selectionHasText,
-} from "@workspace/editor/lib/tiptap-advanced-utils"
+} from "@workspace/editor/lib/tiptap-advanced-utils";
 
 // -- Tiptap UI --
-import { AiMenuInputTextarea } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input"
-import { AiMenuActions } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-actions/ai-menu-actions"
+import { AiMenuInputTextarea } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-input/ai-menu-input";
+import { AiMenuActions } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-actions/ai-menu-actions";
 
 // -- UI Primitives --
 import {
   Menu,
   MenuContent,
   useFloatingMenuStore,
-} from "@workspace/editor/components/tiptap-ui-primitive/menu"
-import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
+} from "@workspace/editor/components/tiptap-ui-primitive/menu";
+import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   ComboboxList,
   ComboboxPopover,
-} from "@workspace/editor/components/tiptap-ui-primitive/combobox"
-import { Card } from "@workspace/editor/components/tiptap-ui-primitive/card/card"
+} from "@workspace/editor/components/tiptap-ui-primitive/combobox";
+import { Card } from "@workspace/editor/components/tiptap-ui-primitive/card/card";
 
 import {
   getContextAndInsertAt,
   getSelectionRangeRect,
   createVirtualAnchor,
   createEditorWidthAnchorRect,
-} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-utils"
+} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-utils";
 import {
   useAiContentTracker,
   useAiMenuState,
   useAiMenuStateProvider,
   useTextSelectionTracker,
-} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-hooks"
+} from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-hooks";
 
 // -- Icons --
-import { StopCircle2Icon } from "@workspace/editor/components/tiptap-icons/stop-circle-2-icon"
+import { StopCircle2Icon } from "@workspace/editor/components/tiptap-icons/stop-circle-2-icon";
 
-import "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu.scss"
+import "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu.scss";
 
 export function AiMenuStateProvider({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const { value, AiMenuStateContext } = useAiMenuStateProvider()
+  const { value, AiMenuStateContext } = useAiMenuStateProvider();
 
   return (
     <AiMenuStateContext.Provider value={value}>
       {children}
     </AiMenuStateContext.Provider>
-  )
+  );
 }
 
 export function AiMenuContent({
   editor: providedEditor,
   anchorToSelection = false,
 }: {
-  editor?: Editor | null
-  anchorToSelection?: boolean
+  editor?: Editor | null;
+  anchorToSelection?: boolean;
 }) {
-  const { editor } = useTiptapEditor(providedEditor)
-  const { state, updateState, setFallbackAnchor, reset } = useAiMenuState()
-  const { show, store } = useFloatingMenuStore()
+  const { editor } = useTiptapEditor(providedEditor);
+  const { state, updateState, setFallbackAnchor, reset } = useAiMenuState();
+  const { show, store } = useFloatingMenuStore();
   const { aiGenerationIsLoading, aiGenerationActive, aiGenerationHasMessage } =
-    useUiEditorState(editor)
-  const tiptapAiPromptInputRef = useRef<HTMLDivElement | null>(null)
+    useUiEditorState(editor);
+  const tiptapAiPromptInputRef = useRef<HTMLDivElement | null>(null);
 
   const closeAiMenu = useCallback(() => {
-    if (!editor) return
-    reset()
-    store?.hideAll()
-    editor.commands.resetUiState()
-  }, [editor, reset, store])
+    if (!editor) return;
+    reset();
+    store?.hideAll();
+    editor.commands.resetUiState();
+  }, [editor, reset, store]);
 
   const handlePromptSubmit = useCallback(
     (userPrompt: string) => {
-      if (!editor || !userPrompt.trim()) return
+      if (!editor || !userPrompt.trim()) return;
 
-      const { context } = getContextAndInsertAt(editor)
+      const { context } = getContextAndInsertAt(editor);
       // if context, add it to the user prompt
       const promptWithContext = context
         ? `${context}\n\n${userPrompt}`
-        : userPrompt
+        : userPrompt;
 
       // Ensure fallback anchor is set before submitting
       if (!state.fallbackAnchor.element || !state.fallbackAnchor.rect) {
         if (anchorToSelection) {
-          const selectionRect = getSelectionRangeRect(editor)
+          const selectionRect = getSelectionRangeRect(editor);
 
           if (selectionRect) {
             const anchorRect = createEditorWidthAnchorRect(
               editor.view.dom,
-              selectionRect
-            )
+              selectionRect,
+            );
 
-            const anchor = createVirtualAnchor(anchorRect, editor.view.dom)
-            setFallbackAnchor(anchor, anchorRect)
+            const anchor = createVirtualAnchor(anchorRect, editor.view.dom);
+            setFallbackAnchor(anchor, anchorRect);
           }
         } else {
-          const currentSelectedElement = getSelectedDOMElement(editor)
+          const currentSelectedElement = getSelectedDOMElement(editor);
           if (currentSelectedElement) {
-            const rect = currentSelectedElement.getBoundingClientRect()
-            setFallbackAnchor(currentSelectedElement, rect)
+            const rect = currentSelectedElement.getBoundingClientRect();
+            setFallbackAnchor(currentSelectedElement, rect);
           }
         }
       }
@@ -127,7 +127,7 @@ export function AiMenuContent({
           tone: state.tone,
           format: "rich-text",
         })
-        .run()
+        .run();
     },
     [
       editor,
@@ -136,60 +136,60 @@ export function AiMenuContent({
       state.tone,
       anchorToSelection,
       setFallbackAnchor,
-    ]
-  )
+    ],
+  );
 
   const setAnchorElement = useCallback(
     (element: HTMLElement) => {
-      store.setAnchorElement(element)
+      store.setAnchorElement(element);
     },
-    [store]
-  )
+    [store],
+  );
 
   const handleSelectionChange = useCallback(
     (element: HTMLElement | null, rect: DOMRect | null) => {
-      setFallbackAnchor(element, rect)
+      setFallbackAnchor(element, rect);
     },
-    [setFallbackAnchor]
-  )
+    [setFallbackAnchor],
+  );
 
   const handleOnReject = useCallback(() => {
-    if (!editor) return
-    editor.commands.aiReject()
-    closeAiMenu()
-  }, [closeAiMenu, editor])
+    if (!editor) return;
+    editor.commands.aiReject();
+    closeAiMenu();
+  }, [closeAiMenu, editor]);
 
   const handleOnAccept = useCallback(() => {
-    if (!editor) return
-    editor.commands.aiAccept()
-    closeAiMenu()
-  }, [closeAiMenu, editor])
+    if (!editor) return;
+    editor.commands.aiAccept();
+    closeAiMenu();
+  }, [closeAiMenu, editor]);
 
   const handleInputOnClose = useCallback(() => {
-    if (!editor) return
+    if (!editor) return;
     if (aiGenerationIsLoading) {
-      editor.commands.aiReject({ type: "reset" })
+      editor.commands.aiReject({ type: "reset" });
     } else {
-      editor.commands.aiAccept()
+      editor.commands.aiAccept();
     }
-    closeAiMenu()
-  }, [aiGenerationIsLoading, closeAiMenu, editor])
+    closeAiMenu();
+  }, [aiGenerationIsLoading, closeAiMenu, editor]);
 
   const handleClickOutside = useCallback(() => {
     if (!aiGenerationIsLoading) {
-      closeAiMenu()
+      closeAiMenu();
 
-      if (!editor) return
-      editor.commands.aiAccept()
+      if (!editor) return;
+      editor.commands.aiAccept();
     }
-  }, [aiGenerationIsLoading, closeAiMenu, editor])
+  }, [aiGenerationIsLoading, closeAiMenu, editor]);
 
   useAiContentTracker({
     editor,
     aiGenerationActive,
     setAnchorElement,
     anchorToSelection,
-  })
+  });
 
   useTextSelectionTracker({
     editor,
@@ -199,39 +199,39 @@ export function AiMenuContent({
     onSelectionChange: handleSelectionChange,
     prevent: aiGenerationIsLoading,
     anchorToSelection,
-  })
+  });
 
   useEffect(() => {
     if (aiGenerationIsLoading) {
-      updateState({ shouldShowInput: false })
+      updateState({ shouldShowInput: false });
     }
-  }, [aiGenerationIsLoading, updateState])
+  }, [aiGenerationIsLoading, updateState]);
 
   useEffect(() => {
     if (!aiGenerationActive && state.isOpen) {
-      closeAiMenu()
+      closeAiMenu();
     }
-  }, [aiGenerationActive, state.isOpen, closeAiMenu])
+  }, [aiGenerationActive, state.isOpen, closeAiMenu]);
 
   const smoothFocusAndScroll = (element: HTMLElement | null) => {
-    element?.focus()
+    element?.focus();
     element?.scrollIntoView({
       behavior: "smooth",
       block: "center",
       inline: "nearest",
-    })
+    });
 
     // Ensure the menu back to focus after focusing on the popover
-    setTimeout(() => store.setAutoFocusOnShow(false), 0)
-    return false
-  }
+    setTimeout(() => store.setAutoFocusOnShow(false), 0);
+    return false;
+  };
 
   const shouldShowList =
     selectionHasText(editor) ||
-    (aiGenerationHasMessage && state.shouldShowInput && state.inputIsFocused)
+    (aiGenerationHasMessage && state.shouldShowInput && state.inputIsFocused);
 
   if (!editor || !state.isOpen || !aiGenerationActive) {
-    return null
+    return null;
   }
 
   return (
@@ -282,7 +282,7 @@ export function AiMenuContent({
             getAnchorRect={() => {
               return (
                 tiptapAiPromptInputRef.current?.getBoundingClientRect() || null
-              )
+              );
             }}
           >
             <ComboboxList
@@ -294,19 +294,19 @@ export function AiMenuContent({
         )}
       </MenuContent>
     </Menu>
-  )
+  );
 }
 
 export function AiMenuProgress({ editor }: { editor: Editor }) {
-  const { reset } = useAiMenuState()
+  const { reset } = useAiMenuState();
 
   const handleStop = useCallback(() => {
-    if (!editor) return
+    if (!editor) return;
 
-    editor.chain().aiReject({ type: "reset" }).run()
-    reset()
-    editor.commands.resetUiState()
-  }, [editor, reset])
+    editor.chain().aiReject({ type: "reset" }).run();
+    reset();
+    editor.commands.resetUiState();
+  }, [editor, reset]);
 
   return (
     <div className="tiptap-ai-menu-progress">
@@ -323,19 +323,19 @@ export function AiMenuProgress({ editor }: { editor: Editor }) {
         <StopCircle2Icon className="tiptap-button-icon" />
       </Button>
     </div>
-  )
+  );
 }
 
 export function AiMenu({
   editor,
   anchorToSelection,
 }: {
-  editor?: Editor | null
-  anchorToSelection?: boolean
+  editor?: Editor | null;
+  anchorToSelection?: boolean;
 }) {
   return (
     <AiMenuStateProvider>
       <AiMenuContent editor={editor} anchorToSelection={anchorToSelection} />
     </AiMenuStateProvider>
-  )
+  );
 }

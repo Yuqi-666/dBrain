@@ -1,3 +1,3 @@
-export {}
+export {};
 
-console.log('dBrain server initialized')
+console.log("dBrain server initialized");

@@ -1,33 +1,33 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import type { Editor } from "@tiptap/react"
+import { useCallback, useEffect, useState } from "react";
+import type { Editor } from "@tiptap/react";
 
 // --- Hooks ---
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Icons ---
-import { TextColorSmallIcon } from "@workspace/editor/components/tiptap-icons/text-color-small-icon"
+import { TextColorSmallIcon } from "@workspace/editor/components/tiptap-icons/text-color-small-icon";
 
 // --- Lib ---
-import { isMarkInSchema } from "@workspace/editor/lib/tiptap-utils"
-import { getActiveMarkAttrs } from "@workspace/editor/lib/tiptap-advanced-utils"
+import { isMarkInSchema } from "@workspace/editor/lib/tiptap-utils";
+import { getActiveMarkAttrs } from "@workspace/editor/lib/tiptap-advanced-utils";
 
 // --- Tiptap UI ---
-import { canColorText } from "@workspace/editor/components/tiptap-ui/color-text-button"
-import { canColorHighlight } from "@workspace/editor/components/tiptap-ui/color-highlight-button"
+import { canColorText } from "@workspace/editor/components/tiptap-ui/color-text-button";
+import { canColorHighlight } from "@workspace/editor/components/tiptap-ui/color-highlight-button";
 
-export type ColorType = "text" | "highlight"
+export type ColorType = "text" | "highlight";
 
 export interface ColorItem {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 export interface RecentColor {
-  type: ColorType
-  label: string
-  value: string
+  type: ColorType;
+  label: string;
+  value: string;
 }
 
 /**
@@ -37,12 +37,12 @@ export interface UseColorTextPopoverConfig {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor | null
+  editor?: Editor | null;
   /**
    * Whether the popover should hide when color text is not available.
    * @default false
    */
-  hideWhenUnavailable?: boolean
+  hideWhenUnavailable?: boolean;
   /**
    * Callback function called after a color is applied.
    */
@@ -51,10 +51,10 @@ export interface UseColorTextPopoverConfig {
     label,
     value,
   }: {
-    type: ColorType
-    label: string
-    value: string
-  }) => void
+    type: ColorType;
+    label: string;
+    value: string;
+  }) => void;
 }
 
 /**
@@ -62,60 +62,60 @@ export interface UseColorTextPopoverConfig {
  */
 export function getColorByValue(
   value: string,
-  colorArray: ColorItem[]
+  colorArray: ColorItem[],
 ): ColorItem {
   return (
     colorArray.find((color) => color.value === value) ?? {
       value,
       label: value,
     }
-  )
+  );
 }
 
 /**
  * Checks if color text popover should be shown
  */
 export function shouldShowColorTextPopover(params: {
-  editor: Editor | null
-  hideWhenUnavailable: boolean
+  editor: Editor | null;
+  hideWhenUnavailable: boolean;
 }): boolean {
-  const { editor, hideWhenUnavailable } = params
+  const { editor, hideWhenUnavailable } = params;
 
-  if (!editor) return false
+  if (!editor) return false;
 
   if (!hideWhenUnavailable) {
-    return true
+    return true;
   }
 
-  if (!editor.isEditable) return false
+  if (!editor.isEditable) return false;
 
   if (!editor.isActive("code")) {
-    return canColorText(editor) || canColorHighlight(editor)
+    return canColorText(editor) || canColorHighlight(editor);
   }
 
-  return true
+  return true;
 }
 
 /**
  * Hook to manage recently used colors
  */
 export function useRecentColors(maxColors: number = 3) {
-  const [recentColors, setRecentColors] = useState<RecentColor[]>([])
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [recentColors, setRecentColors] = useState<RecentColor[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     try {
-      const storedColors = localStorage.getItem("tiptapRecentlyUsedColors")
+      const storedColors = localStorage.getItem("tiptapRecentlyUsedColors");
       if (storedColors) {
-        const colors = JSON.parse(storedColors) as RecentColor[]
-        setRecentColors(colors.slice(0, maxColors))
+        const colors = JSON.parse(storedColors) as RecentColor[];
+        setRecentColors(colors.slice(0, maxColors));
       }
     } catch (e) {
-      console.error("Failed to load stored colors:", e)
+      console.error("Failed to load stored colors:", e);
     } finally {
-      setIsInitialized(true)
+      setIsInitialized(true);
     }
-  }, [maxColors])
+  }, [maxColors]);
 
   const addRecentColor = useCallback(
     ({
@@ -123,35 +123,35 @@ export function useRecentColors(maxColors: number = 3) {
       label,
       value,
     }: {
-      type: ColorType
-      label: string
-      value: string
+      type: ColorType;
+      label: string;
+      value: string;
     }) => {
       setRecentColors((prevColors) => {
         const filtered = prevColors.filter(
-          (c) => !(c.type === type && c.value === value)
-        )
+          (c) => !(c.type === type && c.value === value),
+        );
         const updated = [{ type, label, value }, ...filtered].slice(
           0,
-          maxColors
-        )
+          maxColors,
+        );
 
         try {
           localStorage.setItem(
             "tiptapRecentlyUsedColors",
-            JSON.stringify(updated)
-          )
+            JSON.stringify(updated),
+          );
         } catch (e) {
-          console.error("Failed to store colors:", e)
+          console.error("Failed to store colors:", e);
         }
 
-        return updated
-      })
+        return updated;
+      });
     },
-    [maxColors]
-  )
+    [maxColors],
+  );
 
-  return { recentColors, addRecentColor, isInitialized }
+  return { recentColors, addRecentColor, isInitialized };
 }
 
 /**
@@ -217,39 +217,39 @@ export function useColorTextPopover(config?: UseColorTextPopoverConfig) {
     editor: providedEditor,
     hideWhenUnavailable = false,
     onColorChanged,
-  } = config || {}
+  } = config || {};
 
-  const { editor } = useTiptapEditor(providedEditor)
-  const [isVisible, setIsVisible] = useState(true)
+  const { editor } = useTiptapEditor(providedEditor);
+  const [isVisible, setIsVisible] = useState(true);
 
-  const textStyleInSchema = isMarkInSchema("textStyle", editor)
-  const highlightInSchema = isMarkInSchema("highlight", editor)
+  const textStyleInSchema = isMarkInSchema("textStyle", editor);
+  const highlightInSchema = isMarkInSchema("highlight", editor);
 
-  const activeTextStyle = getActiveMarkAttrs(editor, "textStyle") || {}
-  const activeHighlight = getActiveMarkAttrs(editor, "highlight") || {}
+  const activeTextStyle = getActiveMarkAttrs(editor, "textStyle") || {};
+  const activeHighlight = getActiveMarkAttrs(editor, "highlight") || {};
 
-  const canToggle = canColorText(editor) || canColorHighlight(editor)
+  const canToggle = canColorText(editor) || canColorHighlight(editor);
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) return;
 
     const updateVisibility = () => {
       setIsVisible(
         shouldShowColorTextPopover({
           editor,
           hideWhenUnavailable,
-        })
-      )
-    }
+        }),
+      );
+    };
 
-    updateVisibility()
+    updateVisibility();
 
-    editor.on("selectionUpdate", updateVisibility)
+    editor.on("selectionUpdate", updateVisibility);
 
     return () => {
-      editor.off("selectionUpdate", updateVisibility)
-    }
-  }, [editor, hideWhenUnavailable, highlightInSchema, textStyleInSchema])
+      editor.off("selectionUpdate", updateVisibility);
+    };
+  }, [editor, hideWhenUnavailable, highlightInSchema, textStyleInSchema]);
 
   const handleColorChanged = useCallback(
     ({
@@ -257,14 +257,14 @@ export function useColorTextPopover(config?: UseColorTextPopoverConfig) {
       label,
       value,
     }: {
-      type: ColorType
-      label: string
-      value: string
+      type: ColorType;
+      label: string;
+      value: string;
     }) => {
-      onColorChanged?.({ type, label, value })
+      onColorChanged?.({ type, label, value });
     },
-    [onColorChanged]
-  )
+    [onColorChanged],
+  );
 
   return {
     isVisible,
@@ -274,5 +274,5 @@ export function useColorTextPopover(config?: UseColorTextPopoverConfig) {
     handleColorChanged,
     label: "Text color",
     Icon: TextColorSmallIcon,
-  }
+  };
 }

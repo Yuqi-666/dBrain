@@ -14,11 +14,15 @@ interface CollectionNodeContentProps {
  * CollectionNodeContent - Read-only collection display
  * Displays node list using node.content data directly
  */
-export function CollectionNodeContent({ node, className }: CollectionNodeContentProps) {
+export function CollectionNodeContent({
+  node,
+  className,
+}: CollectionNodeContentProps) {
   const nodes = useGraphStore((state) => state.nodes);
 
   const nodeIds = node.content.filterConfig?.selectedNodes || [];
-  const collectionType = ((node.content.filterConfig as any)?.collectionType || "unordered") as string;
+  const collectionType =
+    node.content.filterConfig?.collectionType || "unordered";
 
   // Get collection nodes data
   const collectionNodes = nodeIds
@@ -39,26 +43,32 @@ export function CollectionNodeContent({ node, className }: CollectionNodeContent
                 <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <FolderIcon className="size-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">点击"添加节点"将节点加入集合</p>
+                <p className="text-sm text-muted-foreground">
+                  点击"添加节点"将节点加入集合
+                </p>
               </div>
             </div>
           ) : (
-            <div className={cn(
-              "space-y-2",
-              collectionType === "cards" && "grid grid-cols-2 gap-3"
-            )}>
+            <div
+              className={cn(
+                "space-y-2",
+                collectionType === "cards" && "grid grid-cols-2 gap-3",
+              )}
+            >
               {collectionNodes.map((collectionNode) => (
                 <div
                   key={collectionNode!.id}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-lg bg-background border",
-                    collectionType === "cards" && "flex-col items-start"
+                    collectionType === "cards" && "flex-col items-start",
                   )}
                 >
                   {collectionType === "cards" ? (
                     <>
                       <div className="w-full flex items-start justify-between">
-                        <span className="font-medium">{collectionNode!.title || "未命名"}</span>
+                        <span className="font-medium">
+                          {collectionNode!.title || "未命名"}
+                        </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {collectionNode!.nodeType}
@@ -67,7 +77,9 @@ export function CollectionNodeContent({ node, className }: CollectionNodeContent
                   ) : (
                     <>
                       <span className="text-muted-foreground">
-                        {collectionType === "ordered" ? `${nodeIds.indexOf(collectionNode!.id) + 1}.` : "•"}
+                        {collectionType === "ordered"
+                          ? `${nodeIds.indexOf(collectionNode!.id) + 1}.`
+                          : "•"}
                       </span>
                       <span className="flex-1 font-medium truncate">
                         {collectionNode!.title || "未命名"}

@@ -1,6 +1,6 @@
-import { memo } from "react"
+import { memo } from "react";
 
-type SvgProps = React.ComponentPropsWithoutRef<"svg">
+type SvgProps = React.ComponentPropsWithoutRef<"svg">;
 
 export const TableHeaderColumnIcon = memo(
   ({ className, ...props }: SvgProps) => {
@@ -21,8 +21,8 @@ export const TableHeaderColumnIcon = memo(
           fill="currentColor"
         />
       </svg>
-    )
-  }
-)
+    );
+  },
+);
 
-TableHeaderColumnIcon.displayName = "TableHeaderColumnIcon"
+TableHeaderColumnIcon.displayName = "TableHeaderColumnIcon";

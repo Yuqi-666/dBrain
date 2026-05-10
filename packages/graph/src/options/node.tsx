@@ -13,8 +13,13 @@ export interface NodeConfigOptions {
 export function createNodeOptions(options?: NodeConfigOptions): NodeOptions {
   let isReactNode = false;
   const layoutType = options?.layoutType;
-  if (layoutType === "dagre" || layoutType === "compactBox" || layoutType === "fishbone" || layoutType === "mindmap") {
-    isReactNode = true
+  if (
+    layoutType === "dagre" ||
+    layoutType === "compactBox" ||
+    layoutType === "fishbone" ||
+    layoutType === "mindmap"
+  ) {
+    isReactNode = true;
   }
   const getNodeSemantic = graphStore.getState().getNodeSemantic;
 
@@ -37,12 +42,37 @@ export function createNodeOptions(options?: NodeConfigOptions): NodeOptions {
         };
       },
       state: {
-        active: { stroke: "#FF7D00", lineWidth: 3, shadowColor: "rgba(255, 125, 0, 0.3)", shadowBlur: 5 },
-        selected: { stroke: "#FF7D00", lineWidth: 3, shadowColor: "rgba(255, 125, 0, 0.3)", shadowBlur: 5 },
-        hover: { stroke: "#4080FF", lineWidth: 2.5, shadowColor: "rgba(22, 93, 255, 0.2)", shadowBlur: 5 },
+        active: {
+          stroke: "#FF7D00",
+          lineWidth: 3,
+          shadowColor: "rgba(255, 125, 0, 0.3)",
+          shadowBlur: 5,
+        },
+        selected: {
+          stroke: "#FF7D00",
+          lineWidth: 3,
+          shadowColor: "rgba(255, 125, 0, 0.3)",
+          shadowBlur: 5,
+        },
+        hover: {
+          stroke: "#4080FF",
+          lineWidth: 2.5,
+          shadowColor: "rgba(22, 93, 255, 0.2)",
+          shadowBlur: 5,
+        },
         disabled: { fill: "#e5e7eb", stroke: "#d1d5db", labelFill: "#9ca3af" },
-        neighborActive: { stroke: "#FFB266", lineWidth: 2.5, shadowColor: "rgba(255, 125, 0, 0.15)", shadowBlur: 5 },
-        inactive: { stroke: "#9ca3af", lineWidth: 2, shadowColor: "transparent", shadowBlur: 0 },
+        neighborActive: {
+          stroke: "#FFB266",
+          lineWidth: 2.5,
+          shadowColor: "rgba(255, 125, 0, 0.15)",
+          shadowBlur: 5,
+        },
+        inactive: {
+          stroke: "#9ca3af",
+          lineWidth: 2,
+          shadowColor: "transparent",
+          shadowBlur: 0,
+        },
       },
       animation: false,
     };
@@ -57,12 +87,37 @@ export function createNodeOptions(options?: NodeConfigOptions): NodeOptions {
         },
       },
       state: {
-        active: { stroke: "#FF7D00", lineWidth: 3, shadowColor: "rgba(255, 125, 0, 0.3)", shadowBlur: 5 },
-        selected: { stroke: "#FF7D00", lineWidth: 3, shadowColor: "rgba(255, 125, 0, 0.3)", shadowBlur: 5 },
-        hover: { stroke: "#4080FF", lineWidth: 2.5, shadowColor: "rgba(22, 93, 255, 0.2)", shadowBlur: 5 },
+        active: {
+          stroke: "#FF7D00",
+          lineWidth: 3,
+          shadowColor: "rgba(255, 125, 0, 0.3)",
+          shadowBlur: 5,
+        },
+        selected: {
+          stroke: "#FF7D00",
+          lineWidth: 3,
+          shadowColor: "rgba(255, 125, 0, 0.3)",
+          shadowBlur: 5,
+        },
+        hover: {
+          stroke: "#4080FF",
+          lineWidth: 2.5,
+          shadowColor: "rgba(22, 93, 255, 0.2)",
+          shadowBlur: 5,
+        },
         disabled: { fill: "#e5e7eb", stroke: "#d1d5db", labelFill: "#9ca3af" },
-        neighborActive: { stroke: "#FFB266", lineWidth: 2.5, shadowColor: "rgba(255, 125, 0, 0.15)", shadowBlur: 5 },
-        inactive: { stroke: "#9ca3af", lineWidth: 2, shadowColor: "transparent", shadowBlur: 0 },
+        neighborActive: {
+          stroke: "#FFB266",
+          lineWidth: 2.5,
+          shadowColor: "rgba(255, 125, 0, 0.15)",
+          shadowBlur: 5,
+        },
+        inactive: {
+          stroke: "#9ca3af",
+          lineWidth: 2,
+          shadowColor: "transparent",
+          shadowBlur: 0,
+        },
       },
       animation: false,
     };

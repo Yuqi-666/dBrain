@@ -1,5 +1,5 @@
 // src/types/svg.d.ts
-declare module '*.svg' {
+declare module "*.svg" {
   const content: {
     readonly src: string;
     readonly width: number;

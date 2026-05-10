@@ -4,7 +4,6 @@ import type { WebsiteNodeData } from "@workspace/interfaces";
 import { Globe, ExternalLink } from "lucide-react";
 
 export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
-
   const getDomain = (url: string) => {
     try {
       return new URL(url).hostname;

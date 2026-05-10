@@ -5,5 +5,5 @@ export type {
   RichTextBlock,
   BaseBlock,
   ReferenceBlock,
-  RichTextContent
+  RichTextContent,
 } from "./rich-text";

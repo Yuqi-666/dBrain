@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { flip, offset, shift, size } from "@floating-ui/react"
-import { PluginKey } from "@tiptap/pm/state"
+import { useCallback, useEffect, useRef, useState } from "react";
+import { flip, offset, shift, size } from "@floating-ui/react";
+import { PluginKey } from "@tiptap/pm/state";
 
 // --- Hooks ---
-import { useFloatingElement } from "@workspace/editor/hooks/use-floating-element"
-import { useMenuNavigation } from "@workspace/editor/hooks/use-menu-navigation"
-import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor"
+import { useFloatingElement } from "@workspace/editor/hooks/use-floating-element";
+import { useMenuNavigation } from "@workspace/editor/hooks/use-menu-navigation";
+import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // --- Tiptap Editor ---
-import type { Range } from "@tiptap/react"
+import type { Range } from "@tiptap/react";
 
 // --- Tiptap UI ---
-import { Suggestion } from "@tiptap/suggestion"
+import { Suggestion } from "@tiptap/suggestion";
 
 // --- UI Primitives ---
 import {
   SuggestionPluginKey,
   type SuggestionKeyDownProps,
   type SuggestionProps,
-} from "@tiptap/suggestion"
+} from "@tiptap/suggestion";
 
-import { calculateStartPosition } from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-utils"
+import { calculateStartPosition } from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-utils";
 import type {
   SuggestionItem,
   SuggestionMenuProps,
-} from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-types"
+} from "@workspace/editor/components/tiptap-ui-utils/suggestion-menu/suggestion-menu-types";
 
 /**
  * A component that renders a suggestion menu for Tiptap editors.
@@ -41,9 +41,9 @@ export const SuggestionMenu = ({
   pluginKey = SuggestionPluginKey,
   ...internalSuggestionProps
 }: SuggestionMenuProps) => {
-  const { editor } = useTiptapEditor(providedEditor)
+  const { editor } = useTiptapEditor(providedEditor);
 
-  const [show, setShow] = useState<boolean>(false)
+  const [show, setShow] = useState<boolean>(false);
 
   // If later we want the floating stick to the position while browser is scrolling,
   // we can uncomment this part and pass the getBoundingClientRect prop to FloatingElement instead of referenceElement.
@@ -51,13 +51,13 @@ export const SuggestionMenu = ({
   //   null
   // )
   const [internalDecorationNode, setInternalDecorationNode] =
-    useState<HTMLElement | null>(null)
+    useState<HTMLElement | null>(null);
   const [internalCommand, setInternalCommand] = useState<
     ((item: SuggestionItem) => void) | null
-  >(null)
-  const [internalItems, setInternalItems] = useState<SuggestionItem[]>([])
-  const [internalQuery, setInternalQuery] = useState<string>("")
-  const [, setInternalRange] = useState<Range | null>(null)
+  >(null);
+  const [internalItems, setInternalItems] = useState<SuggestionItem[]>([]);
+  const [internalQuery, setInternalQuery] = useState<string>("");
+  const [, setInternalRange] = useState<Range | null>(null);
 
   const { ref, style, getFloatingProps, isMounted } = useFloatingElement(
     show,
@@ -77,80 +77,80 @@ export const SuggestionMenu = ({
             if (elements.floating) {
               const maxHeightValue = maxHeight
                 ? Math.min(maxHeight, availableHeight)
-                : availableHeight
+                : availableHeight;
 
               elements.floating.style.setProperty(
                 "--suggestion-menu-max-height",
-                `${maxHeightValue}px`
-              )
+                `${maxHeightValue}px`,
+              );
             }
           },
         }),
       ],
       onOpenChange(open) {
         if (!open) {
-          setShow(false)
+          setShow(false);
         }
       },
       ...floatingOptions,
-    }
-  )
+    },
+  );
 
-  const internalSuggestionPropsRef = useRef(internalSuggestionProps)
+  const internalSuggestionPropsRef = useRef(internalSuggestionProps);
 
   useEffect(() => {
-    internalSuggestionPropsRef.current = internalSuggestionProps
-  }, [internalSuggestionProps])
+    internalSuggestionPropsRef.current = internalSuggestionProps;
+  }, [internalSuggestionProps]);
 
   const closePopup = useCallback(() => {
-    setShow(false)
-  }, [])
+    setShow(false);
+  }, []);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) {
-      return
+      return;
     }
 
     const existingPlugin = editor.state.plugins.find(
-      (plugin) => plugin.spec.key === pluginKey
-    )
+      (plugin) => plugin.spec.key === pluginKey,
+    );
     if (existingPlugin) {
-      editor.unregisterPlugin(pluginKey)
+      editor.unregisterPlugin(pluginKey);
     }
 
     // Find the Mention extension that matches our trigger character (e.g. "@") so we can
     // pull suggestion configuration from it (e.g. allowSpaces, allowedPrefixes, startOfLine).
-    const ourChar = internalSuggestionPropsRef.current.char ?? "@"
+    const ourChar = internalSuggestionPropsRef.current.char ?? "@";
 
     const mentionExtension = editor.extensionManager.extensions.find((ext) => {
-      if (ext.name !== "mention") return false
+      if (ext.name !== "mention") return false;
 
-      const suggestions = ext.options?.suggestions
+      const suggestions = ext.options?.suggestions;
       if (suggestions?.length) {
         return suggestions.some(
-          (s: Record<string, unknown>) => (s.char ?? "@") === ourChar
-        )
+          (s: Record<string, unknown>) => (s.char ?? "@") === ourChar,
+        );
       }
 
-      return (ext.options?.suggestion?.char ?? "@") === ourChar
-    })
+      return (ext.options?.suggestion?.char ?? "@") === ourChar;
+    });
 
     // We want to allow passing mention suggestion configuration either
     // via the main suggestion prop or via the suggestions array (for multiple trigger characters).
     // To support both, we pull out any relevant config from the Mention extension and pass it to the Suggestion plugin.
     // We also make sure to not override any props that are already passed directly to the SuggestionMenu component.
-    const mentionSuggestionDefaults: Record<string, unknown> = {}
+    const mentionSuggestionDefaults: Record<string, unknown> = {};
 
     if (mentionExtension) {
-      let matchingConfig: Record<string, unknown> | null = null
+      let matchingConfig: Record<string, unknown> | null = null;
 
-      const suggestions = mentionExtension.options?.suggestions
+      const suggestions = mentionExtension.options?.suggestions;
       if (suggestions?.length) {
         matchingConfig = suggestions.find(
-          (s: Record<string, unknown>) => (s.char ?? "@") === ourChar
-        )
+          (s: Record<string, unknown>) => (s.char ?? "@") === ourChar,
+        );
       } else if (mentionExtension.options?.suggestion) {
-        matchingConfig = mentionExtension.options.suggestion
+        matchingConfig = mentionExtension.options.suggestion;
       }
 
       if (matchingConfig) {
@@ -162,11 +162,11 @@ export const SuggestionMenu = ({
           "items",
           "allow",
           "char",
-        ])
+        ]);
 
         for (const key of Object.keys(matchingConfig)) {
           if (!managedKeys.has(key)) {
-            mentionSuggestionDefaults[key] = matchingConfig[key]
+            mentionSuggestionDefaults[key] = matchingConfig[key];
           }
         }
       }
@@ -179,152 +179,152 @@ export const SuggestionMenu = ({
       editor,
 
       allow(props) {
-        const $from = editor.state.doc.resolve(props.range.from)
+        const $from = editor.state.doc.resolve(props.range.from);
 
         // Check if we're inside an image node
         for (let depth = $from.depth; depth > 0; depth--) {
           if ($from.node(depth).type.name === "image") {
-            return false // Don't allow slash command inside image (since we support captions)
+            return false; // Don't allow slash command inside image (since we support captions)
           }
         }
 
-        return true
+        return true;
       },
 
       command({ editor, range, props }) {
         if (!range) {
-          return
+          return;
         }
 
-        const { view, state } = editor
-        const { selection } = state
+        const { view, state } = editor;
+        const { selection } = state;
 
         const isMention = editor.extensionManager.extensions.some(
           (extension) => {
-            if (extension.name !== "mention") return false
+            if (extension.name !== "mention") return false;
 
-            const mentionSuggestions = extension.options?.suggestions
+            const mentionSuggestions = extension.options?.suggestions;
             if (mentionSuggestions?.length) {
               return mentionSuggestions.some(
                 (s: Record<string, unknown>) =>
-                  (s.char ?? "@") === internalSuggestionPropsRef.current.char
-              )
+                  (s.char ?? "@") === internalSuggestionPropsRef.current.char,
+              );
             }
 
             return (
               (extension.options?.suggestion?.char ?? "@") ===
               internalSuggestionPropsRef.current.char
-            )
-          }
-        )
+            );
+          },
+        );
 
         if (!isMention) {
-          const cursorPosition = selection.$from.pos
-          const previousNode = selection.$head?.nodeBefore
+          const cursorPosition = selection.$from.pos;
+          const previousNode = selection.$head?.nodeBefore;
 
           const startPosition = previousNode
             ? calculateStartPosition(
                 cursorPosition,
                 previousNode,
-                internalSuggestionPropsRef.current.char
+                internalSuggestionPropsRef.current.char,
               )
-            : selection.$from.start()
+            : selection.$from.start();
 
           const transaction = state.tr.deleteRange(
             startPosition,
-            cursorPosition
-          )
-          view.dispatch(transaction)
+            cursorPosition,
+          );
+          view.dispatch(transaction);
         }
 
-        const rangeToUse = { ...range }
+        const rangeToUse = { ...range };
 
-        const nodeAfter = view.state.selection.$to.nodeAfter
-        const overrideSpace = nodeAfter?.text?.startsWith(" ")
+        const nodeAfter = view.state.selection.$to.nodeAfter;
+        const overrideSpace = nodeAfter?.text?.startsWith(" ");
 
         if (overrideSpace) {
-          rangeToUse.to += 1
+          rangeToUse.to += 1;
         }
 
-        props.onSelect({ editor, range: rangeToUse, context: props.context })
+        props.onSelect({ editor, range: rangeToUse, context: props.context });
       },
 
       render: () => {
         return {
           onStart: (props: SuggestionProps<SuggestionItem>) => {
             setInternalDecorationNode(
-              (props.decorationNode as HTMLElement) ?? null
-            )
-            setInternalCommand(() => props.command)
-            setInternalItems(props.items)
-            setInternalQuery(props.query)
-            setInternalRange(props.range)
+              (props.decorationNode as HTMLElement) ?? null,
+            );
+            setInternalCommand(() => props.command);
+            setInternalItems(props.items);
+            setInternalQuery(props.query);
+            setInternalRange(props.range);
             // setInternalClientRect(props.clientRect?.() ?? null)
-            setShow(true)
+            setShow(true);
           },
 
           onUpdate: (props: SuggestionProps<SuggestionItem>) => {
             setInternalDecorationNode(
-              (props.decorationNode as HTMLElement) ?? null
-            )
-            setInternalCommand(() => props.command)
-            setInternalItems(props.items)
-            setInternalQuery(props.query)
-            setInternalRange(props.range)
+              (props.decorationNode as HTMLElement) ?? null,
+            );
+            setInternalCommand(() => props.command);
+            setInternalItems(props.items);
+            setInternalQuery(props.query);
+            setInternalRange(props.range);
             // setInternalClientRect(props.clientRect?.() ?? null)
           },
 
           onKeyDown: (props: SuggestionKeyDownProps) => {
             if (props.event.key === "Escape") {
-              closePopup()
-              return true
+              closePopup();
+              return true;
             }
-            return false
+            return false;
           },
 
           onExit: () => {
-            setInternalDecorationNode(null)
-            setInternalCommand(null)
-            setInternalItems([])
-            setInternalQuery("")
-            setInternalRange(null)
+            setInternalDecorationNode(null);
+            setInternalCommand(null);
+            setInternalItems([]);
+            setInternalQuery("");
+            setInternalRange(null);
             // setInternalClientRect(null)
-            setShow(false)
+            setShow(false);
           },
-        }
+        };
       },
       ...internalSuggestionPropsRef.current,
-    })
+    });
 
-    editor.registerPlugin(suggestion)
+    editor.registerPlugin(suggestion);
 
     return () => {
       if (!editor.isDestroyed) {
-        editor.unregisterPlugin(pluginKey)
+        editor.unregisterPlugin(pluginKey);
       }
-    }
-  }, [editor, pluginKey, closePopup])
+    };
+  }, [editor, pluginKey, closePopup]);
 
   const onSelect = useCallback(
     (item: SuggestionItem) => {
-      closePopup()
+      closePopup();
 
       if (internalCommand) {
-        internalCommand(item)
+        internalCommand(item);
       }
     },
-    [closePopup, internalCommand]
-  )
+    [closePopup, internalCommand],
+  );
 
   const { selectedIndex } = useMenuNavigation({
     editor: editor,
     query: internalQuery,
     items: internalItems,
     onSelect,
-  })
+  });
 
   if (!isMounted || !show || !editor) {
-    return null
+    return null;
   }
 
   return (
@@ -344,5 +344,5 @@ export const SuggestionMenu = ({
         onSelect,
       })}
     </div>
-  )
-}
+  );
+};

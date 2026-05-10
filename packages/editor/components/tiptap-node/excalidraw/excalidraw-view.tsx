@@ -1,15 +1,15 @@
-import type { NodeViewProps } from '@tiptap/react';
-import { NodeViewWrapper } from '@tiptap/react';
-import { useState, useEffect } from 'react';
-import { uploadFile } from '@workspace/api-client';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { IAttachment } from '@workspace/interfaces';
-import clsx from 'clsx';
-import { Pencil } from 'lucide-react';
-import { Dialog, DialogContent } from '@workspace/ui/components/ui/dialog';
-import { Button } from '@workspace/ui/components/ui/button';
-import { getFileUrl } from './excalidraw-utils';
-import { ExcalidrawWrapper } from './excalidraw-wrapper';
+import type { NodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper } from "@tiptap/react";
+import { useState, useEffect } from "react";
+import { uploadFile } from "@workspace/api-client";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { IAttachment } from "@workspace/interfaces";
+import clsx from "clsx";
+import { Pencil } from "lucide-react";
+import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
+import { Button } from "@workspace/ui/components/ui/button";
+import { getFileUrl } from "./excalidraw-utils";
+import { ExcalidrawWrapper } from "./excalidraw-wrapper";
 
 export default function ExcalidrawView(props: NodeViewProps) {
   const { node, updateAttributes, editor, selected } = props;
@@ -60,9 +60,9 @@ export default function ExcalidrawView(props: NodeViewProps) {
     };
 
     const jsonString = JSON.stringify(jsonData);
-    const fileName = 'diagram.excalidraw.json';
+    const fileName = "diagram.excalidraw.json";
     const excalidrawFile = new File([jsonString], fileName, {
-      type: 'application/json',
+      type: "application/json",
     });
 
     let attachment: IAttachment | null = null;
@@ -86,8 +86,12 @@ export default function ExcalidrawView(props: NodeViewProps) {
   return (
     <NodeViewWrapper>
       <Dialog open={opened} onOpenChange={setOpened}>
-        <DialogContent showCloseButton={false} className="p-0 sm:max-w-2xl gap-0" style={{ height: "90vh", width: "90vw" }}>
-          <div className="flex items-center justify-end gap-2 px-2">
+        <DialogContent
+          showCloseButton={false}
+          className="p-0 gap-0 sm:max-w-2xl flex flex-col"
+          style={{ height: "90vh", width: "90vw" }}
+        >
+          <div className="flex items-center justify-end gap-2 p-2 shrink-0">
             <Button onClick={handleSave} size="sm">
               Save & Exit
             </Button>
@@ -95,7 +99,7 @@ export default function ExcalidrawView(props: NodeViewProps) {
               Exit
             </Button>
           </div>
-          <div style={{ height: "80vh", width: "100%" }}>
+          <div className="flex-1 min-h-0 p-1 pt-0">
             {isMounted && (
               <ExcalidrawWrapper
                 excalidrawAPI={(api) => setExcalidrawAPI(api)}
@@ -118,8 +122,8 @@ export default function ExcalidrawView(props: NodeViewProps) {
             alt={title}
             width={width}
             className={clsx(
-              selected ? 'ProseMirror-selectednode' : '',
-              'alignCenter max-w-full h-auto rounded-md'
+              selected ? "ProseMirror-selectednode" : "",
+              "alignCenter max-w-full h-auto rounded-md",
             )}
           />
 
@@ -138,9 +142,9 @@ export default function ExcalidrawView(props: NodeViewProps) {
         <div
           onClick={(e) => e.detail === 2 && handleOpen()}
           className={clsx(
-            'flex items-center justify-center p-4 rounded-md border border-dashed cursor-pointer',
-            'hover:bg-muted/50 transition-colors',
-            selected ? 'ProseMirror-selectednode' : ''
+            "flex items-center justify-center p-4 rounded-md border border-dashed cursor-pointer",
+            "hover:bg-muted/50 transition-colors",
+            selected ? "ProseMirror-selectednode" : "",
           )}
         >
           <div className="flex items-center gap-2">

@@ -5,9 +5,11 @@
 **Parent:** /home/lyq/workspace/project/dBrain/AGENTS.md
 
 ## OVERVIEW
+
 Domain layer implementing DDD clean architecture. Contains entities and value objects with **zero framework dependencies**.
 
 ## STRUCTURE
+
 ```
 src/
 ├── entities/     # Domain entities with business logic
@@ -16,13 +18,15 @@ src/
 ```
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Entity definitions | src/entities/ | Business objects with ID, state |
-| Value objects | src/value-objects/ | Immutable components |
-| Public API | src/index.ts | Only exports through entry point |
+
+| Task               | Location           | Notes                            |
+| ------------------ | ------------------ | -------------------------------- |
+| Entity definitions | src/entities/      | Business objects with ID, state  |
+| Value objects      | src/value-objects/ | Immutable components             |
+| Public API         | src/index.ts       | Only exports through entry point |
 
 ## CONVENTIONS
+
 - **No framework imports** — Domain must remain pure and framework-agnostic
 - All entities have UUID-based identity
 - State changes via entity methods only — no direct property mutation
@@ -30,6 +34,7 @@ src/
 - Domain events created on state changes, immutable once created
 
 ## ANTI-PATTERNS
+
 - **NEVER** put infrastructure code (DB, HTTP, file I/O) in domain
 - **NEVER** add setters — state changes only through entity methods
 - **NEVER** create repositories in domain — repository interfaces only
