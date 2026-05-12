@@ -8,6 +8,12 @@
       ],
       "@workspace/interfaces/*": [
         "../../packages/interfaces/src/*"
+      ],
+      "@workspace/domain": [
+        "../domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../domain/src/*"
       ]
     }
   },

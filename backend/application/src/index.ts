@@ -1,3 +1,17 @@
-// Placeholder for backend application layer (use cases)
-// This mirrors the crates/application Rust crate
-export {};
+export * from "./dto";
+export * from "./commands/node/command";
+export * from "./commands/node/node-command.service";
+export * from "./commands/edge/command";
+export * from "./commands/edge/edge-command.service";
+export * from "./commands/view/command";
+export * from "./commands/view/view-command.service";
+export * from "./commands/semantic/command";
+export * from "./commands/semantic/semantic-command.service";
+export * from "./queries/node/query";
+export * from "./queries/node/node-query.service";
+export * from "./queries/edge/query";
+export * from "./queries/edge/edge-query.service";
+export * from "./queries/view/query";
+export * from "./queries/view/view-query.service";
+export * from "./queries/semantic/query";
+export * from "./queries/semantic/semantic-query.service";
