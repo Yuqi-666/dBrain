@@ -1,42 +1,92 @@
 # PROJECT KNOWLEDGE BASE - backend/domain
 
-**Generated:** 2026-04-26
+**Generated:** 2026-05-13
 **Path:** backend/domain
 **Parent:** /home/lyq/workspace/project/dBrain/AGENTS.md
 
 ## OVERVIEW
 
-Domain layer implementing DDD clean architecture. Contains entities and value objects with **zero framework dependencies**.
+Domain layer implementing DDD clean architecture. Contains entities, value objects, domain events, and repository interfaces with **zero framework dependencies**.
 
 ## STRUCTURE
 
 ```
 src/
-├── entities/     # Domain entities with business logic
-├── value-objects/# Immutable value types
-└── index.ts      # Public exports
+├── event-bus/           # IDomainEvent, IEventBus (ports only, no impl)
+├── models/
+│   ├── node/           # Node entities + events + value objects
+│   ├── edge/           # Edge, EdgeSemantic entities + events + value objects
+│   ├── view/           # View entity + events + value objects
+│   ├── semantic/       # NodeSemantic, EdgeSemantic, NodeTag entities + events
+│   ├── layout/        # LayoutType value object
+│   ├── filter/         # FilterConfig value object
+│   └── index.ts        # Re-exports all models
+├── repositories/
+│   └── index.ts        # Repository interfaces (INodeRepository, IEdgeRepository, etc.)
+└── index.ts            # Public exports: models, repositories, event-bus
 ```
 
 ## WHERE TO LOOK
 
-| Task               | Location           | Notes                            |
-| ------------------ | ------------------ | -------------------------------- |
-| Entity definitions | src/entities/      | Business objects with ID, state  |
-| Value objects      | src/value-objects/ | Immutable components             |
-| Public API         | src/index.ts       | Only exports through entry point |
+| Task                       | Location                        | Notes                                      |
+| -------------------------- | ------------------------------- | ----------------------------------------- |
+| Domain events              | models/*/events.ts              | NodeCreated, NodeDeleted, EdgeCreated...   |
+| Entity definitions         | models/*/entities.ts           | Business logic encapsulated               |
+| Value objects              | models/*/value-objects.ts      | Immutable types (NodeId, Permission...)    |
+| Repository interfaces      | repositories/index.ts           | Ports only — impls in infrastructure/     |
+| Event bus interfaces       | event-bus/index.ts              | IDomainEvent, IEventBus                   |
+| Public API                 | src/index.ts                    | Barrel export                             |
+
+## COMMANDS
+
+```bash
+pnpm --filter=backend-domain typecheck   # TypeScript check
+pnpm --filter=backend-domain lint       # ESLint
+pnpm --filter=backend-domain format     # Prettier format
+```
 
 ## CONVENTIONS
 
 - **No framework imports** — Domain must remain pure and framework-agnostic
-- All entities have UUID-based identity
-- State changes via entity methods only — no direct property mutation
-- Aggregates reference each other by ID only — no object references across aggregates
-- Domain events created on state changes, immutable once created
+- **Immutable patterns** — All entity update methods return new instances
+- **Factory methods** — Use `static create()` instead of constructors
+- **Value objects** — Immutable, with `equals()` method for equality
+- **Entities** — Identity-based equality via `sameIdentityAs()` method
+- **Domain events** — Interface-based (`IDomainEvent<T>`), minimal payload
+- **Repository interfaces** — Defined in domain (ports), implemented in infrastructure (adapters)
+- **Path aliases** — `@workspace/interfaces`, `@workspace/utils` available
+
+## DOMAIN EVENTS
+
+Events follow minimal interface pattern:
+
+```typescript
+// event-bus/index.ts
+interface IDomainEvent<T = unknown> {
+  readonly eventType: string;
+  readonly aggregateId: string;
+  readonly metadata: { occurredAt: string; eventVersion: 1 };
+  readonly data: T;
+}
+
+// Example event in models/*/events.ts
+export type NodeCreated = IDomainEvent<{ id: string; nodeType: string; title: string }> & {
+  eventType: 'NodeCreated';
+};
+```
+
+**Available events:**
+| Entity      | Events                                                              |
+| ----------- | ------------------------------------------------------------------- |
+| Node        | `NodeCreated`, `NodeDeleted`                                         |
+| Edge        | `EdgeCreated`, `EdgeDeleted`                                        |
+| View        | `ViewCreated`, `ViewDeleted`                                        |
+| Semantic    | `NodeSemanticCreated`, `EdgeSemanticCreated`, `NodeTagCreated`       |
 
 ## ANTI-PATTERNS
 
 - **NEVER** put infrastructure code (DB, HTTP, file I/O) in domain
 - **NEVER** add setters — state changes only through entity methods
-- **NEVER** create repositories in domain — repository interfaces only
-- **NEVER** use `unwrap()/expect()` — all errors must be handled gracefully
-- No SQL, no HTTP clients, no file system access
+- **NEVER** implement repositories in domain — interfaces only
+- **NEVER** use `unwrap()/expect()` — handle errors gracefully
+- **NEVER** import framework packages (Prisma, Express, etc.) into domain
