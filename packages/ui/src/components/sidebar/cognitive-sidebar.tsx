@@ -1,5 +1,5 @@
 "use client";
-import { useGraphStore, useUIStore } from "@workspace/store";
+import { useGraphStore, useNodeEditorStore, useUIStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Collapsible,
@@ -40,7 +40,9 @@ export function CognitiveSidebar() {
     (view) => view.isPinned,
   );
   const recentViews = Array.from(views.values()).slice(0, 5);
-  const recentNodes = Array.from(nodes.values()).slice(0, 5);
+  const recentNodes = Array.from(nodes.values())
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5);
 
   const handleToggleSidebar = () => {
     if (sidebarMode === "temp") {
@@ -304,6 +306,7 @@ function ViewsList({
   const nonPinnedRecentViews = recentViews.filter(
     (rv) => !pinnedViews.some((pv) => pv.id === rv.id),
   );
+  const sortedViews = [...pinnedViews, ...nonPinnedRecentViews];
 
   return (
     <Section
@@ -320,35 +323,15 @@ function ViewsList({
       }
     >
       <div className="flex flex-col gap-0.5">
-        {pinnedViews.length > 0 && (
-          <div className="flex flex-col gap-0.5">
-            <p className="px-2.5 py-1.5 text-[10px] text-sidebar-foreground/40 uppercase tracking-widest font-medium">
-              Pinned
-            </p>
-            {pinnedViews.map((view) => (
-              <ViewItem
-                key={view.id}
-                view={view}
-                onTogglePin={handleTogglePin}
-              />
-            ))}
-          </div>
-        )}
-        {nonPinnedRecentViews.length > 0 && (
-          <div className="flex flex-col gap-0.5">
-            <p className="px-2.5 py-1.5 text-[10px] text-sidebar-foreground/40 uppercase tracking-widest font-medium">
-              Recent
-            </p>
-            {nonPinnedRecentViews.map((view) => (
-              <ViewItem
-                key={view.id}
-                view={view}
-                onTogglePin={handleTogglePin}
-              />
-            ))}
-          </div>
-        )}
-        {pinnedViews.length === 0 && nonPinnedRecentViews.length === 0 && (
+        {sortedViews.length > 0 ? (
+          sortedViews.map((view) => (
+            <ViewItem
+              key={view.id}
+              view={view}
+              onTogglePin={handleTogglePin}
+            />
+          ))
+        ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
             No views yet
           </p>
@@ -361,12 +344,24 @@ function ViewsList({
 function NodeItem({
   node,
   onTogglePin,
+  isSelected,
+  onSelect,
 }: {
   node: { id: string; title: string; semanticId?: string; isPinned?: boolean };
   onTogglePin: (id: string, isPinned: boolean) => void;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
 }) {
   return (
-    <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
+    <div
+      className={cn(
+        "group flex items-center justify-between rounded-lg px-2.5 py-2 transition-colors duration-150 cursor-pointer",
+        isSelected
+          ? "bg-sidebar-accent/70"
+          : "hover:bg-sidebar-accent",
+      )}
+      onClick={() => onSelect?.(node.id)}
+    >
       <div className="flex items-center gap-2.5 min-w-0">
         <CircleDot className="size-3.5 text-sidebar-foreground/30 shrink-0" />
         <span className="text-[13px] text-sidebar-foreground truncate">
@@ -420,10 +415,26 @@ function NodesList({
   }>;
 }) {
   const updateNode = useGraphStore((state) => state.updateNode);
+  const currentEditingNodeId = useNodeEditorStore(
+    (state) => state.currentEditingNodeId,
+  );
+  const setCurrentEditingNodeId = useNodeEditorStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
 
   const handleTogglePin = (id: string, isPinned: boolean) => {
     updateNode(id, { isPinned });
   };
+
+  const handleSelectNode = (id: string) => {
+    setCurrentEditingNodeId(id);
+  };
+
+  const sortedNodes = [...nodes].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return 0;
+  });
 
   return (
     <Section
@@ -440,9 +451,15 @@ function NodesList({
       }
     >
       <div className="flex flex-col gap-0.5">
-        {nodes.length > 0 ? (
-          nodes.map((node) => (
-            <NodeItem key={node.id} node={node} onTogglePin={handleTogglePin} />
+        {sortedNodes.length > 0 ? (
+          sortedNodes.map((node) => (
+            <NodeItem
+              key={node.id}
+              node={node}
+              onTogglePin={handleTogglePin}
+              isSelected={currentEditingNodeId === node.id}
+              onSelect={handleSelectNode}
+            />
           ))
         ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">

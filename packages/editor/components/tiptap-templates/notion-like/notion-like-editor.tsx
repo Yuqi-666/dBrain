@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
 import type { Doc as YDoc } from "yjs";
 import { MockCollabProvider } from "@workspace/editor/lib/mock-collab";
@@ -104,6 +104,8 @@ import { Indent } from "@workspace/editor/components/tiptap-extension/indent-ext
 export interface NotionEditorProps {
   room: string;
   placeholder?: string;
+  onContentChange?: (content: any) => void;
+  getInitialContent?: () => Record<string, any>;
 }
 
 export interface EditorProviderProps {
@@ -111,6 +113,13 @@ export interface EditorProviderProps {
   ydoc: YDoc;
   placeholder?: string;
   aiToken: string | null;
+  onContentChange?: (content: any) => void;
+  getInitialContent?: () => Record<string, any>;
+}
+export interface EditorContentProps {
+  placeholder?: string;
+  onContentChange?: (content: any) => void;
+  getInitialContent?: () => Record<string, any>;
 }
 
 /**
@@ -191,10 +200,31 @@ export function EditorContentArea() {
  * Component that creates and provides the editor instance
  */
 export function EditorProvider(props: EditorProviderProps) {
-  const { provider, ydoc, placeholder = "Start writing...", aiToken } = props;
+  const { provider, ydoc, placeholder = "Start writing...", aiToken, onContentChange, getInitialContent } = props;
 
   const { user } = useUser();
   const { setTocContent } = useToc();
+
+  // Debounced callback ref for content updates
+  const debouncedCallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleContentChange = useCallback((content: any) => {
+    if (debouncedCallbackRef.current) {
+      clearTimeout(debouncedCallbackRef.current);
+    }
+    debouncedCallbackRef.current = setTimeout(() => {
+      onContentChange?.(content);
+    }, 500);
+  }, [onContentChange]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedCallbackRef.current) {
+        clearTimeout(debouncedCallbackRef.current);
+      }
+    };
+  }, []);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -202,6 +232,17 @@ export function EditorProvider(props: EditorProviderProps) {
       attributes: {
         class: "notion-like-editor",
       },
+    },
+    onUpdate({ editor }) {
+      // The content has changed - extract JSON content
+      const json = editor.getJSON();
+      handleContentChange(json);
+    },
+    onCreate({ editor }) {
+      const initialContent = getInitialContent?.();
+      if (initialContent) {
+        editor.commands.setContent(initialContent.docs);
+      }
     },
     extensions: [
       StarterKit.configure({
@@ -356,13 +397,15 @@ export function EditorProvider(props: EditorProviderProps) {
 export function NotionEditor({
   room,
   placeholder = "Start writing...",
+  onContentChange,
+  getInitialContent,
 }: NotionEditorProps) {
   return (
     <UserProvider>
       <CollabProvider room={room}>
         <AiProvider>
           <TocProvider>
-            <NotionEditorContent placeholder={placeholder} />
+            <NotionEditorContent placeholder={placeholder} onContentChange={onContentChange} getInitialContent={getInitialContent} />
           </TocProvider>
         </AiProvider>
       </CollabProvider>
@@ -373,7 +416,8 @@ export function NotionEditor({
 /**
  * Internal component that handles the editor loading state
  */
-export function NotionEditorContent({ placeholder }: { placeholder?: string }) {
+export function NotionEditorContent(props: EditorContentProps) {
+  const { placeholder, onContentChange, getInitialContent } = props;
   const { provider, ydoc, setupError: collabSetupError } = useCollab();
   const { aiToken, setupError: aiSetupError } = useAi();
 
@@ -397,6 +441,8 @@ export function NotionEditorContent({ placeholder }: { placeholder?: string }) {
       ydoc={ydoc}
       placeholder={placeholder}
       aiToken={aiToken}
+      onContentChange={onContentChange}
+      getInitialContent={getInitialContent}
     />
   );
 }

@@ -1,11 +1,4 @@
 import { trpc } from "../provider";
-import type {
-  NodeData,
-  EdgeData,
-  NodeSemantic,
-  EdgeSemantic,
-  View,
-} from "@workspace/interfaces";
 
 export const useAddNode = () => trpc.node.add.useMutation();
 export const useUpdateNode = () => trpc.node.update.useMutation();
