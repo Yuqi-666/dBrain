@@ -1,29 +1,35 @@
 import {
   router,
-  publicProcedure,
+  protectedProcedure,
   edgeSemanticAddedEmitter,
   edgeSemanticUpdatedEmitter,
   edgeSemanticDeletedEmitter,
 } from "../server";
+import { container } from "../../di/container";
 import { observable } from "@trpc/server/observable";
 import type {
   EdgeSemanticAddedEvent,
   EdgeSemanticUpdatedEvent,
   EdgeSemanticEventDeletedEvent,
 } from "@workspace/interfaces";
+import type { EdgeType } from "@workspace/interfaces/models/edge/types";
 import { z } from "zod";
 
 const addSchema = z.object({
   id: z.string(),
   name: z.string(),
+  category: z.string() as z.ZodType<EdgeType>,
   description: z.string().optional(),
+  color: z.string().optional(),
 });
 
 const updateSchema = z.object({
   id: z.string(),
   updates: z.object({
     name: z.string().optional(),
+    category: z.string().optional() as z.ZodType<EdgeType | undefined>,
     description: z.string().optional(),
+    color: z.string().optional(),
   }),
 });
 
@@ -32,67 +38,58 @@ const deleteSchema = z.object({
 });
 
 export const edgeSemanticRouter = router({
-  add: publicProcedure.input(addSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-    const edgeSemantic = { ...input, createdAt: timestamp };
-
-    edgeSemanticAddedEmitter.emit({
-      edgeSemantic,
-      userId: ctx.userId,
-      timestamp,
-    });
-
-    return { success: true, data: edgeSemantic };
-  }),
-  update: publicProcedure.input(updateSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-
-    edgeSemanticUpdatedEmitter.emit({
+  add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
+    const result = await container().semanticCommandService.createEdgeSemantic({
       id: input.id,
-      updates: input.updates,
-      userId: ctx.userId,
-      timestamp,
+      name: input.name,
+      category: input.category,
+      description: input.description,
+      color: input.color,
     });
-
+    return result;
+  }),
+  update: protectedProcedure.input(updateSchema).mutation(async ({ ctx, input }) => {
+    const result = await container().semanticCommandService.updateEdgeSemantic({
+      id: input.id,
+      name: input.updates.name,
+      category: input.updates.category,
+      description: input.updates.description,
+      color: input.updates.color,
+    });
+    return result;
+  }),
+  delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
+    await container().semanticCommandService.deleteEdgeSemantic({
+      id: input.id,
+    });
     return { success: true, id: input.id };
   }),
-  delete: publicProcedure.input(deleteSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-
-    edgeSemanticDeletedEmitter.emit({
-      id: input.id,
-      userId: ctx.userId,
-      timestamp,
-    });
-
-    return { success: true, id: input.id };
-  }),
-  list: publicProcedure.query(() => {
+  list: protectedProcedure.query(() => {
     return { items: [] };
   }),
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(({ input }) => {
       return null;
     }),
-  sync: publicProcedure.query(() => {
+  sync: protectedProcedure.query(() => {
     return [];
   }),
-  onAdded: publicProcedure.subscription(({ ctx }) => {
+  onAdded: protectedProcedure.subscription(({ ctx }) => {
     return observable<EdgeSemanticAddedEvent>((emit) => {
       const handler = (data: EdgeSemanticAddedEvent) => emit.next(data);
       const unsubscribe = edgeSemanticAddedEmitter.subscribe(handler);
       return () => unsubscribe();
     });
   }),
-  onUpdated: publicProcedure.subscription(({ ctx }) => {
+  onUpdated: protectedProcedure.subscription(({ ctx }) => {
     return observable<EdgeSemanticUpdatedEvent>((emit) => {
       const handler = (data: EdgeSemanticUpdatedEvent) => emit.next(data);
       const unsubscribe = edgeSemanticUpdatedEmitter.subscribe(handler);
       return () => unsubscribe();
     });
   }),
-  onDeleted: publicProcedure.subscription(({ ctx }) => {
+  onDeleted: protectedProcedure.subscription(({ ctx }) => {
     return observable<EdgeSemanticEventDeletedEvent>((emit) => {
       const handler = (data: EdgeSemanticEventDeletedEvent) => emit.next(data);
       const unsubscribe = edgeSemanticDeletedEmitter.subscribe(handler);

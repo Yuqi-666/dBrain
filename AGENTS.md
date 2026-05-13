@@ -48,8 +48,11 @@ dBrain/
 | **Rich text editor** | packages/editor/           | Tiptap Pro + Yjs, Notion-like editor |
 | Type definitions     | packages/interfaces/src    | Models, nodes, API types             |
 | State management     | packages/store/src         | Zustand stores                       |
-| Desktop app          | apps/desktop/src           | Tauri + Next.js                      |
-| Web app              | apps/web/src               | Next.js 16, React 19                 |
+| Desktop app         | apps/desktop/src          | Tauri + Next.js                      |
+| Web app             | apps/web/src              | Next.js 16, React 19                 |
+| **Backend domain**   | backend/domain/src        | Entities, VOs, repository interfaces |
+| **Backend infra**    | backend/infrastructure/src| PocketBase repos, mappers, event bus |
+| **Backend adapter**  | backend/adapter-back/src  | DAOs, DI factory                     |
 
 ## CODE MAP (TypeScript Backend DDD)
 
@@ -101,6 +104,11 @@ pnpm check-types # TypeScript check all
 pnpm --filter=web dev      # Web app (port 3000)
 pnpm --filter=desktop dev  # Desktop app (port 3001)
 pnpm --filter=desktop tauri # Tauri CLI
+
+# Backend layers (cd into package first)
+cd backend/domain && pnpm typecheck
+cd backend/infrastructure && pnpm typecheck
+cd backend/adapter-back && pnpm typecheck
 ```
 
 ## NOTES
@@ -109,3 +117,10 @@ pnpm --filter=desktop tauri # Tauri CLI
 - Graph package uses @antv/g6 for node graph visualization
 - No actual Rust backend — backend is TypeScript DDD layers
 - ⚠️ `crates/` directory does not exist — backend code is in `backend/`
+
+## BACKEND PACKAGES
+
+Each backend package has its own detailed `AGENTS.md`:
+- `backend/domain/AGENTS.md` — domain entities, repository interfaces, DDD conventions
+- `backend/infrastructure/AGENTS.md` — PocketBase repositories, mappers, event bus
+- `backend/adapter-back/AGENTS.md` — DAO wrappers, DI factory, initialization

@@ -1,6 +1,7 @@
 import {
   router,
   publicProcedure,
+  protectedProcedure,
   nodeSemanticAddedEmitter,
   nodeSemanticUpdatedEmitter,
   nodeSemanticDeletedEmitter,
@@ -12,6 +13,9 @@ import type {
   NodeSemanticEventDeletedEvent,
 } from "@workspace/interfaces";
 import { z } from "zod";
+import { AppContainer } from "../../di/container";
+
+const getContainer = () => AppContainer.getInstance();
 
 const addSchema = z.object({
   id: z.string(),
@@ -36,51 +40,35 @@ const deleteSchema = z.object({
 });
 
 export const nodeSemanticRouter = router({
-  add: publicProcedure.input(addSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-    const nodeSemantic = { ...input, createdAt: timestamp };
-
-    nodeSemanticAddedEmitter.emit({
-      nodeSemantic,
-      userId: ctx.userId,
-      timestamp,
+  add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
+    const result = await getContainer().semanticCommandService.createNodeSemantic({
+      ...input,
     });
-
-    return { success: true, data: nodeSemantic };
+    return { success: true, data: result };
   }),
-  update: publicProcedure.input(updateSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-
-    nodeSemanticUpdatedEmitter.emit({
+  update: protectedProcedure.input(updateSchema).mutation(async ({ ctx, input }) => {
+    const result = await getContainer().semanticCommandService.updateNodeSemantic({
       id: input.id,
-      updates: input.updates,
-      userId: ctx.userId,
-      timestamp,
+      ...input.updates,
     });
-
+    return { success: true, data: result };
+  }),
+  delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
+    await getContainer().semanticCommandService.deleteNodeSemantic({
+      id: input.id,
+    });
     return { success: true, id: input.id };
   }),
-  delete: publicProcedure.input(deleteSchema).mutation(({ ctx, input }) => {
-    const timestamp = Date.now();
-
-    nodeSemanticDeletedEmitter.emit({
-      id: input.id,
-      userId: ctx.userId,
-      timestamp,
-    });
-
-    return { success: true, id: input.id };
+  list: protectedProcedure.query(async () => {
+    return getContainer().semanticQueryService.listNodeSemantics({});
   }),
-  list: publicProcedure.query(() => {
-    return { items: [] };
-  }),
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(({ input }) => {
-      return null;
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.getNodeSemanticById({ id: input.id });
     }),
-  sync: publicProcedure.query(() => {
-    return [];
+  sync: protectedProcedure.query(async () => {
+    return getContainer().semanticQueryService.listNodeSemantics({});
   }),
   onAdded: publicProcedure.subscription(({ ctx }) => {
     return observable<NodeSemanticAddedEvent>((emit) => {

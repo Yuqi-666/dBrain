@@ -8,6 +8,30 @@
       ],
       "@workspace/interfaces/*": [
         "../../packages/interfaces/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "../infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "../infrastructure/src/*"
+      ],
+      "@workspace/domain": [
+        "../domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../domain/src/*"
+      ],
+      "@workspace/adapter-back": [
+        "../adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "../adapter-back/src/*"
+      ],
+      "@workspace/application": [
+        "../application/src"
+      ],
+      "@workspace/application/*": [
+        "../application/src/*"
       ]
     }
   },

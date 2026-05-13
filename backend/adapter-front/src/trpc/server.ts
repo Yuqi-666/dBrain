@@ -36,6 +36,24 @@ const t = initTRPC.context<Context>().create({
 });
 
 /**
+ * Enforce user authentication middleware
+ */
+const enforceUserId = t.middleware(({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required",
+    });
+  }
+  return next({ ctx: { userId: ctx.userId } });
+});
+
+/**
+ * Protected procedure - requires authentication
+ */
+export const protectedProcedure = t.procedure.use(enforceUserId);
+
+/**
  * Export tRPC builders
  */
 export const router = t.router;

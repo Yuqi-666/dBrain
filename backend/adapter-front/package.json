@@ -12,7 +12,11 @@
     "@trpc/server": "^11.0.0",
     "superjson": "^2.2.1",
     "ws": "^8.18.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@workspace/infrastructure": "workspace:*",
+    "@workspace/adapter-back": "workspace:*",
+    "@workspace/application": "workspace:*",
+    "@workspace/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "^8.18.0",

@@ -200,6 +200,18 @@ importers:
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.16.0(typescript@5.9.3)
+      '@workspace/adapter-back':
+        specifier: workspace:*
+        version: link:../adapter-back
+      '@workspace/application':
+        specifier: workspace:*
+        version: link:../application
+      '@workspace/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@workspace/infrastructure':
+        specifier: workspace:*
+        version: link:../infrastructure
       superjson:
         specifier: ^2.2.1
         version: 2.2.6
