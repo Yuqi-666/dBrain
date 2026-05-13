@@ -3,22 +3,53 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/server/*": ["./src/*"],
-      "@workspace/backend-domain": ["../../backend/domain/src"],
-      "@workspace/backend-domain/*": ["../../backend/domain/src/*"],
-      "@workspace/backend-application": ["../../backend/application/src"],
-      "@workspace/backend-application/*": ["../../backend/application/src/*"],
-      "@workspace/backend-infrastructure": ["../../backend/infrastructure/src"],
-      "@workspace/backend-infrastructure/*": ["../../backend/infrastructure/src/*"],
-      "@workspace/backend-adapter-back": ["../../backend/adapter-back/src"],
-      "@workspace/backend-adapter-back/*": ["../../backend/adapter-back/src/*"],
-      "@workspace/backend-adapter-front": ["../../backend/adapter-front/src"],
-      "@workspace/backend-adapter-front/*": ["../../backend/adapter-front/src/*"],
-      "@workspace/backend-adapter-tauri": ["../../backend/adapter-tauri/src"],
-      "@workspace/backend-adapter-tauri/*": ["../../backend/adapter-tauri/src/*"]
+      "@workspace/server/*": [
+        "./src/*"
+      ],
+      "@workspace/domain": [
+        "../../backend/domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../../backend/domain/src/*"
+      ],
+      "@workspace/application": [
+        "../../backend/application/src"
+      ],
+      "@workspace/application/*": [
+        "../../backend/application/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "../../backend/infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "../../backend/infrastructure/src/*"
+      ],
+      "@workspace/adapter-back": [
+        "../../backend/adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "../../backend/adapter-back/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
+      ],
+      "@workspace/adapter-tauri": [
+        "../../backend/adapter-tauri/src"
+      ],
+      "@workspace/adapter-tauri/*": [
+        "../../backend/adapter-tauri/src/*"
+      ]
     },
     "outDir": "./dist"
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

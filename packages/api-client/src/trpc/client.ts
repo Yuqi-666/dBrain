@@ -5,7 +5,7 @@ import {
   wsLink,
   createWSClient,
 } from "@trpc/client";
-import type { AppRouter } from "@workspace/backend-adapter-front";
+import type { AppRouter } from "@workspace/adapter-front";
 import type { AnyRouter } from "@trpc/server";
 
 const wsClient = createWSClient({

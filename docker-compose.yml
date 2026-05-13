@@ -1,0 +1,37 @@
+services:
+  pocketbase:
+    image: spectonic/pocketbase:latest
+    container_name: dbrain-pb
+    restart: unless-stopped
+    volumes:
+      - ./pb/pb_data:/pb_data
+    ports:
+      - "8090:8090"
+    command: serve --http=0.0.0.0:8090
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: dbrain-server
+    restart: unless-stopped
+    environment:
+      PB_URL: http://pocketbase:8090
+      PORT: "3001"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - pocketbase
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: dbrain-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_TRPC_SERVER: http://server:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server

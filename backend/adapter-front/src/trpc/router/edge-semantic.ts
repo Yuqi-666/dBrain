@@ -64,16 +64,16 @@ export const edgeSemanticRouter = router({
     });
     return { success: true, id: input.id };
   }),
-  list: protectedProcedure.query(() => {
-    return { items: [] };
+  list: protectedProcedure.query(async () => {
+    return container().semanticQueryService.listEdgeSemantics({});
   }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(({ input }) => {
-      return null;
+    .query(async ({ input }) => {
+      return container().semanticQueryService.getEdgeSemanticById({ id: input.id });
     }),
-  sync: protectedProcedure.query(() => {
-    return [];
+  sync: protectedProcedure.query(async () => {
+    return container().semanticQueryService.listEdgeSemantics({});
   }),
   onAdded: protectedProcedure.subscription(({ ctx }) => {
     return observable<EdgeSemanticAddedEvent>((emit) => {

@@ -1,6 +1,5 @@
 import {
   router,
-  publicProcedure,
   protectedProcedure,
   nodeSemanticAddedEmitter,
   nodeSemanticUpdatedEmitter,
@@ -70,21 +69,21 @@ export const nodeSemanticRouter = router({
   sync: protectedProcedure.query(async () => {
     return getContainer().semanticQueryService.listNodeSemantics({});
   }),
-  onAdded: publicProcedure.subscription(({ ctx }) => {
+  onAdded: protectedProcedure.subscription(({ ctx }) => {
     return observable<NodeSemanticAddedEvent>((emit) => {
       const handler = (data: NodeSemanticAddedEvent) => emit.next(data);
       const unsubscribe = nodeSemanticAddedEmitter.subscribe(handler);
       return () => unsubscribe();
     });
   }),
-  onUpdated: publicProcedure.subscription(({ ctx }) => {
+  onUpdated: protectedProcedure.subscription(({ ctx }) => {
     return observable<NodeSemanticUpdatedEvent>((emit) => {
       const handler = (data: NodeSemanticUpdatedEvent) => emit.next(data);
       const unsubscribe = nodeSemanticUpdatedEmitter.subscribe(handler);
       return () => unsubscribe();
     });
   }),
-  onDeleted: publicProcedure.subscription(({ ctx }) => {
+  onDeleted: protectedProcedure.subscription(({ ctx }) => {
     return observable<NodeSemanticEventDeletedEvent>((emit) => {
       const handler = (data: NodeSemanticEventDeletedEvent) => emit.next(data);
       const unsubscribe = nodeSemanticDeletedEmitter.subscribe(handler);

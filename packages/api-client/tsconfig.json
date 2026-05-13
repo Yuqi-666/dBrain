@@ -20,6 +20,12 @@
       ],
       "@workspace/store/*": [
         "../store/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
       ]
     }
   },

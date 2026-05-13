@@ -8,7 +8,10 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noemit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/utils": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   },

@@ -13,10 +13,15 @@
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
     "@tanstack/react-query": "^5.0.0",
-    "@workspace/interfaces": "workspace:*"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/adapter-front": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3"
   },
   "exports": {
     ".": "./src/index.ts"

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createTRPCReact, TRPCProvider } from "@trpc/react-query";
-import type { AppRouter } from "@workspace/backend-adapter-front";
+import { createTRPCReact } from "@trpc/react-query";
+import type { AppRouter } from "@workspace/adapter-front";
 import { trpcClient } from "./client";
 import { useState } from "react";
 

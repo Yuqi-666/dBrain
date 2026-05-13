@@ -9,7 +9,6 @@ import {
   type NodeId,
   type EdgeId,
   type ViewId,
-  type SyncQuery,
 } from "@workspace/interfaces";
 import { trpcClient } from "../trpc/client";
 import { useGraphStore } from "@workspace/store";
@@ -303,19 +302,4 @@ export const GraphCQRS = {
     }
   },
 
-  // ================== Query ==================
-
-  async sync(query: SyncQuery): Promise<void> {
-    const store = useGraphStore.getState();
-
-    try {
-      const data = await trpcClient.graph.sync.query(query);
-
-      if (data) {
-        store.syncFromServer(data);
-      }
-    } catch (error) {
-      throw error;
-    }
-  },
 };
