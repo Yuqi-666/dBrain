@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/backend-adapter-back",
+  "name": "@workspace/adapter-back",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -8,15 +8,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noemit"
   },
-  "dependencies": {
-    "@trpc/server": "^11.0.0",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.0.0",
-    "express": "^4.21.0",
-    "superjson": "^2.2.1",
-    "tsx": "^4.0.0",
-    "zod": "^3.24.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.0.0"
   },

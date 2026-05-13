@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/backend-adapter-tauri",
+  "name": "@workspace/adapter-tauri",
   "version": "0.0.0",
   "type": "module",
   "private": true,

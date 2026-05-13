@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@workspace/backend-adapter-back": "workspace:*",
-    "@workspace/backend-adapter-front": "workspace:*",
-    "@workspace/backend-adapter-tauri": "workspace:*",
-    "@workspace/backend-application": "workspace:*",
-    "@workspace/backend-domain": "workspace:*",
-    "@workspace/backend-infrastructure": "workspace:*",
+    "@workspace/adapter-back": "workspace:*",
+    "@workspace/adapter-front": "workspace:*",
+    "@workspace/adapter-tauri": "workspace:*",
+    "@workspace/application": "workspace:*",
+    "@workspace/domain": "workspace:*",
+    "@workspace/infrastructure": "workspace:*",
     "@workspace/interfaces": "workspace:*"
   },
   "devDependencies": {

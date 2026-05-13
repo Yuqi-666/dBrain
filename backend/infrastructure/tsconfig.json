@@ -3,11 +3,23 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@workspace/domain": [
+        "../domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../domain/src/*"
+      ],
       "@workspace/interfaces": [
         "../../packages/interfaces/src"
       ],
       "@workspace/interfaces/*": [
         "../../packages/interfaces/src/*"
+      ],
+      "@workspace/utils": [
+        "../../packages/utils/src"
+      ],
+      "@workspace/utils/*": [
+        "../../packages/utils/src/*"
       ]
     }
   },

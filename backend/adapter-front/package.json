@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/backend-adapter-front",
+  "name": "@workspace/adapter-front",
   "version": "0.0.0",
   "type": "module",
   "private": true,

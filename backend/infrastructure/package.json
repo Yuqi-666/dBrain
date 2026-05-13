@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/backend-infrastructure",
+  "name": "@workspace/infrastructure",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -8,7 +8,9 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noemit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pocketbase": "^0.26.9"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
