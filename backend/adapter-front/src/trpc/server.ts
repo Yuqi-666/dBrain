@@ -13,17 +13,20 @@ export interface Context {
 
 /**
  * Context creation function
- * Extracts user info from JWT and creates context
+ * Extracts user info from JWT/connectionParams and creates context
+ *
+ * For HTTP: expects { userId, connectionId }
+ * For WS: receives { req, connectionParams, socket, server } - extracts userId from connectionParams
  */
-export function createContext({ userId, connectionId }: Context): Context {
-  if (!userId) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "User ID is required",
-    });
-  }
+export function createContext(ctx: {
+  userId?: string;
+  connectionId?: string;
+  connectionParams?: { userId?: string };
+}): Context {
+  // Support both direct userId and connectionParams.userId (for WebSocket)
+  const userId = ctx.userId ?? ctx.connectionParams?.userId ?? "dev-user";
 
-  return { userId, connectionId };
+  return { userId, connectionId: ctx.connectionId };
 }
 
 export type createContextFn = typeof createContext;

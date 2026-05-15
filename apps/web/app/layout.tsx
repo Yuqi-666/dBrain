@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@workspace/ui/lib/utils";
 import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
 import type { ReactNode } from "react";
+import { Providers } from "./providers";
 const notoSerifHeading = Noto_Serif({
   subsets: ["latin"],
   variable: "--font-heading",
@@ -37,7 +38,9 @@ export default function RootLayout({
       <body>
         <ContextMenuInterceptor />
         <ThemeProvider>
-          <main>{children}</main>
+          <Providers>
+            <main>{children}</main>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

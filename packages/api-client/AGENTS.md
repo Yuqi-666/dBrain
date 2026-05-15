@@ -73,7 +73,7 @@ await mutation.mutateAsync(nodeData);
 
 ## IMPORTANT CONSTRAINTS
 
-- **Server URL**: `ws://localhost:3001` (WS) and `http://localhost:3001/trpc` (HTTP)
+- **Server URL**: `ws://localhost:3001` (all operations: queries, mutations, subscriptions)
 - **AppRouter type**: Imported from `@workspace/backend-adapter-front`
 - **Subscriptions**: Must be called inside React component context (hooks)
 - **CQRS**: All operations use optimistic updates with automatic rollback on failure

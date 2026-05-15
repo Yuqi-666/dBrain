@@ -2,7 +2,8 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { Graph } from "@workspace/graph";
-import { useGraphStore, useUIStore } from "@workspace/store";
+import { useUIStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import {
   INITIAL_NODE_SEMANTICS,
   INITIAL_EDGE_SEMANTICS,
@@ -20,22 +21,29 @@ export default function GraphDemoPage(): ReactNode {
   const [isInitialized, setIsInitialized] = useState(false);
   const ui_store = useUIStore();
   const mainView = useUIStore((state) => state.mainViewType);
-  const graph_store = useGraphStore();
   const currentViewId = ui_store.currentViewId ?? undefined;
+
   useEffect(() => {
-    ui_store.setCurrentViewId(DEMO_VIEW.id);
-    graph_store.setViews([DEMO_VIEW]);
-    graph_store.setNodeSemantics(INITIAL_NODE_SEMANTICS);
-    graph_store.setEdgeSemantics(INITIAL_EDGE_SEMANTICS);
-    graph_store.setNodes(INITIAL_NODES);
-    graph_store.setEdges(INITIAL_EDGES);
-    setIsInitialized(true);
+    const initGraph = async () => {
+      ui_store.setCurrentViewId(DEMO_VIEW.id);
+
+      await Promise.all([
+        GraphCQRS.addView(DEMO_VIEW),
+        ...INITIAL_NODE_SEMANTICS.map((s) => GraphCQRS.addNodeSemantic(s)),
+        ...INITIAL_EDGE_SEMANTICS.map((s) => GraphCQRS.addEdgeSemantic(s)),
+        ...INITIAL_NODES.map((n) => GraphCQRS.addNode(n)),
+        ...INITIAL_EDGES.map((e) => GraphCQRS.addEdge(e)),
+      ]);
+
+      setIsInitialized(true);
+    };
+
+    initGraph();
   }, []);
 
   return (
     <CognitiveGraphLayout sidebar={<CognitiveSidebar />}>
       <div className="absolute inset-0 z-0">
-        {/* <GraphHeader /> */}
         {mainView === "graph" ? (
           <>
             <GraphHeader />
