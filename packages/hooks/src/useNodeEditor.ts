@@ -2,6 +2,7 @@
 
 import { useMemo, useCallback } from "react";
 import { useNodeEditorStore, useGraphStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import type { NodeData, NodeId } from "@workspace/interfaces";
 
 /**
@@ -16,7 +17,6 @@ export function useNodeEditor() {
 
   // Get graph store methods
   const getNode = useGraphStore((state) => state.getNode);
-  const updateNode = useGraphStore((state) => state.updateNode);
 
   // Get current node data
   const node = useMemo(() => {
@@ -26,47 +26,47 @@ export function useNodeEditor() {
 
   // Update node title
   const updateTitle = useCallback(
-    (title: string) => {
+    async (title: string) => {
       if (!currentEditingNodeId) return;
-      updateNode(currentEditingNodeId, { title });
+      await GraphCQRS.updateNode(currentEditingNodeId, { title });
     },
-    [currentEditingNodeId, updateNode],
+    [currentEditingNodeId],
   );
 
   // Update node abstract (summary)
   const updateAbstract = useCallback(
-    (abstract: string) => {
+    async (abstract: string) => {
       if (!currentEditingNodeId) return;
-      updateNode(currentEditingNodeId, { abstract });
+      await GraphCQRS.updateNode(currentEditingNodeId, { abstract });
     },
-    [currentEditingNodeId, updateNode],
+    [currentEditingNodeId],
   );
 
   // Update node tags
   const updateTags = useCallback(
-    (tags: string[]) => {
+    async (tags: string[]) => {
       if (!currentEditingNodeId) return;
-      updateNode(currentEditingNodeId, { tags });
+      await GraphCQRS.updateNode(currentEditingNodeId, { tags });
     },
-    [currentEditingNodeId, updateNode],
+    [currentEditingNodeId],
   );
 
   // Update node semanticId
   const updateSemanticId = useCallback(
-    (semanticId: string) => {
+    async (semanticId: string) => {
       if (!currentEditingNodeId) return;
-      updateNode(currentEditingNodeId, { semanticId: semanticId as any });
+      await GraphCQRS.updateNode(currentEditingNodeId, { semanticId: semanticId as any });
     },
-    [currentEditingNodeId, updateNode],
+    [currentEditingNodeId],
   );
 
   // Generic update for any field
   const updateField = useCallback(
-    <K extends keyof NodeData>(field: K, value: NodeData[K]) => {
+    async <K extends keyof NodeData>(field: K, value: NodeData[K]) => {
       if (!currentEditingNodeId) return;
-      updateNode(currentEditingNodeId, { [field]: value } as any);
+      await GraphCQRS.updateNode(currentEditingNodeId, { [field]: value } as any);
     },
-    [currentEditingNodeId, updateNode],
+    [currentEditingNodeId],
   );
 
   return {
@@ -82,6 +82,5 @@ export function useNodeEditor() {
     updateTags,
     updateSemanticId,
     updateField,
-    updateNode,
   };
 }

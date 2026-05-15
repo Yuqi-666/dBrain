@@ -118,3 +118,15 @@ export const useViewDeleted = (onData: (event: any) => void) => {
     onData,
   });
 };
+
+// NodeTag mutations
+export const useAddNodeTag = () => trpc.nodeTag.add.useMutation();
+export const useUpdateNodeTag = () => trpc.nodeTag.update.useMutation();
+export const useDeleteNodeTag = () => trpc.nodeTag.delete.useMutation();
+
+// NodeTag subscriptions
+export const useNodeTagAdded = (onData: (event: any) => void) => {
+  return trpc.nodeTag.onAdded.useSubscription(undefined, {
+    onData,
+  });
+};

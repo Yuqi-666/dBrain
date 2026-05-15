@@ -185,6 +185,13 @@ export const viewDeletedEmitter = createEmitter<{
   timestamp: number;
 }>();
 
+// NodeTag events (1)
+export const nodeTagAddedEmitter = createEmitter<{
+  nodeTag: any;
+  userId: string;
+  timestamp: number;
+}>();
+
 /**
  * Helper to emit all events in one object
  * Useful for internal event dispatching

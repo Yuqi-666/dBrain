@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore } from "@workspace/store";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
-import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { ImageNodeData } from "@workspace/interfaces";
 
 interface ImageNodeContentProps {
@@ -14,17 +12,8 @@ interface ImageNodeContentProps {
 }
 
 export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
-  const updateNode = useGraphStore((state) => state.updateNode);
-
   const url = node.content?.url;
   const hasUrl = !!url;
-
-  const { isLoading: uploadLoading, handlers } = useUploadState({
-    nodeId: node.id,
-    onUploadComplete: (attachment) => {
-      updateNode(node.id, { content: { url: attachment.url } });
-    },
-  });
 
   const [mediaLoading, setMediaLoading] = useState(hasUrl);
 
@@ -42,16 +31,12 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
     img.src = url;
   }, [hasUrl, url]);
 
-  const isLoading = uploadLoading || mediaLoading;
-
   if (!hasUrl) {
     return (
       <FileDropZone
+        nodeId={node.id}
         accept="image/*"
         variant="image"
-        onUploadStart={handlers.onUploadStart}
-        onUploadComplete={handlers.onUploadComplete}
-        onUploadError={handlers.onUploadError}
         className={cn("w-full h-full", className)}
       />
     );
@@ -64,7 +49,7 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
         className,
       )}
     >
-      {isLoading && (
+      {mediaLoading && (
         <div className="absolute inset-0 z-10">
           <LoadingPlaceholder variant="image" />
         </div>
@@ -74,7 +59,7 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
         alt={node.title || "图片"}
         className={cn(
           "aspect-auto rounded-sm object-contain transition-opacity duration-300",
-          isLoading ? "opacity-0" : "opacity-100",
+          mediaLoading ? "opacity-0" : "opacity-100",
         )}
       />
     </div>

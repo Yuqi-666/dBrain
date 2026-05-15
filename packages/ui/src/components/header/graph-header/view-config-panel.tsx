@@ -1,6 +1,7 @@
 "use client";
 
 import { useGraphStore, useUIStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,21 +57,20 @@ interface ViewConfigPanelProps {
 export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
   const currentViewId = useUIStore((state) => state.currentViewId);
   const views = useGraphStore((state) => state.views);
-  const updateView = useGraphStore((state) => state.updateView);
 
   const currentView = currentViewId ? views.get(currentViewId) : null;
   const visualConfig = currentView?.visualConfig || {};
 
-  const handleUpdateVisualConfig = (updates: Partial<VisualConfig>) => {
+  const handleUpdateVisualConfig = async (updates: Partial<VisualConfig>) => {
     if (!currentViewId) return;
-    updateView(currentViewId, {
+    await GraphCQRS.updateView(currentViewId, {
       visualConfig: { ...visualConfig, ...updates },
     });
   };
 
-  const handleUpdateLayout = (layout: LayoutType) => {
+  const handleUpdateLayout = async (layout: LayoutType) => {
     if (!currentViewId) return;
-    updateView(currentViewId, { layout });
+    await GraphCQRS.updateView(currentViewId, { layout });
   };
 
   return (

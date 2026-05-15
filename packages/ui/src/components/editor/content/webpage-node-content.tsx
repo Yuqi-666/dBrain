@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore } from "@workspace/store";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
-import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { WebpageNodeData } from "@workspace/interfaces";
 
 interface WebpageNodeContentProps {
@@ -18,22 +16,9 @@ export function WebpageNodeContent({
   className,
 }: WebpageNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
-  const updateNode = useGraphStore((state) => state.updateNode);
 
   const screenshotUrl = node.content?.screenshotUrl;
   const hasScreenshot = !!screenshotUrl;
-
-  const { isLoading: uploadLoading, handlers } = useUploadState({
-    nodeId: node.id,
-    onUploadComplete: (attachment) => {
-      updateNode(node.id, {
-        content: {
-          ...node.content,
-          screenshotUrl: attachment.url,
-        },
-      });
-    },
-  });
 
   useEffect(() => {
     if (hasScreenshot) {
@@ -50,16 +35,14 @@ export function WebpageNodeContent({
     img.src = screenshotUrl;
   }, [hasScreenshot, screenshotUrl]);
 
-  const isLoading = uploadLoading || mediaLoading;
+  const isLoading = mediaLoading;
 
   if (!hasScreenshot) {
     return (
       <FileDropZone
+        nodeId={node.id}
         accept="image/*"
         variant="webpage"
-        onUploadStart={handlers.onUploadStart}
-        onUploadComplete={handlers.onUploadComplete}
-        onUploadError={handlers.onUploadError}
         className={cn("w-full h-full min-h-[300px]", className)}
       />
     );

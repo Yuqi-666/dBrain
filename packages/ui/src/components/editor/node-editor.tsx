@@ -6,6 +6,7 @@ import {
   useNodeEditorStore,
   useGraphStore,
 } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
 import { RelationshipQuickBar } from "./quick-bar";
@@ -34,7 +35,7 @@ export function NodeEditor({ className }: NodeEditorProps) {
   const node = useGraphStore((state) =>
     currentEditingNodeId ? state.nodes.get(currentEditingNodeId) : undefined,
   );
-  const updateNode = useGraphStore((state) => state.updateNode);
+
   if (!node) {
     return null;
   }

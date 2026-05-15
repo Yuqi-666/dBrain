@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import { LinkIcon, Plus, X } from "lucide-react";
 import type {
   EdgeData,
@@ -118,37 +119,35 @@ function MetadataTabContent({
   node: NodeData;
   nodeId: string;
 }) {
-  const updateNode = useGraphStore((state) => state.updateNode);
   const getAllNodeSemantics = useGraphStore(
     (state) => state.getAllNodeSemantics,
   );
   const allSemantics = getAllNodeSemantics();
 
-  const handleAbstractChange = (value: string) => {
-    updateNode(nodeId, { abstract: value });
+  const handleAbstractChange = async (value: string) => {
+    await GraphCQRS.updateNode(nodeId, { abstract: value });
   };
 
-  const handleSemanticIdChange = (value: string) => {
-    updateNode(nodeId, { semanticId: value });
+  const handleSemanticIdChange = async (value: string) => {
+    await GraphCQRS.updateNode(nodeId, { semanticId: value });
   };
 
   const getAllNodeTags = useGraphStore((state) => state.getAllNodeTags);
-  const addNodeTag = useGraphStore((state) => state.addNodeTag);
   const allTags = getAllNodeTags();
 
   const [newTagName, setNewTagName] = useState("");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
 
-  const handleToggleTag = (tagId: NodeTagId) => {
+  const handleToggleTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
     if (currentTags.includes(tagId)) {
-      updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+      await GraphCQRS.updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
     } else {
-      updateNode(nodeId, { tags: [...currentTags, tagId] });
+      await GraphCQRS.updateNode(nodeId, { tags: [...currentTags, tagId] });
     }
   };
 
-  const handleCreateTag = () => {
+  const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
     const tagId = newTagName.trim().toLowerCase().replace(/\s+/g, "-");
     const colors = [
@@ -167,30 +166,30 @@ function MetadataTabContent({
       name: newTagName.trim(),
       color: randomColor,
     };
-    addNodeTag(newTag);
+    await GraphCQRS.addNodeTag(newTag);
     const currentTags = node.tags || [];
-    updateNode(nodeId, { tags: [...currentTags, tagId] });
+    await GraphCQRS.updateNode(nodeId, { tags: [...currentTags, tagId] });
     setNewTagName("");
     setIsCreatingTag(false);
   };
 
-  const handleDeleteTag = (tagId: NodeTagId) => {
+  const handleDeleteTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
-    updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+    await GraphCQRS.updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
   };
 
-  const handleContentUrlChange = (field: string, value: string) => {
+  const handleContentUrlChange = async (field: string, value: string) => {
     if (!node.content) return;
-    updateNode(nodeId, {
+    await GraphCQRS.updateNode(nodeId, {
       content: { ...node.content, [field]: value },
     } as Partial<Omit<NodeData, "id" | "nodeType">>);
   };
 
-  const handleCollectionTypeChange = (value: string) => {
+  const handleCollectionTypeChange = async (value: string) => {
     if (node.nodeType !== "collection") return;
     const newCollectionType = value as "ordered" | "unordered" | "cards";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateNode(nodeId, {
+    await GraphCQRS.updateNode(nodeId, {
       content: {
         ...node.content,
         filterConfig: {

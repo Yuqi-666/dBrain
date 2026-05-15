@@ -14,6 +14,7 @@ import {
   useViewAdded,
   useViewUpdated,
   useViewDeleted,
+  useNodeTagAdded,
 } from "./hooks/useGraph";
 import {
   handleNodeSemanticAdded,
@@ -31,6 +32,7 @@ import {
   handleViewAdded,
   handleViewUpdated,
   handleViewDeleted,
+  handleNodeTagAdded,
 } from "../handler/graph-handler";
 
 /**
@@ -59,4 +61,6 @@ export function useGraphSubscriptions(): void {
   useViewAdded(handleViewAdded);
   useViewUpdated(handleViewUpdated);
   useViewDeleted(handleViewDeleted);
+
+  useNodeTagAdded(handleNodeTagAdded);
 }

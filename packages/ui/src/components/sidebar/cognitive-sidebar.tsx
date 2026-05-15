@@ -1,5 +1,6 @@
 "use client";
 import { useGraphStore, useNodeEditorStore, useUIStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Collapsible,
@@ -297,10 +298,8 @@ function ViewsList({
     updatedAt?: string;
   }>;
 }) {
-  const updateView = useGraphStore((state) => state.updateView);
-
-  const handleTogglePin = (id: string, isPinned: boolean) => {
-    updateView(id, { isPinned });
+  const handleTogglePin = async (id: string, isPinned: boolean) => {
+    await GraphCQRS.updateView(id, { isPinned });
   };
 
   const nonPinnedRecentViews = recentViews.filter(
@@ -414,7 +413,6 @@ function NodesList({
     isPinned?: boolean;
   }>;
 }) {
-  const updateNode = useGraphStore((state) => state.updateNode);
   const currentEditingNodeId = useNodeEditorStore(
     (state) => state.currentEditingNodeId,
   );
@@ -422,8 +420,8 @@ function NodesList({
     (state) => state.setCurrentEditingNodeId,
   );
 
-  const handleTogglePin = (id: string, isPinned: boolean) => {
-    updateNode(id, { isPinned });
+  const handleTogglePin = async (id: string, isPinned: boolean) => {
+    await GraphCQRS.updateNode(id, { isPinned });
   };
 
   const handleSelectNode = (id: string) => {

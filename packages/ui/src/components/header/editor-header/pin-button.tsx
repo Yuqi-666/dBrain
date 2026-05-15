@@ -3,6 +3,7 @@
 import { PinIcon, PinOffIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useNodeEditorStore, useGraphStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 
 interface PinButtonProps {
   className?: string;
@@ -18,13 +19,12 @@ export function PinButton({ className }: PinButtonProps) {
   const node = useGraphStore((s) =>
     currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined,
   );
-  const updateNode = useGraphStore((s) => s.updateNode);
 
   const isPinned = node?.isPinned ?? false;
 
-  const handleTogglePin = () => {
+  const handleTogglePin = async () => {
     if (!currentEditingNodeId) return;
-    updateNode(currentEditingNodeId, { isPinned: !isPinned });
+    await GraphCQRS.updateNode(currentEditingNodeId, { isPinned: !isPinned });
   };
 
   return (

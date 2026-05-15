@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { GlobeIcon } from "lucide-react";
-import { useGraphStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import {
   Dialog,
   DialogContent,
@@ -34,9 +34,8 @@ export function WebsiteNodeContent({
 }: WebsiteNodeContentProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [urlInput, setUrlInput] = useState(node.content.url || "");
-  const updateNode = useGraphStore((state) => state.updateNode);
 
-  const handleUrlSubmit = () => {
+  const handleUrlSubmit = async () => {
     if (!urlInput.trim()) return;
 
     let processedUrl = urlInput.trim();
@@ -54,7 +53,7 @@ export function WebsiteNodeContent({
       hostname = new URL(processedUrl).hostname;
     } catch {
       // Invalid URL, still save it but don't generate favicon
-      updateNode(node.id, {
+      await GraphCQRS.updateNode(node.id, {
         content: {
           ...node.content,
           url: processedUrl,
@@ -67,7 +66,7 @@ export function WebsiteNodeContent({
     // Generate favicon URL using Google Favicon API
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
 
-    updateNode(node.id, {
+    await GraphCQRS.updateNode(node.id, {
       content: {
         ...node.content,
         url: processedUrl,

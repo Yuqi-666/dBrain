@@ -16,6 +16,7 @@ import {
   viewAddedEmitter,
   viewUpdatedEmitter,
   viewDeletedEmitter,
+  nodeTagAddedEmitter,
 } from "../trpc/server";
 
 const eventToEmitterMap = [
@@ -34,6 +35,7 @@ const eventToEmitterMap = [
   { eventType: "ViewCreated", emitter: viewAddedEmitter },
   { eventType: "ViewUpdated", emitter: viewUpdatedEmitter },
   { eventType: "ViewDeleted", emitter: viewDeletedEmitter },
+  { eventType: "NodeTagCreated", emitter: nodeTagAddedEmitter },
 ] as const;
 
 const unsubscribers: Array<() => void> = [];

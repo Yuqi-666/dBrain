@@ -9,6 +9,8 @@ import {
   type NodeId,
   type EdgeId,
   type ViewId,
+  type NodeTag,
+  type NodeTagId,
 } from "@workspace/interfaces";
 import { trpcClient } from "../trpc/client";
 import { useGraphStore } from "@workspace/store";
@@ -130,6 +132,59 @@ export const GraphCQRS = {
     } catch (error) {
       // Rollback
       store.addEdgeSemantic(oldSemantic);
+      throw error;
+    }
+  },
+
+  // Node Tag operations
+  async addNodeTag(tag: NodeTag): Promise<void> {
+    const store = useGraphStore.getState();
+    store.addNodeTag(tag);
+    try {
+      await trpcClient.nodeTag.add.mutate(tag);
+    } catch (error) {
+      store.deleteNodeTag(tag.id);
+      throw error;
+    }
+  },
+
+  async updateNodeTag(
+    id: NodeTagId,
+    updates: Partial<NodeTag>,
+  ): Promise<void> {
+    const store = useGraphStore.getState();
+    const oldTag = store.nodeTags.get(id);
+
+    if (!oldTag) {
+      throw new Error("Node tag not found");
+    }
+
+    // Optimistic update
+    store.updateNodeTag(id, updates);
+
+    try {
+      await trpcClient.nodeTag.update.mutate({ id, updates });
+    } catch (error) {
+      store.updateNodeTag(id, oldTag);
+      throw error;
+    }
+  },
+
+  async deleteNodeTag(id: NodeTagId): Promise<void> {
+    const store = useGraphStore.getState();
+    const oldTag = store.nodeTags.get(id);
+
+    if (!oldTag) {
+      throw new Error("Node tag not found");
+    }
+
+    // Optimistic delete
+    store.deleteNodeTag(id);
+
+    try {
+      await trpcClient.nodeTag.delete.mutate({ id });
+    } catch (error) {
+      store.addNodeTag(oldTag);
       throw error;
     }
   },

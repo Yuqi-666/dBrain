@@ -2,7 +2,8 @@
 
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { useNodeEditorStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 import type { TextNodeData } from "@workspace/interfaces";
 
 interface TextNodeContentProps {
@@ -11,7 +12,6 @@ interface TextNodeContentProps {
 }
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
-  const updateNode = useGraphStore((state) => state.updateNode);
   const currentEditingNodeId = useNodeEditorStore(
     (state) => state.currentEditingNodeId,
   );
@@ -29,9 +29,9 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
       <div className="space-y-2 flex-1">
         <Textarea
           value={getValue()}
-          onChange={(e) => {
+          onChange={async (e) => {
             if (!currentEditingNodeId) return;
-            updateNode(currentEditingNodeId, {
+            await GraphCQRS.updateNode(currentEditingNodeId, {
               content: { docs: { content: e.target.value } },
             });
           }}

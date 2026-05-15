@@ -85,6 +85,14 @@ export function handleViewDeleted(payload: ViewDeletedEvent): void {
   useGraphStore.getState().deleteView(payload.id);
 }
 
+export function handleNodeTagAdded(payload: {
+  nodeTag: any;
+  userId: string;
+  timestamp: number;
+}): void {
+  useGraphStore.getState().addNodeTag(payload.nodeTag);
+}
+
 export function handleWsConnected(payload: {
   connectionId: string;
   timestamp: number;

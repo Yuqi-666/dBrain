@@ -2,6 +2,7 @@
 
 import { Input } from "@workspace/ui/components/ui/input";
 import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
 
 interface NodeTitleProps {
   className?: string;
@@ -12,15 +13,14 @@ export function NodeTitle({ className }: NodeTitleProps) {
     (state) => state.currentEditingNodeId,
   );
   const nodes = useGraphStore((state) => state.nodes);
-  const updateNode = useGraphStore((state) => state.updateNode);
 
   const currentNode = currentEditingNodeId
     ? nodes.get(currentEditingNodeId)
     : null;
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (currentEditingNodeId && currentNode) {
-      updateNode(currentEditingNodeId, { title: e.target.value });
+      await GraphCQRS.updateNode(currentEditingNodeId, { title: e.target.value });
     }
   };
 

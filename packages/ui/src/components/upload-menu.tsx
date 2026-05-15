@@ -13,17 +13,13 @@ import {
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { cn } from "@workspace/ui/lib/utils";
-import { uploadFile } from "@workspace/api-client";
-import type { IAttachment } from "@workspace/interfaces";
 
 interface UploadMenuProps {
   position: { x: number; y: number };
   open: boolean;
   onClose: () => void;
   accept?: string;
-  onUploadStart?: () => void;
-  onUploadComplete?: (attachment: IAttachment) => void;
-  onUploadError?: (error: Error) => void;
+  onFilesSelected: (files: File[]) => void;
 }
 
 const MenuItemButton = ({
@@ -50,9 +46,7 @@ export function UploadMenu({
   open,
   onClose,
   accept,
-  onUploadStart,
-  onUploadComplete,
-  onUploadError,
+  onFilesSelected,
 }: UploadMenuProps) {
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -75,18 +69,11 @@ export function UploadMenu({
     }, 0);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      onUploadStart?.();
-      const attachment = await uploadFile(file);
-      onUploadComplete?.(attachment);
-    } catch (error) {
-      console.error("Upload failed:", error);
-      onUploadError?.(error as Error);
-    }
+    onFilesSelected([file]);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -96,7 +83,6 @@ export function UploadMenu({
   const handlePasteUpload = async () => {
     closeMenu();
     try {
-      onUploadStart?.();
       const clipboardItems = await navigator.clipboard.read();
       let imageBlob: Blob | null = null;
 
@@ -112,7 +98,6 @@ export function UploadMenu({
 
       if (!imageBlob) {
         console.error("No image found in clipboard");
-        onUploadError?.(new Error("No image found in clipboard"));
         return;
       }
 
@@ -120,33 +105,30 @@ export function UploadMenu({
         type: imageBlob.type,
       });
 
-      const attachment = await uploadFile(file);
-      onUploadComplete?.(attachment);
+      onFilesSelected([file]);
     } catch (error) {
       console.error("Paste upload failed:", error);
-      onUploadError?.(error as Error);
     }
   };
 
-  const handleUrlConfirm = () => {
+  const handleUrlConfirm = async () => {
     if (!urlInput.trim()) return;
 
     try {
-      onUploadStart?.();
-      const attachment: IAttachment = {
-        id: "",
-        url: urlInput.trim(),
-        fileName: urlInput.split("/").pop() || "url",
-        fileSize: 0,
-        updatedAt: new Date().toISOString(),
-      };
+      const response = await fetch(urlInput.trim());
+      if (!response.ok) {
+        throw new Error(`Failed to fetch URL: ${response.statusText}`);
+      }
 
-      onUploadComplete?.(attachment);
+      const blob = await response.blob();
+      const filename = urlInput.split("/").pop() || "url-file";
+      const file = new File([blob], filename, { type: blob.type });
+
+      onFilesSelected([file]);
       setUrlInput("");
       setUrlDialogOpen(false);
     } catch (error) {
       console.error("URL upload failed:", error);
-      onUploadError?.(error as Error);
     }
   };
 

@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore } from "@workspace/store";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
-import { useUploadState } from "@workspace/ui/hooks/use-upload-state";
 import type { VideoNodeData } from "@workspace/interfaces";
 
 interface VideoNodeContentProps {
@@ -15,19 +13,9 @@ interface VideoNodeContentProps {
 
 export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
-  const updateNode = useGraphStore((state) => state.updateNode);
 
   const url = node.content?.url;
   const hasUrl = !!url;
-
-  const { isLoading: uploadLoading, handlers } = useUploadState({
-    nodeId: node.id,
-    onUploadComplete: (attachment) => {
-      updateNode(node.id, {
-        content: { url: attachment.url, cover_url: "" },
-      });
-    },
-  });
 
   useEffect(() => {
     if (hasUrl) {
@@ -35,17 +23,15 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
     }
   }, [hasUrl]);
 
-  const isLoading = uploadLoading || mediaLoading;
+  const isLoading = mediaLoading;
 
   if (!hasUrl) {
     return (
       <FileDropZone
-        accept="video/*"
+        nodeId={node.id}
+        accept=".mp4,.webm,.mov,video/*"
         variant="video"
-        onUploadStart={handlers.onUploadStart}
-        onUploadComplete={handlers.onUploadComplete}
-        onUploadError={handlers.onUploadError}
-        className={cn("w-full h-full", className)}
+        className={cn("w-full h-full min-h-[200px]", className)}
       />
     );
   }
