@@ -1,17 +1,6 @@
 import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
-import { observable } from "@trpc/server/observable";
 import { z } from "zod";
-import type {
-  NodeAddedEvent,
-  NodeUpdatedEvent,
-  NodeDeletedEvent,
-} from "@workspace/interfaces/api/event";
-import {
-  nodeAddedEmitter,
-  nodeUpdatedEmitter,
-  nodeDeletedEmitter,
-} from "../server";
 
 const baseNodeFields = {
   id: z.string(),
@@ -165,6 +154,7 @@ export const nodeRouter = router({
         permission: input.updates.permission,
         isPinned: input.updates.isPinned,
         content: input.updates.content,
+        userId: ctx.userId,
       });
       return result;
     }),
@@ -172,7 +162,7 @@ export const nodeRouter = router({
   delete: protectedProcedure
     .input(deleteSchema)
     .mutation(async ({ ctx, input }) => {
-      await container().nodeCommandService.deleteNode({ id: input.id });
+      await container().nodeCommandService.deleteNode({ id: input.id, userId: ctx.userId });
       return { success: true, id: input.id };
     }),
 
@@ -211,28 +201,4 @@ export const nodeRouter = router({
         limit: input.limit,
       });
     }),
-
-  onAdded: protectedProcedure.subscription(() => {
-    return observable<NodeAddedEvent>((emit) => {
-      const handler = (data: NodeAddedEvent) => emit.next(data);
-      const unsubscribe = nodeAddedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-
-  onUpdated: protectedProcedure.subscription(() => {
-    return observable<NodeUpdatedEvent>((emit) => {
-      const handler = (data: NodeUpdatedEvent) => emit.next(data);
-      const unsubscribe = nodeUpdatedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-
-  onDeleted: protectedProcedure.subscription(() => {
-    return observable<NodeDeletedEvent>((emit) => {
-      const handler = (data: NodeDeletedEvent) => emit.next(data);
-      const unsubscribe = nodeDeletedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
 });

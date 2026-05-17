@@ -1,9 +1,7 @@
-import { router, protectedProcedure, edgeAddedEmitter, edgeUpdatedEmitter, edgeDeletedEmitter } from "../server";
+import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
-import { observable } from "@trpc/server/observable";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import type { EdgeAddedEvent, EdgeUpdatedEvent, EdgeDeletedEvent } from "@workspace/interfaces/api/event";
 
 const addSchema = z.object({
   id: z.string(),
@@ -40,6 +38,7 @@ export const edgeRouter = router({
         semanticId: input.semanticId,
         edgeType: input.edgeType,
         weight: input.weight !== undefined ? { value: input.weight } : undefined,
+        userId: ctx.userId,
       });
       return result;
     } catch (error) {
@@ -60,12 +59,13 @@ export const edgeRouter = router({
       semanticId: input.updates.semanticId,
       edgeType: input.updates.edgeType,
       weight: input.updates.weight !== undefined ? { value: input.updates.weight } : undefined,
+      userId: ctx.userId,
     });
     return result;
   }),
 
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
-    await container().edgeCommandService.deleteEdge({ id: input.id });
+    await container().edgeCommandService.deleteEdge({ id: input.id, userId: ctx.userId });
     return { success: true, id: input.id };
   }),
 
@@ -87,28 +87,4 @@ export const edgeRouter = router({
     .query(async ({ input }) => {
       return container().edgeQueryService.getById({ id: input.id });
     }),
-
-  onAdded: protectedProcedure.subscription(({ ctx }) => {
-    return observable<EdgeAddedEvent>((emit) => {
-      const handler = (data: EdgeAddedEvent) => emit.next(data);
-      const unsubscribe = edgeAddedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-
-  onUpdated: protectedProcedure.subscription(({ ctx }) => {
-    return observable<EdgeUpdatedEvent>((emit) => {
-      const handler = (data: EdgeUpdatedEvent) => emit.next(data);
-      const unsubscribe = edgeUpdatedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-
-  onDeleted: protectedProcedure.subscription(({ ctx }) => {
-    return observable<EdgeDeletedEvent>((emit) => {
-      const handler = (data: EdgeDeletedEvent) => emit.next(data);
-      const unsubscribe = edgeDeletedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
 });

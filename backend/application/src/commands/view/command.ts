@@ -13,6 +13,7 @@ export interface CreateViewCommand {
     collectionType?: string;
   };
   isPinned?: boolean;
+  userId: string;
 }
 
 export interface UpdateViewCommand {
@@ -30,8 +31,10 @@ export interface UpdateViewCommand {
     collectionType?: string;
   };
   isPinned?: boolean;
+  userId: string;
 }
 
 export interface DeleteViewCommand {
   id: string;
+  userId: string;
 }

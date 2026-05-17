@@ -357,4 +357,95 @@ export const GraphCQRS = {
     }
   },
 
+  // ==================== Query ====================
+
+  // Node Semantic sync
+  async syncNodeSemantic(ids?: NodeSemanticId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (NodeSemantic | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.nodeSemantic.getById.query({ id })),
+      );
+      store.setNodeSemantics(results.filter((r): r is NodeSemantic => r !== null));
+    } else {
+      const results = await trpcClient.nodeSemantic.list.query();
+      store.setNodeSemantics(results);
+    }
+  },
+
+  // Edge Semantic sync
+  async syncEdgeSemantic(ids?: EdgeSemanticId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (EdgeSemantic | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.edgeSemantic.getById.query({ id })),
+      );
+      store.setEdgeSemantics(results.filter((r): r is EdgeSemantic => r !== null));
+    } else {
+      const results = await trpcClient.edgeSemantic.list.query();
+      store.setEdgeSemantics(results);
+    }
+  },
+
+  // Node Tag sync
+  async syncNodeTag(ids?: NodeTagId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (NodeTag | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.nodeTag.getById.query({ id })),
+      );
+      store.setNodeTags(results.filter((r): r is NodeTag => r !== null));
+    } else {
+      const results = await trpcClient.nodeTag.list.query();
+      store.setNodeTags(results);
+    }
+  },
+
+  // Node sync
+  async syncNode(ids?: NodeId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (NodeData | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.node.getById.query({ id })),
+      );
+      store.setNodes(results.filter((r): r is NodeData => r !== null));
+    } else {
+      const results = await trpcClient.node.list.query({});
+      store.setNodes(results);
+    }
+  },
+
+  // Edge sync
+  async syncEdge(ids?: EdgeId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (EdgeData | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.edge.getById.query({ id })),
+      );
+      store.setEdges(results.filter((r): r is EdgeData => r !== null));
+    } else {
+      const results = await trpcClient.edge.list.query({});
+      store.setEdges(results);
+    }
+  },
+
+  // View sync
+  async syncView(ids?: ViewId[]): Promise<void> {
+    const store = useGraphStore.getState();
+
+    if (ids !== undefined) {
+      const results: (View | null)[] = await Promise.all(
+        ids.map((id) => trpcClient.view.getById.query({ id })),
+      );
+      store.setViews(results.filter((r): r is View => r !== null));
+    } else {
+      const results = await trpcClient.view.list.query({});
+      store.setViews(results);
+    }
+  },
 };

@@ -1,16 +1,4 @@
-import {
-  router,
-  protectedProcedure,
-  nodeSemanticAddedEmitter,
-  nodeSemanticUpdatedEmitter,
-  nodeSemanticDeletedEmitter,
-} from "../server";
-import { observable } from "@trpc/server/observable";
-import type {
-  NodeSemanticAddedEvent,
-  NodeSemanticUpdatedEvent,
-  NodeSemanticEventDeletedEvent,
-} from "@workspace/interfaces";
+import { router, protectedProcedure } from "../server";
 import { z } from "zod";
 import { AppContainer } from "../../di/container";
 
@@ -42,6 +30,7 @@ export const nodeSemanticRouter = router({
   add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
     const result = await getContainer().semanticCommandService.createNodeSemantic({
       ...input,
+      userId: ctx.userId,
     });
     return { success: true, data: result };
   }),
@@ -49,12 +38,14 @@ export const nodeSemanticRouter = router({
     const result = await getContainer().semanticCommandService.updateNodeSemantic({
       id: input.id,
       ...input.updates,
+      userId: ctx.userId,
     });
     return { success: true, data: result };
   }),
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
     await getContainer().semanticCommandService.deleteNodeSemantic({
       id: input.id,
+      userId: ctx.userId,
     });
     return { success: true, id: input.id };
   }),
@@ -66,28 +57,4 @@ export const nodeSemanticRouter = router({
     .query(async ({ input }) => {
       return getContainer().semanticQueryService.getNodeSemanticById({ id: input.id });
     }),
-  sync: protectedProcedure.query(async () => {
-    return getContainer().semanticQueryService.listNodeSemantics({});
-  }),
-  onAdded: protectedProcedure.subscription(({ ctx }) => {
-    return observable<NodeSemanticAddedEvent>((emit) => {
-      const handler = (data: NodeSemanticAddedEvent) => emit.next(data);
-      const unsubscribe = nodeSemanticAddedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-  onUpdated: protectedProcedure.subscription(({ ctx }) => {
-    return observable<NodeSemanticUpdatedEvent>((emit) => {
-      const handler = (data: NodeSemanticUpdatedEvent) => emit.next(data);
-      const unsubscribe = nodeSemanticUpdatedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
-  onDeleted: protectedProcedure.subscription(({ ctx }) => {
-    return observable<NodeSemanticEventDeletedEvent>((emit) => {
-      const handler = (data: NodeSemanticEventDeletedEvent) => emit.next(data);
-      const unsubscribe = nodeSemanticDeletedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
-  }),
 });

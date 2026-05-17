@@ -2,8 +2,6 @@ import type { IDomainEvent } from "../../event-bus";
 
 export interface ViewCreatedData {
   id: string;
-  name: string;
-  layout: string;
 }
 
 export interface ViewDeletedData {
@@ -15,4 +13,12 @@ export type ViewCreated = IDomainEvent<ViewCreatedData> & {
 };
 export type ViewDeleted = IDomainEvent<ViewDeletedData> & {
   eventType: "ViewDeleted";
+};
+
+export interface ViewUpdatedData {
+  id: string;
+}
+
+export type ViewUpdated = IDomainEvent<ViewUpdatedData> & {
+  eventType: "ViewUpdated";
 };

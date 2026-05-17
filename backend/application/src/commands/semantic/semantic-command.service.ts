@@ -6,8 +6,12 @@ import type {
 import type { IEventBus } from "@workspace/domain";
 import type {
   NodeSemanticCreated,
+  NodeSemanticUpdated,
   EdgeSemanticCreated,
+  EdgeSemanticUpdated,
   NodeTagCreated,
+  NodeTagUpdated,
+  NodeTagDeleted,
 } from "@workspace/domain";
 import type {
   CreateNodeSemanticCommand,
@@ -88,10 +92,10 @@ export class SemanticCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: saved.id.toString(),
-        name: saved.name,
       },
     };
     this.eventBus.publish(event);
@@ -117,6 +121,21 @@ export class SemanticCommandService {
     });
 
     const saved = await this.nodeSemanticRepository.save(updated);
+
+    const event: NodeSemanticUpdated = {
+      eventType: "NodeSemanticUpdated",
+      aggregateId: saved.id.toString(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: saved.id.toString(),
+      },
+    };
+    this.eventBus.publish(event);
+
     return toNodeSemanticDTO(saved);
   }
 
@@ -144,11 +163,10 @@ export class SemanticCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: saved.id.toString(),
-        name: saved.name,
-        category: saved.category,
       },
     };
     this.eventBus.publish(event);
@@ -174,6 +192,21 @@ export class SemanticCommandService {
     });
 
     const saved = await this.edgeSemanticRepository.save(updated);
+
+    const event: EdgeSemanticUpdated = {
+      eventType: "EdgeSemanticUpdated",
+      aggregateId: saved.id.toString(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: saved.id.toString(),
+      },
+    };
+    this.eventBus.publish(event);
+
     return toEdgeSemanticDTO(saved);
   }
 
@@ -197,10 +230,10 @@ export class SemanticCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: saved.id.toString(),
-        name: saved.name,
       },
     };
     this.eventBus.publish(event);
@@ -222,11 +255,41 @@ export class SemanticCommandService {
     });
 
     const saved = await this.nodeTagRepository.save(updated);
+
+    const event: NodeTagUpdated = {
+      eventType: "NodeTagUpdated",
+      aggregateId: saved.id.toString(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: saved.id.toString(),
+      },
+    };
+    this.eventBus.publish(event);
+
     return toNodeTagDTO(saved);
   }
 
   async deleteNodeTag(cmd: DeleteNodeTagCommand): Promise<void> {
     const id = TagId.create(cmd.id);
+
+    const event: NodeTagDeleted = {
+      eventType: "NodeTagDeleted",
+      aggregateId: id.toString(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: id.toString(),
+      },
+    };
+    this.eventBus.publish(event);
+
     await this.nodeTagRepository.delete(id);
   }
 }

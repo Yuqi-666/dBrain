@@ -1,6 +1,6 @@
 import type { IEdgeRepository } from "@workspace/domain";
 import type { IEventBus } from "@workspace/domain";
-import type { EdgeCreated, EdgeDeleted } from "@workspace/domain";
+import type { EdgeCreated, EdgeDeleted, EdgeUpdated } from "@workspace/domain";
 import type { CreateEdgeCommand, UpdateEdgeCommand, DeleteEdgeCommand } from "./command";
 import type { EdgeDTO } from "../../dto/edge.dto";
 import { Edge } from "@workspace/domain/models/edge/entities";
@@ -65,12 +65,10 @@ export class EdgeCommandService {
         metadata: {
           occurredAt: new Date().toISOString(),
           eventVersion: 1,
+          userId: cmd.userId,
         },
         data: {
           id: saved.id.getValue(),
-          from: saved.from.toString(),
-          to: saved.to.toString(),
-          edgeType: saved.edgeType.getValue(),
         },
       };
       this.eventBus.publish(event);
@@ -117,6 +115,21 @@ export class EdgeCommandService {
     }
 
     const saved = await this.edgeRepository.save(updated);
+
+    const event: EdgeUpdated = {
+      eventType: "EdgeUpdated",
+      aggregateId: saved.id.getValue(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: saved.id.getValue(),
+      },
+    };
+    this.eventBus.publish(event);
+
     return toEdgeDTO(saved);
   }
 
@@ -130,6 +143,7 @@ export class EdgeCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: cmd.id,

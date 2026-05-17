@@ -2,9 +2,6 @@ import type { IDomainEvent } from "../../event-bus";
 
 export interface EdgeCreatedData {
   id: string;
-  from: string;
-  to: string;
-  edgeType: string;
 }
 
 export interface EdgeDeletedData {
@@ -17,4 +14,12 @@ export type EdgeCreated = IDomainEvent<EdgeCreatedData> & {
 
 export type EdgeDeleted = IDomainEvent<EdgeDeletedData> & {
   eventType: "EdgeDeleted";
+};
+
+export interface EdgeUpdatedData {
+  id: string;
+}
+
+export type EdgeUpdated = IDomainEvent<EdgeUpdatedData> & {
+  eventType: "EdgeUpdated";
 };

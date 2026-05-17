@@ -1,9 +1,4 @@
-import {
-  router,
-  protectedProcedure,
-  nodeTagAddedEmitter,
-} from "../server";
-import { observable } from "@trpc/server/observable";
+import { router, protectedProcedure } from "../server";
 import { z } from "zod";
 import { AppContainer } from "../../di/container";
 
@@ -31,6 +26,7 @@ export const nodeTagRouter = router({
   add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
     const result = await getContainer().semanticCommandService.createNodeTag({
       ...input,
+      userId: ctx.userId,
     });
     return { success: true, data: result };
   }),
@@ -38,12 +34,14 @@ export const nodeTagRouter = router({
     const result = await getContainer().semanticCommandService.updateNodeTag({
       id: input.id,
       ...input.updates,
+      userId: ctx.userId,
     });
     return { success: true, data: result };
   }),
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
     await getContainer().semanticCommandService.deleteNodeTag({
       id: input.id,
+      userId: ctx.userId,
     });
     return { success: true, id: input.id };
   }),
@@ -57,13 +55,5 @@ export const nodeTagRouter = router({
     }),
   sync: protectedProcedure.query(async () => {
     return getContainer().semanticQueryService.listNodeTags({});
-  }),
-  onAdded: protectedProcedure.subscription(({ ctx }) => {
-    return observable<{ nodeTag: any; userId: string; timestamp: number }>((emit) => {
-      const handler = (data: { nodeTag: any; userId: string; timestamp: number }) =>
-        emit.next(data);
-      const unsubscribe = nodeTagAddedEmitter.subscribe(handler);
-      return () => unsubscribe();
-    });
   }),
 });

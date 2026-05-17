@@ -1,28 +1,6 @@
+import { trpc } from "./provider";
+import type { IDomainEvent } from "@workspace/interfaces";
 import {
-  useNodeAdded,
-  useNodeUpdated,
-  useNodeDeleted,
-  useEdgeAdded,
-  useEdgeUpdated,
-  useEdgeDeleted,
-  useNodeSemanticAdded,
-  useNodeSemanticUpdated,
-  useNodeSemanticDeleted,
-  useEdgeSemanticAdded,
-  useEdgeSemanticUpdated,
-  useEdgeSemanticDeleted,
-  useViewAdded,
-  useViewUpdated,
-  useViewDeleted,
-  useNodeTagAdded,
-} from "./hooks/useGraph";
-import {
-  handleNodeSemanticAdded,
-  handleNodeSemanticUpdated,
-  handleNodeSemanticDeleted,
-  handleEdgeSemanticAdded,
-  handleEdgeSemanticUpdated,
-  handleEdgeSemanticDeleted,
   handleNodeAdded,
   handleNodeUpdated,
   handleNodeDeleted,
@@ -32,35 +10,44 @@ import {
   handleViewAdded,
   handleViewUpdated,
   handleViewDeleted,
+  handleNodeSemanticAdded,
+  handleNodeSemanticUpdated,
+  handleNodeSemanticDeleted,
+  handleEdgeSemanticAdded,
+  handleEdgeSemanticUpdated,
+  handleEdgeSemanticDeleted,
   handleNodeTagAdded,
+  handleNodeTagUpdated,
+  handleNodeTagDeleted,
 } from "../handler/graph-handler";
+import { useAuthStore } from "@workspace/store";
 
-/**
- * React hook that sets up all tRPC subscriptions to handle server push events.
- * This replaces the Socket.io-based event dispatcher.
- *
- * Call this hook in your root component or a provider to enable real-time updates.
- */
 export function useGraphSubscriptions(): void {
-  useNodeSemanticAdded(handleNodeSemanticAdded);
-  useNodeSemanticUpdated(handleNodeSemanticUpdated);
-  useNodeSemanticDeleted(handleNodeSemanticDeleted);
+  trpc.event.onEvent.useSubscription(undefined, {
+    onData: (event: IDomainEvent) => {
+      const currentUserId = useAuthStore.getState().userId;
+      if (currentUserId && event.metadata.userId !== currentUserId) return;
 
-  useEdgeSemanticAdded(handleEdgeSemanticAdded);
-  useEdgeSemanticUpdated(handleEdgeSemanticUpdated);
-  useEdgeSemanticDeleted(handleEdgeSemanticDeleted);
-
-  useNodeAdded(handleNodeAdded);
-  useNodeUpdated(handleNodeUpdated);
-  useNodeDeleted(handleNodeDeleted);
-
-  useEdgeAdded(handleEdgeAdded);
-  useEdgeUpdated(handleEdgeUpdated);
-  useEdgeDeleted(handleEdgeDeleted);
-
-  useViewAdded(handleViewAdded);
-  useViewUpdated(handleViewUpdated);
-  useViewDeleted(handleViewDeleted);
-
-  useNodeTagAdded(handleNodeTagAdded);
+      switch (event.eventType) {
+        case "NodeCreated": handleNodeAdded(event); break;
+        case "NodeUpdated": handleNodeUpdated(event); break;
+        case "NodeDeleted": handleNodeDeleted(event); break;
+        case "EdgeCreated": handleEdgeAdded(event); break;
+        case "EdgeUpdated": handleEdgeUpdated(event); break;
+        case "EdgeDeleted": handleEdgeDeleted(event); break;
+        case "ViewCreated": handleViewAdded(event); break;
+        case "ViewUpdated": handleViewUpdated(event); break;
+        case "ViewDeleted": handleViewDeleted(event); break;
+        case "NodeSemanticCreated": handleNodeSemanticAdded(event); break;
+        case "NodeSemanticUpdated": handleNodeSemanticUpdated(event); break;
+        case "NodeSemanticDeleted": handleNodeSemanticDeleted(event); break;
+        case "EdgeSemanticCreated": handleEdgeSemanticAdded(event); break;
+        case "EdgeSemanticUpdated": handleEdgeSemanticUpdated(event); break;
+        case "EdgeSemanticDeleted": handleEdgeSemanticDeleted(event); break;
+        case "NodeTagCreated": handleNodeTagAdded(event); break;
+        case "NodeTagUpdated": handleNodeTagUpdated(event); break;
+        case "NodeTagDeleted": handleNodeTagDeleted(event); break;
+      }
+    },
+  });
 }

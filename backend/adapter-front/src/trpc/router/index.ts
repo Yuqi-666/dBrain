@@ -5,6 +5,7 @@ import { nodeRouter } from "./node";
 import { edgeRouter } from "./edge";
 import { viewRouter } from "./view";
 import { nodeTagRouter } from "./node-tag";
+import { eventRouter } from "./event";
 
 export const appRouter = router({
   node: nodeRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   nodeSemantic: nodeSemanticRouter,
   edgeSemantic: edgeSemanticRouter,
   nodeTag: nodeTagRouter,
+  event: eventRouter,
 });
 
 export type AppRouter = typeof appRouter;

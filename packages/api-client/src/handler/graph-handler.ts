@@ -1,108 +1,80 @@
-import type {
-  NodeAddedEvent,
-  NodeUpdatedEvent,
-  NodeDeletedEvent,
-  NodeSemanticAddedEvent,
-  NodeSemanticUpdatedEvent,
-  NodeSemanticEventDeletedEvent,
-  EdgeAddedEvent,
-  EdgeUpdatedEvent,
-  EdgeDeletedEvent,
-  EdgeSemanticAddedEvent,
-  EdgeSemanticUpdatedEvent,
-  EdgeSemanticEventDeletedEvent,
-  ViewAddedEvent,
-  ViewUpdatedEvent,
-  ViewDeletedEvent,
-} from "@workspace/interfaces";
-import { useGraphStore } from "@workspace/store";
+import type { IDomainEvent } from "@workspace/interfaces";
+import { GraphCQRS } from "../cqrs/graph-cqrs";
 
-export function handleNodeSemanticAdded(payload: NodeSemanticAddedEvent): void {
-  useGraphStore.getState().addNodeSemantic(payload.nodeSemantic);
+export async function handleNodeAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNode([event.data.id as string]);
 }
 
-export function handleNodeSemanticUpdated(
-  payload: NodeSemanticUpdatedEvent,
-): void {
-  useGraphStore.getState().updateNodeSemantic(payload.id, payload.updates);
+export async function handleNodeUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNode([event.data.id as string]);
 }
 
-export function handleNodeSemanticDeleted(
-  payload: NodeSemanticEventDeletedEvent,
-): void {
-  useGraphStore.getState().deleteNodeSemantic(payload.id);
+export function handleNodeDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteNode(event.data.id as string);
 }
 
-export function handleEdgeSemanticAdded(payload: EdgeSemanticAddedEvent): void {
-  useGraphStore.getState().addEdgeSemantic(payload.edgeSemantic);
+export async function handleEdgeAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncEdge([event.data.id as string]);
 }
 
-export function handleEdgeSemanticUpdated(
-  payload: EdgeSemanticUpdatedEvent,
-): void {
-  useGraphStore.getState().updateEdgeSemantic(payload.id, payload.updates);
+export async function handleEdgeUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncEdge([event.data.id as string]);
 }
 
-export function handleEdgeSemanticDeleted(
-  payload: EdgeSemanticEventDeletedEvent,
-): void {
-  useGraphStore.getState().deleteEdgeSemantic(payload.id);
+export function handleEdgeDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteEdge(event.data.id as string);
 }
 
-export function handleNodeAdded(payload: NodeAddedEvent): void {
-  useGraphStore.getState().addNode(payload.node);
+export async function handleViewAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncView([event.data.id as string]);
 }
 
-export function handleNodeUpdated(payload: NodeUpdatedEvent): void {
-  useGraphStore.getState().updateNode(payload.id, payload.updates);
+export async function handleViewUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncView([event.data.id as string]);
 }
 
-export function handleNodeDeleted(payload: NodeDeletedEvent): void {
-  useGraphStore.getState().deleteNode(payload.id);
+export function handleViewDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteView(event.data.id as string);
 }
 
-export function handleEdgeAdded(payload: EdgeAddedEvent): void {
-  useGraphStore.getState().addEdge(payload.edge);
+export async function handleNodeSemanticAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNodeSemantic([event.data.id as string]);
 }
 
-export function handleEdgeUpdated(payload: EdgeUpdatedEvent): void {
-  useGraphStore.getState().updateEdge(payload.id, payload.updates);
+export async function handleNodeSemanticUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNodeSemantic([event.data.id as string]);
 }
 
-export function handleEdgeDeleted(payload: EdgeDeletedEvent): void {
-  useGraphStore.getState().deleteEdge(payload.id);
+export function handleNodeSemanticDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteNodeSemantic(event.data.id as string);
 }
 
-export function handleViewAdded(payload: ViewAddedEvent): void {
-  useGraphStore.getState().addView(payload.view);
+export async function handleEdgeSemanticAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncEdgeSemantic([event.data.id as string]);
 }
 
-export function handleViewUpdated(payload: ViewUpdatedEvent): void {
-  useGraphStore.getState().updateView(payload.id, payload.updates);
+export async function handleEdgeSemanticUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncEdgeSemantic([event.data.id as string]);
 }
 
-export function handleViewDeleted(payload: ViewDeletedEvent): void {
-  useGraphStore.getState().deleteView(payload.id);
+export function handleEdgeSemanticDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteEdgeSemantic(event.data.id as string);
 }
 
-export function handleNodeTagAdded(payload: {
-  nodeTag: any;
-  userId: string;
-  timestamp: number;
-}): void {
-  useGraphStore.getState().addNodeTag(payload.nodeTag);
+export async function handleNodeTagAdded(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNodeTag([event.data.id as string]);
 }
 
-export function handleWsConnected(payload: {
-  connectionId: string;
-  timestamp: number;
-}): void {
-  console.log("WebSocket connected:", payload.connectionId);
+export async function handleNodeTagUpdated(event: IDomainEvent): Promise<void> {
+  await GraphCQRS.syncNodeTag([event.data.id as string]);
 }
 
-export function handleWsDisconnected(payload: {
-  reason?: string;
-  timestamp: number;
-}): void {
-  console.log("WebSocket disconnected:", payload.reason);
+export function handleNodeTagDeleted(event: IDomainEvent): void {
+  const { useGraphStore } = require("@workspace/store");
+  useGraphStore.getState().deleteNodeTag(event.data.id as string);
 }

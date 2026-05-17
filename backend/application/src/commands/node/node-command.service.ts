@@ -24,7 +24,7 @@ import {
 import { NodeId, Permission } from "@workspace/domain";
 import type { NodeDTO } from "../../dto/node.dto";
 import type { INodeRepository, IEventBus } from "@workspace/domain";
-import type { NodeCreated, NodeDeleted } from "@workspace/domain";
+import type { NodeCreated, NodeDeleted, NodeUpdated } from "@workspace/domain";
 import type {
   CreateNodeCommand,
   UpdateNodeCommand,
@@ -240,11 +240,10 @@ export class NodeCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: savedNode.id.value,
-        nodeType: savedNode.nodeType.value,
-        title: savedNode.title,
       },
     };
     this.eventBus.publish(event);
@@ -283,17 +282,16 @@ export class NodeCommandService {
 
     const savedNode = await this.nodeRepository.save(updatedNode);
 
-    const event: NodeCreated = {
-      eventType: "NodeCreated",
+    const event: NodeUpdated = {
+      eventType: "NodeUpdated",
       aggregateId: savedNode.id.value,
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: savedNode.id.value,
-        nodeType: savedNode.nodeType.value,
-        title: savedNode.title,
       },
     };
     this.eventBus.publish(event);
@@ -350,6 +348,7 @@ export class NodeCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: { id: cmd.id },
     };

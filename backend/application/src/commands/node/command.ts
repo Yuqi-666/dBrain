@@ -8,6 +8,7 @@ export interface CreateTextNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   content: { docs: Record<string, any> };
+  userId: string;
 }
 
 export interface CreateImageNodeCommand {
@@ -25,6 +26,7 @@ export interface CreateImageNodeCommand {
   location?: string;
   shootingTime?: string;
   content: { url: string };
+  userId: string;
 }
 
 export interface CreatePdfNodeCommand {
@@ -39,6 +41,7 @@ export interface CreatePdfNodeCommand {
   pageCount: number;
   fileSize: number;
   content: { url: string; coverUrl: string };
+  userId: string;
 }
 
 export interface CreateVideoNodeCommand {
@@ -57,6 +60,7 @@ export interface CreateVideoNodeCommand {
   location?: string;
   shootingTime?: string;
   content: { url: string; coverUrl: string };
+  userId: string;
 }
 
 export interface CreateAudioNodeCommand {
@@ -71,6 +75,7 @@ export interface CreateAudioNodeCommand {
   duration: number;
   fileSize: number;
   content: { url: string };
+  userId: string;
 }
 
 export interface CreateWebpageNodeCommand {
@@ -83,6 +88,7 @@ export interface CreateWebpageNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   content: { html: string; url: string; screenshotUrl?: string };
+  userId: string;
 }
 
 export interface CreateWebsiteNodeCommand {
@@ -95,6 +101,7 @@ export interface CreateWebsiteNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   content: { url: string; faviconUrl?: string };
+  userId: string;
 }
 
 export interface CreateCollectionNodeCommand {
@@ -107,6 +114,7 @@ export interface CreateCollectionNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   content: { filterConfig?: any; selectedNodes: string[] };
+  userId: string;
 }
 
 export interface CreateRichTextNodeCommand {
@@ -119,6 +127,7 @@ export interface CreateRichTextNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   content: { referencedNodes: string[]; docs: Record<string, any> };
+  userId: string;
 }
 
 export type CreateNodeCommand =
@@ -140,8 +149,10 @@ export interface UpdateNodeCommand {
   permission?: "private" | "public" | "restricted";
   isPinned?: boolean;
   content?: any;
+  userId: string;
 }
 
 export interface DeleteNodeCommand {
   id: string;
+  userId: string;
 }

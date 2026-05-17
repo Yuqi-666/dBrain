@@ -2,8 +2,6 @@ import type { IDomainEvent } from "../../event-bus";
 
 export interface NodeCreatedData {
   id: string;
-  nodeType: string;
-  title: string;
 }
 
 export interface NodeDeletedData {
@@ -16,4 +14,12 @@ export type NodeCreated = IDomainEvent<NodeCreatedData> & {
 
 export type NodeDeleted = IDomainEvent<NodeDeletedData> & {
   eventType: "NodeDeleted";
+};
+
+export interface NodeUpdatedData {
+  id: string;
+}
+
+export type NodeUpdated = IDomainEvent<NodeUpdatedData> & {
+  eventType: "NodeUpdated";
 };

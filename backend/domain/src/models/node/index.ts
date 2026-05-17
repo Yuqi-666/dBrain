@@ -33,4 +33,6 @@ export type {
   NodeDeletedData,
   NodeCreated,
   NodeDeleted,
+  NodeUpdatedData,
+  NodeUpdated,
 } from "./events";

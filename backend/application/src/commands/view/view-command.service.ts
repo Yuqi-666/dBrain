@@ -1,6 +1,6 @@
 import type { IViewRepository } from "@workspace/domain";
 import type { IEventBus } from "@workspace/domain";
-import type { ViewCreated, ViewDeleted } from "@workspace/domain";
+import type { ViewCreated, ViewDeleted, ViewUpdated } from "@workspace/domain";
 import type { CreateViewCommand, UpdateViewCommand, DeleteViewCommand } from "./command";
 import type { ViewDTO, VisualConfigDTO } from "../../dto/view.dto";
 import { View } from "@workspace/domain/models/view/entities";
@@ -59,11 +59,10 @@ export class ViewCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: saved.id.toString(),
-        name: saved.name,
-        layout: saved.layout.getValue(),
       },
     };
     this.eventBus.publish(event);
@@ -110,6 +109,21 @@ export class ViewCommandService {
     }
 
     const saved = await this.viewRepository.save(updated);
+
+    const event: ViewUpdated = {
+      eventType: "ViewUpdated",
+      aggregateId: saved.id.toString(),
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+      },
+      data: {
+        id: saved.id.toString(),
+      },
+    };
+    this.eventBus.publish(event);
+
     return toViewDTO(saved);
   }
 
@@ -123,6 +137,7 @@ export class ViewCommandService {
       metadata: {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
+        userId: cmd.userId,
       },
       data: {
         id: cmd.id,

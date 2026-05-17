@@ -1,41 +1,14 @@
 import type { IDomainEvent } from "@workspace/domain/event-bus";
 import { container } from "./container";
-import {
-  nodeAddedEmitter,
-  nodeUpdatedEmitter,
-  nodeDeletedEmitter,
-  edgeAddedEmitter,
-  edgeUpdatedEmitter,
-  edgeDeletedEmitter,
-  nodeSemanticAddedEmitter,
-  nodeSemanticUpdatedEmitter,
-  nodeSemanticDeletedEmitter,
-  edgeSemanticAddedEmitter,
-  edgeSemanticUpdatedEmitter,
-  edgeSemanticDeletedEmitter,
-  viewAddedEmitter,
-  viewUpdatedEmitter,
-  viewDeletedEmitter,
-  nodeTagAddedEmitter,
-} from "../trpc/server";
+import { eventEmitter } from "../trpc/server";
 
-const eventToEmitterMap = [
-  { eventType: "NodeCreated", emitter: nodeAddedEmitter },
-  { eventType: "NodeUpdated", emitter: nodeUpdatedEmitter },
-  { eventType: "NodeDeleted", emitter: nodeDeletedEmitter },
-  { eventType: "EdgeCreated", emitter: edgeAddedEmitter },
-  { eventType: "EdgeUpdated", emitter: edgeUpdatedEmitter },
-  { eventType: "EdgeDeleted", emitter: edgeDeletedEmitter },
-  { eventType: "NodeSemanticCreated", emitter: nodeSemanticAddedEmitter },
-  { eventType: "NodeSemanticUpdated", emitter: nodeSemanticUpdatedEmitter },
-  { eventType: "NodeSemanticDeleted", emitter: nodeSemanticDeletedEmitter },
-  { eventType: "EdgeSemanticCreated", emitter: edgeSemanticAddedEmitter },
-  { eventType: "EdgeSemanticUpdated", emitter: edgeSemanticUpdatedEmitter },
-  { eventType: "EdgeSemanticDeleted", emitter: edgeSemanticDeletedEmitter },
-  { eventType: "ViewCreated", emitter: viewAddedEmitter },
-  { eventType: "ViewUpdated", emitter: viewUpdatedEmitter },
-  { eventType: "ViewDeleted", emitter: viewDeletedEmitter },
-  { eventType: "NodeTagCreated", emitter: nodeTagAddedEmitter },
+const ALL_EVENTS = [
+  "NodeCreated", "NodeUpdated", "NodeDeleted",
+  "EdgeCreated", "EdgeUpdated", "EdgeDeleted",
+  "ViewCreated", "ViewUpdated", "ViewDeleted",
+  "NodeSemanticCreated", "NodeSemanticUpdated", "NodeSemanticDeleted",
+  "EdgeSemanticCreated", "EdgeSemanticUpdated", "EdgeSemanticDeleted",
+  "NodeTagCreated", "NodeTagUpdated", "NodeTagDeleted",
 ] as const;
 
 const unsubscribers: Array<() => void> = [];
@@ -43,11 +16,9 @@ const unsubscribers: Array<() => void> = [];
 export function initializeEventBridge(): void {
   const eventBus = container().eventBus;
 
-  for (const { eventType, emitter } of eventToEmitterMap) {
+  for (const eventType of ALL_EVENTS) {
     const unsubscribe = eventBus.subscribe(eventType, (event: IDomainEvent) => {
-      const userId = (event.data as { userId?: string }).userId ?? "system";
-      const timestamp = new Date(event.metadata.occurredAt).getTime();
-      emitter.emit({ ...event.data, userId, timestamp });
+      eventEmitter.emit(event);
     });
     unsubscribers.push(unsubscribe);
   }

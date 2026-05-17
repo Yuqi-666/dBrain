@@ -1,6 +1,6 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
-import { ViewId, LayoutType, VisualConfig } from "./value-objects";
-
+import { ViewId, VisualConfig } from "./value-objects";
+import { LayoutType } from "../layout/value-objects";
 interface ViewProps {
   id: ViewId;
   name: string;

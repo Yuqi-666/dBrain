@@ -6,6 +6,7 @@ export interface CreateEdgeCommand {
   semanticId: string;
   edgeType: string;
   weight?: { value: number };
+  userId: string;
 }
 
 export interface UpdateEdgeCommand {
@@ -14,8 +15,10 @@ export interface UpdateEdgeCommand {
   semanticId?: string;
   edgeType?: string;
   weight?: { value: number };
+  userId: string;
 }
 
 export interface DeleteEdgeCommand {
   id: string;
+  userId: string;
 }

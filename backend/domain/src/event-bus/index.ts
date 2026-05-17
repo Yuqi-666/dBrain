@@ -23,11 +23,12 @@ export abstract class DomainEvent<T = unknown> implements IDomainEvent<T> {
   readonly aggregateId: string;
   readonly metadata: EventMetadata;
 
-  constructor(aggregateId: string) {
+  constructor(aggregateId: string, userId?: string) {
     this.aggregateId = aggregateId;
     this.metadata = {
       occurredAt: new Date().toISOString(),
       eventVersion: 1,
+      userId: userId ?? "system",
     };
   }
 }

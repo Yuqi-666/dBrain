@@ -1,7 +1,5 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
-import { LayoutType as DomainLayoutType } from "../layout/value-objects";
-
-export { DomainLayoutType as LayoutType };
+import { LayoutType } from "../layout/value-objects";
 
 /**
  * ViewId value object - wraps a string with validation
