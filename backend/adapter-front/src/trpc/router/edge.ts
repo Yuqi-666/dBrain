@@ -75,8 +75,6 @@ export const edgeRouter = router({
       to: z.string().optional(),
       semanticId: z.string().optional(),
       edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
-      page: z.number().default(1),
-      pageSize: z.number().default(20),
     }))
     .query(async ({ input }) => {
       return container().edgeQueryService.list(input);

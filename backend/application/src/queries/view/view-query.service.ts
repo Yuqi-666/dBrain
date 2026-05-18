@@ -7,7 +7,6 @@ import type {
   GetPinnedViewsQuery,
 } from './query';
 import type { ViewDTO } from '../../dto/view.dto';
-import type { PaginatedResultDTO } from '../../dto/pagination.dto';
 import type { View } from '@workspace/domain';
 
 function toViewDTO(view: View): ViewDTO {
@@ -36,22 +35,16 @@ function toViewQuery(q: ListViewsQuery): ViewQuery {
 }
 
 export class ViewQueryService {
-  constructor(private readonly viewRepository: IViewRepository) {}
+  constructor(private readonly viewRepository: IViewRepository) { }
 
   async getById(q: GetViewByIdQuery): Promise<ViewDTO | null> {
     const view = await this.viewRepository.findById(ViewId.create(q.id));
     return view ? toViewDTO(view) : null;
   }
 
-  async list(q: ListViewsQuery): Promise<PaginatedResultDTO<ViewDTO>> {
-    const result = await this.viewRepository.findAll(toViewQuery(q), q.page, q.pageSize);
-    return {
-      items: result.items.map(toViewDTO),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-      hasMore: result.hasMore,
-    };
+  async list(q: ListViewsQuery): Promise<ViewDTO[]> {
+    const items = await this.viewRepository.findAll(toViewQuery(q));
+    return items.map(toViewDTO);
   }
 
   async getByNodeId(q: GetViewsByNodeQuery): Promise<ViewDTO[]> {

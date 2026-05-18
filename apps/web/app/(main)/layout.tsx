@@ -25,10 +25,10 @@ export default function MainLayout({
   }, [currentUser, setUser]);
 
   useEffect(() => {
-    if (isError) {
+    if (isError || !isAuthenticated) {
       router.push("/login");
     }
-  }, [isError, router]);
+  }, [isError, isAuthenticated, router]);
 
   if (!isAuthenticated) {
     return null;

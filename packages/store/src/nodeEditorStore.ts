@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import type { NodeId } from "@workspace/interfaces";
 
 /**
@@ -20,20 +21,25 @@ export interface NodeEditorStore {
   setAttributesSidebarOpen: (open: boolean) => void;
 }
 
-export const useNodeEditorStore = create<NodeEditorStore>((set) => ({
-  // ==================== 编辑器状态 ====================
-  currentEditingNodeId: null,
+export const useNodeEditorStore = create<NodeEditorStore>()(
+  devtools(
+    (set) => ({
+      // ==================== 编辑器状态 ====================
+      currentEditingNodeId: null,
 
-  setCurrentEditingNodeId: (nodeId) =>
-    set({
-      currentEditingNodeId: nodeId,
+      setCurrentEditingNodeId: (nodeId) =>
+        set({
+          currentEditingNodeId: nodeId,
+        }),
+
+      // ==================== 属性侧边栏状态 ====================
+      attributesSidebarOpen: false,
+
+      toggleAttributesSidebar: () =>
+        set((state) => ({ attributesSidebarOpen: !state.attributesSidebarOpen })),
+
+      setAttributesSidebarOpen: (open) => set({ attributesSidebarOpen: open }),
     }),
-
-  // ==================== 属性侧边栏状态 ====================
-  attributesSidebarOpen: false,
-
-  toggleAttributesSidebar: () =>
-    set((state) => ({ attributesSidebarOpen: !state.attributesSidebarOpen })),
-
-  setAttributesSidebarOpen: (open) => set({ attributesSidebarOpen: open }),
-}));
+    { name: "nodeEditor-store" },
+  ),
+);

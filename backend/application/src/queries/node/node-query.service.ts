@@ -8,7 +8,6 @@ import type {
   GetRecentlyUpdatedNodesQuery,
 } from './query';
 import type { NodeDTO } from '../../dto/node.dto';
-import type { PaginatedResultDTO } from '../../dto/pagination.dto';
 import type { Node } from '@workspace/domain';
 
 function toNodeDTO(node: Node): NodeDTO {
@@ -85,26 +84,16 @@ function toNodeQuery(q: ListNodesQuery): NodeQuery {
 }
 
 export class NodeQueryService {
-  constructor(private readonly nodeRepository: INodeRepository) {}
+  constructor(private readonly nodeRepository: INodeRepository) { }
 
   async getById(q: GetNodeByIdQuery): Promise<NodeDTO | null> {
     const node = await this.nodeRepository.findById(new NodeId(q.id));
     return node ? toNodeDTO(node) : null;
   }
 
-  async list(q: ListNodesQuery): Promise<PaginatedResultDTO<NodeDTO>> {
-    const result = await this.nodeRepository.findAll(
-      toNodeQuery(q),
-      q.page,
-      q.pageSize,
-    );
-    return {
-      items: result.items.map(toNodeDTO),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-      hasMore: result.hasMore,
-    };
+  async list(q: ListNodesQuery): Promise<NodeDTO[]> {
+    const items = await this.nodeRepository.findAll(toNodeQuery(q));
+    return items.map(toNodeDTO)
   }
 
   async getByIds(q: GetNodesByIdsQuery): Promise<NodeDTO[]> {

@@ -78,12 +78,12 @@ export class PocketBaseNodeTagRepository implements INodeTagRepository {
     const idValues = ids.map((id) => id.getValue());
     const filter = `id ?= "${idValues.join('" || id ?= "')}"`;
 
-    const result = await this.collection.getList(1, ids.length, {
+    const records = await this.collection.getFullList({
       filter,
     });
 
     const tagMap = new Map(
-      result.items.map((record) => [record.id, this.mapper.toDomain(record)]),
+      records.map((record) => [record.id, this.mapper.toDomain(record)]),
     );
 
     return ids

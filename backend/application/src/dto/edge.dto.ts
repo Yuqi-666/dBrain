@@ -13,17 +13,3 @@ export interface EdgeDTO {
   updatedAt: string;
 }
 
-export function toEdgeDTO(edge: Edge): EdgeDTO {
-  return {
-    id: edge.id.toString(),
-    from: edge.from.toString(),
-    to: edge.to.toString(),
-    direction: edge.direction.getValue(),
-    semanticId: edge.semanticId,
-    edgeType: edge.edgeType.getValue(),
-    weight: edge.weight.getValue() as 1 | 2 | 3 | 4 | 5,
-    stateData: undefined,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}

@@ -171,16 +171,12 @@ export const nodeRouter = router({
       z.object({
         nodeType: z.string().optional(),
         semanticId: z.string().optional(),
-        page: z.number().default(1),
-        pageSize: z.number().default(20),
       }),
     )
     .query(async ({ input }) => {
       return container().nodeQueryService.list({
         nodeType: input.nodeType,
         semanticId: input.semanticId,
-        page: input.page,
-        pageSize: input.pageSize,
       });
     }),
 

@@ -1,4 +1,3 @@
-import type { PaginationParams } from "./pagination.dto";
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 import type { LayoutType } from "@workspace/interfaces/models/layout";
 

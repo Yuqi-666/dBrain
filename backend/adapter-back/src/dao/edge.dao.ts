@@ -1,7 +1,6 @@
 import type {
   IEdgeRepository,
   EdgeQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 import type { Edge, EdgeSemanticId } from "@workspace/domain/models";
 import { EdgeId, EdgeWeight } from "@workspace/domain/models/edge/value-objects";
@@ -11,13 +10,12 @@ export class EdgeDao {
   constructor(private repository: IEdgeRepository) {}
 
   async findBySemanticId(semanticId: EdgeSemanticId): Promise<Edge[]> {
-    const result = await this.repository.findAll({ semanticId });
-    return result.items;
+    return this.repository.findAll({ semanticId });
   }
 
   async findWithWeightRange(min: number, max: number): Promise<Edge[]> {
-    const allEdges = await this.repository.findAll({}, 1, 1000);
-    return allEdges.items.filter((edge) => {
+    const allEdges = await this.repository.findAll({});
+    return allEdges.filter((edge) => {
       const weight = edge.weight.getValue();
       return weight >= min && weight <= max;
     });
@@ -32,23 +30,25 @@ export class EdgeDao {
   }
 
   async findBidirectionalEdges(): Promise<Edge[]> {
-    const result = await this.repository.findAll({});
-    return result.items.filter((edge) => edge.direction.isBidirectional());
+    return this.repository.findAll({}).then(edges =>
+      edges.filter((edge) => edge.direction.isBidirectional())
+    );
   }
 
   async findByEdgeType(
     edgeType: "hierarchy" | "flow" | "association" | "interaction"
   ): Promise<Edge[]> {
-    const result = await this.repository.findAll({ edgeType });
-    return result.items;
+    return this.repository.findAll({ edgeType });
   }
 
   async findPaginated(
     query?: EdgeQuery,
-    page?: number,
-    pageSize?: number
-  ): Promise<PaginatedResult<Edge>> {
-    return this.repository.findAll(query, page, pageSize);
+  ): Promise<{ items: Edge[]; total: number }> {
+    const items = await this.repository.findAll(query);
+    return {
+      items,
+      total: items.length,
+    };
   }
 
   async batchSave(edges: Edge[]): Promise<{ saved: Edge[]; failed: number }> {

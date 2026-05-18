@@ -1,5 +1,5 @@
 import type { RecordModel } from "pocketbase";
-import { IUserRepository } from "@workspace/domain/repositories";
+import type { IUserRepository } from "@workspace/domain/repositories";
 import { User, Email } from "@workspace/domain/models/user";
 import { PocketBaseClient } from "../database/pocketbase-client";
 import { UserMapper } from "../database/mappers/user.mapper";

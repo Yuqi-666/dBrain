@@ -366,11 +366,6 @@ function NodeItem({
         <span className="text-[13px] text-sidebar-foreground truncate">
           {node.title}
         </span>
-        {node.semanticId && (
-          <span className="rounded-md bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-foreground/50 shrink-0">
-            {node.semanticId}
-          </span>
-        )}
       </div>
       <div className="flex items-center gap-0.5">
         <Button

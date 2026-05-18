@@ -3,7 +3,6 @@ import type { RecordModel } from "pocketbase";
 import type {
   IEdgeRepository,
   EdgeQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 import { Edge } from "@workspace/domain/models/edge/entities";
 import type { EdgeId } from "@workspace/domain/models/edge/value-objects";
@@ -50,24 +49,15 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
     await this.collection.delete(id.getValue());
   }
 
-  async findAll(
-    query?: EdgeQuery,
-    page = 1,
-    pageSize = 20,
-  ): Promise<PaginatedResult<Edge>> {
+  async findAll(query?: EdgeQuery): Promise<Edge[]> {
     const filter = this.buildFilter(query);
 
-    const result = await this.collection.getList(page, pageSize, {
+    const records = await this.collection.getFullList({
       filter: filter || undefined,
+      sort: "-id",
     });
 
-    return {
-      items: result.items.map((record) => EdgeMapper.toDomain(record)),
-      total: result.totalItems,
-      page: result.page,
-      pageSize: result.perPage,
-      hasMore: result.page < result.totalPages,
-    };
+    return records.map((record) => EdgeMapper.toDomain(record));
   }
 
   async findByIds(ids: EdgeId[]): Promise<Edge[]> {
@@ -76,12 +66,12 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
     }
 
     const filter = ids.map((id) => `id = "${id.getValue()}"`).join(" || ");
-    const result = await this.collection.getList(1, ids.length, {
+    const records = await this.collection.getFullList({
       filter,
     });
 
     const recordMap = new Map(
-      result.items.map((record) => [record.id, record]),
+      records.map((record) => [record.id, record]),
     );
 
     return ids
@@ -92,22 +82,22 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
 
   async findByNodeId(nodeId: NodeId): Promise<Edge[]> {
     const filter = `from = "${nodeId}" || to = "${nodeId}"`;
-    const result = await this.collection.getList(1, 1000, { filter });
-    return result.items.map((record) => EdgeMapper.toDomain(record));
+    const records = await this.collection.getFullList({ filter });
+    return records.map((record) => EdgeMapper.toDomain(record));
   }
 
   async findByEndpoints(from: NodeId, to: NodeId): Promise<Edge[]> {
     const filter = `from = "${from}" && to = "${to}"`;
-    const result = await this.collection.getList(1, 1000, { filter });
-    return result.items.map((record) => EdgeMapper.toDomain(record));
+    const records = await this.collection.getFullList({ filter });
+    return records.map((record) => EdgeMapper.toDomain(record));
   }
 
   async count(query?: EdgeQuery): Promise<number> {
     const filter = this.buildFilter(query);
-    const result = await this.collection.getList(1, 1, {
+    const records = await this.collection.getFullList({
       filter: filter || undefined,
     });
-    return result.totalItems;
+    return records.length;
   }
 
   async saveMany(edges: Edge[]): Promise<Edge[]> {

@@ -1,10 +1,8 @@
-import type { PaginationParams } from '../../dto/pagination.dto';
-
 export interface GetViewByIdQuery {
   id: string;
 }
 
-export interface ListViewsQuery extends PaginationParams {
+export interface ListViewsQuery {
   isPinned?: boolean;
   layout?: string;
 }

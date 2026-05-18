@@ -1,4 +1,4 @@
-import type { IEdgeRepository } from "@workspace/domain";
+import type { Edge, EdgeQuery, IEdgeRepository, NodeQuery } from "@workspace/domain";
 import type {
   GetEdgeByIdQuery,
   ListEdgesQuery,
@@ -7,9 +7,22 @@ import type {
   GetEdgesByIdsQuery,
 } from "./query";
 import type { EdgeDTO } from "../../dto/edge.dto";
-import { toEdgeDTO } from "../../dto/edge.dto";
 import { EdgeId, EdgeDirection, EdgeType } from "@workspace/domain/models/edge/value-objects";
 
+function toEdgeDTO(edge: Edge): EdgeDTO {
+  return {
+    id: edge.id.toString(),
+    from: edge.from.toString(),
+    to: edge.to.toString(),
+    direction: edge.direction.getValue(),
+    semanticId: edge.semanticId,
+    edgeType: edge.edgeType.getValue(),
+    weight: edge.weight.getValue() as 1 | 2 | 3 | 4 | 5,
+    stateData: undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
 function toEdgeDirection(dir: string): EdgeDirection {
   switch (dir) {
     case "forward":
@@ -35,33 +48,26 @@ function toEdgeType(type: string): EdgeType {
   return fn();
 }
 
+function toEdgeQuery(q: ListEdgesQuery): EdgeQuery {
+  return {
+    from: q.from as any,
+    to: q.to as any,
+    semanticId: q.semanticId,
+    direction: q.direction ? toEdgeDirection(q.direction) : undefined,
+    edgeType: q.edgeType ? (q.edgeType as "hierarchy" | "flow" | "association" | "interaction") : undefined,
+  }
+}
 export class EdgeQueryService {
-  constructor(private readonly edgeRepository: IEdgeRepository) {}
+  constructor(private readonly edgeRepository: IEdgeRepository) { }
 
   async getById(q: GetEdgeByIdQuery): Promise<EdgeDTO | null> {
     const edge = await this.edgeRepository.findById(EdgeId.create(q.id));
     return edge ? toEdgeDTO(edge) : null;
   }
 
-  async list(q: ListEdgesQuery): Promise<{ items: EdgeDTO[]; total: number; page: number; pageSize: number; hasMore: boolean }> {
-    const result = await this.edgeRepository.findAll(
-      {
-        from: q.from as any,
-        to: q.to as any,
-        semanticId: q.semanticId,
-        direction: q.direction ? toEdgeDirection(q.direction) : undefined,
-        edgeType: q.edgeType ? (q.edgeType as "hierarchy" | "flow" | "association" | "interaction") : undefined,
-      },
-      q.page,
-      q.pageSize,
-    );
-    return {
-      items: result.items.map(toEdgeDTO),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-      hasMore: result.hasMore,
-    };
+  async list(q: ListEdgesQuery): Promise<EdgeDTO[]> {
+    const items = await this.edgeRepository.findAll(toEdgeQuery(q));
+    return items.map(toEdgeDTO);
   }
 
   async getByNodeId(q: GetEdgesByNodeQuery): Promise<EdgeDTO[]> {

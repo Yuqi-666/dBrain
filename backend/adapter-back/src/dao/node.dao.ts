@@ -1,7 +1,6 @@
 import type {
   INodeRepository,
   NodeQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 import type { Node } from "@workspace/domain/models";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
@@ -11,47 +10,42 @@ export class NodeDao {
   constructor(private repository: INodeRepository) {}
 
   async findByTitle(title: string): Promise<Node[]> {
-    const result = await this.repository.findAll({ searchTerm: title });
-    return result.items;
+    return this.repository.findAll({ searchTerm: title });
   }
 
   async findBySemanticId(semanticId: NodeSemanticId): Promise<Node[]> {
-    const result = await this.repository.findAll({ semanticId });
-    return result.items;
+    return this.repository.findAll({ semanticId });
   }
 
   async findByTags(tagIds: NodeTagId[]): Promise<Node[]> {
     if (tagIds.length === 0) {
       return [];
     }
-    const result = await this.repository.findAll({ tags: tagIds });
-    return result.items;
+    return this.repository.findAll({ tags: tagIds });
   }
 
-  async findWithFilters(query: NodeQuery): Promise<PaginatedResult<Node>> {
+  async findWithFilters(query: NodeQuery): Promise<Node[]> {
     return this.repository.findAll(query);
   }
 
   async findRecentlyCreated(limit: number): Promise<Node[]> {
-    const result = await this.repository.findAll({}, 1, limit);
-    return result.items.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const allNodes = await this.repository.findAll({});
+    return allNodes
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
   }
 
   async findByDateRange(startDate: string, endDate: string): Promise<Node[]> {
-    const result = await this.repository.findAll({
+    return this.repository.findAll({
       createdAfter: startDate,
       createdBefore: endDate,
     });
-    return result.items;
   }
 
   async findByNodeType(
     nodeType: "text" | "image" | "pdf" | "video" | "audio" | "webpage" | "website" | "collection" | "rich-text"
   ): Promise<Node[]> {
-    const result = await this.repository.findAll({ nodeType });
-    return result.items;
+    return this.repository.findAll({ nodeType });
   }
 
   async batchSave(nodes: Node[]): Promise<Node[]> {
@@ -96,10 +90,12 @@ export class NodeDao {
 
   async findPaginated(
     query?: NodeQuery,
-    page?: number,
-    pageSize?: number
-  ): Promise<PaginatedResult<Node>> {
-    return this.repository.findAll(query, page, pageSize);
+  ): Promise<{ items: Node[]; total: number }> {
+    const items = await this.repository.findAll(query);
+    return {
+      items,
+      total: items.length,
+    };
   }
 
   async exists(id: NodeId): Promise<boolean> {

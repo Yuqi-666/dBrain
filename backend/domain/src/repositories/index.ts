@@ -41,7 +41,8 @@ import type {
 } from "../models/edge/value-objects";
 
 import { View } from "../models/view/entities";
-import type { ViewId, LayoutType } from "../models/view/value-objects";
+import type { ViewId } from "../models/view/value-objects";
+import type { LayoutType } from "../models/layout/value-objects";
 
 import type {
   NodeSemantic,
@@ -53,17 +54,6 @@ import type { SemanticId, TagId } from "../models/semantic/value-objects";
 // ============================================================
 // Query Objects (Plain objects for flexible querying)
 // ============================================================
-
-/**
- * Paginated result wrapper for list queries.
- */
-export interface PaginatedResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-}
 
 /**
  * Node query object for flexible filtering.
@@ -145,13 +135,9 @@ export interface INodeRepository {
   // ----- Collection Operations -----
 
   /**
-   * Find all nodes matching query with pagination.
+   * Find all nodes matching query (no pagination).
    */
-  findAll(
-    query?: NodeQuery,
-    page?: number,
-    pageSize?: number,
-  ): Promise<PaginatedResult<Node>>;
+  findAll(query?: NodeQuery): Promise<Node[]>;
 
   /**
    * Find multiple nodes by their IDs.
@@ -214,11 +200,10 @@ export interface IEdgeRepository {
 
   // ----- Collection Operations -----
 
-  findAll(
-    query?: EdgeQuery,
-    page?: number,
-    pageSize?: number,
-  ): Promise<PaginatedResult<Edge>>;
+  /**
+   * Find all edges matching query (no pagination).
+   */
+  findAll(query?: EdgeQuery): Promise<Edge[]>;
 
   findByIds(ids: EdgeId[]): Promise<Edge[]>;
 
@@ -259,11 +244,10 @@ export interface IViewRepository {
 
   // ----- Collection Operations -----
 
-  findAll(
-    query?: ViewQuery,
-    page?: number,
-    pageSize?: number,
-  ): Promise<PaginatedResult<View>>;
+  /**
+   * Find all views matching query (no pagination).
+   */
+  findAll(query?: ViewQuery): Promise<View[]>;
 
   /**
    * Find all views that contain a specific node in their filter config.

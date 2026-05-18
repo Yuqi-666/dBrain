@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { persist } from "zustand/middleware";
 
 export interface AuthUser {
@@ -17,30 +18,34 @@ export interface AuthStore {
 }
 
 export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
+  devtools(
+    persist(
+      (set, get) => ({
+        user: null,
+        isAuthenticated: false,
 
-      setUser: (user) =>
-        set({
-          user,
-          isAuthenticated: user !== null,
-        }),
+        setUser: (user) =>
+          set({
+            user,
+            isAuthenticated: user !== null,
+          }),
 
-      clearAuth: () =>
-        set({
-          user: null,
-          isAuthenticated: false,
-        }),
+        clearAuth: () =>
+          set({
+            user: null,
+            isAuthenticated: false,
+          }),
 
-      getUserId: () => get().user?.id ?? null,
-    }),
-    {
-      name: "auth-storage",
-      partialize: (state) => ({
-        user: state.user,
+        getUserId: () => get().user?.id ?? null,
       }),
-    },
+      {
+        name: "auth-storage",
+        partialize: (state) => ({
+          user: state.user,
+          isAuthenticated: state.isAuthenticated,
+        }),
+      },
+    ),
+    { name: "auth-store" },
   ),
 );

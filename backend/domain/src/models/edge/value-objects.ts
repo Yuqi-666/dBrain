@@ -34,6 +34,10 @@ export class EdgeId {
   equals(other: EdgeId): boolean {
     return this.value === other.value;
   }
+
+  toString(): string {
+    return this.value;
+  }
 }
 
 /**

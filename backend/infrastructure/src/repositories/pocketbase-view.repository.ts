@@ -3,7 +3,6 @@ import type { RecordModel } from "pocketbase";
 import type {
   IViewRepository,
   ViewQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
 import type { ViewId } from "@workspace/domain/models/view/value-objects";
@@ -54,55 +53,44 @@ export class PocketBaseViewRepository implements IViewRepository {
     await this.collection.delete(id.value);
   }
 
-  async findAll(
-    query?: ViewQuery,
-    page: number = 1,
-    pageSize: number = 20,
-  ): Promise<PaginatedResult<View>> {
+  async findAll(query?: ViewQuery): Promise<View[]> {
     const filter = this.buildFilter(query);
 
-    const result = await this.collection.getList(page, pageSize, {
+    const records = await this.collection.getFullList({
       filter: filter || undefined,
-      sort: "-created",
     });
 
-    return {
-      items: result.items.map(ViewMapper.toDomain),
-      total: result.totalItems,
-      page: result.page,
-      pageSize: result.perPage,
-      hasMore: result.page < result.totalPages,
-    };
+    return records.map(ViewMapper.toDomain);
   }
 
   async findByNodeId(nodeId: NodeId): Promise<View[]> {
     const filter = `filterConfig~"${nodeId.value}"`;
 
-    const result = await this.collection.getList(1, 1000, {
+    const records = await this.collection.getFullList({
       filter,
-      sort: "-created",
+      sort: "-id",
     });
 
-    return result.items.map(ViewMapper.toDomain);
+    return records.map(ViewMapper.toDomain);
   }
 
   async findPinned(): Promise<View[]> {
-    const result = await this.collection.getList(1, 1000, {
+    const records = await this.collection.getFullList({
       filter: "isPinned = true",
-      sort: "-created",
+      sort: "-id",
     });
 
-    return result.items.map(ViewMapper.toDomain);
+    return records.map(ViewMapper.toDomain);
   }
 
   async count(query?: ViewQuery): Promise<number> {
     const filter = this.buildFilter(query);
 
-    const result = await this.collection.getList(1, 1, {
+    const records = await this.collection.getFullList({
       filter: filter || undefined,
     });
 
-    return result.totalItems;
+    return records.length;
   }
 
   async saveMany(views: View[]): Promise<View[]> {

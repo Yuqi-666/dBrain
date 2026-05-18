@@ -19,7 +19,6 @@ import type {
 import type {
   INodeRepository,
   NodeQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 
 import { NodeMapper } from "../database/mappers/node.mapper";
@@ -145,26 +144,16 @@ export class PocketBaseNodeRepository implements INodeRepository {
     return node;
   }
 
-  async findAll(
-    query?: NodeQuery,
-    page = 1,
-    pageSize = 20,
-  ): Promise<PaginatedResult<Node>> {
+  async findAll(query?: NodeQuery): Promise<Node[]> {
     const filter = this.buildFilter(query);
-    const sort = query?.updatedAfter || query?.createdAfter ? "-updated" : "-created";
+    const sort = query?.updatedAfter || query?.createdAfter ? "-updated" : "-id";
 
-    const result = await this.collection().getList(page, pageSize, {
+    const records = await this.collection().getFullList({
       filter: filter || undefined,
       sort,
     });
 
-    return {
-      items: result.items.map((record) => this.mapper.toDomain(record)),
-      total: result.totalItems,
-      page: result.page,
-      pageSize: result.perPage,
-      hasMore: result.page < result.totalPages,
-    };
+    return records.map((record) => this.mapper.toDomain(record));
   }
 
   async findByIds(ids: NodeId[]): Promise<Node[]> {
@@ -175,12 +164,12 @@ export class PocketBaseNodeRepository implements INodeRepository {
     const idValues = ids.map((id) => id.value);
     const filter = `id ?= "${idValues.join('" || id ?= "')}"`;
 
-    const result = await this.collection().getList(1, ids.length, {
+    const records = await this.collection().getFullList({
       filter,
     });
 
     const nodeMap = new Map(
-      result.items.map((record) => [record.id, this.mapper.toDomain(record)]),
+      records.map((record) => [record.id, this.mapper.toDomain(record)]),
     );
 
     return ids
@@ -190,10 +179,10 @@ export class PocketBaseNodeRepository implements INodeRepository {
 
   async count(query?: NodeQuery): Promise<number> {
     const filter = this.buildFilter(query);
-    const result = await this.collection().getList(1, 1, {
+    const records = await this.collection().getFullList({
       filter: filter || undefined,
     });
-    return result.totalItems;
+    return records.length;
   }
 
   async saveMany(nodes: Node[]): Promise<Node[]> {
@@ -243,20 +232,20 @@ export class PocketBaseNodeRepository implements INodeRepository {
   }
 
   async findPinned(): Promise<Node[]> {
-    const result = await this.collection().getList(1, 100, {
+    const records = await this.collection().getFullList({
       filter: "isPinned = true",
       sort: "-updated",
     });
 
-    return result.items.map((record) => this.mapper.toDomain(record));
+    return records.map((record) => this.mapper.toDomain(record));
   }
 
   async findRecentlyUpdated(limit: number): Promise<Node[]> {
-    const result = await this.collection().getList(1, limit, {
+    const records = await this.collection().getFullList({
       sort: "-updated",
     });
 
-    return result.items.map((record) => this.mapper.toDomain(record));
+    return records.slice(0, limit).map((record) => this.mapper.toDomain(record));
   }
 
   private buildFilter(query?: NodeQuery): string | undefined {

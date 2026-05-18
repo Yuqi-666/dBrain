@@ -55,8 +55,6 @@ export const viewRouter = router({
     .input(z.object({
       isPinned: z.boolean().optional(),
       layout: z.enum(["dagre", "radial", "compactBox", "D3force", "fishbone", "mindmap"]).optional(),
-      page: z.number().default(1),
-      pageSize: z.number().default(20),
     }))
     .query(async ({ input }) => {
       return container().viewQueryService.list(input);

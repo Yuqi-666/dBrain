@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import type { ViewId } from "@workspace/interfaces";
 
 /**
@@ -64,49 +65,54 @@ export interface UIStore {
   setOptionsMenuOpen: (open: boolean) => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarMode: "closed",
+export const useUIStore = create<UIStore>()(
+  devtools(
+    (set) => ({
+      sidebarMode: "closed",
 
-  mainViewType: "graph",
+      mainViewType: "graph",
 
-  currentViewId: null,
+      currentViewId: null,
 
-  editorPinned: false,
+      editorPinned: false,
 
-  commandDialogOpen: false,
+      commandDialogOpen: false,
 
-  viewConfigPanelOpen: false,
-  nodeInfoPanelOpen: false,
-  optionsMenuOpen: false,
+      viewConfigPanelOpen: false,
+      nodeInfoPanelOpen: false,
+      optionsMenuOpen: false,
 
-  toggleSidebar: () =>
-    set((state) => ({
-      sidebarMode: state.sidebarMode === "fixed" ? "closed" : "fixed",
-    })),
+      toggleSidebar: () =>
+        set((state) => ({
+          sidebarMode: state.sidebarMode === "fixed" ? "closed" : "fixed",
+        })),
 
-  setSidebarMode: (mode) => set({ sidebarMode: mode }),
+      setSidebarMode: (mode) => set({ sidebarMode: mode }),
 
-  convertTempToFixed: () => set({ sidebarMode: "fixed" }),
+      convertTempToFixed: () => set({ sidebarMode: "fixed" }),
 
-  closeSidebar: () => set({ sidebarMode: "closed" }),
+      closeSidebar: () => set({ sidebarMode: "closed" }),
 
-  showTempSidebar: () => set({ sidebarMode: "temp" }),
+      showTempSidebar: () => set({ sidebarMode: "temp" }),
 
-  // ==================== 主视图 Actions ====================
-  setMainViewType: (type) => set({ mainViewType: type }),
+      // ==================== 主视图 Actions ====================
+      setMainViewType: (type) => set({ mainViewType: type }),
 
-  // ==================== 视图 Actions ====================
-  setCurrentViewId: (viewId) => set({ currentViewId: viewId }),
+      // ==================== 视图 Actions ====================
+      setCurrentViewId: (viewId) => set({ currentViewId: viewId }),
 
-  // ==================== 命令面板 Actions ====================
-  setCommandDialogOpen: (open) => set({ commandDialogOpen: open }),
+      // ==================== 命令面板 Actions ====================
+      setCommandDialogOpen: (open) => set({ commandDialogOpen: open }),
 
-  toggleCommandDialog: () =>
-    set((state) => ({
-      commandDialogOpen: !state.commandDialogOpen,
-    })),
+      toggleCommandDialog: () =>
+        set((state) => ({
+          commandDialogOpen: !state.commandDialogOpen,
+        })),
 
-  // ==================== 面板 Actions ====================
-  setViewConfigPanelOpen: (open) => set({ viewConfigPanelOpen: open }),
-  setOptionsMenuOpen: (open) => set({ optionsMenuOpen: open }),
-}));
+      // ==================== 面板 Actions ====================
+      setViewConfigPanelOpen: (open) => set({ viewConfigPanelOpen: open }),
+      setOptionsMenuOpen: (open) => set({ optionsMenuOpen: open }),
+    }),
+    { name: "ui-store" },
+  ),
+);

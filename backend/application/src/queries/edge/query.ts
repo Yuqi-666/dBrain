@@ -1,10 +1,8 @@
-import type { PaginationParams } from "../../dto/pagination.dto";
-
 export interface GetEdgeByIdQuery {
   id: string;
 }
 
-export interface ListEdgesQuery extends PaginationParams {
+export interface ListEdgesQuery {
   from?: string;
   to?: string;
   semanticId?: string;

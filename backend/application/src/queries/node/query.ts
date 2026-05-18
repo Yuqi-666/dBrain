@@ -1,10 +1,8 @@
-import type { PaginationParams } from '../../dto/pagination.dto';
-
 export interface GetNodeByIdQuery {
   id: string;
 }
 
-export interface ListNodesQuery extends PaginationParams {
+export interface ListNodesQuery {
   nodeType?: string;
   semanticId?: string;
   tags?: string[];

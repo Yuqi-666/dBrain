@@ -28,11 +28,12 @@ export default function GraphPage(): ReactNode {
       ui_store.setCurrentViewId(DEMO_VIEW.id);
 
       await Promise.all([
-        GraphCQRS.addView(DEMO_VIEW),
-        ...INITIAL_NODE_SEMANTICS.map((s) => GraphCQRS.addNodeSemantic(s)),
-        ...INITIAL_EDGE_SEMANTICS.map((s) => GraphCQRS.addEdgeSemantic(s)),
-        ...INITIAL_NODES.map((n) => GraphCQRS.addNode(n)),
-        ...INITIAL_EDGES.map((e) => GraphCQRS.addEdge(e)),
+        GraphCQRS.syncView(),
+        GraphCQRS.syncNodeSemantic(),
+        GraphCQRS.syncEdgeSemantic(),
+        GraphCQRS.syncNode(),
+        GraphCQRS.syncEdge(),
+        GraphCQRS.syncNodeTag(),
       ]);
 
       setIsInitialized(true);

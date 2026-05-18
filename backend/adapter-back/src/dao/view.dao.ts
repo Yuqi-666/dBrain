@@ -1,7 +1,6 @@
 import type {
   IViewRepository,
   ViewQuery,
-  PaginatedResult,
 } from "@workspace/domain/repositories";
 import type { View, LayoutType } from "@workspace/domain/models";
 import { ViewId } from "@workspace/domain/models/view/value-objects";
@@ -11,8 +10,7 @@ export class ViewDao {
   constructor(private repository: IViewRepository) {}
 
   async findByLayout(layout: LayoutType): Promise<View[]> {
-    const result = await this.repository.findAll({ layout: layout.getValue() });
-    return result.items;
+    return this.repository.findAll({ layout: layout.getValue() });
   }
 
   async findContainingNodes(nodeIds: NodeId[]): Promise<View[]> {
@@ -20,10 +18,10 @@ export class ViewDao {
       return [];
     }
 
-    const views = await this.repository.findAll({}, 1, 1000);
+    const allViews = await this.repository.findAll({});
     const matchingViews: View[] = [];
 
-    for (const view of views.items) {
+    for (const view of allViews) {
       const config = view.filterConfig;
       const selectedNodes = config.selectedNodes;
       if (selectedNodes && selectedNodes.length > 0) {
@@ -47,16 +45,18 @@ export class ViewDao {
     return this.repository.findByNodeId(nodeId);
   }
 
-  async findWithFilters(query: ViewQuery): Promise<PaginatedResult<View>> {
+  async findWithFilters(query: ViewQuery): Promise<View[]> {
     return this.repository.findAll(query);
   }
 
   async findPaginated(
     query?: ViewQuery,
-    page?: number,
-    pageSize?: number
-  ): Promise<PaginatedResult<View>> {
-    return this.repository.findAll(query, page, pageSize);
+  ): Promise<{ items: View[]; total: number }> {
+    const items = await this.repository.findAll(query);
+    return {
+      items,
+      total: items.length,
+    };
   }
 
   async batchSave(views: View[]): Promise<{ saved: View[]; failed: number }> {
