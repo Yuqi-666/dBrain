@@ -13,6 +13,7 @@ export * from "./database/mappers/view.mapper";
 export * from "./database/mappers/node-semantic.mapper";
 export * from "./database/mappers/edge-semantic.mapper";
 export * from "./database/mappers/node-tag.mapper";
+export * from "./database/mappers/user.mapper";
 
 // Repositories
 export * from "./repositories/pocketbase-node.repository";
@@ -21,3 +22,4 @@ export * from "./repositories/pocketbase-view.repository";
 export * from "./repositories/pocketbase-node-semantic.repository";
 export * from "./repositories/pocketbase-edge-semantic.repository";
 export * from "./repositories/pocketbase-node-tag.repository";
+export * from "./repositories/pocketbase-user.repository";

@@ -28,21 +28,21 @@ src/
 
 ## WHERE TO LOOK
 
-| Task                       | Location                        | Notes                                      |
-| -------------------------- | ------------------------------- | ----------------------------------------- |
-| Domain events              | models/*/events.ts              | NodeCreated, NodeDeleted, EdgeCreated...   |
-| Entity definitions         | models/*/entities.ts           | Business logic encapsulated               |
-| Value objects              | models/*/value-objects.ts      | Immutable types (NodeId, Permission...)    |
-| Repository interfaces      | repositories/index.ts           | Ports only — impls in infrastructure/     |
-| Event bus interfaces       | event-bus/index.ts              | IDomainEvent, IEventBus                   |
-| Public API                 | src/index.ts                    | Barrel export                             |
+| Task                  | Location                   | Notes                                    |
+| --------------------- | -------------------------- | ---------------------------------------- |
+| Domain events         | models/\*/events.ts        | NodeCreated, NodeDeleted, EdgeCreated... |
+| Entity definitions    | models/\*/entities.ts      | Business logic encapsulated              |
+| Value objects         | models/\*/value-objects.ts | Immutable types (NodeId, Permission...)  |
+| Repository interfaces | repositories/index.ts      | Ports only — impls in infrastructure/    |
+| Event bus interfaces  | event-bus/index.ts         | IDomainEvent, IEventBus                  |
+| Public API            | src/index.ts               | Barrel export                            |
 
 ## COMMANDS
 
 ```bash
-pnpm --filter=backend-domain typecheck   # TypeScript check
-pnpm --filter=backend-domain lint       # ESLint
-pnpm --filter=backend-domain format     # Prettier format
+pnpm --filter=domain typecheck   # TypeScript check
+pnpm --filter=domain lint       # ESLint
+pnpm --filter=domain format     # Prettier format
 ```
 
 ## CONVENTIONS
@@ -70,18 +70,23 @@ interface IDomainEvent<T = unknown> {
 }
 
 // Example event in models/*/events.ts
-export type NodeCreated = IDomainEvent<{ id: string; nodeType: string; title: string }> & {
-  eventType: 'NodeCreated';
+export type NodeCreated = IDomainEvent<{
+  id: string;
+  nodeType: string;
+  title: string;
+}> & {
+  eventType: "NodeCreated";
 };
 ```
 
 **Available events:**
-| Entity      | Events                                                              |
+
+| Entity | Events |
 | ----------- | ------------------------------------------------------------------- |
-| Node        | `NodeCreated`, `NodeDeleted`                                         |
-| Edge        | `EdgeCreated`, `EdgeDeleted`                                        |
-| View        | `ViewCreated`, `ViewDeleted`                                        |
-| Semantic    | `NodeSemanticCreated`, `EdgeSemanticCreated`, `NodeTagCreated`       |
+| Node | `NodeCreated`, `NodeDeleted` |
+| Edge | `EdgeCreated`, `EdgeDeleted` |
+| View | `ViewCreated`, `ViewDeleted` |
+| Semantic | `NodeSemanticCreated`, `EdgeSemanticCreated`, `NodeTagCreated` |
 
 ## ANTI-PATTERNS
 

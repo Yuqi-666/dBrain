@@ -12,6 +12,7 @@ import {
   PocketBaseNodeSemanticRepository,
   PocketBaseEdgeSemanticRepository,
   PocketBaseNodeTagRepository,
+  PocketBaseUserRepository,
 } from "@workspace/infrastructure";
 
 import type {
@@ -21,6 +22,7 @@ import type {
   INodeSemanticRepository,
   IEdgeSemanticRepository,
   INodeTagRepository,
+  IUserRepository,
 } from "@workspace/domain/repositories";
 
 import { NodeDao, EdgeDao, ViewDao } from "./dao";
@@ -31,6 +33,7 @@ let viewRepository: IViewRepository | null = null;
 let nodeSemanticRepository: INodeSemanticRepository | null = null;
 let edgeSemanticRepository: IEdgeSemanticRepository | null = null;
 let nodeTagRepository: INodeTagRepository | null = null;
+let userRepository: IUserRepository | null = null;
 
 export const createNodeRepository = (): INodeRepository => {
   if (!nodeRepository) {
@@ -74,6 +77,14 @@ export const createNodeTagRepository = (): INodeTagRepository => {
     nodeTagRepository = new PocketBaseNodeTagRepository();
   }
   return nodeTagRepository;
+};
+
+export const createUserRepository = (): IUserRepository => {
+  if (!userRepository) {
+    const pb = getPocketBaseClient();
+    userRepository = new PocketBaseUserRepository(pb);
+  }
+  return userRepository;
 };
 
 export const createNodeDao = (): NodeDao => {

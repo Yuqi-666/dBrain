@@ -26,6 +26,7 @@ import {
   createNodeSemanticRepository,
   createEdgeSemanticRepository,
   createNodeTagRepository,
+  createUserRepository,
 } from "@workspace/adapter-back/factory";
 import {
   NodeCommandService,
@@ -55,6 +56,7 @@ export class AppContainer {
   readonly nodeSemanticRepository = createNodeSemanticRepository();
   readonly edgeSemanticRepository = createEdgeSemanticRepository();
   readonly nodeTagRepository = createNodeTagRepository();
+  readonly userRepository = createUserRepository();
 
   // Application Command Services (require repository + eventBus)
   readonly nodeCommandService: NodeCommandService;

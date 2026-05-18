@@ -138,7 +138,7 @@ export function FileDropZone({
           coverUrl = await generateCover(fileItems[0]?.file, variant);
         }
         await GraphCQRS.updateNode(nodeId, {
-          content: { url, cover_url: coverUrl },
+          content: { url, coverUrl },
         });
       },
       onError: (error) => {

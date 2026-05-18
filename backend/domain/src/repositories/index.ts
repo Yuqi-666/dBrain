@@ -356,3 +356,29 @@ export interface INodeTagRepository {
    */
   findByIds(ids: TagId[]): Promise<NodeTag[]>;
 }
+
+// ============================================================
+// IUserRepository - User Aggregate
+// ============================================================
+
+import { User } from "../models/user";
+import { Email } from "../models/user/value-objects";
+
+export interface IUserRepository {
+  findById(id: string): Promise<User | null>;
+
+  findByEmail(email: Email): Promise<User | null>;
+
+  save(user: User): Promise<User>;
+
+  verifyPassword(
+    email: Email,
+    password: string,
+  ): Promise<{ valid: boolean; user: User | null }>;
+
+  createUser(
+    email: Email,
+    password: string,
+    nickname: string,
+  ): Promise<User>;
+}

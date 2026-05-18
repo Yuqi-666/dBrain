@@ -4,7 +4,8 @@ import type { ViewCreated, ViewDeleted, ViewUpdated } from "@workspace/domain";
 import type { CreateViewCommand, UpdateViewCommand, DeleteViewCommand } from "./command";
 import type { ViewDTO, VisualConfigDTO } from "../../dto/view.dto";
 import { View } from "@workspace/domain/models/view/entities";
-import { ViewId, LayoutType, VisualConfig } from "@workspace/domain/models/view/value-objects";
+import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
+import { LayoutType } from "@workspace/domain/models/layout/value-objects";
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 
 function toViewDTO(view: View): ViewDTO {
@@ -29,7 +30,7 @@ export class ViewCommandService {
   constructor(
     private readonly viewRepository: IViewRepository,
     private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   async createView(cmd: CreateViewCommand): Promise<ViewDTO> {
     const visualConfig = VisualConfig.create({

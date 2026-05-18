@@ -10,3 +10,4 @@ export {
   getPocketbaseClient,
   resetPocketbaseClient,
 } from "./pocketbase-client";
+export * from "./auth";

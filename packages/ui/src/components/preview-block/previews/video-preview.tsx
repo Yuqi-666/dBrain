@@ -35,9 +35,9 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
         {/* 1. 默认显示：封面图 */}
         {!isPlaying && (
           <>
-            {node.content?.cover_url ? (
+            {node.content?.coverUrl ? (
               <img
-                src={node.content.cover_url}
+                src={node.content.coverUrl}
                 alt={node.title}
                 className="size-full object-cover"
               />

@@ -31,20 +31,19 @@ export class PocketBaseEdgeSemanticRepository implements IEdgeSemanticRepository
   }
 
   async save(semantic: EdgeSemantic): Promise<EdgeSemantic> {
-    const data = this.mapper.toRecord(semantic);
-    const id = semantic.id.getValue();
+    if (!semantic.id) {
+      throw new Error("Domain 校验失败：实体必须包含 id");
+    }
 
-    let record: RecordModel;
-    try {
-      await this.collection.getOne(id);
-      record = await this.collection.update(id, data);
-    } catch (error) {
-      const pb = getPocketBaseClient();
-      if (pb.isClientResponseError(error) && error.status === 404) {
-        record = await this.collection.create(data);
-      } else {
-        throw error;
-      }
+    const isTemporaryId = semantic.id.getValue().startsWith("tmp_");
+    const data = this.mapper.toRecord(semantic);
+    delete data.id;
+
+    let record;
+    if (isTemporaryId) {
+      record = await this.collection.create(data, { requestKey: semantic.id.getValue() });
+    } else {
+      record = await this.collection.update(semantic.id.getValue(), data, { requestKey: semantic.id.getValue() });
     }
 
     return this.mapper.toDomain(record);

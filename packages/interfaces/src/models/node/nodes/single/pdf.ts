@@ -10,5 +10,5 @@ export interface PdfNodeData extends NodeBase, NodeType<"pdf"> {
 
 export interface PdfContent {
   url: string;
-  cover_url: string;
+  coverUrl: string;
 }

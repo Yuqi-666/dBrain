@@ -6,8 +6,10 @@ import { edgeRouter } from "./edge";
 import { viewRouter } from "./view";
 import { nodeTagRouter } from "./node-tag";
 import { eventRouter } from "./event";
+import { authRouter } from "./auth";
 
 export const appRouter = router({
+  auth: authRouter,
   node: nodeRouter,
   edge: edgeRouter,
   view: viewRouter,

@@ -13,9 +13,9 @@ export function PdfPreview({ node }: { node: PdfNodeData }) {
   return (
     <div className="space-y-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-        {node.content?.cover_url ? (
+        {node.content?.coverUrl ? (
           <img
-            src={node.content.cover_url}
+            src={node.content.coverUrl}
             alt={node.title}
             className="size-full object-cover"
           />

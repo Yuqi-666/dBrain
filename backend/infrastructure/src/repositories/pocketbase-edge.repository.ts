@@ -28,10 +28,21 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
   }
 
   async save(edge: Edge): Promise<Edge> {
-    const data = EdgeMapper.toRecord(edge);
-    const { id, ...createData } = data;
+    if (!edge.id) {
+      throw new Error("Domain 校验失败：实体必须包含 id");
+    }
 
-    const record = await this.collection.create(createData);
+    const isTemporaryId = edge.id.getValue().startsWith("tmp_");
+    const data = EdgeMapper.toRecord(edge);
+    delete data.id;
+
+    let record;
+    if (isTemporaryId) {
+      record = await this.collection.create(data, { requestKey: edge.id.getValue() });
+    } else {
+      record = await this.collection.update(edge.id.getValue(), data, { requestKey: edge.id.getValue() });
+    }
+
     return EdgeMapper.toDomain(record);
   }
 

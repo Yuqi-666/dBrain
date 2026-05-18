@@ -1,8 +1,8 @@
 import type { RecordModel } from "pocketbase";
-
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 import { View } from "@workspace/domain/models/view/entities";
-import { ViewId, LayoutType, VisualConfig } from "@workspace/domain/models/view/value-objects";
+import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
+import { LayoutType } from "@workspace/domain/models/layout/value-objects";
 
 export class ViewMapper {
   static toDomain(record: RecordModel): View {

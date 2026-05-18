@@ -32,20 +32,19 @@ export class PocketBaseViewRepository implements IViewRepository {
   }
 
   async save(view: View): Promise<View> {
-    const data = ViewMapper.toRecord(view);
-    const id = view.id.value;
+    if (!view.id) {
+      throw new Error("Domain 校验失败：实体必须包含 id");
+    }
 
-    let record: RecordModel;
-    try {
-      await this.collection.getOne(id);
-      record = await this.collection.update(id, data);
-    } catch (error) {
-      const pb = getPocketBaseClient();
-      if (pb.isClientResponseError(error) && error.status === 404) {
-        record = await this.collection.create(data);
-      } else {
-        throw error;
-      }
+    const isTemporaryId = view.id.value.startsWith("tmp_");
+    const data = ViewMapper.toRecord(view);
+    delete data.id;
+
+    let record;
+    if (isTemporaryId) {
+      record = await this.collection.create(data, { requestKey: view.id.value });
+    } else {
+      record = await this.collection.update(view.id.value, data, { requestKey: view.id.value });
     }
 
     return ViewMapper.toDomain(record);

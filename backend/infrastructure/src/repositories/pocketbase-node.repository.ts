@@ -51,16 +51,22 @@ export class PocketBaseNodeRepository implements INodeRepository {
   }
 
   async save(node: Node): Promise<Node> {
-    const data = this.mapper.toRecord(node);
-    const id = node.id.value;
-
-    if (id) {
-      const record = await this.collection().update(id, data);
-      return this.mapper.toDomain(record);
-    } else {
-      const record = await this.collection().create(data);
-      return this.mapper.toDomain(record);
+    if (!node.id) {
+      throw new Error("Domain 校验失败：实体必须包含 id");
     }
+
+    const isTemporaryId = node.id.value.startsWith("tmp_");
+    const data = this.mapper.toRecord(node);
+    delete data.id;
+
+    let record;
+    if (isTemporaryId) {
+      record = await this.collection().create(data, { requestKey: node.id.value });
+    } else {
+      record = await this.collection().update(node.id.value, data, { requestKey: node.id.value });
+    }
+
+    return this.mapper.toDomain(record);
   }
 
   async delete(id: NodeId): Promise<void> {

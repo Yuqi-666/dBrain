@@ -30,20 +30,19 @@ export class PocketBaseNodeTagRepository implements INodeTagRepository {
   }
 
   async save(tag: NodeTag): Promise<NodeTag> {
-    const data = this.mapper.toRecord(tag);
-    const id = tag.id.getValue();
+    if (!tag.id) {
+      throw new Error("Domain 校验失败：实体必须包含 id");
+    }
 
-    let record: RecordModel;
-    try {
-      await this.collection.getOne(id);
-      record = await this.collection.update(id, data);
-    } catch (error) {
-      const pb = getPocketBaseClient();
-      if (pb.isClientResponseError(error) && error.status === 404) {
-        record = await this.collection.create(data);
-      } else {
-        throw error;
-      }
+    const isTemporaryId = tag.id.getValue().startsWith("tmp_");
+    const data = this.mapper.toRecord(tag);
+    delete data.id;
+
+    let record;
+    if (isTemporaryId) {
+      record = await this.collection.create(data, { requestKey: tag.id.getValue() });
+    } else {
+      record = await this.collection.update(tag.id.getValue(), data, { requestKey: tag.id.getValue() });
     }
 
     return this.mapper.toDomain(record);

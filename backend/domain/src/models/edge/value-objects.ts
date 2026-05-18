@@ -21,13 +21,6 @@ export class EdgeId {
       throw new Error("EdgeId cannot be empty");
     }
 
-    // Basic UUID validation (8-4-4-4-12 hex format)
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(value)) {
-      throw new Error(`EdgeId must be a valid UUID format: ${value}`);
-    }
-
     return new EdgeId(value);
   }
 
