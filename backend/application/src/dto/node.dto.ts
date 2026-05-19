@@ -67,8 +67,7 @@ export interface WebsiteNodeDTO extends BaseNodeDTO {
 export interface CollectionNodeDTO extends BaseNodeDTO {
   nodeType: "collection";
   content: {
-    filterConfig?: FilterConfig;
-    selectedNodes: string[];
+    filterConfig?: FilterConfig
   };
 }
 

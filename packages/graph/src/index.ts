@@ -6,4 +6,3 @@ export {
   adaptNodesToTree,
 } from "./transform";
 export * from "./options";
-export type { Mutation, MutationProcessor } from "./types";

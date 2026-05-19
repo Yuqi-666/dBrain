@@ -16,46 +16,19 @@ import type {
 } from "@workspace/interfaces";
 
 // 定义变更操作的类型
-type Mutation =
-  | { type: "addNodeSemantic"; payload: NodeSemantic }
-  | {
-    type: "updateNodeSemantic";
-    payload: { id: NodeSemanticId; updates: Partial<NodeSemantic> };
-  }
+export type Mutation =
+  | { type: "upsertNodeSemantic"; payload: NodeSemantic }
   | { type: "deleteNodeSemantic"; payload: { id: NodeSemanticId } }
-  | { type: "addNodeTag"; payload: NodeTag }
-  | {
-    type: "updateNodeTag";
-    payload: { id: NodeTagId; updates: Partial<NodeTag> };
-  }
+  | { type: "upsertNodeTag"; payload: NodeTag }
   | { type: "deleteNodeTag"; payload: { id: NodeTagId } }
-  | { type: "addEdgeSemantic"; payload: EdgeSemantic }
-  | {
-    type: "updateEdgeSemantic";
-    payload: { id: EdgeSemanticId; updates: Partial<EdgeSemantic> };
-  }
+  | { type: "upsertEdgeSemantic"; payload: EdgeSemantic }
   | { type: "deleteEdgeSemantic"; payload: { id: EdgeSemanticId } }
-  | { type: "addNode"; payload: NodeData }
-  | {
-    type: "updateNode";
-    payload: {
-      id: NodeId;
-      updates: Partial<Omit<NodeData, "id" | "nodeType">>;
-    };
-  }
+  | { type: "upsertNode"; payload: NodeData }
   | { type: "deleteNode"; payload: { id: NodeId } }
-  | { type: "addEdge"; payload: EdgeData }
-  | { type: "updateEdge"; payload: { id: EdgeId; updates: Partial<EdgeData> } }
+  | { type: "upsertEdge"; payload: EdgeData }
   | { type: "deleteEdge"; payload: { id: EdgeId } }
-  | { type: "addView"; payload: View }
-  | { type: "updateView"; payload: { id: ViewId; updates: Partial<View> } }
+  | { type: "upsertView"; payload: View }
   | { type: "deleteView"; payload: { id: ViewId } };
-
-const MUTATION_TYPES = {
-  addNodeTag: "addNodeTag" as const,
-  updateNodeTag: "updateNodeTag" as const,
-  deleteNodeTag: "deleteNodeTag" as const,
-};
 
 /**
  * Unified Zustand store for managing all cognitive graph data
@@ -76,51 +49,36 @@ export interface GraphStore {
   /** G6 消费完变更后，调用此方法清空队列 */
   clearMutations: () => void;
 
-  // ==================== CRUD Actions ====================
+  // ==================== CRUD Actions (upsert/delete only) ====================
   // -- Node Semantic --
-  addNodeSemantic: (semantic: NodeSemantic) => void;
-  updateNodeSemantic: (
-    id: NodeSemanticId,
-    updates: Partial<NodeSemantic>,
-  ) => void;
+  upsertNodeSemantic: (semantic: NodeSemantic) => void;
+  upsertNodeSemantics: (semantics: NodeSemantic[]) => void;
   deleteNodeSemantic: (id: NodeSemanticId) => void;
-  setNodeSemantics: (semantics: NodeSemantic[]) => void;
 
   // -- Node Tag --
-  addNodeTag: (tag: NodeTag) => void;
-  updateNodeTag: (id: NodeTagId, updates: Partial<NodeTag>) => void;
+  upsertNodeTag: (tag: NodeTag) => void;
+  upsertNodeTags: (tags: NodeTag[]) => void;
   deleteNodeTag: (id: NodeTagId) => void;
-  setNodeTags: (tags: NodeTag[]) => void;
 
   // -- Edge Semantic --
-  addEdgeSemantic: (semantic: EdgeSemantic) => void;
-  updateEdgeSemantic: (
-    id: EdgeSemanticId,
-    updates: Partial<EdgeSemantic>,
-  ) => void;
+  upsertEdgeSemantic: (semantic: EdgeSemantic) => void;
+  upsertEdgeSemantics: (semantics: EdgeSemantic[]) => void;
   deleteEdgeSemantic: (id: EdgeSemanticId) => void;
-  setEdgeSemantics: (semantics: EdgeSemantic[]) => void;
 
   // -- Nodes --
-  addNode: (node: NodeData) => void;
-  updateNode: (
-    id: NodeId,
-    updates: Partial<Omit<NodeData, "id" | "nodeType">>,
-  ) => void;
+  upsertNode: (node: NodeData) => void;
+  upsertNodes: (nodes: NodeData[]) => void;
   deleteNode: (id: NodeId) => void;
-  setNodes: (nodes: NodeData[]) => void;
 
   // -- Edges --
-  addEdge: (edge: EdgeData) => void;
-  updateEdge: (id: EdgeId, updates: Partial<EdgeData>) => void;
+  upsertEdge: (edge: EdgeData) => void;
+  upsertEdges: (edges: EdgeData[]) => void;
   deleteEdge: (id: EdgeId) => void;
-  setEdges: (edges: EdgeData[]) => void;
 
   // -- Views --
-  addView: (view: View) => void;
-  updateView: (id: ViewId, updates: Partial<View>) => void;
+  upsertView: (view: View) => void;
+  upsertViews: (views: View[]) => void;
   deleteView: (id: ViewId) => void;
-  setViews: (views: View[]) => void;
 
   // ==================== Getters ====================
   getNodeSemantic: (id: NodeSemanticId) => NodeSemantic | undefined;
@@ -134,21 +92,6 @@ export interface GraphStore {
   getEdgesForNode: (nodeId: NodeId) => EdgeData[];
   getView: (id: ViewId) => View | undefined;
 
-  // ==================== 服务端同步专用 Action (供 WebSocket 调用) ====================
-  /**
-   * 接收服务端全量数据推送，强制覆盖本地状态
-   * 注意：此方法仅应由 WebSocket 服务调用，UI/G6 组件禁止调用
-   */
-  syncFromServer: (payload: ServerSyncPayload) => void;
-}
-
-// 定义服务端同步数据的接口
-interface ServerSyncPayload {
-  nodeSemantics?: NodeSemantic[];
-  edgeSemantics?: EdgeSemantic[];
-  nodes?: NodeData[];
-  edges?: EdgeData[];
-  views?: View[];
 }
 
 export const useGraphStore = create<GraphStore>()(
@@ -167,35 +110,33 @@ export const useGraphStore = create<GraphStore>()(
       clearMutations: () => set({ latestMutations: [] }),
 
       // ==================== Node Semantic Actions ====================
-      addNodeSemantic: (semantic) => {
-        // 1. 更新本地状态
+      upsertNodeSemantic: (semantic) => {
         set((state) => {
           const newSemantics = new Map(state.nodeSemantics);
           newSemantics.set(semantic.id, semantic);
           return { nodeSemantics: newSemantics };
         });
-        // 2. 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addNodeSemantic", payload: semantic },
+            { type: "upsertNodeSemantic", payload: semantic },
           ],
         }));
       },
 
-      updateNodeSemantic: (id, updates) => {
+      upsertNodeSemantics: (semantics) => {
         set((state) => {
-          if (!state.nodeSemantics.has(id)) return state;
           const newSemantics = new Map(state.nodeSemantics);
-          const existing = newSemantics.get(id)!;
-          newSemantics.set(id, { ...existing, ...updates });
+          for (const s of semantics) {
+            newSemantics.set(s.id, s);
+          }
           return { nodeSemantics: newSemantics };
         });
-        // 推入变更队列
+        // Batch mutation - one per item
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateNodeSemantic", payload: { id, updates } },
+            ...semantics.map((s) => ({ type: "upsertNodeSemantic" as const, payload: s })),
           ],
         }));
       },
@@ -206,7 +147,6 @@ export const useGraphStore = create<GraphStore>()(
           newSemantics.delete(id);
           return { nodeSemantics: newSemantics };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
@@ -215,11 +155,8 @@ export const useGraphStore = create<GraphStore>()(
         }));
       },
 
-      setNodeSemantics: (semantics) => {
-        set({ nodeSemantics: new Map(semantics.map((s) => [s.id, s])) });
-      },
-
-      addNodeTag: (tag) => {
+      // ==================== Node Tag Actions ====================
+      upsertNodeTag: (tag) => {
         set((state) => {
           const newTags = new Map(state.nodeTags);
           newTags.set(tag.id, tag);
@@ -228,23 +165,23 @@ export const useGraphStore = create<GraphStore>()(
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addNodeTag", payload: tag },
+            { type: "upsertNodeTag", payload: tag },
           ],
         }));
       },
 
-      updateNodeTag: (id, updates) => {
+      upsertNodeTags: (tags) => {
         set((state) => {
-          if (!state.nodeTags.has(id)) return state;
           const newTags = new Map(state.nodeTags);
-          const existing = newTags.get(id)!;
-          newTags.set(id, { ...existing, ...updates });
+          for (const t of tags) {
+            newTags.set(t.id, t);
+          }
           return { nodeTags: newTags };
         });
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateNodeTag", payload: { id, updates } },
+            ...tags.map((t) => ({ type: "upsertNodeTag" as const, payload: t })),
           ],
         }));
       },
@@ -263,39 +200,33 @@ export const useGraphStore = create<GraphStore>()(
         }));
       },
 
-      setNodeTags: (tags) => {
-        set({ nodeTags: new Map(tags.map((t) => [t.id, t])) });
-      },
-
       // ==================== Edge Semantic Actions ====================
-      addEdgeSemantic: (semantic) => {
+      upsertEdgeSemantic: (semantic) => {
         set((state) => {
           const newSemantics = new Map(state.edgeSemantics);
           newSemantics.set(semantic.id, semantic);
           return { edgeSemantics: newSemantics };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addEdgeSemantic", payload: semantic },
+            { type: "upsertEdgeSemantic", payload: semantic },
           ],
         }));
       },
 
-      updateEdgeSemantic: (id, updates) => {
+      upsertEdgeSemantics: (semantics) => {
         set((state) => {
-          if (!state.edgeSemantics.has(id)) return state;
           const newSemantics = new Map(state.edgeSemantics);
-          const existing = newSemantics.get(id)!;
-          newSemantics.set(id, { ...existing, ...updates });
+          for (const s of semantics) {
+            newSemantics.set(s.id, s);
+          }
           return { edgeSemantics: newSemantics };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateEdgeSemantic", payload: { id, updates } },
+            ...semantics.map((s) => ({ type: "upsertEdgeSemantic" as const, payload: s })),
           ],
         }));
       },
@@ -306,7 +237,6 @@ export const useGraphStore = create<GraphStore>()(
           newSemantics.delete(id);
           return { edgeSemantics: newSemantics };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
@@ -315,49 +245,42 @@ export const useGraphStore = create<GraphStore>()(
         }));
       },
 
-      setEdgeSemantics: (semantics) =>
-        set({ edgeSemantics: new Map(semantics.map((s) => [s.id, s])) }),
-
-      // ==================== Node Actions (重点：G6 交互会用到) ====================
-      addNode: (node) => {
+      // ==================== Node Actions ====================
+      upsertNode: (node) => {
         set((state) => {
           const newNodes = new Map(state.nodes);
           newNodes.set(node.id, node);
           return { nodes: newNodes };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addNode", payload: node },
+            { type: "upsertNode", payload: node },
           ],
         }));
       },
 
-      updateNode: (id, updates) => {
+      upsertNodes: (nodes) => {
         set((state) => {
-          const existingNode = state.nodes.get(id);
-          if (!existingNode) return state;
           const newNodes = new Map(state.nodes);
-          newNodes.set(id, { ...existingNode, ...updates });
+          for (const n of nodes) {
+            newNodes.set(n.id, n);
+          }
           return { nodes: newNodes };
         });
-
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateNode", payload: { id, updates } },
+            ...nodes.map((n) => ({ type: "upsertNode" as const, payload: n })),
           ],
         }));
       },
 
       deleteNode: (id) => {
-        // 级联删除边 (可选业务逻辑，放在 Action 里统一处理)
         set((state) => {
           const newNodes = new Map(state.nodes);
           newNodes.delete(id);
-          // 同时删除关联边
+          // Cascade delete edges
           const newEdges = new Map(state.edges);
           for (const [edgeId, edge] of state.edges) {
             if (edge.from === id || edge.to === id) {
@@ -366,7 +289,6 @@ export const useGraphStore = create<GraphStore>()(
           }
           return { nodes: newNodes, edges: newEdges };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
@@ -375,37 +297,33 @@ export const useGraphStore = create<GraphStore>()(
         }));
       },
 
-      setNodes: (nodes) => set({ nodes: new Map(nodes.map((n) => [n.id, n])) }),
-
       // ==================== Edge Actions ====================
-      addEdge: (edge) => {
+      upsertEdge: (edge) => {
         set((state) => {
           const newEdges = new Map(state.edges);
           newEdges.set(edge.id, edge);
           return { edges: newEdges };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addEdge", payload: edge },
+            { type: "upsertEdge", payload: edge },
           ],
         }));
       },
 
-      updateEdge: (id, updates) => {
+      upsertEdges: (edges) => {
         set((state) => {
-          const existingEdge = state.edges.get(id);
-          if (!existingEdge) return state;
           const newEdges = new Map(state.edges);
-          newEdges.set(id, { ...existingEdge, ...updates });
+          for (const e of edges) {
+            newEdges.set(e.id, e);
+          }
           return { edges: newEdges };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateEdge", payload: { id, updates } },
+            ...edges.map((e) => ({ type: "upsertEdge" as const, payload: e })),
           ],
         }));
       },
@@ -416,7 +334,6 @@ export const useGraphStore = create<GraphStore>()(
           newEdges.delete(id);
           return { edges: newEdges };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
@@ -425,41 +342,33 @@ export const useGraphStore = create<GraphStore>()(
         }));
       },
 
-      setEdges: (edges) => {
-        const newEdges = new Map();
-        edges.forEach((e) => newEdges.set(e.id, e));
-        set({ edges: newEdges });
-      },
-
       // ==================== View Actions ====================
-      addView: (view) => {
+      upsertView: (view) => {
         set((state) => {
           const newViews = new Map(state.views);
           newViews.set(view.id, view);
           return { views: newViews };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "addView", payload: view },
+            { type: "upsertView", payload: view },
           ],
         }));
       },
 
-      updateView: (id, updates) => {
+      upsertViews: (views) => {
         set((state) => {
-          if (!state.views.has(id)) return state;
           const newViews = new Map(state.views);
-          const existing = newViews.get(id)!;
-          newViews.set(id, { ...existing, ...updates });
+          for (const v of views) {
+            newViews.set(v.id, v);
+          }
           return { views: newViews };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
-            { type: "updateView", payload: { id, updates } },
+            ...views.map((v) => ({ type: "upsertView" as const, payload: v })),
           ],
         }));
       },
@@ -470,7 +379,6 @@ export const useGraphStore = create<GraphStore>()(
           newViews.delete(id);
           return { views: newViews };
         });
-        // 推入变更队列
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,
@@ -478,8 +386,6 @@ export const useGraphStore = create<GraphStore>()(
           ],
         }));
       },
-
-      setViews: (views) => set({ views: new Map(views.map((v) => [v.id, v])) }),
 
       // ==================== Getters  ====================
       getNodeSemantic: (id) => get().nodeSemantics.get(id),

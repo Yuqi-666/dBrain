@@ -99,7 +99,6 @@ migrate((app) => {
       { name: "screenshotUrl", type: "text" },
       { name: "faviconUrl", type: "text" },
       { name: "filterConfig", type: "json" },
-      { name: "selectedNodes", type: "json" },
       { name: "referencedNodes", type: "json" },
       { name: "docs", type: "json" },
     ],

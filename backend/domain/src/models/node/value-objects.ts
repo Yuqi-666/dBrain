@@ -9,6 +9,7 @@ import type {
   SingleNodeDataType,
   ComplexNodeDataType,
 } from "@workspace/interfaces/models/node/types";
+import { FilterConfig } from "../filter/value-objects";
 
 /**
  * Value Object representing a Node ID.
@@ -330,39 +331,26 @@ export class WebsiteContent {
  * Collection node content.
  */
 export class CollectionContent {
-  private readonly _filterConfig: RuleGroupType | undefined;
-  private readonly _selectedNodes: NodeId[];
+  private readonly _filterConfig: FilterConfig | undefined;
 
   constructor(
-    filterConfig: RuleGroupType | undefined,
-    selectedNodes: NodeId[],
+    filterConfig: FilterConfig | undefined,
   ) {
     this._filterConfig = filterConfig;
-    this._selectedNodes = [...selectedNodes];
   }
 
-  get filterConfig(): RuleGroupType | undefined {
+  get filterConfig(): FilterConfig | undefined {
     return this._filterConfig;
   }
 
-  get selectedNodes(): NodeId[] {
-    return [...this._selectedNodes];
-  }
-
   equals(other: CollectionContent): boolean {
-    if (this._selectedNodes.length !== other._selectedNodes.length) {
+    if (!this._filterConfig && !other._filterConfig) {
+      return true;
+    }
+    if (!this._filterConfig || !other._filterConfig) {
       return false;
     }
-    for (let i = 0; i < this._selectedNodes.length; i++) {
-      const thisNode = this._selectedNodes[i];
-      const otherNode = other._selectedNodes[i];
-      if (!thisNode || !otherNode || !thisNode.equals(otherNode)) {
-        return false;
-      }
-    }
-    return (
-      JSON.stringify(this._filterConfig) === JSON.stringify(other._filterConfig)
-    );
+    return this._filterConfig.equals(other._filterConfig);
   }
 }
 

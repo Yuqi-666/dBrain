@@ -23,6 +23,7 @@ import {
   CollectionContent,
   RichTextContent,
 } from "./value-objects";
+import { FilterConfig } from "../filter/value-objects";
 
 export interface NodeBaseProps {
   id: NodeId;
@@ -937,8 +938,7 @@ export class CollectionNode extends Node {
   }
 
   applyFilter(
-    filterConfig: RuleGroupType | undefined,
-    selectedNodes: NodeId[],
+    filterConfig: FilterConfig,
   ): CollectionNode {
     return new CollectionNode({
       id: this._id,
@@ -949,7 +949,7 @@ export class CollectionNode extends Node {
       tags: this._tags,
       isPinned: this._isPinned,
       stateData: this._stateData,
-      content: new CollectionContent(filterConfig, selectedNodes),
+      content: new CollectionContent(FilterConfig.create(filterConfig)),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
     });
@@ -965,7 +965,7 @@ export class CollectionNode extends Node {
       tags: this._tags,
       isPinned: this._isPinned,
       stateData: this._stateData,
-      content: new CollectionContent(undefined, []),
+      content: new CollectionContent(FilterConfig.empty()),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
     });

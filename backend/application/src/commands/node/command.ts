@@ -1,3 +1,5 @@
+import type { FilterConfig } from "@workspace/interfaces";
+
 export interface CreateTextNodeCommand {
   nodeType: "text";
   id: string;
@@ -113,7 +115,9 @@ export interface CreateCollectionNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
-  content: { filterConfig?: any; selectedNodes: string[] };
+  content: {
+    filterConfig?: FilterConfig
+  };
   userId: string;
 }
 

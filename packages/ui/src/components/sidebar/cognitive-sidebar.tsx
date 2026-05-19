@@ -299,7 +299,7 @@ function ViewsList({
   }>;
 }) {
   const handleTogglePin = async (id: string, isPinned: boolean) => {
-    await GraphCQRS.updateView(id, { isPinned });
+    await GraphCQRS.upsertView(id, { isPinned });
   };
 
   const nonPinnedRecentViews = recentViews.filter(
@@ -416,7 +416,7 @@ function NodesList({
   );
 
   const handleTogglePin = async (id: string, isPinned: boolean) => {
-    await GraphCQRS.updateNode(id, { isPinned });
+    await GraphCQRS.upsertNode(id, { isPinned });
   };
 
   const handleSelectNode = (id: string) => {

@@ -125,11 +125,11 @@ function MetadataTabContent({
   const allSemantics = getAllNodeSemantics();
 
   const handleAbstractChange = async (value: string) => {
-    await GraphCQRS.updateNode(nodeId, { abstract: value });
+    await GraphCQRS.upsertNode(nodeId, { abstract: value });
   };
 
   const handleSemanticIdChange = async (value: string) => {
-    await GraphCQRS.updateNode(nodeId, { semanticId: value });
+    await GraphCQRS.upsertNode(nodeId, { semanticId: value });
   };
 
   const getAllNodeTags = useGraphStore((state) => state.getAllNodeTags);
@@ -140,10 +140,10 @@ function MetadataTabContent({
 
   const handleToggleTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
-    if (currentTags.includes(tagId)) {
-      await GraphCQRS.updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+      if (currentTags.includes(tagId)) {
+      await GraphCQRS.upsertNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
     } else {
-      await GraphCQRS.updateNode(nodeId, { tags: [...currentTags, tagId] });
+      await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });
     }
   };
 
@@ -166,21 +166,21 @@ function MetadataTabContent({
       name: newTagName.trim(),
       color: randomColor,
     };
-    await GraphCQRS.addNodeTag(newTag);
+    await GraphCQRS.upsertNodeTag(newTag);
     const currentTags = node.tags || [];
-    await GraphCQRS.updateNode(nodeId, { tags: [...currentTags, tagId] });
+    await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });
     setNewTagName("");
     setIsCreatingTag(false);
   };
 
   const handleDeleteTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
-    await GraphCQRS.updateNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+    await GraphCQRS.upsertNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
   };
 
   const handleContentUrlChange = async (field: string, value: string) => {
     if (!node.content) return;
-    await GraphCQRS.updateNode(nodeId, {
+    await GraphCQRS.upsertNode(nodeId, {
       content: { ...node.content, [field]: value },
     } as Partial<Omit<NodeData, "id" | "nodeType">>);
   };
@@ -189,7 +189,7 @@ function MetadataTabContent({
     if (node.nodeType !== "collection") return;
     const newCollectionType = value as "ordered" | "unordered" | "cards";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await GraphCQRS.updateNode(nodeId, {
+    await GraphCQRS.upsertNode(nodeId, {
       content: {
         ...node.content,
         filterConfig: {

@@ -21,7 +21,7 @@ import {
   RichTextNode,
   Node,
 } from "@workspace/domain";
-import { NodeId, Permission } from "@workspace/domain";
+import { NodeId, Permission, FilterConfig } from "@workspace/domain";
 import type { NodeDTO } from "../../dto/node.dto";
 import type { INodeRepository, IEventBus } from "@workspace/domain";
 import type { NodeCreated, NodeDeleted, NodeUpdated } from "@workspace/domain";
@@ -67,7 +67,15 @@ function toNodeDTO(node: Node): NodeDTO {
       return { ...base, nodeType: "website" as const, content: { url: siteNode.content.url, faviconUrl: siteNode.content.faviconUrl } };
     case "collection":
       const colNode = node as CollectionNode;
-      return { ...base, nodeType: "collection" as const, content: { filterConfig: colNode.content.filterConfig, selectedNodes: colNode.content.selectedNodes.map(n => n.value) } };
+      return {
+        ...base, nodeType: "collection" as const, content: {
+          filterConfig: colNode.content.filterConfig && {
+            selectedNodes: colNode.content.filterConfig.selectedNodes?.map(nodeId => nodeId.value),
+            ruleGroup: colNode.content.filterConfig.ruleGroup,
+            collectionType: colNode.content.filterConfig.collectionType
+          }
+        }
+      };
     case "rich-text":
       const rtNode = node as RichTextNode;
       return { ...base, nodeType: "rich-text" as const, content: { referencedNodes: rtNode.content.referencedNodes.map(n => n.value), docs: rtNode.content.docs } };
@@ -80,7 +88,7 @@ export class NodeCommandService {
   constructor(
     private readonly nodeRepository: INodeRepository,
     private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   async createNode(cmd: CreateNodeCommand): Promise<NodeDTO> {
     if (!cmd.title || cmd.title.trim().length === 0) {
@@ -208,8 +216,11 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           content: new CollectionContent(
-            cmd.content.filterConfig,
-            cmd.content.selectedNodes.map((n: string) => new NodeId(n)),
+            FilterConfig.create({
+              selectedNodes: cmd.content.filterConfig?.selectedNodes?.map(nodeId => new NodeId(nodeId)) ?? [],
+              ruleGroup: cmd.content.filterConfig?.ruleGroup,
+              collectionType: cmd.content.filterConfig?.collectionType,
+            })
           ),
         });
         break;
@@ -321,10 +332,9 @@ export class NodeCommandService {
     if (node instanceof WebsiteNode && content.url !== undefined) {
       return node.updateContent(new WebsiteContent(content.url, content.faviconUrl));
     }
-    if (node instanceof CollectionNode && content.filterConfig !== undefined && content.selectedNodes !== undefined) {
+    if (node instanceof CollectionNode && content.filterConfig !== undefined) {
       return node.applyFilter(
         content.filterConfig,
-        content.selectedNodes.map((n: string) => new NodeId(n)),
       );
     }
     if (node instanceof RichTextNode && content.referencedNodes !== undefined && content.docs !== undefined) {

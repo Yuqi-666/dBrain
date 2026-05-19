@@ -19,14 +19,14 @@ export function RichTextNodeContent({ node, className }: RichTextNodeContentProp
       room={node.id}
       placeholder="开始写作..."
       onContentChange={async (content) => {
-        await GraphCQRS.updateNode(node.id, {
+        await GraphCQRS.upsertNode(node.id, {
           content: {
             referencedNodes: node.content.referencedNodes,
             docs: content,
           },
         });
       }}
-      getInitialContent={() => getNode(node.id)?.content}
+      getInitialContent={() => getNode(node.id)?.content ?? {}}
     />
   );
 }

@@ -1,5 +1,5 @@
 import type { RuleGroupType, Field } from "@workspace/utils";
-import type { NodeId } from "@workspace/interfaces/models/node";
+import type { NodeId } from "../node";
 
 export class FilterConfig {
   private readonly _selectedNodes: NodeId[];
@@ -83,13 +83,13 @@ export class FilterConfig {
   equals(other: FilterConfig): boolean {
     return (
       JSON.stringify(this._selectedNodes) ===
-        JSON.stringify(other._selectedNodes) &&
+      JSON.stringify(other._selectedNodes) &&
       JSON.stringify(this._ruleGroup) === JSON.stringify(other._ruleGroup) &&
       this._collectionType === other._collectionType
     );
   }
 
-  get selectedNodes(): ReadonlyArray<NodeId> {
+  get selectedNodes(): NodeId[] {
     return this._selectedNodes;
   }
 

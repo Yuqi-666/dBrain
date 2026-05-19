@@ -1,4 +1,4 @@
-import type { FilterConfig } from "@workspace/interfaces/models/filter";
+import { FilterConfig } from "../filter/value-objects";
 import { LayoutType } from "../layout/value-objects";
 
 /**

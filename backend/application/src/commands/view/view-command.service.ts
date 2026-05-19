@@ -6,8 +6,7 @@ import type { ViewDTO, VisualConfigDTO } from "../../dto/view.dto";
 import { View } from "@workspace/domain/models/view/entities";
 import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
 import { LayoutType } from "@workspace/domain/models/layout/value-objects";
-import type { FilterConfig } from "@workspace/interfaces/models/filter";
-
+import { FilterConfig, NodeId } from "@workspace/domain";
 function toViewDTO(view: View): ViewDTO {
   return {
     id: view.id.toString(),
@@ -21,7 +20,12 @@ function toViewDTO(view: View): ViewDTO {
       snapToGrid: view.visualConfig.snapToGrid,
       showMinimap: view.visualConfig.showMinimap,
     },
-    filterConfig: view.filterConfig,
+    filterConfig: {
+      selectedNodes: view.filterConfig.selectedNodes?.map(nodeId => nodeId.value),
+      ruleGroup: view.filterConfig.ruleGroup,
+      collectionType: view.filterConfig.collectionType
+    }
+    ,
     isPinned: view.isPinned,
   };
 }
@@ -37,11 +41,11 @@ export class ViewCommandService {
       backgroundColor: cmd.visualConfig?.backgroundColor,
     });
 
-    const filterConfig: FilterConfig = {
-      selectedNodes: cmd.filterConfig?.selectedNodes,
+    const filterConfig = FilterConfig.create({
+      selectedNodes: cmd.filterConfig?.selectedNodes?.map(nodeId => new NodeId(nodeId)) ?? [],
       ruleGroup: cmd.filterConfig?.ruleGroup,
       collectionType: cmd.filterConfig?.collectionType,
-    };
+    });
 
     const view = View.create({
       id: cmd.id,
@@ -97,11 +101,11 @@ export class ViewCommandService {
     }
 
     if (cmd.filterConfig !== undefined) {
-      const newFilterConfig: FilterConfig = {
-        selectedNodes: cmd.filterConfig.selectedNodes,
+      const newFilterConfig = FilterConfig.create({
+        selectedNodes: cmd.filterConfig.selectedNodes?.map(nodeId => new NodeId(nodeId)) ?? [],
         ruleGroup: cmd.filterConfig.ruleGroup,
         collectionType: cmd.filterConfig.collectionType,
-      };
+      });
       updated = updated.updateFilterConfig(newFilterConfig);
     }
 

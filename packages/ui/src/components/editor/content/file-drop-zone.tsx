@@ -137,7 +137,7 @@ export function FileDropZone({
         if (variant === "pdf" || variant === "video") {
           coverUrl = await generateCover(fileItems[0]?.file, variant);
         }
-        await GraphCQRS.updateNode(nodeId, {
+        await GraphCQRS.upsertNode(nodeId, {
           content: { url, coverUrl },
         });
       },

@@ -1,3 +1,5 @@
+import type { FilterConfig } from "@workspace/interfaces";
+
 export interface CreateViewCommand {
   id: string;
   name: string;
@@ -7,11 +9,7 @@ export interface CreateViewCommand {
     showLabels?: boolean;
     labelField?: string;
   };
-  filterConfig?: {
-    selectedNodes?: string[];
-    ruleGroup?: any;
-    collectionType?: string;
-  };
+  filterConfig?: FilterConfig;
   isPinned?: boolean;
   userId: string;
 }

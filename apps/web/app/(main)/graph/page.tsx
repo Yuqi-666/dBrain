@@ -2,15 +2,8 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { Graph } from "@workspace/graph";
-import { useUIStore } from "@workspace/store";
+import { useUIStore, useGraphStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
-import {
-  INITIAL_NODE_SEMANTICS,
-  INITIAL_EDGE_SEMANTICS,
-  INITIAL_NODES,
-  INITIAL_EDGES,
-  DEMO_VIEW,
-} from "@workspace/dev/MOCK";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
 import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
@@ -25,7 +18,6 @@ export default function GraphPage(): ReactNode {
 
   useEffect(() => {
     const initGraph = async () => {
-      ui_store.setCurrentViewId(DEMO_VIEW.id);
 
       await Promise.all([
         GraphCQRS.syncView(),
@@ -36,6 +28,11 @@ export default function GraphPage(): ReactNode {
         GraphCQRS.syncNodeTag(),
       ]);
 
+      const views = useGraphStore.getState().views;
+      const firstViewId = views.keys().next().value;
+      if (firstViewId) {
+        ui_store.setCurrentViewId(firstViewId);
+      }
       setIsInitialized(true);
     };
 

@@ -24,7 +24,7 @@ export function PinButton({ className }: PinButtonProps) {
 
   const handleTogglePin = async () => {
     if (!currentEditingNodeId) return;
-    await GraphCQRS.updateNode(currentEditingNodeId, { isPinned: !isPinned });
+    await GraphCQRS.upsertNode(currentEditingNodeId, { isPinned: !isPinned });
   };
 
   return (

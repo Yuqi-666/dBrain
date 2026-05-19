@@ -47,7 +47,6 @@ const websiteContentSchema = z.object({
 
 const collectionContentSchema = z.object({
   filterConfig: z.any().optional(),
-  selectedNodes: z.array(z.string()),
 });
 
 const richTextContentSchema = z.object({

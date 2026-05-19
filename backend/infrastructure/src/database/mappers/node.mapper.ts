@@ -1,5 +1,4 @@
 import type { RecordModel } from "pocketbase";
-import type { RuleGroupType } from "@workspace/utils";
 
 import {
   NodeId,
@@ -14,7 +13,7 @@ import {
   CollectionContent,
   RichTextContent,
 } from "@workspace/domain/models/node/value-objects";
-
+import { FilterConfig } from "@workspace/domain/models/filter/value-objects";
 import {
   Node,
   TextNode,
@@ -99,8 +98,7 @@ interface WebsiteNodeRecord extends BaseNodeRecord {
 
 interface CollectionNodeRecord extends BaseNodeRecord {
   nodeType: "collection";
-  filterConfig?: RuleGroupType;
-  selectedNodes: string[];
+  filterConfig?: FilterConfig;
 }
 
 interface RichTextNodeRecord extends BaseNodeRecord {
@@ -329,10 +327,9 @@ export class NodeMapper {
     createdAt: string;
     updatedAt: string;
   }): CollectionNode {
-    const selectedNodes = (record.selectedNodes || []).map((id) => new NodeId(id));
     return CollectionNode.create({
       ...baseProps,
-      content: new CollectionContent(record.filterConfig, selectedNodes),
+      content: new CollectionContent(record.filterConfig),
     });
   }
 
@@ -443,7 +440,6 @@ export class NodeMapper {
       return {
         ...baseRecord,
         filterConfig: node.content.filterConfig,
-        selectedNodes: node.content.selectedNodes.map((n) => n.value),
       };
     }
 

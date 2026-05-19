@@ -22,7 +22,11 @@ function toViewDTO(view: View): ViewDTO {
       snapToGrid: view.visualConfig.snapToGrid,
       showMinimap: view.visualConfig.showMinimap,
     },
-    filterConfig: view.filterConfig,
+    filterConfig: {
+      selectedNodes: view.filterConfig.selectedNodes?.map(nodeId => nodeId.value),
+      ruleGroup: view.filterConfig.ruleGroup,
+      collectionType: view.filterConfig.collectionType
+    },
     isPinned: view.isPinned,
   };
 }

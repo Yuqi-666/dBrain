@@ -31,7 +31,7 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
           value={getValue()}
           onChange={async (e) => {
             if (!currentEditingNodeId) return;
-            await GraphCQRS.updateNode(currentEditingNodeId, {
+            await GraphCQRS.upsertNode(currentEditingNodeId, {
               content: { docs: { content: e.target.value } },
             });
           }}

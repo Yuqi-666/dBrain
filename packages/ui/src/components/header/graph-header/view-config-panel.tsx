@@ -63,14 +63,14 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
 
   const handleUpdateVisualConfig = async (updates: Partial<VisualConfig>) => {
     if (!currentViewId) return;
-    await GraphCQRS.updateView(currentViewId, {
+    await GraphCQRS.upsertView(currentViewId, {
       visualConfig: { ...visualConfig, ...updates },
     });
   };
 
   const handleUpdateLayout = async (layout: LayoutType) => {
     if (!currentViewId) return;
-    await GraphCQRS.updateView(currentViewId, { layout });
+    await GraphCQRS.upsertView(currentViewId, { layout });
   };
 
   return (

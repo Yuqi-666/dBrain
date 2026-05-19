@@ -57,7 +57,15 @@ function toNodeDTO(node: Node): NodeDTO {
     }
     case 'collection': {
       const n = node as import('@workspace/domain').CollectionNode;
-      return { ...base, nodeType: 'collection', content: { filterConfig: n.content.filterConfig, selectedNodes: n.content.selectedNodes.map(id => id.toString()) } };
+      return {
+        ...base, nodeType: 'collection', content: {
+          filterConfig: n.content.filterConfig && {
+            selectedNodes: n.content.filterConfig.selectedNodes?.map(nodeId => nodeId.value),
+            ruleGroup: n.content.filterConfig.ruleGroup,
+            collectionType: n.content.filterConfig.collectionType
+          }
+        }
+      };
     }
     case 'rich-text': {
       const n = node as import('@workspace/domain').RichTextNode;

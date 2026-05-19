@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from "react";
 import { Graph as G6Graph } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
-import type { View, ViewId } from "@workspace/interfaces";
+import type { NodeData, View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
@@ -11,10 +11,10 @@ import {
   createNodeOptions,
   createThemeOptions,
 } from "./options";
-import type { Mutation } from "./types";
 import { useGraphStateManage } from "./hooks/useGraphStateManage";
 import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
+import type { Mutation } from "@workspace/store/graphStore";
 
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
@@ -157,7 +157,7 @@ export function Graph({
 
     mutations.forEach((mutation) => {
       switch (mutation.type) {
-        case "addNode": {
+        case "upsertNode": {
           const node = mutation.payload;
           const adapted = transformToG6Data(
             new Map([[node.id, node]]),
@@ -175,29 +175,11 @@ export function Graph({
           }
           break;
         }
-        case "updateNode": {
-          const { id, updates } = mutation.payload;
-          const existing = nodes.get(id);
-          if (existing) {
-            const adapted = transformToG6Data(
-              new Map([[id, { ...existing, ...updates }]]),
-              new Map(),
-              currentView,
-              currentView?.layout,
-            );
-            const updatedNodes = adapted.nodes ?? [];
-            const updatedNode = updatedNodes[0];
-            if (updatedNode) {
-              graph.updateNodeData([updatedNode]);
-            }
-          }
-          break;
-        }
         case "deleteNode": {
           graph.removeNodeData([mutation.payload.id]);
           break;
         }
-        case "addEdge": {
+        case "upsertEdge": {
           const edge = mutation.payload;
           const adapted = transformToG6Data(
             new Map(),
@@ -215,31 +197,11 @@ export function Graph({
           }
           break;
         }
-        case "updateEdge": {
-          const { id, updates } = mutation.payload;
-          const existing = edges.get(id);
-          if (existing) {
-            const adapted = transformToG6Data(
-              new Map(),
-              new Map([[id, { ...existing, ...updates }]]),
-              currentView,
-              currentView?.layout,
-            );
-            const updatedEdges = adapted.edges ?? [];
-            const updatedEdge = updatedEdges[0];
-            if (updatedEdge) {
-              graph.updateEdgeData([updatedEdge]);
-            }
-          }
-          break;
-        }
         case "deleteEdge": {
           graph.removeEdgeData([mutation.payload.id]);
           break;
         }
-        case "addView":
-          break;
-        case "updateView": {
+        case "upsertView": {
           const updatedView = mutation.payload;
           const currentViewId = resolvedViewRef.current?.id;
           if (currentViewId && updatedView.id === currentViewId) {
