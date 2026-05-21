@@ -1,5 +1,5 @@
 import type { RecordModel } from "pocketbase";
-import type { FilterConfig } from "@workspace/interfaces/models/filter";
+import { FilterConfig } from "@workspace/domain/models/filter/value-objects";
 import { View } from "@workspace/domain/models/view/entities";
 import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
 import { LayoutType } from "@workspace/domain/models/layout/value-objects";
@@ -13,7 +13,7 @@ export class ViewMapper {
       visualConfig: VisualConfig.create(
         record.visualConfig as Partial<VisualConfig>,
       ),
-      filterConfig: record.filterConfig as FilterConfig,
+      filterConfig: FilterConfig.create(record.filterConfig),
       isPinned: record.isPinned as boolean,
     });
   }

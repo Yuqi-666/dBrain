@@ -6,8 +6,44 @@ import type { View, LayoutType } from "@workspace/domain/models";
 import { ViewId } from "@workspace/domain/models/view/value-objects";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
 
-export class ViewDao {
-  constructor(private repository: IViewRepository) {}
+export class ViewDao implements IViewRepository {
+  constructor(private repository: IViewRepository) { }
+
+  async findById(id: ViewId): Promise<View | null> {
+    return this.repository.findById(id);
+  }
+
+  async save(view: View): Promise<View> {
+    return this.repository.save(view);
+  }
+
+  async delete(id: ViewId): Promise<void> {
+    return this.repository.delete(id);
+  }
+
+  async findAll(query?: ViewQuery): Promise<View[]> {
+    return this.repository.findAll(query);
+  }
+
+  async findByNodeId(nodeId: NodeId): Promise<View[]> {
+    return this.repository.findByNodeId(nodeId);
+  }
+
+  async findPinned(): Promise<View[]> {
+    return this.repository.findPinned();
+  }
+
+  async count(query?: ViewQuery): Promise<number> {
+    return this.repository.count(query);
+  }
+
+  async saveMany(views: View[]): Promise<View[]> {
+    return this.repository.saveMany(views);
+  }
+
+  async deleteMany(ids: ViewId[]): Promise<void> {
+    return this.repository.deleteMany(ids);
+  }
 
   async findByLayout(layout: LayoutType): Promise<View[]> {
     return this.repository.findAll({ layout: layout.getValue() });
@@ -26,7 +62,7 @@ export class ViewDao {
       const selectedNodes = config.selectedNodes;
       if (selectedNodes && selectedNodes.length > 0) {
         const hasMatchingNode = nodeIds.some((nodeId) =>
-          selectedNodes.some((selected) => selected === nodeId.value)
+          selectedNodes.some((selected) => selected === nodeId)
         );
         if (hasMatchingNode) {
           matchingViews.push(view);
@@ -35,14 +71,6 @@ export class ViewDao {
     }
 
     return matchingViews;
-  }
-
-  async findPinned(): Promise<View[]> {
-    return this.repository.findPinned();
-  }
-
-  async findByNodeId(nodeId: NodeId): Promise<View[]> {
-    return this.repository.findByNodeId(nodeId);
   }
 
   async findWithFilters(query: ViewQuery): Promise<View[]> {
@@ -89,14 +117,6 @@ export class ViewDao {
     }
 
     return { deleted, failed };
-  }
-
-  async findById(id: ViewId): Promise<View | null> {
-    return this.repository.findById(id);
-  }
-
-  async count(query?: ViewQuery): Promise<number> {
-    return this.repository.count(query);
   }
 
   async exists(id: ViewId): Promise<boolean> {

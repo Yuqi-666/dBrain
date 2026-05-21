@@ -6,7 +6,7 @@ import type { Edge, EdgeSemanticId } from "@workspace/domain/models";
 import { EdgeId, EdgeWeight } from "@workspace/domain/models/edge/value-objects";
 import { NodeId } from "@workspace/domain/models/node/value-objects";
 
-export class EdgeDao {
+export class EdgeDao implements IEdgeRepository {
   constructor(private repository: IEdgeRepository) {}
 
   async findBySemanticId(semanticId: EdgeSemanticId): Promise<Edge[]> {
@@ -87,12 +87,32 @@ export class EdgeDao {
     return this.repository.findById(id);
   }
 
+  async save(edge: Edge): Promise<Edge> {
+    return this.repository.save(edge);
+  }
+
+  async delete(id: EdgeId): Promise<void> {
+    return this.repository.delete(id);
+  }
+
+  async findAll(query?: EdgeQuery): Promise<Edge[]> {
+    return this.repository.findAll(query);
+  }
+
   async findByIds(ids: EdgeId[]): Promise<Edge[]> {
     return this.repository.findByIds(ids);
   }
 
   async count(query?: EdgeQuery): Promise<number> {
     return this.repository.count(query);
+  }
+
+  async saveMany(edges: Edge[]): Promise<Edge[]> {
+    return this.repository.saveMany(edges);
+  }
+
+  async deleteMany(ids: EdgeId[]): Promise<void> {
+    return this.repository.deleteMany(ids);
   }
 
   async exists(id: EdgeId): Promise<boolean> {

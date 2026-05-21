@@ -1,5 +1,6 @@
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { trpc } from "../trpc/provider";
+import type { AuthUser } from "@workspace/interfaces/models/user";
 
 export interface LoginInput {
   email: string;
@@ -12,12 +13,7 @@ export interface RegisterInput {
   nickname: string;
 }
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  nickname: string;
-  avatarUrl: string | null;
-}
+export { type AuthUser };
 
 export const authApi = {
   login: async (input: LoginInput): Promise<AuthUser> => {

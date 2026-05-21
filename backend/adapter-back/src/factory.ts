@@ -25,7 +25,7 @@ import type {
   IUserRepository,
 } from "@workspace/domain/repositories";
 
-import { NodeDao, EdgeDao, ViewDao } from "./dao";
+import { NodeDao, EdgeDao, ViewDao, UserDao, NodeSemanticDao, EdgeSemanticDao, NodeTagDao } from "./dao";
 
 let nodeRepository: INodeRepository | null = null;
 let edgeRepository: IEdgeRepository | null = null;
@@ -99,6 +99,22 @@ export const createViewDao = (): ViewDao => {
   return new ViewDao(createViewRepository());
 };
 
+export const createUserDao = (): UserDao => {
+  return new UserDao(createUserRepository());
+};
+
+export const createNodeSemanticDao = (): NodeSemanticDao => {
+  return new NodeSemanticDao(createNodeSemanticRepository());
+};
+
+export const createEdgeSemanticDao = (): EdgeSemanticDao => {
+  return new EdgeSemanticDao(createEdgeSemanticRepository());
+};
+
+export const createNodeTagDao = (): NodeTagDao => {
+  return new NodeTagDao(createNodeTagRepository());
+};
+
 export const createAll = () => ({
   nodeRepository: createNodeRepository(),
   edgeRepository: createEdgeRepository(),
@@ -109,6 +125,10 @@ export const createAll = () => ({
   nodeDao: createNodeDao(),
   edgeDao: createEdgeDao(),
   viewDao: createViewDao(),
+  userDao: createUserDao(),
+  nodeSemanticDao: createNodeSemanticDao(),
+  edgeSemanticDao: createEdgeSemanticDao(),
+  nodeTagDao: createNodeTagDao(),
 });
 
 export { createPocketBaseClient, getPocketBaseClient } from "@workspace/infrastructure";

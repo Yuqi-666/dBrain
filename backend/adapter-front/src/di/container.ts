@@ -20,13 +20,13 @@
 
 import { createPocketBaseClient, getPocketBaseClient, InMemoryEventBus } from "@workspace/infrastructure";
 import {
-  createNodeRepository,
-  createEdgeRepository,
-  createViewRepository,
-  createNodeSemanticRepository,
-  createEdgeSemanticRepository,
-  createNodeTagRepository,
-  createUserRepository,
+  createNodeDao,
+  createEdgeDao,
+  createViewDao,
+  createUserDao,
+  createNodeSemanticDao,
+  createEdgeSemanticDao,
+  createNodeTagDao,
 } from "@workspace/adapter-back/factory";
 import {
   NodeCommandService,
@@ -49,14 +49,14 @@ export class AppContainer {
   // Event Bus (singleton instance)
   readonly eventBus: InMemoryEventBus;
 
-  // Repositories (singletons via adapter-back factory)
-  readonly nodeRepository = createNodeRepository();
-  readonly edgeRepository = createEdgeRepository();
-  readonly viewRepository = createViewRepository();
-  readonly nodeSemanticRepository = createNodeSemanticRepository();
-  readonly edgeSemanticRepository = createEdgeSemanticRepository();
-  readonly nodeTagRepository = createNodeTagRepository();
-  readonly userRepository = createUserRepository();
+  // DAOs (singletons via adapter-back factory)
+  readonly nodeDao = createNodeDao();
+  readonly edgeDao = createEdgeDao();
+  readonly viewDao = createViewDao();
+  readonly userDao = createUserDao();
+  readonly nodeSemanticDao = createNodeSemanticDao();
+  readonly edgeSemanticDao = createEdgeSemanticDao();
+  readonly nodeTagDao = createNodeTagDao();
 
   // Application Command Services (require repository + eventBus)
   readonly nodeCommandService: NodeCommandService;
@@ -71,37 +71,34 @@ export class AppContainer {
   readonly semanticQueryService: SemanticQueryService;
 
   private constructor() {
-    // Initialize event bus
     this.eventBus = new InMemoryEventBus();
 
-    // Initialize command services with repository + eventBus
     this.nodeCommandService = new NodeCommandService(
-      this.nodeRepository,
+      this.nodeDao,
       this.eventBus,
     );
     this.edgeCommandService = new EdgeCommandService(
-      this.edgeRepository,
+      this.edgeDao,
       this.eventBus,
     );
     this.viewCommandService = new ViewCommandService(
-      this.viewRepository,
+      this.viewDao,
       this.eventBus,
     );
     this.semanticCommandService = new SemanticCommandService(
-      this.nodeSemanticRepository,
-      this.edgeSemanticRepository,
-      this.nodeTagRepository,
+      this.nodeSemanticDao,
+      this.edgeSemanticDao,
+      this.nodeTagDao,
       this.eventBus,
     );
 
-    // Initialize query services with repository only
-    this.nodeQueryService = new NodeQueryService(this.nodeRepository);
-    this.edgeQueryService = new EdgeQueryService(this.edgeRepository);
-    this.viewQueryService = new ViewQueryService(this.viewRepository);
+    this.nodeQueryService = new NodeQueryService(this.nodeDao);
+    this.edgeQueryService = new EdgeQueryService(this.edgeDao);
+    this.viewQueryService = new ViewQueryService(this.viewDao);
     this.semanticQueryService = new SemanticQueryService(
-      this.nodeSemanticRepository,
-      this.edgeSemanticRepository,
-      this.nodeTagRepository,
+      this.nodeSemanticDao,
+      this.edgeSemanticDao,
+      this.nodeTagDao,
     );
   }
 

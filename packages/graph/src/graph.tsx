@@ -151,8 +151,6 @@ export function Graph({
 
   // 增量同步
   const processMutations = (graph: G6Graph, mutations: Mutation[]) => {
-    const state = useGraphStore.getState();
-    const { nodes, edges } = state;
     const currentView = resolvedViewRef.current;
 
     mutations.forEach((mutation) => {
@@ -230,7 +228,7 @@ export function Graph({
     return () => {
       unsubscribe();
     };
-  }, [graphRef]);
+  }, []);
 
   // 2. View 变化触发全量重绘
   useEffect(() => {

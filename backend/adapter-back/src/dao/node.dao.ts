@@ -5,8 +5,19 @@ import type {
 import type { Node } from "@workspace/domain/models";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
 import type { NodeSemanticId, NodeTagId } from "@workspace/interfaces/models/node/base";
+import type {
+  TextNode,
+  ImageNode,
+  PdfNode,
+  VideoNode,
+  AudioNode,
+  WebpageNode,
+  WebsiteNode,
+  CollectionNode,
+  RichTextNode,
+} from "@workspace/domain/models";
 
-export class NodeDao {
+export class NodeDao implements INodeRepository {
   constructor(private repository: INodeRepository) {}
 
   async findByTitle(title: string): Promise<Node[]> {
@@ -33,6 +44,17 @@ export class NodeDao {
     return allNodes
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);
+  }
+
+  async findRecentlyUpdated(limit: number): Promise<Node[]> {
+    const allNodes = await this.repository.findAll({});
+    return allNodes
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, limit);
+  }
+
+  async findPinned(): Promise<Node[]> {
+    return this.repository.findAll({ isPinned: true });
   }
 
   async findByDateRange(startDate: string, endDate: string): Promise<Node[]> {
@@ -113,5 +135,67 @@ export class NodeDao {
 
   async findByIds(ids: NodeId[]): Promise<Node[]> {
     return this.repository.findByIds(ids);
+  }
+
+  // ----- INodeRepository implementation -----
+
+  async save(node: Node): Promise<Node> {
+    return this.repository.save(node);
+  }
+
+  async delete(id: NodeId): Promise<void> {
+    return this.repository.delete(id);
+  }
+
+  async findAll(query?: NodeQuery): Promise<Node[]> {
+    return this.repository.findAll(query);
+  }
+
+  async saveMany(nodes: Node[]): Promise<Node[]> {
+    return this.repository.saveMany(nodes);
+  }
+
+  async deleteMany(ids: NodeId[]): Promise<void> {
+    return this.repository.deleteMany(ids);
+  }
+
+  async updateTags(ids: NodeId[], tags: NodeTagId[]): Promise<Node[]> {
+    return this.repository.updateTags(ids, tags);
+  }
+
+  async findTextNode(id: NodeId): Promise<TextNode | null> {
+    return this.repository.findTextNode(id);
+  }
+
+  async findImageNode(id: NodeId): Promise<ImageNode | null> {
+    return this.repository.findImageNode(id);
+  }
+
+  async findPdfNode(id: NodeId): Promise<PdfNode | null> {
+    return this.repository.findPdfNode(id);
+  }
+
+  async findVideoNode(id: NodeId): Promise<VideoNode | null> {
+    return this.repository.findVideoNode(id);
+  }
+
+  async findAudioNode(id: NodeId): Promise<AudioNode | null> {
+    return this.repository.findAudioNode(id);
+  }
+
+  async findWebpageNode(id: NodeId): Promise<WebpageNode | null> {
+    return this.repository.findWebpageNode(id);
+  }
+
+  async findWebsiteNode(id: NodeId): Promise<WebsiteNode | null> {
+    return this.repository.findWebsiteNode(id);
+  }
+
+  async findCollectionNode(id: NodeId): Promise<CollectionNode | null> {
+    return this.repository.findCollectionNode(id);
+  }
+
+  async findRichTextNode(id: NodeId): Promise<RichTextNode | null> {
+    return this.repository.findRichTextNode(id);
   }
 }

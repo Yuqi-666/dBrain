@@ -14,3 +14,10 @@ export interface UserBase {
 export interface UserRecord extends UserBase {
   username: string;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  nickname: string;
+  avatarUrl: string | null;
+}

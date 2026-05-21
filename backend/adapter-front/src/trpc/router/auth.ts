@@ -20,7 +20,7 @@ export const authRouter = router({
     const { email, password } = input;
     const emailVO = new Email(email);
 
-    const result = await container().userRepository.verifyPassword(emailVO, password);
+    const result = await container().userDao.verifyPassword(emailVO, password);
 
     if (!result.valid || !result.user) {
       throw new TRPCError({
@@ -41,7 +41,7 @@ export const authRouter = router({
     try {
       const emailVO = new Email(email);
 
-      const existing = await container().userRepository.findByEmail(emailVO);
+      const existing = await container().userDao.findByEmail(emailVO);
       if (existing) {
         throw new TRPCError({
           code: "CONFLICT",
@@ -49,7 +49,7 @@ export const authRouter = router({
         });
       }
 
-      const user = await container().userRepository.createUser(emailVO, password, nickname);
+      const user = await container().userDao.createUser(emailVO, password, nickname);
 
       return {
         user: user.toPublic(),
@@ -67,7 +67,7 @@ export const authRouter = router({
   }),
 
   me: protectedProcedure.query(async ({ ctx }) => {
-    const user = await container().userRepository.findById(ctx.userId);
+    const user = await container().userDao.findById(ctx.userId);
 
     if (!user) {
       throw new TRPCError({

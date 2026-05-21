@@ -25,7 +25,8 @@ import { useAuthStore } from "@workspace/store";
 export function useGraphSubscriptions(): void {
   trpc.event.onEvent.useSubscription(undefined, {
     onData: (event: IDomainEvent) => {
-      const currentUserId = useAuthStore.getState().userId;
+      const currentUserId = useAuthStore.getState().getUserId();
+      console.log(currentUserId, event.metadata.userId)
       if (currentUserId && event.metadata.userId !== currentUserId) return;
 
       switch (event.eventType) {

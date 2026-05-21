@@ -1,13 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { persist } from "zustand/middleware";
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  nickname: string;
-  avatarUrl: string | null;
-}
+import type { AuthUser } from "@workspace/interfaces/models/user";
 
 export interface AuthStore {
   user: AuthUser | null;
