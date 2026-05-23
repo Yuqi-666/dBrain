@@ -33,6 +33,7 @@ export default function GraphPage(): ReactNode {
       if (firstViewId) {
         ui_store.setCurrentViewId(firstViewId);
       }
+      useGraphStore.getState().clearMutations()
       setIsInitialized(true);
     };
 

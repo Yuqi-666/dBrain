@@ -151,6 +151,7 @@ export interface UpdateNodeCommand {
   abstract?: string;
   tags?: string[];
   permission?: "private" | "public" | "restricted";
+  semanticId?: string;
   isPinned?: boolean;
   content?: any;
   userId: string;

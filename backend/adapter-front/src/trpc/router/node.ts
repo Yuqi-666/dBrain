@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const baseNodeFields = {
   id: z.string(),
-  title: z.string(),
+  title: z.string().optional(),
   abstract: z.string().optional(),
   permission: z.enum(["private", "public", "restricted"]).optional(),
   semanticId: z.string(),
@@ -124,6 +124,7 @@ const updateSchema = z.object({
     abstract: z.string().optional(),
     tags: z.array(z.string()).optional(),
     permission: z.enum(["private", "public", "restricted"]).optional(),
+    semanticId: z.string().optional(),
     isPinned: z.boolean().optional(),
     content: z.any().optional(),
   }),
@@ -149,8 +150,9 @@ export const nodeRouter = router({
         id: input.id,
         title: input.updates.title,
         abstract: input.updates.abstract,
-        tags: input.updates.tags,
+          tags: input.updates.tags,
         permission: input.updates.permission,
+        semanticId: input.updates.semanticId,
         isPinned: input.updates.isPinned,
         content: input.updates.content,
         userId: ctx.userId,

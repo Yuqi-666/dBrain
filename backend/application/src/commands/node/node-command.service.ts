@@ -23,8 +23,8 @@ import {
 } from "@workspace/domain";
 import { NodeId, Permission, FilterConfig } from "@workspace/domain";
 import type { NodeDTO } from "../../dto/node.dto";
-import type { INodeRepository, IEventBus } from "@workspace/domain";
-import type { NodeCreated, NodeDeleted, NodeUpdated } from "@workspace/domain";
+import type { INodeRepository, IEdgeRepository, IEventBus } from "@workspace/domain";
+import type { NodeCreated, NodeDeleted, NodeUpdated, EdgeDeleted } from "@workspace/domain";
 import type {
   CreateNodeCommand,
   UpdateNodeCommand,
@@ -87,6 +87,7 @@ function toNodeDTO(node: Node): NodeDTO {
 export class NodeCommandService {
   constructor(
     private readonly nodeRepository: INodeRepository,
+    private readonly edgeRepository: IEdgeRepository,
     private readonly eventBus: IEventBus,
   ) { }
 
@@ -284,6 +285,9 @@ export class NodeCommandService {
     if (cmd.permission !== undefined) {
       updatedNode = updatedNode.updatePermission(new Permission(cmd.permission));
     }
+    if (cmd.semanticId !== undefined) {
+      updatedNode = updatedNode.updateSemanticId(cmd.semanticId);
+    }
     if (cmd.isPinned !== undefined) {
       updatedNode = cmd.isPinned ? updatedNode.pin() : updatedNode.unpin();
     }
@@ -350,6 +354,25 @@ export class NodeCommandService {
 
   async deleteNode(cmd: DeleteNodeCommand): Promise<void> {
     const id = new NodeId(cmd.id);
+
+    const associatedEdges = await this.edgeRepository.findByNodeId(id);
+    if (associatedEdges.length > 0) {
+      await this.edgeRepository.deleteMany(associatedEdges.map(e => e.id));
+      for (const edge of associatedEdges) {
+        const event: EdgeDeleted = {
+          eventType: "EdgeDeleted",
+          aggregateId: edge.id.getValue(),
+          metadata: {
+            occurredAt: new Date().toISOString(),
+            eventVersion: 1,
+            userId: cmd.userId,
+          },
+          data: { id: edge.id.getValue() },
+        };
+        this.eventBus.publish(event);
+      }
+    }
+
     await this.nodeRepository.delete(id);
 
     const event: NodeDeleted = {

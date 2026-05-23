@@ -7,7 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { Edit, Trash2, Plus, Link2, Copy, ClipboardPaste } from "lucide-react";
+import { Edit, Trash2, Plus, Link2 } from "lucide-react";
+import { useGraphContextMenu } from "./useGraphContextMenu";
 
 export interface GraphContextMenuProps {
   x: number;
@@ -15,13 +16,6 @@ export interface GraphContextMenuProps {
   visible: boolean;
   target: { type: "node" | "edge" | "canvas"; id?: string } | null;
   onClose: () => void;
-  onEdit?: (target: { type: "node" | "edge"; id: string }) => void;
-  onDelete?: (target: { type: "node" | "edge"; id: string }) => void;
-  onAddChild?: (nodeId: string) => void;
-  onConnect?: (nodeId: string) => void;
-  onDuplicate?: (target: { type: "node" | "edge"; id: string }) => void;
-  onAddNode?: () => void;
-  onPaste?: () => void;
 }
 
 const GraphContextMenu = React.forwardRef<
@@ -35,13 +29,6 @@ const GraphContextMenu = React.forwardRef<
       visible,
       target,
       onClose,
-      onEdit,
-      onDelete,
-      onAddChild,
-      onConnect,
-      onDuplicate,
-      onAddNode,
-      onPaste,
     },
     ref,
   ) => {
@@ -49,6 +36,9 @@ const GraphContextMenu = React.forwardRef<
     const isNode = target.type === "node";
     const isEdge = target.type === "edge";
     const isCanvas = target.type === "canvas";
+
+    const { onEditNode, onDeleteNode, onAddNode, onEditEdge, onDeleteEdge, onAddEdge } =
+      useGraphContextMenu();
 
     const getTarget = (): { type: "node" | "edge"; id: string } | null => {
       if (!target.id) return null;
@@ -74,29 +64,29 @@ const GraphContextMenu = React.forwardRef<
           {isNode && targetObj && (
             <>
               <DropdownMenuItem
-                onClick={() => onEdit?.(targetObj)}
+                onClick={() => { onEditNode?.(targetObj); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
               >
                 <Edit className="size-4" />
                 <span>Edit</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDuplicate?.(targetObj)}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Copy className="size-4" />
-                <span>Duplicate</span>
-              </DropdownMenuItem>
+              {/* <DropdownMenuItem */}
+              {/*   onClick={() => onDuplicate?.(targetObj)} */}
+              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
+              {/* > */}
+              {/*   <Copy className="size-4" /> */}
+              {/*   <span>Duplicate</span> */}
+              {/* </DropdownMenuItem> */}
               <DropdownMenuSeparator />
+              {/* <DropdownMenuItem */}
+              {/*   onClick={() => onAddChild?.(target.id!)} */}
+              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
+              {/* > */}
+              {/*   <Plus className="size-4" /> */}
+              {/*   <span>Add Child</span> */}
+              {/* </DropdownMenuItem> */}
               <DropdownMenuItem
-                onClick={() => onAddChild?.(target.id!)}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Plus className="size-4" />
-                <span>Add Child</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onConnect?.(target.id!)}
+                onClick={() => { onAddEdge?.(target.id!); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
               >
                 <Link2 className="size-4" />
@@ -104,7 +94,7 @@ const GraphContextMenu = React.forwardRef<
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => onDelete?.(targetObj)}
+                onClick={() => { onDeleteNode?.(targetObj); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
               >
                 <Trash2 className="size-4" />
@@ -116,22 +106,15 @@ const GraphContextMenu = React.forwardRef<
           {isEdge && targetObj && (
             <>
               <DropdownMenuItem
-                onClick={() => onEdit?.(targetObj)}
+                onClick={() => { onEditEdge?.(targetObj); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
               >
                 <Edit className="size-4" />
                 <span>Edit</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDuplicate?.(targetObj)}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Copy className="size-4" />
-                <span>Duplicate</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => onDelete?.(targetObj)}
+                onClick={() => { onDeleteEdge?.(targetObj); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
               >
                 <Trash2 className="size-4" />
@@ -143,19 +126,19 @@ const GraphContextMenu = React.forwardRef<
           {isCanvas && (
             <>
               <DropdownMenuItem
-                onClick={onAddNode}
+                onClick={() => { onAddNode(); onClose() }}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
               >
                 <Plus className="size-4" />
                 <span>Add Node</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onPaste}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <ClipboardPaste className="size-4" />
-                <span>Paste</span>
-              </DropdownMenuItem>
+              {/* <DropdownMenuItem */}
+              {/*   onClick={onPaste} */}
+              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
+              {/* > */}
+              {/*   <ClipboardPaste className="size-4" /> */}
+              {/*   <span>Paste</span> */}
+              {/* </DropdownMenuItem> */}
             </>
           )}
         </DropdownMenuContent>

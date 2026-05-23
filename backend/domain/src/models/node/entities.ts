@@ -54,9 +54,6 @@ export abstract class Node {
   protected constructor(
     props: NodeBaseProps & { nodeType: NodeType<NodeDataType> },
   ) {
-    if (!props.title || props.title.trim().length === 0) {
-      throw new Error("Node title cannot be empty");
-    }
     this._id = props.id;
     this._title = props.title;
     this._abstract = props.abstract;
@@ -119,9 +116,6 @@ export abstract class Node {
   }
 
   updateTitle(title: string): Node {
-    if (!title || title.trim().length === 0) {
-      throw new Error("Node title cannot be empty");
-    }
     return this.cloneWith({
       title,
       updatedAt: new Date().toISOString(),
@@ -149,6 +143,12 @@ export abstract class Node {
     });
   }
 
+  updateSemanticId(semanticId: string): Node {
+    return this.cloneWith({
+      semanticId,
+      updatedAt: new Date().toISOString(),
+    });
+  }
   pin(): Node {
     if (this._isPinned) return this;
     return this.cloneWith({

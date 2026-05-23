@@ -1,6 +1,7 @@
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { trpc } from "../trpc/provider";
 import type { AuthUser } from "@workspace/interfaces/models/user";
+import { trpcClient } from "../trpc/client";
 
 export interface LoginInput {
   email: string;
@@ -17,18 +18,18 @@ export { type AuthUser };
 
 export const authApi = {
   login: async (input: LoginInput): Promise<AuthUser> => {
-    return trpc.auth.login.mutateAsync(input);
+    return trpcClient.auth.login.mutateAsync(input);
   },
 
   register: async (input: RegisterInput): Promise<AuthUser> => {
-    return trpc.auth.register.mutateAsync(input);
+    return trpcClient.auth.register.mutateAsync(input);
   },
 
   getCurrentUser: async (): Promise<AuthUser> => {
-    return trpc.auth.me.query();
+    return trpcClient.auth.me.query();
   },
 
   logout: async (): Promise<void> => {
-    await trpc.auth.logout.mutateAsync();
+    await trpcClient.auth.logout.mutateAsync();
   },
 };

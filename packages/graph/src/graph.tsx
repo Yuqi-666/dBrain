@@ -3,7 +3,7 @@ import React, { useRef, useEffect } from "react";
 import { Graph as G6Graph } from "@antv/g6";
 import { useGraphStore } from "@workspace/store";
 import type { NodeData, View, ViewId } from "@workspace/interfaces";
-import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu";
+import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
 import {
@@ -166,15 +166,23 @@ export function Graph({
           const newNodes = adapted.nodes ?? [];
           const newNode = newNodes[0];
           if (newNode?.id) {
-            const existingNode = graph.getNodeData(newNode.id);
+            const existingNode = graph.hasNode(newNode.id);
             existingNode
               ? graph.updateNodeData([newNode])
-              : graph.addNodeData([newNode]);
+              :
+              (
+                graph.stopLayout(),
+                graph.addNodeData([newNode]),
+                graph.layout()
+              )
+
           }
           break;
         }
         case "deleteNode": {
+          graph.stopLayout();
           graph.removeNodeData([mutation.payload.id]);
+          graph.layout();
           break;
         }
         case "upsertEdge": {
@@ -188,15 +196,22 @@ export function Graph({
           const newEdges = adapted.edges ?? [];
           const newEdge = newEdges[0];
           if (newEdge?.id) {
-            const existingEdge = graph.getEdgeData(newEdge.id);
+            const existingEdge = graph.hasEdge(newEdge.id);
             existingEdge
               ? graph.updateEdgeData([newEdge])
-              : graph.addEdgeData([newEdge]);
+              :
+              (
+                graph.stopLayout(),
+                graph.addEdgeData([newEdge]),
+                graph.layout()
+              )
           }
           break;
         }
         case "deleteEdge": {
+          graph.stopLayout();
           graph.removeEdgeData([mutation.payload.id]);
+          graph.layout();
           break;
         }
         case "upsertView": {
@@ -211,6 +226,7 @@ export function Graph({
           break;
         }
       }
+      graph.draw();
     });
   };
 
@@ -265,11 +281,6 @@ export function Graph({
           visible={contextMenu.visible}
           target={contextMenu.target}
           onClose={closeContextMenu}
-          onEdit={closeContextMenu}
-          onDelete={closeContextMenu}
-          onAddChild={closeContextMenu}
-          onConnect={closeContextMenu}
-          onDuplicate={closeContextMenu}
         />
       )}
       {previewBlock.visible && previewBlock.nodeId && (

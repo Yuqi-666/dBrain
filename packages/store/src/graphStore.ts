@@ -107,7 +107,7 @@ export const useGraphStore = create<GraphStore>()(
       latestMutations: [],
 
       // 清空队列的方法
-      clearMutations: () => set({ latestMutations: [] }),
+      clearMutations: () => { set({ latestMutations: [] }) },
 
       // ==================== Node Semantic Actions ====================
       upsertNodeSemantic: (semantic) => {
@@ -277,18 +277,25 @@ export const useGraphStore = create<GraphStore>()(
       },
 
       deleteNode: (id) => {
+        const associatedEdges = [];
+        const currentEdges = get().edges; // 从 store 拿当前边
+
+        for (const [edgeId, edge] of currentEdges) {
+          if (edge.from === id || edge.to === id) {
+            associatedEdges.push(edgeId);
+          }
+        }
+
+        associatedEdges.forEach(edgeId => {
+          get().deleteEdge(edgeId);
+        });
+
         set((state) => {
           const newNodes = new Map(state.nodes);
           newNodes.delete(id);
-          // Cascade delete edges
-          const newEdges = new Map(state.edges);
-          for (const [edgeId, edge] of state.edges) {
-            if (edge.from === id || edge.to === id) {
-              newEdges.delete(edgeId);
-            }
-          }
-          return { nodes: newNodes, edges: newEdges };
+          return { nodes: newNodes };
         });
+
         set((state) => ({
           latestMutations: [
             ...state.latestMutations,

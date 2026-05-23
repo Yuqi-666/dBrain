@@ -75,6 +75,7 @@ export class AppContainer {
 
     this.nodeCommandService = new NodeCommandService(
       this.nodeDao,
+      this.edgeDao,
       this.eventBus,
     );
     this.edgeCommandService = new EdgeCommandService(

@@ -140,7 +140,7 @@ function MetadataTabContent({
 
   const handleToggleTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
-      if (currentTags.includes(tagId)) {
+    if (currentTags.includes(tagId)) {
       await GraphCQRS.upsertNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
     } else {
       await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });

@@ -20,7 +20,8 @@ export function NodeTitle({ className }: NodeTitleProps) {
 
   const handleTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (currentEditingNodeId && currentNode) {
-      await GraphCQRS.upsertNode(currentEditingNodeId, { title: e.target.value });
+      let title = e.target.value
+      await GraphCQRS.upsertNode(currentEditingNodeId, { title: title });
     }
   };
 

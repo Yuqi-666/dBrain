@@ -22,10 +22,11 @@ export const GraphCQRS = {
   async upsertNodeSemantic(
     idOrSemantic: NodeSemanticId | NodeSemantic,
     updates?: Partial<NodeSemantic>,
-  ): Promise<void> {
+  ): Promise<NodeSemantic | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrSemantic === "string") {
+      if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrSemantic;
       const oldSemantic = store.nodeSemantics.get(id);
       if (!oldSemantic) throw new Error("Node semantic not found");
@@ -37,22 +38,13 @@ export const GraphCQRS = {
         store.upsertNodeSemantic(oldSemantic);
         throw error;
       }
-    } else {
-      const semantic = idOrSemantic;
-      const oldSemantic = store.nodeSemantics.get(semantic.id);
-      store.upsertNodeSemantic(semantic);
-      try {
-        if (oldSemantic) {
-          await trpcClient.nodeSemantic.update.mutate({ id: semantic.id, updates: semantic });
-        } else {
-          await trpcClient.nodeSemantic.add.mutate(semantic);
-        }
-      } catch (error) {
-        if (oldSemantic) store.upsertNodeSemantic(oldSemantic);
-        else store.deleteNodeSemantic(semantic.id);
-        throw error;
-      }
+      return;
     }
+
+    const semantic = idOrSemantic;
+    const result = await trpcClient.nodeSemantic.add.mutate(semantic);
+    store.upsertNodeSemantic(result);
+    return result;
   },
 
   async deleteNodeSemantic(id: NodeSemanticId): Promise<void> {
@@ -72,10 +64,11 @@ export const GraphCQRS = {
   async upsertEdgeSemantic(
     idOrSemantic: EdgeSemanticId | EdgeSemantic,
     updates?: Partial<EdgeSemantic>,
-  ): Promise<void> {
+  ): Promise<EdgeSemantic | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrSemantic === "string") {
+      if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrSemantic;
       const oldSemantic = store.edgeSemantics.get(id);
       if (!oldSemantic) throw new Error("Edge semantic not found");
@@ -87,22 +80,13 @@ export const GraphCQRS = {
         store.upsertEdgeSemantic(oldSemantic);
         throw error;
       }
-    } else {
-      const semantic = idOrSemantic;
-      const oldSemantic = store.edgeSemantics.get(semantic.id);
-      store.upsertEdgeSemantic(semantic);
-      try {
-        if (oldSemantic) {
-          await trpcClient.edgeSemantic.update.mutate({ id: semantic.id, updates: semantic });
-        } else {
-          await trpcClient.edgeSemantic.add.mutate(semantic);
-        }
-      } catch (error) {
-        if (oldSemantic) store.upsertEdgeSemantic(oldSemantic);
-        else store.deleteEdgeSemantic(semantic.id);
-        throw error;
-      }
+      return;
     }
+
+    const semantic = idOrSemantic;
+    const result = await trpcClient.edgeSemantic.add.mutate(semantic);
+    store.upsertEdgeSemantic(result);
+    return result;
   },
 
   async deleteEdgeSemantic(id: EdgeSemanticId): Promise<void> {
@@ -122,10 +106,11 @@ export const GraphCQRS = {
   async upsertNodeTag(
     idOrTag: NodeTagId | NodeTag,
     updates?: Partial<NodeTag>,
-  ): Promise<void> {
+  ): Promise<NodeTag | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrTag === "string") {
+      if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrTag;
       const oldTag = store.nodeTags.get(id);
       if (!oldTag) throw new Error("Node tag not found");
@@ -137,22 +122,13 @@ export const GraphCQRS = {
         store.upsertNodeTag(oldTag);
         throw error;
       }
-    } else {
-      const tag = idOrTag;
-      const oldTag = store.nodeTags.get(tag.id);
-      store.upsertNodeTag(tag);
-      try {
-        if (oldTag) {
-          await trpcClient.nodeTag.update.mutate({ id: tag.id, updates: tag });
-        } else {
-          await trpcClient.nodeTag.add.mutate(tag);
-        }
-      } catch (error) {
-        if (oldTag) store.upsertNodeTag(oldTag);
-        else store.deleteNodeTag(tag.id);
-        throw error;
-      }
+      return;
     }
+
+    const tag = idOrTag;
+    const result = await trpcClient.nodeTag.add.mutate(tag);
+    store.upsertNodeTag(result);
+    return result;
   },
 
   async deleteNodeTag(id: NodeTagId): Promise<void> {
@@ -172,11 +148,12 @@ export const GraphCQRS = {
   async upsertNode(
     idOrNode: NodeId | NodeData,
     updates?: Partial<NodeData>,
-  ): Promise<void> {
+  ): Promise<NodeData | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrNode === "string") {
       const id = idOrNode;
+      if (!updates) throw new Error("Updates are required for update operation");
       const oldNode = store.nodes.get(id);
       if (!oldNode) throw new Error("Node not found");
       const merged = { ...oldNode, ...updates } as NodeData;
@@ -187,22 +164,13 @@ export const GraphCQRS = {
         store.upsertNode(oldNode);
         throw error;
       }
-    } else {
-      const node = idOrNode;
-      const oldNode = store.nodes.get(node.id);
-      store.upsertNode(node);
-      try {
-        if (oldNode) {
-          await trpcClient.node.update.mutate({ id: node.id, updates: node });
-        } else {
-          await trpcClient.node.add.mutate(node);
-        }
-      } catch (error) {
-        if (oldNode) store.upsertNode(oldNode);
-        else store.deleteNode(node.id);
-        throw error;
-      }
+      return;
     }
+
+    const node = idOrNode;
+    const result = await trpcClient.node.add.mutate(node);
+    store.upsertNode(result);
+    return result;
   },
 
   async deleteNode(id: NodeId): Promise<void> {
@@ -222,10 +190,11 @@ export const GraphCQRS = {
   async upsertEdge(
     idOrEdge: EdgeId | EdgeData,
     updates?: Partial<EdgeData>,
-  ): Promise<void> {
+  ): Promise<EdgeData | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrEdge === "string") {
+      if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrEdge;
       const oldEdge = store.edges.get(id);
       if (!oldEdge) throw new Error("Edge not found");
@@ -237,22 +206,13 @@ export const GraphCQRS = {
         store.upsertEdge(oldEdge);
         throw error;
       }
-    } else {
-      const edge = idOrEdge;
-      const oldEdge = store.edges.get(edge.id);
-      store.upsertEdge(edge);
-      try {
-        if (oldEdge) {
-          await trpcClient.edge.update.mutate({ id: edge.id, updates: edge });
-        } else {
-          await trpcClient.edge.add.mutate(edge);
-        }
-      } catch (error) {
-        if (oldEdge) store.upsertEdge(oldEdge);
-        else store.deleteEdge(edge.id);
-        throw error;
-      }
+      return;
     }
+
+    const edge = idOrEdge;
+    const result = await trpcClient.edge.add.mutate(edge);
+    store.upsertEdge(result);
+    return result;
   },
 
   async deleteEdge(id: EdgeId): Promise<void> {
@@ -272,10 +232,11 @@ export const GraphCQRS = {
   async upsertView(
     idOrView: ViewId | View,
     updates?: Partial<View>,
-  ): Promise<void> {
+  ): Promise<View | void> {
     const store = useGraphStore.getState();
 
     if (typeof idOrView === "string") {
+      if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrView;
       const oldView = store.views.get(id);
       if (!oldView) throw new Error("View not found");
@@ -287,22 +248,13 @@ export const GraphCQRS = {
         store.upsertView(oldView);
         throw error;
       }
-    } else {
-      const view = idOrView;
-      const oldView = store.views.get(view.id);
-      store.upsertView(view);
-      try {
-        if (oldView) {
-          await trpcClient.view.update.mutate({ id: view.id, updates: view });
-        } else {
-          await trpcClient.view.add.mutate(view);
-        }
-      } catch (error) {
-        if (oldView) store.upsertView(oldView);
-        else store.deleteView(view.id);
-        throw error;
-      }
+      return;
     }
+
+    const view = idOrView;
+    const result = await trpcClient.view.add.mutate(view);
+    store.upsertView(result);
+    return result;
   },
 
   async deleteView(id: ViewId): Promise<void> {

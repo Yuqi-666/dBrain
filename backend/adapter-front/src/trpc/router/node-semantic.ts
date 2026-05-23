@@ -32,7 +32,7 @@ export const nodeSemanticRouter = router({
       ...input,
       userId: ctx.userId,
     });
-    return { success: true, data: result };
+    return result;
   }),
   update: protectedProcedure.input(updateSchema).mutation(async ({ ctx, input }) => {
     const result = await getContainer().semanticCommandService.updateNodeSemantic({
@@ -40,7 +40,7 @@ export const nodeSemanticRouter = router({
       ...input.updates,
       userId: ctx.userId,
     });
-    return { success: true, data: result };
+    return result;
   }),
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
     await getContainer().semanticCommandService.deleteNodeSemantic({
