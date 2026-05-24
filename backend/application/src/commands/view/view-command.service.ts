@@ -65,6 +65,7 @@ export class ViewCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -122,6 +123,7 @@ export class ViewCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -143,6 +145,7 @@ export class ViewCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: cmd.id,

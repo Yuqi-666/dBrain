@@ -9,3 +9,6 @@ export type { NodeEditorStore } from "./nodeEditorStore";
 
 export { useAuthStore } from "./authStore";
 export type { AuthStore } from "./authStore";
+
+export { useSourceIdStore } from "./sourceIdStore";
+export type { SourceIdStore } from "./sourceIdStore";

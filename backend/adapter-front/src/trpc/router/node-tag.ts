@@ -27,6 +27,7 @@ export const nodeTagRouter = router({
     const result = await getContainer().semanticCommandService.createNodeTag({
       ...input,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -35,6 +36,7 @@ export const nodeTagRouter = router({
       id: input.id,
       ...input.updates,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -42,6 +44,7 @@ export const nodeTagRouter = router({
     await getContainer().semanticCommandService.deleteNodeTag({
       id: input.id,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return { success: true, id: input.id };
   }),

@@ -93,6 +93,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -129,6 +130,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -164,6 +166,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -200,6 +203,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -231,6 +235,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -263,6 +268,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.toString(),
@@ -283,6 +289,7 @@ export class SemanticCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: id.toString(),

@@ -34,6 +34,7 @@ export const edgeSemanticRouter = router({
       description: input.description,
       color: input.color,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -45,6 +46,7 @@ export const edgeSemanticRouter = router({
       description: input.updates.description,
       color: input.updates.color,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -52,6 +54,7 @@ export const edgeSemanticRouter = router({
     await container().semanticCommandService.deleteEdgeSemantic({
       id: input.id,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return { success: true, id: input.id };
   }),

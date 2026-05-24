@@ -39,6 +39,7 @@ export const edgeRouter = router({
         edgeType: input.edgeType,
         weight: input.weight !== undefined ? { value: input.weight } : undefined,
         userId: ctx.userId,
+        sourceId: ctx.sourceId,
       });
       return result;
     } catch (error) {
@@ -60,12 +61,13 @@ export const edgeRouter = router({
       edgeType: input.updates.edgeType,
       weight: input.updates.weight !== undefined ? { value: input.updates.weight } : undefined,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
 
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
-    await container().edgeCommandService.deleteEdge({ id: input.id, userId: ctx.userId });
+    await container().edgeCommandService.deleteEdge({ id: input.id, userId: ctx.userId, sourceId: ctx.sourceId });
     return { success: true, id: input.id };
   }),
 

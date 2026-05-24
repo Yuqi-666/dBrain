@@ -139,6 +139,7 @@ export const nodeRouter = router({
     const result = await container().nodeCommandService.createNode({
       ...input,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     } as any);
     return result;
   }),
@@ -156,6 +157,7 @@ export const nodeRouter = router({
         isPinned: input.updates.isPinned,
         content: input.updates.content,
         userId: ctx.userId,
+        sourceId: ctx.sourceId,
       });
       return result;
     }),
@@ -163,7 +165,7 @@ export const nodeRouter = router({
   delete: protectedProcedure
     .input(deleteSchema)
     .mutation(async ({ ctx, input }) => {
-      await container().nodeCommandService.deleteNode({ id: input.id, userId: ctx.userId });
+      await container().nodeCommandService.deleteNode({ id: input.id, userId: ctx.userId, sourceId: ctx.sourceId });
       return { success: true, id: input.id };
     }),
 

@@ -253,6 +253,7 @@ export class NodeCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: savedNode.id.value,
@@ -304,6 +305,7 @@ export class NodeCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: savedNode.id.value,
@@ -366,6 +368,7 @@ export class NodeCommandService {
             occurredAt: new Date().toISOString(),
             eventVersion: 1,
             userId: cmd.userId,
+            sourceId: cmd.sourceId,
           },
           data: { id: edge.id.getValue() },
         };
@@ -382,6 +385,7 @@ export class NodeCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: { id: cmd.id },
     };

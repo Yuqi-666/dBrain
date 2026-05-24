@@ -33,6 +33,7 @@ export const viewRouter = router({
       filterConfig: input.filter,
       isPinned: false,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -42,12 +43,13 @@ export const viewRouter = router({
       id: input.id,
       ...input.updates,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
 
   delete: protectedProcedure.input(deleteSchema).mutation(async ({ ctx, input }) => {
-    await container().viewCommandService.deleteView({ id: input.id, userId: ctx.userId });
+    await container().viewCommandService.deleteView({ id: input.id, userId: ctx.userId, sourceId: ctx.sourceId });
     return { success: true, id: input.id };
   }),
 

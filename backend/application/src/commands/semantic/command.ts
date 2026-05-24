@@ -7,6 +7,7 @@ export interface CreateNodeSemanticCommand {
   color?: string;
   icon?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface UpdateNodeSemanticCommand {
@@ -16,11 +17,13 @@ export interface UpdateNodeSemanticCommand {
   color?: string;
   icon?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface DeleteNodeSemanticCommand {
   id: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateEdgeSemanticCommand {
@@ -30,6 +33,7 @@ export interface CreateEdgeSemanticCommand {
   description?: string;
   color?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface UpdateEdgeSemanticCommand {
@@ -39,11 +43,13 @@ export interface UpdateEdgeSemanticCommand {
   description?: string;
   color?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface DeleteEdgeSemanticCommand {
   id: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateNodeTagCommand {
@@ -51,6 +57,7 @@ export interface CreateNodeTagCommand {
   name: string;
   color?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface UpdateNodeTagCommand {
@@ -58,9 +65,11 @@ export interface UpdateNodeTagCommand {
   name?: string;
   color?: string;
   userId: string;
+  sourceId?: string;
 }
 
 export interface DeleteNodeTagCommand {
   id: string;
   userId: string;
+  sourceId?: string;
 }

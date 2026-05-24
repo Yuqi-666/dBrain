@@ -20,15 +20,14 @@ import {
   handleNodeTagUpdated,
   handleNodeTagDeleted,
 } from "../handler/graph-handler";
-import { useAuthStore } from "@workspace/store";
+import { useAuthStore, useSourceIdStore } from "@workspace/store";
 
 export function useGraphSubscriptions(): void {
   trpc.event.onEvent.useSubscription(undefined, {
     onData: (event: IDomainEvent) => {
-      return
-      const currentUserId = useAuthStore.getState().getUserId();
-      console.log(currentUserId, event.metadata.userId)
-      if (currentUserId && event.metadata.userId !== currentUserId) return;
+      const mySourceId = useSourceIdStore.getState().getSourceId();
+      const eventSourceId = (event as any).metadata?.sourceId;
+      if (eventSourceId && eventSourceId === mySourceId) return;
 
       switch (event.eventType) {
         case "NodeCreated": handleNodeAdded(event); break;

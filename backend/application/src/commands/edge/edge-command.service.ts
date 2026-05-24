@@ -66,6 +66,7 @@ export class EdgeCommandService {
           occurredAt: new Date().toISOString(),
           eventVersion: 1,
           userId: cmd.userId,
+          sourceId: cmd.sourceId,
         },
         data: {
           id: saved.id.getValue(),
@@ -123,6 +124,7 @@ export class EdgeCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: saved.id.getValue(),
@@ -144,6 +146,7 @@ export class EdgeCommandService {
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
+        sourceId: cmd.sourceId,
       },
       data: {
         id: cmd.id,

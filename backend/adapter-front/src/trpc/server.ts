@@ -9,6 +9,7 @@ import type { IDomainEvent } from "@workspace/domain/event-bus";
 export interface Context {
   userId: string;
   connectionId?: string;
+  sourceId: string;
 }
 
 /**
@@ -16,17 +17,33 @@ export interface Context {
  * Extracts user info from JWT/connectionParams and creates context
  *
  * For HTTP: expects { userId, connectionId }
- * For WS: receives { req, connectionParams, socket, server } - extracts userId from connectionParams
+ * For WS: receives { req, socket, server, info: { connectionParams } } - extracts userId from info.connectionParams
  */
-export function createContext(ctx: {
-  userId?: string;
-  connectionId?: string;
-  connectionParams?: { userId?: string };
-}): Context {
-  // Support both direct userId and connectionParams.userId (for WebSocket)
-  const userId = ctx.userId ?? ctx.connectionParams?.userId ?? "dev-user";
+export function createContext(
+  ctx: {
+    req?: unknown;
+    socket?: unknown;
+    server?: unknown;
+    userId?: string;
+    connectionId?: string;
+    info?: {
+      connectionParams?: { userId?: string; sourceId?: string };
+    };
+  }
+): Context {
+  let userId = "dev-user";
+  let sourceId = "";
 
-  return { userId, connectionId: ctx.connectionId };
+  const wsCtx = ctx as { info?: { connectionParams?: { userId?: string; sourceId?: string } } };
+  const connectionParams = wsCtx.info?.connectionParams;
+  if (connectionParams) {
+    userId = connectionParams.userId ?? "dev-user";
+    sourceId = connectionParams.sourceId ?? "";
+  } else if (ctx.userId) {
+    userId = ctx.userId;
+  }
+
+  return { userId, connectionId: ctx.connectionId, sourceId };
 }
 
 export type createContextFn = typeof createContext;

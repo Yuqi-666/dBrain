@@ -11,6 +11,7 @@ export interface CreateTextNodeCommand {
   isPinned?: boolean;
   content: { docs: Record<string, any> };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateImageNodeCommand {
@@ -29,6 +30,7 @@ export interface CreateImageNodeCommand {
   shootingTime?: string;
   content: { url: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreatePdfNodeCommand {
@@ -44,6 +46,7 @@ export interface CreatePdfNodeCommand {
   fileSize: number;
   content: { url: string; coverUrl: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateVideoNodeCommand {
@@ -63,6 +66,7 @@ export interface CreateVideoNodeCommand {
   shootingTime?: string;
   content: { url: string; coverUrl: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateAudioNodeCommand {
@@ -78,6 +82,7 @@ export interface CreateAudioNodeCommand {
   fileSize: number;
   content: { url: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateWebpageNodeCommand {
@@ -91,6 +96,7 @@ export interface CreateWebpageNodeCommand {
   isPinned?: boolean;
   content: { html: string; url: string; screenshotUrl?: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateWebsiteNodeCommand {
@@ -104,6 +110,7 @@ export interface CreateWebsiteNodeCommand {
   isPinned?: boolean;
   content: { url: string; faviconUrl?: string };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateCollectionNodeCommand {
@@ -119,6 +126,7 @@ export interface CreateCollectionNodeCommand {
     filterConfig?: FilterConfig
   };
   userId: string;
+  sourceId?: string;
 }
 
 export interface CreateRichTextNodeCommand {
@@ -132,6 +140,7 @@ export interface CreateRichTextNodeCommand {
   isPinned?: boolean;
   content: { referencedNodes: string[]; docs: Record<string, any> };
   userId: string;
+  sourceId?: string;
 }
 
 export type CreateNodeCommand =
@@ -155,9 +164,11 @@ export interface UpdateNodeCommand {
   isPinned?: boolean;
   content?: any;
   userId: string;
+  sourceId?: string;
 }
 
 export interface DeleteNodeCommand {
   id: string;
   userId: string;
+  sourceId?: string;
 }

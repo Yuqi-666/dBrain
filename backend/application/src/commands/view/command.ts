@@ -12,6 +12,7 @@ export interface CreateViewCommand {
   filterConfig?: FilterConfig;
   isPinned?: boolean;
   userId: string;
+  sourceId?: string;
 }
 
 export interface UpdateViewCommand {
@@ -30,9 +31,11 @@ export interface UpdateViewCommand {
   };
   isPinned?: boolean;
   userId: string;
+  sourceId?: string;
 }
 
 export interface DeleteViewCommand {
   id: string;
   userId: string;
+  sourceId?: string;
 }

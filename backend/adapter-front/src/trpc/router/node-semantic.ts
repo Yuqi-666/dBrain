@@ -31,6 +31,7 @@ export const nodeSemanticRouter = router({
     const result = await getContainer().semanticCommandService.createNodeSemantic({
       ...input,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -39,6 +40,7 @@ export const nodeSemanticRouter = router({
       id: input.id,
       ...input.updates,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return result;
   }),
@@ -46,6 +48,7 @@ export const nodeSemanticRouter = router({
     await getContainer().semanticCommandService.deleteNodeSemantic({
       id: input.id,
       userId: ctx.userId,
+      sourceId: ctx.sourceId,
     });
     return { success: true, id: input.id };
   }),

@@ -226,7 +226,6 @@ export function Graph({
           break;
         }
       }
-      graph.draw();
     });
   };
 
