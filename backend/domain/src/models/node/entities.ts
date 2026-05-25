@@ -269,9 +269,9 @@ export class ImageNode extends Node {
   ) {
     super({ ...props, nodeType: new NodeType<"image">("image") });
 
-    if (props.width <= 0) throw new Error("Image width must bever positive");
-    if (props.height <= 0) throw new Error("Image height must be positive");
-    if (props.fileSize <= 0)
+    if (props.width < 0) throw new Error("Image width must bever positive");
+    if (props.height < 0) throw new Error("Image height must be positive");
+    if (props.fileSize < 0)
       throw new Error("Image file size must be positive");
 
     this._width = props.width;
@@ -402,9 +402,9 @@ export class PdfNode extends Node {
   ) {
     super({ ...props, nodeType: new NodeType<"pdf">("pdf") });
 
-    if (props.pageCount <= 0)
+    if (props.pageCount < 0)
       throw new Error("PDF page count must be positive");
-    if (props.fileSize <= 0) throw new Error("PDF file size must be positive");
+    if (props.fileSize < 0) throw new Error("PDF file size must be positive");
 
     this._pageCount = props.pageCount;
     this._fileSize = props.fileSize;
@@ -515,7 +515,7 @@ export class VideoNode extends Node {
   ) {
     super({ ...props, nodeType: new NodeType<"video">("video") });
 
-    if (props.duration <= 0) throw new Error("Video duration must be positive");
+    if (props.duration < 0) throw new Error("Video duration must be positive");
     if (props.source !== "local" && props.source !== "online") {
       throw new Error("Video source must be 'local' or 'online'");
     }
@@ -657,8 +657,8 @@ export class AudioNode extends Node {
   ) {
     super({ ...props, nodeType: new NodeType<"audio">("audio") });
 
-    if (props.duration <= 0) throw new Error("Audio duration must be positive");
-    if (props.fileSize <= 0)
+    if (props.duration < 0) throw new Error("Audio duration must be positive");
+    if (props.fileSize < 0)
       throw new Error("Audio file size must be positive");
 
     this._duration = props.duration;

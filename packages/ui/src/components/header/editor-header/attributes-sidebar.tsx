@@ -182,7 +182,7 @@ function MetadataTabContent({
     if (!node.content) return;
     await GraphCQRS.upsertNode(nodeId, {
       content: { ...node.content, [field]: value },
-    } as Partial<Omit<NodeData, "id" | "nodeType">>);
+    });
   };
 
   const handleCollectionTypeChange = async (value: string) => {
@@ -254,25 +254,9 @@ function MetadataTabContent({
         <p className="font-medium">{node.title || "未命名"}</p>
       </div>
 
-      {/* Read-only: Type */}
+
       <div className="space-y-1">
         <span className="text-muted-foreground text-xs">类型</span>
-        <p className="font-medium">{node.nodeType}</p>
-      </div>
-
-      {/* Editable: Abstract */}
-      <div className="space-y-1">
-        <span className="text-muted-foreground text-xs">摘要</span>
-        <Textarea
-          value={node.abstract || ""}
-          onChange={(e) => handleAbstractChange(e.target.value)}
-          placeholder="输入摘要..."
-          className="min-h-20 text-xs"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <span className="text-muted-foreground text-xs">语义ID</span>
         <Select
           value={node.semanticId || ""}
           onValueChange={handleSemanticIdChange}
@@ -386,10 +370,21 @@ function MetadataTabContent({
         )}
       </div>
 
+      {/* Editable: Abstract */}
+      <div className="space-y-1">
+        <span className="text-muted-foreground text-xs">摘要</span>
+        <Textarea
+          value={node.abstract || ""}
+          onChange={(e) => handleAbstractChange(e.target.value)}
+          placeholder="输入摘要..."
+          className="min-h-20 text-xs"
+        />
+      </div>
+
       {/* Editable: Content URL (for relevant node types) */}
       {showContentUrl && (
         <div className="space-y-1">
-          <span className="text-muted-foreground text-xs">内容URL</span>
+          <span className="text-muted-foreground text-xs">url</span>
           <Input
             value={getContentUrl()}
             onChange={(e) =>
@@ -438,6 +433,12 @@ function MetadataTabContent({
           </Select>
         </div>
       )}
+
+      {/* Read-only: Type */}
+      <div className="space-y-1">
+        <span className="text-muted-foreground text-xs">数据类型</span>
+        <p className="font-medium">{node.nodeType}</p>
+      </div>
 
       {/* Read-only: Created At */}
       <div className="space-y-1">

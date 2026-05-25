@@ -54,6 +54,8 @@ export function Graph({
     contextMenu,
     previewBlock,
     isNodeFocusRef,
+    selectedNodeIds,
+    selectedEdgeIds,
     handleNodeSelect,
     handleEdgeSelect,
     setContextMenu,
@@ -83,8 +85,6 @@ export function Graph({
     isNodeFocusRef,
     handleNodeEdit,
   });
-
-  const nodes = useGraphStore((state) => state.nodes);
 
   // ----------------------------------------------------------------------
   // 数据同步逻辑
@@ -167,14 +167,13 @@ export function Graph({
           const newNode = newNodes[0];
           if (newNode?.id) {
             const existingNode = graph.hasNode(newNode.id);
-            existingNode
-              ? graph.updateNodeData([newNode])
-              :
-              (
-                graph.stopLayout(),
-                graph.addNodeData([newNode]),
-                graph.layout()
-              )
+            if (existingNode) {
+              graph.updateNodeData([newNode]);
+            } else {
+              graph.stopLayout();
+              graph.addNodeData([newNode]);
+              graph.render();
+            }
 
           }
           break;
@@ -182,7 +181,7 @@ export function Graph({
         case "deleteNode": {
           graph.stopLayout();
           graph.removeNodeData([mutation.payload.id]);
-          graph.layout();
+          graph.render();
           break;
         }
         case "upsertEdge": {
@@ -197,21 +196,20 @@ export function Graph({
           const newEdge = newEdges[0];
           if (newEdge?.id) {
             const existingEdge = graph.hasEdge(newEdge.id);
-            existingEdge
-              ? graph.updateEdgeData([newEdge])
-              :
-              (
-                graph.stopLayout(),
-                graph.addEdgeData([newEdge]),
-                graph.layout()
-              )
+            if (existingEdge) {
+              graph.updateEdgeData([newEdge]);
+            } else {
+              graph.stopLayout();
+              graph.addEdgeData([newEdge]);
+              graph.render();
+            }
           }
           break;
         }
         case "deleteEdge": {
           graph.stopLayout();
           graph.removeEdgeData([mutation.payload.id]);
-          graph.layout();
+          graph.render();
           break;
         }
         case "upsertView": {
@@ -279,6 +277,8 @@ export function Graph({
           y={contextMenu.y}
           visible={contextMenu.visible}
           target={contextMenu.target}
+          selectedNodeIds={selectedNodeIds}
+          selectedEdgeIds={selectedEdgeIds}
           onClose={closeContextMenu}
         />
       )}

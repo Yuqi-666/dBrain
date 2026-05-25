@@ -18,7 +18,7 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
     },
     // 配置中心力 - 保持图形在画布中心
     center: {
-      strength: 0.05,
+      strength: 0.5,
     },
     iterations: 100,
     alphaDecay: 0.04,

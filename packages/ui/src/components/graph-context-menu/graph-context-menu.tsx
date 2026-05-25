@@ -4,17 +4,20 @@ import * as React from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { Edit, Trash2, Plus, Link2 } from "lucide-react";
 import { useGraphContextMenu } from "./useGraphContextMenu";
+import { GraphContextMenuNode } from "./graph-context-menu-node";
+import { GraphContextMenuEdge } from "./graph-context-menu-edge";
+import { GraphContextMenuCanvas } from "./graph-context-menu-canvas";
+import { GraphContextMenuGroupSelect } from "./graph-context-menu-group-select";
 
 export interface GraphContextMenuProps {
   x: number;
   y: number;
   visible: boolean;
   target: { type: "node" | "edge" | "canvas"; id?: string } | null;
+  selectedNodeIds?: Set<string>;
+  selectedEdgeIds?: Set<string>;
   onClose: () => void;
 }
 
@@ -28,6 +31,8 @@ const GraphContextMenu = React.forwardRef<
       y,
       visible,
       target,
+      selectedNodeIds,
+      selectedEdgeIds,
       onClose,
     },
     ref,
@@ -37,7 +42,10 @@ const GraphContextMenu = React.forwardRef<
     const isEdge = target.type === "edge";
     const isCanvas = target.type === "canvas";
 
-    const { onEditNode, onDeleteNode, onAddNode, onEditEdge, onDeleteEdge, onAddEdge } =
+    const selectedCount = (selectedNodeIds?.size ?? 0) + (selectedEdgeIds?.size ?? 0);
+    const isGroupSelect = selectedCount > 1;
+
+    const { onEditNode, onDeleteNode, onAddNode, onEditEdge, onDeleteEdge, onAddEdge, onDeleteSelected } =
       useGraphContextMenu();
 
     const getTarget = (): { type: "node" | "edge"; id: string } | null => {
@@ -61,86 +69,34 @@ const GraphContextMenu = React.forwardRef<
           onEscapeKeyDown={onClose}
           onPointerDownOutside={onClose}
         >
-          {isNode && targetObj && (
-            <>
-              <DropdownMenuItem
-                onClick={() => { onEditNode?.(targetObj); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Edit className="size-4" />
-                <span>Edit</span>
-              </DropdownMenuItem>
-              {/* <DropdownMenuItem */}
-              {/*   onClick={() => onDuplicate?.(targetObj)} */}
-              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
-              {/* > */}
-              {/*   <Copy className="size-4" /> */}
-              {/*   <span>Duplicate</span> */}
-              {/* </DropdownMenuItem> */}
-              <DropdownMenuSeparator />
-              {/* <DropdownMenuItem */}
-              {/*   onClick={() => onAddChild?.(target.id!)} */}
-              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
-              {/* > */}
-              {/*   <Plus className="size-4" /> */}
-              {/*   <span>Add Child</span> */}
-              {/* </DropdownMenuItem> */}
-              <DropdownMenuItem
-                onClick={() => { onAddEdge?.(target.id!); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Link2 className="size-4" />
-                <span>Connect To</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => { onDeleteNode?.(targetObj); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
-              >
-                <Trash2 className="size-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </>
-          )}
-
-          {isEdge && targetObj && (
-            <>
-              <DropdownMenuItem
-                onClick={() => { onEditEdge?.(targetObj); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Edit className="size-4" />
-                <span>Edit</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => { onDeleteEdge?.(targetObj); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
-              >
-                <Trash2 className="size-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </>
-          )}
-
-          {isCanvas && (
-            <>
-              <DropdownMenuItem
-                onClick={() => { onAddNode(); onClose() }}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                <Plus className="size-4" />
-                <span>Add Node</span>
-              </DropdownMenuItem>
-              {/* <DropdownMenuItem */}
-              {/*   onClick={onPaste} */}
-              {/*   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" */}
-              {/* > */}
-              {/*   <ClipboardPaste className="size-4" /> */}
-              {/*   <span>Paste</span> */}
-              {/* </DropdownMenuItem> */}
-            </>
-          )}
+          {isGroupSelect ? (
+            <GraphContextMenuGroupSelect
+              nodeIds={Array.from(selectedNodeIds ?? [])}
+              edgeIds={Array.from(selectedEdgeIds ?? [])}
+              onDeleteSelected={onDeleteSelected}
+              onClose={onClose}
+            />
+          ) : isNode && targetObj ? (
+            <GraphContextMenuNode
+              targetObj={targetObj}
+              onEditNode={onEditNode}
+              onAddEdge={onAddEdge}
+              onDeleteNode={onDeleteNode}
+              onClose={onClose}
+            />
+          ) : isEdge && targetObj ? (
+            <GraphContextMenuEdge
+              targetObj={targetObj}
+              onEditEdge={onEditEdge}
+              onDeleteEdge={onDeleteEdge}
+              onClose={onClose}
+            />
+          ) : isCanvas ? (
+            <GraphContextMenuCanvas
+              onAddNode={onAddNode}
+              onClose={onClose}
+            />
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );

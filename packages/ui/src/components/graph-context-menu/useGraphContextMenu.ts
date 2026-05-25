@@ -1,7 +1,21 @@
 "use client";
 
 import { useCallback } from "react";
-import type { NodeId, EdgeId, TextNodeData, NodeData } from "@workspace/interfaces";
+import type {
+  NodeId,
+  EdgeId,
+  NodeData,
+  NodeDataType,
+  TextNodeData,
+  ImageNodeData,
+  PdfNodeData,
+  VideoNodeData,
+  AudioNodeData,
+  WebpageNodeData,
+  WebsiteNodeData,
+  CollectionNodeData,
+  RichTextNodeData,
+} from "@workspace/interfaces";
 import { useNodeEditorStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
@@ -32,27 +46,126 @@ export function useGraphContextMenu() {
     }
   }, []);
 
-  const onAddNode = useCallback(async () => {
-    const now = new Date().toISOString();
+  const onAddNode = useCallback(
+    async (nodeType: NodeDataType, semanticId: string) => {
+      const now = new Date().toISOString();
 
-    const newNode: NodeData = {
-      id: "tmp_",
-      title: "New Node",
-      nodeType: "rich-text",
-      content: { docs: {}, referencedNodes: [] },
-      permission: "private",
-      semanticId: "default",
-      createdAt: now,
-      updatedAt: now,
-    };
+      const baseNode = {
+        id: "tmp_" as NodeId,
+        title: "New Node",
+        nodeType,
+        permission: "private" as const,
+        semanticId,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    try {
-      const result = await GraphCQRS.upsertNode(newNode) as NodeData;
-      setCurrentEditingNodeId(result.id as NodeId);
-    } catch (error) {
-      console.error("Failed to add node:", error);
-    }
-  }, [setCurrentEditingNodeId]);
+      let newNode: NodeData;
+
+      switch (nodeType) {
+        case "text": {
+          const textNode: TextNodeData = {
+            ...baseNode,
+            nodeType: "text",
+            content: { docs: {} },
+          };
+          newNode = textNode;
+          break;
+        }
+        case "image": {
+          const imageNode: ImageNodeData = {
+            ...baseNode,
+            nodeType: "image",
+            width: 0,
+            height: 0,
+            fileSize: 0,
+            content: { url: "" },
+          };
+          newNode = imageNode;
+          break;
+        }
+        case "pdf": {
+          const pdfNode: PdfNodeData = {
+            ...baseNode,
+            nodeType: "pdf",
+            pageCount: 0,
+            fileSize: 0,
+            content: { url: "", coverUrl: "" },
+          };
+          newNode = pdfNode;
+          break;
+        }
+        case "video": {
+          const videoNode: VideoNodeData = {
+            ...baseNode,
+            nodeType: "video",
+            duration: 0,
+            source: "local",
+            fileSize: 0,
+            content: { url: "", coverUrl: "" },
+          };
+          newNode = videoNode;
+          break;
+        }
+        case "audio": {
+          const audioNode: AudioNodeData = {
+            ...baseNode,
+            nodeType: "audio",
+            duration: 0,
+            fileSize: 0,
+            content: { url: "" },
+          };
+          newNode = audioNode;
+          break;
+        }
+        case "webpage": {
+          const webpageNode: WebpageNodeData = {
+            ...baseNode,
+            nodeType: "webpage",
+            content: { html: "", url: "" },
+          };
+          newNode = webpageNode;
+          break;
+        }
+        case "website": {
+          const websiteNode: WebsiteNodeData = {
+            ...baseNode,
+            nodeType: "website",
+            content: { url: "" },
+          };
+          newNode = websiteNode;
+          break;
+        }
+        case "collection": {
+          const collectionNode: CollectionNodeData = {
+            ...baseNode,
+            nodeType: "collection",
+            content: { filterConfig: {} },
+          };
+          newNode = collectionNode;
+          break;
+        }
+        case "rich-text":
+        default: {
+          const richTextNode: RichTextNodeData = {
+            ...baseNode,
+            nodeType: "rich-text",
+            content: { docs: {}, referencedNodes: [] },
+          };
+          newNode = richTextNode;
+          break;
+        }
+      }
+
+      try {
+        const result = await GraphCQRS.upsertNode(newNode) as NodeData;
+        setCurrentEditingNodeId(result.id as NodeId);
+      } catch (error) {
+        console.error("Failed to add node:", error);
+      }
+    },
+    [setCurrentEditingNodeId],
+  );
 
   const onEditEdge = useCallback((target: GraphTarget) => {
     if (target.type !== "edge") return;
@@ -73,6 +186,26 @@ export function useGraphContextMenu() {
     console.warn("Edge creation flow not yet implemented - requires target node selection");
   }, []);
 
+  const onDeleteSelected = useCallback(
+    async (nodeIds: string[], edgeIds: string[]) => {
+      for (const id of edgeIds) {
+        try {
+          await GraphCQRS.deleteEdge(id as EdgeId);
+        } catch (error) {
+          console.error("Failed to delete edge:", id, error);
+        }
+      }
+      for (const id of nodeIds) {
+        try {
+          await GraphCQRS.deleteNode(id as NodeId);
+        } catch (error) {
+          console.error("Failed to delete node:", id, error);
+        }
+      }
+    },
+    [],
+  );
+
   return {
     onEditNode,
     onDeleteNode,
@@ -80,5 +213,6 @@ export function useGraphContextMenu() {
     onEditEdge,
     onDeleteEdge,
     onAddEdge,
+    onDeleteSelected,
   };
 }

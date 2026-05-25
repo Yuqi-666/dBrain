@@ -1,13 +1,8 @@
-import type { RuleGroupType } from "@workspace/utils";
 import type {
   NodeId as NodeIdType,
-  NodeTagId,
-  NodeSemanticId,
 } from "@workspace/interfaces/models/node/base";
 import type {
   NodeDataType,
-  SingleNodeDataType,
-  ComplexNodeDataType,
 } from "@workspace/interfaces/models/node/types";
 import { FilterConfig } from "../filter/value-objects";
 
@@ -159,9 +154,6 @@ export class ImageContent {
   private readonly _url: string;
 
   constructor(url: string) {
-    if (!url || url.trim().length === 0) {
-      throw new Error("Image URL cannot be empty");
-    }
     this._url = url;
   }
 
@@ -182,12 +174,6 @@ export class PdfContent {
   private readonly _coverUrl: string;
 
   constructor(url: string, coverUrl: string) {
-    if (!url || url.trim().length === 0) {
-      throw new Error("PDF URL cannot be empty");
-    }
-    if (!coverUrl || coverUrl.trim().length === 0) {
-      throw new Error("PDF cover URL cannot be empty");
-    }
     this._url = url;
     this._coverUrl = coverUrl;
   }
@@ -213,12 +199,6 @@ export class VideoContent {
   private readonly _coverUrl: string;
 
   constructor(url: string, coverUrl: string) {
-    if (!url || url.trim().length === 0) {
-      throw new Error("Video URL cannot be empty");
-    }
-    if (!coverUrl || coverUrl.trim().length === 0) {
-      throw new Error("Video cover URL cannot be empty");
-    }
     this._url = url;
     this._coverUrl = coverUrl;
   }
@@ -243,9 +223,6 @@ export class AudioContent {
   private readonly _url: string;
 
   constructor(url: string) {
-    if (!url || url.trim().length === 0) {
-      throw new Error("Audio URL cannot be empty");
-    }
     this._url = url;
   }
 
@@ -267,12 +244,6 @@ export class WebpageContent {
   private readonly _screenshotUrl?: string;
 
   constructor(html: string, url: string, screenshotUrl?: string) {
-    if (!html || html.trim().length === 0) {
-      throw new Error("Webpage HTML cannot be empty");
-    }
-    if (!url || url.trim().length === 0) {
-      throw new Error("Webpage URL cannot be empty");
-    }
     this._html = html;
     this._url = url;
     this._screenshotUrl = screenshotUrl;
@@ -307,9 +278,6 @@ export class WebsiteContent {
   private readonly _faviconUrl?: string;
 
   constructor(url: string, faviconUrl?: string) {
-    if (!url || url.trim().length === 0) {
-      throw new Error("Website URL cannot be empty");
-    }
     this._url = url;
     this._faviconUrl = faviconUrl;
   }
