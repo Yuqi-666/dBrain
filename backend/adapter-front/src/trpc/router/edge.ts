@@ -7,7 +7,7 @@ const addSchema = z.object({
   id: z.string(),
   from: z.string(),
   to: z.string(),
-  direction: z.enum(["forward", "reverse", "bidirectional"]),
+  direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]),
   semanticId: z.string(),
   edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]),
   weight: z.number().min(1).max(5).optional(),
@@ -16,7 +16,7 @@ const addSchema = z.object({
 const updateSchema = z.object({
   id: z.string(),
   updates: z.object({
-    direction: z.enum(["forward", "reverse", "bidirectional"]).optional(),
+    direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]).optional(),
     semanticId: z.string().optional(),
     edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
     weight: z.number().min(1).max(5).optional(),

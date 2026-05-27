@@ -6,7 +6,7 @@ export interface ListEdgesQuery {
   from?: string;
   to?: string;
   semanticId?: string;
-  direction?: "forward" | "reverse" | "bidirectional";
+  direction?: "forward" | "reverse" | "bidirectional" | "undirected";
   edgeType?: string;
 }
 

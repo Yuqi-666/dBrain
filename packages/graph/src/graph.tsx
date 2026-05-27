@@ -169,6 +169,7 @@ export function Graph({
             const existingNode = graph.hasNode(newNode.id);
             if (existingNode) {
               graph.updateNodeData([newNode]);
+              graph.draw();
             } else {
               graph.stopLayout();
               graph.addNodeData([newNode]);
@@ -198,6 +199,7 @@ export function Graph({
             const existingEdge = graph.hasEdge(newEdge.id);
             if (existingEdge) {
               graph.updateEdgeData([newEdge]);
+              graph.draw();
             } else {
               graph.stopLayout();
               graph.addEdgeData([newEdge]);

@@ -15,14 +15,11 @@ import type {
   WebsiteNodeData,
   CollectionNodeData,
   RichTextNodeData,
+  EdgeDirection,
 } from "@workspace/interfaces";
-import { useNodeEditorStore } from "@workspace/store";
+import { useNodeEditorStore, useGraphStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
-export interface GraphTarget {
-  type: "node" | "edge";
-  id: string;
-}
 
 export function useGraphContextMenu() {
   const setCurrentEditingNodeId = useNodeEditorStore(
@@ -30,17 +27,15 @@ export function useGraphContextMenu() {
   );
 
   const onEditNode = useCallback(
-    (target: GraphTarget) => {
-      if (target.type !== "node") return;
-      setCurrentEditingNodeId(target.id as NodeId);
+    (nodeId: NodeId) => {
+      setCurrentEditingNodeId(nodeId);
     },
     [setCurrentEditingNodeId],
   );
 
-  const onDeleteNode = useCallback(async (target: GraphTarget) => {
-    if (target.type !== "node") return;
+  const onDeleteNode = useCallback(async (nodeId: NodeId) => {
     try {
-      await GraphCQRS.deleteNode(target.id as NodeId);
+      await GraphCQRS.deleteNode(nodeId);
     } catch (error) {
       console.error("Failed to delete node:", error);
     }
@@ -167,24 +162,43 @@ export function useGraphContextMenu() {
     [setCurrentEditingNodeId],
   );
 
-  const onEditEdge = useCallback((target: GraphTarget) => {
-    if (target.type !== "edge") return;
-    console.warn("Edge editing not yet implemented, edgeId:", target.id);
+  const onUpsertEdge = useCallback((edgeId: EdgeId) => {
+    console.warn("Edge editing not yet implemented, edgeId:", edgeId);
   }, []);
 
-  const onDeleteEdge = useCallback(async (target: GraphTarget) => {
-    if (target.type !== "edge") return;
+  const onDeleteEdge = useCallback(async (edgeId: EdgeId) => {
     try {
-      await GraphCQRS.deleteEdge(target.id as EdgeId);
+      await GraphCQRS.deleteEdge(edgeId);
     } catch (error) {
       console.error("Failed to delete edge:", error);
     }
   }, []);
 
-  const onAddEdge = useCallback((sourceNodeId: string) => {
-    console.warn("Add edge mode initiated from node:", sourceNodeId);
-    console.warn("Edge creation flow not yet implemented - requires target node selection");
+  const getEdge = useCallback((edgeId: EdgeId) => {
+    return useGraphStore.getState().edges.get(edgeId);
   }, []);
+
+  const onChangeEdgeDirection = useCallback(
+    async (edgeId: EdgeId, direction: EdgeDirection) => {
+      try {
+        await GraphCQRS.upsertEdge(edgeId, { direction });
+      } catch (error) {
+        console.error("Failed to change edge direction:", error);
+      }
+    },
+    [],
+  );
+
+  const onChangeEdgeSemantic = useCallback(
+    async (edgeId: EdgeId, semanticId: string) => {
+      try {
+        await GraphCQRS.upsertEdge(edgeId, { semanticId });
+      } catch (error) {
+        console.error("Failed to change edge semantic:", error);
+      }
+    },
+    [],
+  );
 
   const onDeleteSelected = useCallback(
     async (nodeIds: string[], edgeIds: string[]) => {
@@ -210,9 +224,11 @@ export function useGraphContextMenu() {
     onEditNode,
     onDeleteNode,
     onAddNode,
-    onEditEdge,
+    onUpsertEdge,
     onDeleteEdge,
-    onAddEdge,
     onDeleteSelected,
+    getEdge,
+    onChangeEdgeDirection,
+    onChangeEdgeSemantic,
   };
 }

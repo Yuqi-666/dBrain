@@ -45,9 +45,9 @@ export class EdgeId {
  * Defines how data or relationships flow between nodes.
  */
 export class EdgeDirection {
-  private readonly value: "forward" | "reverse" | "bidirectional";
+  private readonly value: "forward" | "reverse" | "bidirectional" | "undirected";
 
-  private constructor(value: "forward" | "reverse" | "bidirectional") {
+  private constructor(value: "forward" | "reverse" | "bidirectional" | "undirected") {
     this.value = value;
   }
 
@@ -73,9 +73,16 @@ export class EdgeDirection {
   }
 
   /**
+   * Creates a undirected direction (from - to).
+   */
+  static undirected(): EdgeDirection {
+    return new EdgeDirection("undirected");
+  }
+
+  /**
    * Gets the underlying string value.
    */
-  getValue(): "forward" | "reverse" | "bidirectional" {
+  getValue(): "forward" | "reverse" | "bidirectional" | "undirected" {
     return this.value;
   }
 
@@ -98,6 +105,13 @@ export class EdgeDirection {
    */
   isBidirectional(): boolean {
     return this.value === "bidirectional";
+  }
+
+  /**
+   * Checks if direction is undirected.
+   */
+  isUnidirectional(): boolean {
+    return this.value === "undirected";
   }
 
   /**

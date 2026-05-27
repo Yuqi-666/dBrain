@@ -8,15 +8,15 @@ import {
 import { Edit, Trash2, Link2 } from "lucide-react";
 
 export interface GraphContextMenuNodeProps {
-  targetObj: { type: "node" | "edge"; id: string };
-  onEditNode?: (target: { type: "node" | "edge"; id: string }) => void;
+  nodeId: string;
+  onEditNode?: (id: string) => void;
   onAddEdge?: (nodeId: string) => void;
-  onDeleteNode?: (target: { type: "node" | "edge"; id: string }) => void;
+  onDeleteNode?: (nodeId: string) => void;
   onClose: () => void;
 }
 
 export function GraphContextMenuNode({
-  targetObj,
+  nodeId,
   onEditNode,
   onAddEdge,
   onDeleteNode,
@@ -26,7 +26,7 @@ export function GraphContextMenuNode({
     <>
       <DropdownMenuItem
         onClick={() => {
-          onEditNode?.(targetObj);
+          onEditNode?.(nodeId);
           onClose();
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
@@ -37,7 +37,7 @@ export function GraphContextMenuNode({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
-          onAddEdge?.(targetObj.id);
+          onAddEdge?.(nodeId);
           onClose();
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
@@ -48,7 +48,7 @@ export function GraphContextMenuNode({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
-          onDeleteNode?.(targetObj);
+          onDeleteNode?.(nodeId);
           onClose();
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"

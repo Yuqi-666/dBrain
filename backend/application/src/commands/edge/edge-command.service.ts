@@ -34,6 +34,8 @@ function parseEdgeDirection(dir: string): EdgeDirection {
       return EdgeDirection.reverse();
     case "bidirectional":
       return EdgeDirection.bidirectional();
+    case "undirected":
+      return EdgeDirection.undirected();
     default:
       throw new Error(`Invalid edge direction: ${dir}`);
   }
@@ -43,7 +45,7 @@ export class EdgeCommandService {
   constructor(
     private readonly edgeRepository: IEdgeRepository,
     private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   async createEdge(cmd: CreateEdgeCommand): Promise<EdgeDTO> {
     try {

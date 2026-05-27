@@ -90,7 +90,7 @@ export const EDGE_FILTER_FIELDS: Field[] = [
     name: "direction",
     label: "方向",
     inputType: "select",
-    values: (["forward", "reverse", "bidirectional"] as EdgeDirection[]).map(
+    values: (["forward", "reverse", "bidirectional", "undirected"] as EdgeDirection[]).map(
       (d) => ({
         name: d,
         label: d === "forward" ? "正向" : d === "reverse" ? "反向" : "双向",

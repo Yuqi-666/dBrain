@@ -2,7 +2,7 @@ export interface CreateEdgeCommand {
   id: string;
   from: string;
   to: string;
-  direction: "forward" | "reverse" | "bidirectional";
+  direction: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId: string;
   edgeType: string;
   weight?: { value: number };
@@ -12,7 +12,7 @@ export interface CreateEdgeCommand {
 
 export interface UpdateEdgeCommand {
   id: string;
-  direction?: "forward" | "reverse" | "bidirectional";
+  direction?: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId?: string;
   edgeType?: string;
   weight?: { value: number };

@@ -129,7 +129,7 @@ migrate((app) => {
     fields: [
       { name: "from", type: "text", required: true },
       { name: "to", type: "text", required: true },
-      { name: "direction", type: "select", required: true, values: ["forward", "reverse", "bidirectional"] },
+      { name: "direction", type: "select", required: true, values: ["forward", "reverse", "bidirectional", "unidirectional"] },
       { name: "semanticId", type: "text" },
       { name: "edgeType", type: "text", required: true },
       { name: "weight", type: "number" },

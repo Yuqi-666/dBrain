@@ -4,7 +4,7 @@ import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
 import { graphStore } from "@workspace/store";
 
-export interface EdgeConfigOptions {}
+export interface EdgeConfigOptions { }
 
 export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
   const getEdgeSemantic = graphStore.getState().getEdgeSemantic;
@@ -33,9 +33,9 @@ export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
         lineWidth: 2,
         lineCap: "round",
         cursor: "pointer",
-        endArrow: direction === "reverse" ? false : true,
+        endArrow: direction === "reverse" || direction === "undirected" ? false : true,
         endArrowSize: 8,
-        startArrow: direction === "forward" ? false : true,
+        startArrow: direction === "forward" || direction === "undirected" ? false : true,
         startArrowSize: 8,
         labelText: semantic?.name,
         labelFill: theme.labelColor,

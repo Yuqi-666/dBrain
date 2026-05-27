@@ -53,6 +53,8 @@ export class EdgeMapper {
         return EdgeDirection.reverse();
       case "bidirectional":
         return EdgeDirection.bidirectional();
+      case "undirected":
+        return EdgeDirection.undirected();
       default:
         return EdgeDirection.forward();
     }

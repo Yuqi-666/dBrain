@@ -45,7 +45,7 @@ const GraphContextMenu = React.forwardRef<
     const selectedCount = (selectedNodeIds?.size ?? 0) + (selectedEdgeIds?.size ?? 0);
     const isGroupSelect = selectedCount > 1;
 
-    const { onEditNode, onDeleteNode, onAddNode, onEditEdge, onDeleteEdge, onAddEdge, onDeleteSelected } =
+    const { onEditNode, onDeleteNode, onAddNode, onUpsertEdge, onDeleteEdge, onDeleteSelected, onChangeEdgeDirection, onChangeEdgeSemantic } =
       useGraphContextMenu();
 
     const getTarget = (): { type: "node" | "edge"; id: string } | null => {
@@ -78,17 +78,18 @@ const GraphContextMenu = React.forwardRef<
             />
           ) : isNode && targetObj ? (
             <GraphContextMenuNode
-              targetObj={targetObj}
+              nodeId={targetObj.id}
               onEditNode={onEditNode}
-              onAddEdge={onAddEdge}
+              onAddEdge={onUpsertEdge}
               onDeleteNode={onDeleteNode}
               onClose={onClose}
             />
           ) : isEdge && targetObj ? (
             <GraphContextMenuEdge
-              targetObj={targetObj}
-              onEditEdge={onEditEdge}
+              edgeId={targetObj.id}
               onDeleteEdge={onDeleteEdge}
+              onChangeEdgeDirection={onChangeEdgeDirection}
+              onChangeEdgeSemantic={onChangeEdgeSemantic}
               onClose={onClose}
             />
           ) : isCanvas ? (
