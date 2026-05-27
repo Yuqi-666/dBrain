@@ -1,6 +1,6 @@
 import { register, ExtensionCategory } from "@antv/g6";
 import { ReactNode } from "@antv/g6-extension-react";
-import { CustomCanvasGesture } from "./behaviors";
+import { CustomCanvasGesture, CreateEdge } from "./behaviors";
 
 let extensionsRegistered = false;
 
@@ -9,5 +9,6 @@ export function registerExtensions() {
   extensionsRegistered = true;
 
   register("behavior", "custom-canvas-gesture", CustomCanvasGesture);
+  register(ExtensionCategory.BEHAVIOR, "create-edge", CreateEdge);
   register(ExtensionCategory.NODE, "react-node", ReactNode);
 }

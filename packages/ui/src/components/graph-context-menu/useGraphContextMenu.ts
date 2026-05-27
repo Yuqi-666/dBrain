@@ -16,6 +16,7 @@ import type {
   CollectionNodeData,
   RichTextNodeData,
   EdgeDirection,
+  EdgeData,
 } from "@workspace/interfaces";
 import { useNodeEditorStore, useGraphStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
@@ -162,9 +163,45 @@ export function useGraphContextMenu() {
     [setCurrentEditingNodeId],
   );
 
-  const onUpsertEdge = useCallback((edgeId: EdgeId) => {
-    console.warn("Edge editing not yet implemented, edgeId:", edgeId);
-  }, []);
+  const onCreateEdge = useCallback(
+    (from: string | string[], to: string | null): EdgeId | null => {
+      if (to === null) {
+        return null;
+      }
+
+      const sourceId = Array.isArray(from) ? from[0] : from;
+      if (!sourceId) {
+        return null;
+      }
+
+      if (sourceId === to) {
+        return null;
+      }
+
+      const store = useGraphStore.getState();
+      const existingEdges = store.getEdgesForNode(sourceId);
+      const edgeExists = existingEdges.some((e) => e.to === to);
+      if (edgeExists) {
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const edgeData: EdgeData = {
+        id: crypto.randomUUID() as EdgeId,
+        from: sourceId as NodeId,
+        to: to as NodeId,
+        direction: "forward",
+        edgeType: "association",
+        semanticId: "",
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      GraphCQRS.upsertEdge(edgeData);
+      return edgeData.id;
+    },
+    [],
+  );
 
   const onDeleteEdge = useCallback(async (edgeId: EdgeId) => {
     try {
@@ -224,7 +261,7 @@ export function useGraphContextMenu() {
     onEditNode,
     onDeleteNode,
     onAddNode,
-    onUpsertEdge,
+    onCreateEdge,
     onDeleteEdge,
     onDeleteSelected,
     getEdge,

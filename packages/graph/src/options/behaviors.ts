@@ -4,20 +4,23 @@ import type {
   CustomBehaviorOption,
   Graph,
 } from "@antv/g6";
-// Import to register the custom behavior
+// Import to register the custom behaviors
 import "../extensions/behaviors/custom-canvas-gesture";
+import "../extensions/behaviors/create-edge";
 
 export interface BehaviorConfigOptions {
   onNodeSelect?: (nodeIds: string[]) => void;
   onEdgeSelect?: (edgeIds: string[]) => void;
   onPreviewShow?: (nodeId: string) => void;
+  onCreateEdge?: (sourceNodeId: string, targetNodeId: string) => void;
   graph?: Graph;
 }
 
 export function createBehaviorOptions(
   options?: BehaviorConfigOptions,
 ): BehaviorOptions {
-  const { onNodeSelect, onEdgeSelect, onPreviewShow, graph } = options || {};
+  const { onNodeSelect, onEdgeSelect, onPreviewShow, onCreateEdge, graph } =
+    options || {};
 
   const BASE_BEHAVIORS: CustomBehaviorOption[] = [
     {
@@ -105,6 +108,13 @@ export function createBehaviorOptions(
       type: "drag-element",
       key: "drag-element",
       state: "selected",
+    },
+    {
+      type: "create-edge",
+      key: "create-edge",
+      onCreateEdge: (sourceCellId: string, targetCellId: string) => {
+        onCreateEdge?.(sourceCellId, targetCellId);
+      },
     },
   ];
 

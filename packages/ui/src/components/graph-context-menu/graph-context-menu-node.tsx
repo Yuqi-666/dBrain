@@ -10,7 +10,7 @@ import { Edit, Trash2, Link2 } from "lucide-react";
 export interface GraphContextMenuNodeProps {
   nodeId: string;
   onEditNode?: (id: string) => void;
-  onAddEdge?: (nodeId: string) => void;
+  onStartAddEdge?: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   onClose: () => void;
 }
@@ -18,7 +18,7 @@ export interface GraphContextMenuNodeProps {
 export function GraphContextMenuNode({
   nodeId,
   onEditNode,
-  onAddEdge,
+  onStartAddEdge,
   onDeleteNode,
   onClose,
 }: GraphContextMenuNodeProps) {
@@ -36,9 +36,9 @@ export function GraphContextMenuNode({
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
-        onClick={() => {
-          onAddEdge?.(nodeId);
-          onClose();
+        onSelect={(e) => {
+          e.preventDefault();
+          onStartAddEdge?.(nodeId);
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
       >
