@@ -164,41 +164,46 @@ export function useGraphContextMenu() {
   );
 
   const onCreateEdge = useCallback(
-    (from: string | string[], to: string | null): EdgeId | null => {
-      if (to === null) {
-        return null;
-      }
-
-      const sourceId = Array.isArray(from) ? from[0] : from;
-      if (!sourceId) {
-        return null;
-      }
-
-      if (sourceId === to) {
-        return null;
-      }
-
-      const store = useGraphStore.getState();
-      const existingEdges = store.getEdgesForNode(sourceId);
-      const edgeExists = existingEdges.some((e) => e.to === to);
-      if (edgeExists) {
-        return null;
-      }
-
-      const now = new Date().toISOString();
-      const edgeData: EdgeData = {
-        id: crypto.randomUUID() as EdgeId,
-        from: sourceId as NodeId,
-        to: to as NodeId,
-        direction: "forward",
-        edgeType: "association",
-        semanticId: "",
-        createdAt: now,
-        updatedAt: now,
+    async (sourceIds: string[], targetId: string | null, x: number, y: number, setContextMenu: (menu: any) => any) => {
+      if (targetId === null) {
+        setContextMenu({
+          x,
+          y,
+          type: "add-edge",
+          context: { sourceIds, targetId },
+          visible: true,
+        })
+        return;
       };
 
-      GraphCQRS.upsertEdge(edgeData);
-      return edgeData.id;
+      const now = new Date().toISOString();
+      let firstEdgeId: EdgeId | null = null;
+
+      for (const sourceId of sourceIds) {
+        if (sourceId === targetId) continue;
+
+        const edgeData: EdgeData = {
+          id: "tmp_",
+          from: sourceId as NodeId,
+          to: targetId as NodeId,
+          direction: "forward",
+          edgeType: "association",
+          semanticId: "",
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        try {
+          const newEdge = await GraphCQRS.upsertEdge(edgeData) as EdgeData;
+          if (firstEdgeId === null) {
+            firstEdgeId = newEdge.id;
+          }
+        } catch (error) {
+          console.error("Failed to add edge:", error);
+        }
+      }
+
+      setContextMenu({ x, y, type: "edge", context: { edgeId: firstEdgeId }, visible: true })
     },
     [],
   );

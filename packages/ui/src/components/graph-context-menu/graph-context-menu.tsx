@@ -5,132 +5,87 @@ import {
   DropdownMenu,
   DropdownMenuContent,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { useGraphContextMenu } from "./useGraphContextMenu";
+import { GraphContextMenuGroupSelect } from "./graph-context-menu-group-select";
+import { GraphContextMenuAddEdge } from "./graph-context-menu-add-edge";
 import { GraphContextMenuNode } from "./graph-context-menu-node";
 import { GraphContextMenuEdge } from "./graph-context-menu-edge";
 import { GraphContextMenuCanvas } from "./graph-context-menu-canvas";
-import { GraphContextMenuGroupSelect } from "./graph-context-menu-group-select";
-import { GraphContextMenuAddEdge } from "./graph-context-menu-add-edge";
+import { useGraphContextMenu } from "./useGraphContextMenu";
 
-export interface GraphContextMenuProps {
-  x: number;
-  y: number;
-  visible: boolean;
-  target: { type: "node" | "edge" | "canvas" | "addEdge"; id?: string } | null;
-  addEdgeSourceIds?: string[];
-  selectedNodeIds?: Set<string>;
-  selectedEdgeIds?: Set<string>;
-  onClose: () => void;
-  onStartAddEdge?: (nodeId: string) => void;
-  onEditEdge?: (edgeId: string) => void;
+export type GraphContextMenuType = "node" | "edge" | "canvas" | "groupSelect" | "add-edge";
+
+export interface GraphContextMenuNodeContext {
+  nodeId: string;
 }
+
+export interface GraphContextMenuEdgeContext {
+  edgeId: string;
+}
+
+export interface GraphContextMenuGroupSelectContext {
+  nodeIds: string[];
+  edgeIds: string[];
+}
+
+export interface GraphContextMenuAddEdgeContext {
+  sourceIds: string[];
+  targetId: string | null;
+}
+
+export type GraphContextMenuProps =
+  | { x: number; y: number; visible: boolean; type: "node"; context: GraphContextMenuNodeContext; onClose: () => void }
+  | { x: number; y: number; visible: boolean; type: "edge"; context: GraphContextMenuEdgeContext; onClose: () => void }
+  | { x: number; y: number; visible: boolean; type: "canvas"; context: Record<string, never>; onClose: () => void }
+  | { x: number; y: number; visible: boolean; type: "groupSelect"; context: GraphContextMenuGroupSelectContext; onClose: () => void }
+  | { x: number; y: number; visible: boolean; type: "add-edge"; context: GraphContextMenuAddEdgeContext; onClose: () => void };
 
 const GraphContextMenu = React.forwardRef<
   React.ElementRef<typeof DropdownMenuContent>,
-  GraphContextMenuProps
->(
-  (
-    {
-      x,
-      y,
-      visible,
-      target,
-      addEdgeSourceIds,
-      selectedNodeIds,
-      selectedEdgeIds,
-      onClose,
-      onStartAddEdge,
-      onEditEdge,
-    },
-    ref,
-  ) => {
-    if (!visible || !target) return null;
-    const isNode = target.type === "node";
-    const isEdge = target.type === "edge";
-    const isCanvas = target.type === "canvas";
-    const isAddEdge = target.type === "addEdge";
+  GraphContextMenuProps & { setContextMenu?: (...args: any[]) => void }
+>((props, ref) => {
+  const { x, y, visible, type, context, onClose, setContextMenu } = props;
 
-    const selectedCount = (selectedNodeIds?.size ?? 0) + (selectedEdgeIds?.size ?? 0);
-    const isGroupSelect = selectedCount > 1;
+  if (!visible) return null;
 
-    const { onEditNode, onDeleteNode, onAddNode, onCreateEdge, onDeleteEdge, onDeleteSelected, onChangeEdgeDirection, onChangeEdgeSemantic } =
-      useGraphContextMenu();
+  const {
+    onEditNode,
+    onDeleteNode,
+    onAddNode,
+    onDeleteEdge,
+    onDeleteSelected,
+    onChangeEdgeDirection,
+    onChangeEdgeSemantic,
+    onCreateEdge,
+  } = useGraphContextMenu();
 
-    const getTarget = (): { type: "node" | "edge"; id: string } | null => {
-      if (!target.id) return null;
-      if (target.type === "canvas" || target.type === "addEdge") return null;
-      return { type: target.type, id: target.id };
-    };
-
-    const targetObj = getTarget();
-
-    const handleCreateEdge = (from: string[], to: string | null) => {
-      if (to !== null) {
-        onCreateEdge(from, to);
-      }
-    };
-
-    const handleEditEdge = (edgeId: string) => {
-      if (onEditEdge) {
-        onEditEdge(edgeId);
-      }
-      onClose();
-    };
-
-    return (
-      <DropdownMenu open={visible} onOpenChange={(open) => !open && onClose()}>
-        <DropdownMenuContent
-          ref={ref}
-          style={{
-            position: "absolute",
-            left: x,
-            top: y,
-          }}
-          className="w-48 p-1 shadow-lg rounded-lg border bg-popover text-popover-foreground"
-          onEscapeKeyDown={onClose}
-          onPointerDownOutside={isAddEdge ? undefined : onClose}
-        >
-          {isGroupSelect ? (
-            <GraphContextMenuGroupSelect
-              nodeIds={Array.from(selectedNodeIds ?? [])}
-              edgeIds={Array.from(selectedEdgeIds ?? [])}
-              onDeleteSelected={onDeleteSelected}
-              onClose={onClose}
-            />
-          ) : isAddEdge ? (
-            <GraphContextMenuAddEdge
-              sourceIds={addEdgeSourceIds ?? []}
-              onCreateEdge={handleCreateEdge}
-              onEditEdge={handleEditEdge}
-              onClose={onClose}
-            />
-          ) : isNode && targetObj ? (
-            <GraphContextMenuNode
-              nodeId={targetObj.id}
-              onEditNode={onEditNode}
-              onStartAddEdge={onStartAddEdge}
-              onDeleteNode={onDeleteNode}
-              onClose={onClose}
-            />
-          ) : isEdge && targetObj ? (
-            <GraphContextMenuEdge
-              edgeId={targetObj.id}
-              onDeleteEdge={onDeleteEdge}
-              onChangeEdgeDirection={onChangeEdgeDirection}
-              onChangeEdgeSemantic={onChangeEdgeSemantic}
-              onClose={onClose}
-            />
-          ) : isCanvas ? (
-            <GraphContextMenuCanvas
-              onAddNode={onAddNode}
-              onClose={onClose}
-            />
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  },
-);
+  return (
+    <DropdownMenu open={visible} onOpenChange={(open) => !open && onClose()}>
+      <DropdownMenuContent
+        ref={ref}
+        style={{ position: "absolute", left: x, top: y }}
+        className="w-48 p-1 shadow-lg rounded-lg border bg-popover text-popover-foreground"
+        onEscapeKeyDown={onClose}
+        onPointerDownOutside={onClose}
+      >
+        {type === "node" && <GraphContextMenuNode nodeId={context.nodeId} onEditNode={onEditNode} onDeleteNode={onDeleteNode} onClose={onClose} />}
+        {type === "edge" && <GraphContextMenuEdge edgeId={context.edgeId} onDeleteEdge={onDeleteEdge} onChangeEdgeDirection={onChangeEdgeDirection} onChangeEdgeSemantic={onChangeEdgeSemantic} onClose={onClose} />}
+        {type === "canvas" && <GraphContextMenuCanvas onAddNode={onAddNode} onClose={onClose} />}
+        {type === "groupSelect" && <GraphContextMenuGroupSelect nodeIds={context.nodeIds} edgeIds={context.edgeIds} onDeleteSelected={onDeleteSelected} onClose={onClose} />}
+        {type === "add-edge" && (
+          <GraphContextMenuAddEdge
+            sourceIds={context.sourceIds}
+            targetId={context.targetId}
+            x={x}
+            y={y}
+            onCreateEdge={onCreateEdge as any}
+            onClose={onClose}
+            setContextMenu={setContextMenu as any}
+          />
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+});
 
 GraphContextMenu.displayName = "GraphContextMenu";
 

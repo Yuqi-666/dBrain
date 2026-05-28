@@ -16,6 +16,7 @@ interface UseGraphInstanceProps {
   handleNodeSelect: (nodeIds: string[]) => void;
   handleEdgeSelect: (edgeIds: string[]) => void;
   fixPreviewOnFocus: (nodeId: string) => void;
+  handleCreateEdge: (sourceNodeId: string[], targetNodeId: string | null, x: number, y: number) => Promise<void>;
 }
 
 export function useGraphInstance({
@@ -24,6 +25,7 @@ export function useGraphInstance({
   handleNodeSelect,
   handleEdgeSelect,
   fixPreviewOnFocus,
+  handleCreateEdge,
 }: UseGraphInstanceProps) {
   const graphRef = useRef<G6Graph | null>(null);
 
@@ -31,7 +33,6 @@ export function useGraphInstance({
     if (!containerRef.current) {
       return;
     }
-
     const nodeConfig = createNodeOptions();
     const edgeConfig = createEdgeOptions();
     registerExtensions();
@@ -50,6 +51,7 @@ export function useGraphInstance({
         onNodeSelect: handleNodeSelect,
         onEdgeSelect: handleEdgeSelect,
         onPreviewShow: fixPreviewOnFocus,
+        onCreateEdge: handleCreateEdge,
         graph,
       }),
       plugins: createPluginOptions(),
@@ -62,13 +64,7 @@ export function useGraphInstance({
       graph.destroy();
       graphRef.current = null;
     };
-  }, [
-    containerRef,
-    theme,
-    handleNodeSelect,
-    handleEdgeSelect,
-    fixPreviewOnFocus,
-  ]);
+  }, []);
 
   return graphRef;
 }

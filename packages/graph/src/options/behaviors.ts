@@ -7,12 +7,15 @@ import type {
 // Import to register the custom behaviors
 import "../extensions/behaviors/custom-canvas-gesture";
 import "../extensions/behaviors/create-edge";
+import "../extensions/behaviors/drag-element";
+import "../extensions/behaviors/drag-element-force";
 
 export interface BehaviorConfigOptions {
   onNodeSelect?: (nodeIds: string[]) => void;
   onEdgeSelect?: (edgeIds: string[]) => void;
   onPreviewShow?: (nodeId: string) => void;
-  onCreateEdge?: (sourceNodeId: string, targetNodeId: string) => void;
+  onCreateEdge?: (sourceNodeId: string[], targetNodeId: string | null, x: number, y: number) => void;
+  graphOnCreateEdge?: (from: string[], to: string | null) => Promise<string | null>;
   graph?: Graph;
 }
 
@@ -100,20 +103,20 @@ export function createBehaviorOptions(
       key: "hover-activate-1", // 为交互指定标识符，方便动态更新
     },
     {
-      type: "drag-element-force",
+      type: "custom-drag-element-force",
       key: "drag-element-force",
       state: "selected",
     },
     {
-      type: "drag-element",
+      type: "custom-drag-element",
       key: "drag-element",
       state: "selected",
     },
     {
       type: "create-edge",
       key: "create-edge",
-      onCreateEdge: (sourceCellId: string, targetCellId: string) => {
-        onCreateEdge?.(sourceCellId, targetCellId);
+      onCreateEdge: async (sourceIds: string[], targetId: string | null, x: number, y: number) => {
+        onCreateEdge?.(sourceIds, targetId, x, y);
       },
     },
   ];

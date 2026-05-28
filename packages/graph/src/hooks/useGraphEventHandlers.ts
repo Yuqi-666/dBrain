@@ -4,33 +4,25 @@ import {
   NodeEvent,
   EdgeEvent,
   CanvasEvent,
-  CommonEvent,
 } from "@antv/g6";
-import type { LocalGraphUIState } from "./useGraphStateManage";
+import { useGraphUIStore } from "@workspace/store";
 
 interface UseGraphEventHandlersProps {
   graphRef: React.RefObject<G6Graph | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  closeContextMenu: () => void;
-  closePreviewBlock: () => void;
-  setContextMenu: (menu: LocalGraphUIState["contextMenu"]) => void;
-  setPreviewBlock: (block: LocalGraphUIState["previewBlock"]) => void;
-  isNodeFocusRef: React.MutableRefObject<boolean>;
-  handleNodeEdit: (nodeId: string) => void;
 }
 
 export function useGraphEventHandlers({
   graphRef,
   containerRef,
-  closeContextMenu,
-  closePreviewBlock,
-  setContextMenu,
-  setPreviewBlock,
-  isNodeFocusRef,
-  handleNodeEdit,
 }: UseGraphEventHandlersProps) {
   const isDraggingRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isNodeFocusRef = useRef(false);
+
+  useEffect(() => {
+    isNodeFocusRef.current = useGraphUIStore.getState().isNodeFocus;
+  });
 
   useEffect(() => {
     const graph = graphRef.current;
@@ -38,52 +30,38 @@ export function useGraphEventHandlers({
       return;
     }
 
-    // 节点右键菜单
-    const handleNodeContextMenu = (e: any) => {
+    const openContextMenu = (e: any) => {
       e.preventDefault();
-      const id: string = e.target.id;
-      const { x: clientX, y: clientY } = e.client;
-      if (!id) {
-        return;
+      const { client: { x, y } } = e;
+      const targetId = e.target?.id;
+
+      useGraphUIStore.getState().closePreviewBlock();
+
+      const { selectedNodeIds, selectedEdgeIds } = useGraphUIStore.getState();
+      const isMultipleSelected = selectedNodeIds.size + selectedEdgeIds.size > 1;
+
+      if (isMultipleSelected) {
+        useGraphUIStore.getState().setContextMenu({
+          x,
+          y,
+          type: "groupSelect",
+          context: { nodeIds: Array.from(selectedNodeIds), edgeIds: Array.from(selectedEdgeIds) },
+          visible: true,
+        });
+      } else if (e.targetType === "node" && targetId) {
+        useGraphUIStore.getState().setContextMenu({ x, y, type: "node", context: { nodeId: targetId }, visible: true });
+      } else if (e.targetType === "edge" && targetId) {
+        useGraphUIStore.getState().setContextMenu({ x, y, type: "edge", context: { edgeId: targetId }, visible: true });
+      } else {
+        useGraphUIStore.getState().setContextMenu({ x, y, type: "canvas", context: {}, visible: true });
       }
-      closePreviewBlock();
-      setContextMenu({
-        x: clientX,
-        y: clientY,
-        target: { type: "node", id: id },
-        visible: true,
-      });
     };
-
-    // 边右键菜单
-    const handleEdgeContextMenu = (e: any) => {
-      e.preventDefault();
-      if (!e.target.id) {
-        return;
-      }
-      setContextMenu({
-        x: e.client.x,
-        y: e.client.y,
-        target: { type: "edge", id: e.target.id },
-        visible: true,
-      });
-    };
-
-    // 画布右键菜单
-    const handleCanvasContextMenu = (e: any) => {
-      e.preventDefault();
-      setContextMenu({
-        x: e.client.x,
-        y: e.client.y,
-        target: { type: "canvas" },
-        visible: true,
-      });
-    };
-
     // 画布点击关闭菜单和预览
     const handleCanvasClick = () => {
-      closeContextMenu();
-      closePreviewBlock();
+      useGraphUIStore.getState().setSelectedNodeIds(new Set())
+      useGraphUIStore.getState().setSelectedEdgeIds(new Set())
+      useGraphUIStore.getState().closeContextMenu();
+      useGraphUIStore.getState().closePreviewBlock();
     };
 
     // 节点悬停进入
@@ -96,7 +74,7 @@ export function useGraphEventHandlers({
         return;
       }
       hoverTimerRef.current = setTimeout(() => {
-        setPreviewBlock({
+        useGraphUIStore.getState().setPreviewBlock({
           nodeId,
           visible: true,
           isFocus: false,
@@ -113,7 +91,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      closePreviewBlock();
+      useGraphUIStore.getState().closePreviewBlock();
     };
 
     // 画布悬停进入
@@ -121,7 +99,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      closePreviewBlock();
+      useGraphUIStore.getState().closePreviewBlock();
     };
 
     // 节点拖拽
@@ -131,7 +109,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      closePreviewBlock();
+      useGraphUIStore.getState().closePreviewBlock();
     };
 
     // 节点拖拽结束
@@ -141,14 +119,14 @@ export function useGraphEventHandlers({
 
     const handleNodeDBClick = (e: any) => {
       const nodeId = e.target?.id;
-      handleNodeEdit(nodeId);
-      closePreviewBlock();
+      useGraphUIStore.getState().handleNodeEdit(nodeId);
+      useGraphUIStore.getState().closePreviewBlock();
     };
 
     // 绑定事件
-    graph.on(NodeEvent.CONTEXT_MENU, handleNodeContextMenu);
-    graph.on(EdgeEvent.CONTEXT_MENU, handleEdgeContextMenu);
-    graph.on(CanvasEvent.CONTEXT_MENU, handleCanvasContextMenu);
+    graph.on(NodeEvent.CONTEXT_MENU, openContextMenu);
+    graph.on(EdgeEvent.CONTEXT_MENU, openContextMenu);
+    graph.on(CanvasEvent.CONTEXT_MENU, openContextMenu);
     graph.on(CanvasEvent.CLICK, handleCanvasClick);
     graph.on(NodeEvent.POINTER_ENTER, handleNodePointerEnter);
     graph.on(NodeEvent.POINTER_LEAVE, handleNodePointerLeave);
@@ -177,9 +155,9 @@ export function useGraphEventHandlers({
 
     return () => {
       // 解绑事件
-      graph.off(NodeEvent.CONTEXT_MENU, handleNodeContextMenu);
-      graph.off(EdgeEvent.CONTEXT_MENU, handleEdgeContextMenu);
-      graph.off(CanvasEvent.CONTEXT_MENU, handleCanvasContextMenu);
+      graph.off(NodeEvent.CONTEXT_MENU, openContextMenu);
+      graph.off(EdgeEvent.CONTEXT_MENU, openContextMenu);
+      graph.off(CanvasEvent.CONTEXT_MENU, openContextMenu);
       graph.off(CanvasEvent.CLICK, handleCanvasClick);
       graph.off(NodeEvent.POINTER_ENTER, handleNodePointerEnter);
       graph.off(NodeEvent.POINTER_LEAVE, handleNodePointerLeave);
@@ -189,14 +167,7 @@ export function useGraphEventHandlers({
 
       resizeObserver.disconnect();
     };
-  }, [
-    graphRef,
-    closeContextMenu,
-    closePreviewBlock,
-    setContextMenu,
-    setPreviewBlock,
-    isNodeFocusRef,
-  ]);
+  }, [graphRef, containerRef]);
 
   return { isDraggingRef };
 }

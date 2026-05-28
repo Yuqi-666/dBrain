@@ -1,6 +1,6 @@
 import type { PluginOptions } from "@antv/g6";
 
-export interface PluginConfigOptions {}
+export interface PluginConfigOptions { }
 
 export function createPluginOptions(
   options?: PluginConfigOptions,

@@ -1,6 +1,9 @@
 export { useGraphStore, graphStore } from "./graphStore";
 export type { GraphStore } from "./graphStore";
 
+export { useGraphUIStore } from "./graphUIStore";
+export type { GraphUIStore, ContextMenuType, ContextMenuContext } from "./graphUIStore";
+
 export { useUIStore } from "./uiStore";
 export type { UIStore, MainViewType } from "./uiStore";
 

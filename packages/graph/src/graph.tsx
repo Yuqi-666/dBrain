@@ -1,8 +1,8 @@
 "use client";
 import React, { useRef, useEffect } from "react";
 import { Graph as G6Graph } from "@antv/g6";
-import { useGraphStore } from "@workspace/store";
-import type { NodeData, View, ViewId } from "@workspace/interfaces";
+import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import type { View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
@@ -11,10 +11,10 @@ import {
   createNodeOptions,
   createThemeOptions,
 } from "./options";
-import { useGraphStateManage } from "./hooks/useGraphStateManage";
 import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
 import type { Mutation } from "@workspace/store/graphStore";
+import { useGraphContextMenu } from "@workspace/ui/components/graph-context-menu/useGraphContextMenu";
 
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
@@ -45,45 +45,33 @@ export function Graph({
   onLoad,
 }: GraphProps) {
   // Refs
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const resolvedViewRef = useRef<View | undefined>(undefined);
   const isMountedRef = useRef(false);
 
-  // 状态管理 Hook
-  const {
-    contextMenu,
-    previewBlock,
-    isNodeFocusRef,
-    selectedNodeIds,
-    selectedEdgeIds,
-    handleNodeSelect,
-    handleEdgeSelect,
-    setContextMenu,
-    closeContextMenu,
-    setPreviewBlock,
-    closePreviewBlock,
-    fixPreviewOnFocus,
-    handleNodeEdit,
-  } = useGraphStateManage();
-
+  const ui = useGraphUIStore();
+  const { onCreateEdge } = useGraphContextMenu()
   // 图实例 Hook
   const graphRef = useGraphInstance({
     containerRef,
     theme,
-    handleNodeSelect,
-    handleEdgeSelect,
-    fixPreviewOnFocus,
+    handleNodeSelect: (ids) => ui.setSelectedNodeIds(new Set(ids)),
+    handleEdgeSelect: (ids) => ui.setSelectedEdgeIds(new Set(ids)),
+    fixPreviewOnFocus: (nodeId: string) =>
+      ui.setPreviewBlock({ nodeId, visible: true, isFocus: true }),
+    handleCreateEdge: async (
+      sourceNodeId: string[],
+      targetNodeId: string | null,
+      x: number,
+      y: number
+    ) => {
+      onCreateEdge(sourceNodeId, targetNodeId, x, y, ui.setContextMenu)
+    },
   });
   // 事件处理 Hook
   useGraphEventHandlers({
     graphRef,
     containerRef,
-    closeContextMenu,
-    closePreviewBlock,
-    setContextMenu,
-    setPreviewBlock,
-    isNodeFocusRef,
-    handleNodeEdit,
   });
 
   // ----------------------------------------------------------------------
@@ -120,25 +108,6 @@ export function Graph({
     graph.setOptions({
       node: createNodeOptions({ layoutType: currentView?.layout }),
     });
-    if (currentView?.layout === "D3force") {
-      graph.updateBehavior({
-        key: "drag-element-force",
-        enable: true,
-      });
-      graph.updateBehavior({
-        key: "drag-element",
-        enable: false,
-      });
-    } else {
-      graph.updateBehavior({
-        key: "drag-element-force",
-        enable: false,
-      });
-      graph.updateBehavior({
-        key: "drag-element",
-        enable: true,
-      });
-    }
 
     if (isMountedRef.current) {
       graph.render().then(() => {
@@ -273,24 +242,24 @@ export function Graph({
       className={className}
       style={{ position: "relative", width: "100%", height: "100%", ...style }}
     >
-      {contextMenu.visible && (
+      {ui.contextMenu.visible && ui.contextMenu.type && ui.contextMenu.context && (
         <GraphContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          visible={contextMenu.visible}
-          target={contextMenu.target}
-          selectedNodeIds={selectedNodeIds}
-          selectedEdgeIds={selectedEdgeIds}
-          onClose={closeContextMenu}
+          x={ui.contextMenu.x}
+          y={ui.contextMenu.y}
+          visible={ui.contextMenu.visible}
+          type={ui.contextMenu.type}
+          context={ui.contextMenu.context as never}
+          onClose={ui.closeContextMenu}
+          setContextMenu={ui.setContextMenu}
         />
       )}
-      {previewBlock.visible && previewBlock.nodeId && (
+      {ui.previewBlock.visible && ui.previewBlock.nodeId && (
         <PreviewBlock
-          nodeId={previewBlock.nodeId}
+          nodeId={ui.previewBlock.nodeId}
           containerRef={containerRef}
-          onClose={closePreviewBlock}
-          visible={previewBlock.visible}
-          isFocus={previewBlock.isFocus}
+          onClose={ui.closePreviewBlock}
+          visible={ui.previewBlock.visible}
+          isFocus={ui.previewBlock.isFocus}
         />
       )}
     </div>

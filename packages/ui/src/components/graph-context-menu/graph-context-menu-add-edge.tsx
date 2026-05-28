@@ -1,87 +1,50 @@
 "use client";
 
-import * as React from "react";
 import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { ArrowLeft, X, Link2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { NodeList } from "../list/node/node-list";
-import { useGraphStore } from "@workspace/store";
-import type { EdgeData, EdgeId } from "@workspace/interfaces";
 
 export interface GraphContextMenuAddEdgeProps {
   sourceIds: string[];
-  onCreateEdge: (from: string[], to: string | null) => void;
+  targetId: string | null;
+  x: number;
+  y: number;
+  onCreateEdge: (from: string[], to: string | null, x: number, y: number, setContextMenu: (menu: any) => void) => Promise<string | null>;
   onClose: () => void;
-  onEditEdge: (edgeId: EdgeId) => void;
+  setContextMenu: (menu: any) => void;
 }
 
 export function GraphContextMenuAddEdge({
   sourceIds,
+  targetId,
+  x,
+  y,
   onCreateEdge,
   onClose,
-  onEditEdge,
+  setContextMenu,
 }: GraphContextMenuAddEdgeProps) {
-  const [pendingSourceIds, setPendingSourceIds] = React.useState<string[]>(sourceIds);
-  const edges = useGraphStore((state) => state.edges);
 
-  React.useEffect(() => {
-    setPendingSourceIds(sourceIds);
-  }, [sourceIds]);
+  if (targetId !== null) {
+    return null;
+  }
 
-  const handleNodeSelect = (targetId: string) => {
-    if (pendingSourceIds.length === 0 || pendingSourceIds.includes(targetId)) {
+  const handleNodeSelect = async (selectedTargetId: string) => {
+    if (sourceIds.length === 0 || sourceIds.includes(selectedTargetId)) {
       return;
     }
-
-    const firstSourceId = pendingSourceIds[0]!;
-    onCreateEdge(pendingSourceIds, targetId);
-
-    const newEdges = Array.from(edges.values()).filter(
-      (edge: EdgeData) => edge.from === firstSourceId && edge.to === targetId,
-    );
-
-    if (newEdges.length > 0) {
-      onEditEdge(newEdges[0]!.id);
-    }
-  };
-
-  const handleBack = () => {
-    setPendingSourceIds([]);
-    onCreateEdge(sourceIds, null);
-  };
-
-  const handleCancel = () => {
-    onCreateEdge(sourceIds, null);
-    onClose();
+    await onCreateEdge(sourceIds, selectedTargetId, x, y, setContextMenu);
   };
 
   return (
-    <>
-      {pendingSourceIds.length > 0 && (
-        <>
-          <DropdownMenuItem
-            onClick={handleBack}
-            className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Back</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-        </>
-      )}
-      <DropdownMenuItem
-        onClick={handleCancel}
-        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-      >
-        <X className="size-4" />
-        <span>Cancel</span>
-      </DropdownMenuItem>
-      <NodeList
-        onSelect={handleNodeSelect}
-        onClose={onClose}
-      />
-    </>
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md">
+        <Plus className="size-4" />
+        <span>Add Edge</span>
+      </DropdownMenuSubTrigger>
+      <NodeList onSelect={handleNodeSelect} onClose={onClose} />
+    </DropdownMenuSub>
   );
 }

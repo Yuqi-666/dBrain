@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@workspace/interfaces": "workspace:*",
+    "ulid": "^3.0.2",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

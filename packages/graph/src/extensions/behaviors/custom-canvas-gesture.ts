@@ -32,6 +32,7 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
 
   private isDragging = false;
   private ctrlPressed = false;
+  private altPressed = false;
   private defaultCursor = "default";
   private container: HTMLElement | null = null;
 
@@ -101,11 +102,17 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = true;
     }
+    if (event.key === "Alt") {
+      this.altPressed = true;
+    }
   };
 
   private onKeyUp = (event: KeyboardEvent): void => {
     if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = false;
+    }
+    if (event.key === "Alt") {
+      this.altPressed = false;
     }
   };
 
@@ -113,11 +120,17 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
     if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = true;
     }
+    if (event.key === "Alt") {
+      this.altPressed = true;
+    }
   };
 
   private onWindowKeyUp = (event: KeyboardEvent): void => {
     if (event.key === "Control" || event.key === "Ctrl") {
       this.ctrlPressed = false;
+    }
+    if (event.key === "Alt") {
+      this.altPressed = false;
     }
   };
 
@@ -136,8 +149,8 @@ export class CustomCanvasGesture extends BaseBehavior<CustomCanvasGestureOptions
   private onDrag = (event: IDragEvent): void => {
     if (!this.isDragging || !this.validate(event)) return;
 
-    // Stop dragging if ctrl is pressed
-    if (this.ctrlPressed) return;
+    // Stop dragging if ctrl or alt is pressed
+    if (this.ctrlPressed || this.altPressed) return;
 
     const x = event.dx;
     const y = event.dy;

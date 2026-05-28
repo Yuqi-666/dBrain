@@ -11,7 +11,9 @@
       "@workspace/utils/*": ["../utils/src/*"],
       "@workspace/utils": ["../utils/src"],
       "@workspace/graph/*": ["./src/*"],
-      "@workspace/graph": ["./src"]
+      "@workspace/graph": ["./src"],
+      "@workspace/api-client": ["../api-client/src"],
+      "@workspace/api-client/*": ["../api-client/src/*"]
     }
   },
   "include": ["src"],

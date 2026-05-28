@@ -9,7 +9,7 @@ const ASSIST_NODE_PREFIX = "create-edge-assist-node-";
 
 export interface CreateEdgeOptions extends BaseBehaviorOptions {
   enable?: boolean | ((event: IPointerEvent) => boolean);
-  onCreateEdge?: (sourceIds: string[], targetId: string) => void;
+  onCreateEdge?: (sourceIds: string[], targetId: string | null, x?: number, y?: number) => void;
   defaultEdgeDirection?: "forward" | "reverse" | "bidirectional" | "undirected";
   defaultEdgeType?: "hierarchy" | "flow" | "association" | "interaction";
 }
@@ -28,6 +28,10 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
   private targetId: string | null = null;
   private assistNodeId: string | null = null;
   private assistEdgeIds: string[] = [];
+  private startX: number = 0;
+  private startY: number = 0;
+  private endX: number = 0;
+  private endY: number = 0;
 
   constructor(context: RuntimeContext, options: CreateEdgeOptions) {
     super(
@@ -172,6 +176,9 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
     this.isCreating = true;
     this.targetId = null;
 
+    this.startX = event.client.x;
+    this.startY = event.client.y;
+
     // Create a hidden assist node at the cursor position
     this.assistNodeId = `${ASSIST_NODE_PREFIX}${Date.now()}`;
     const point = this.getCanvasPoint(event);
@@ -185,6 +192,7 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
           visibility: "hidden",
           x: point[0],
           y: point[1],
+          pointerEvents: "none",
         },
       },
     ]);
@@ -211,6 +219,7 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
           lineWidth: 2,
           stroke: "#1890ff",
           lineDash: [4, 4],
+          pointerEvents: "none",
         },
       };
     });
@@ -229,17 +238,28 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
   private onPointerMove = (event: IPointerEvent): void => {
     if (!this.isCreating || !this.assistNodeId) return;
 
-    const { model, element } = this.context;
-    const point = this.getCanvasPoint(event);
+    this.endX = event.client.x;
+    this.endY = event.client.y;
 
-    // Move assist node to cursor position
-    model.translateNodeTo(this.assistNodeId, point);
+    const { model, element, graph } = this.context;
+    const point = this.getCanvasPoint(event);
 
     const targetType = this.getEventTargetType(event);
     if (targetType === "node") {
-      this.targetId = (event as any).target?.id;
+      const targetId = (event as any).target?.id as string;
+      if (!targetId) {
+        model.translateNodeTo(this.assistNodeId, point);
+      } else {
+        this.targetId = targetId;
+        const nodeData = graph.getNodeData([targetId])[0];
+        if (nodeData?.style) {
+          model.translateNodeTo(this.assistNodeId, [nodeData.style.x ?? 0, nodeData.style.y ?? 0]);
+        }
+      }
     } else {
       this.targetId = null;
+      // Follow cursor when not over any node
+      model.translateNodeTo(this.assistNodeId, point);
     }
 
     element?.draw({ animation: false, silence: true });
@@ -250,7 +270,6 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
 
     const targetType = this.getEventTargetType(event);
 
-    // Only create edge if dropped on a node
     if (targetType === "node" && this.targetId) {
       this.finishEdgeCreation();
     } else {
@@ -274,7 +293,7 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
     }
 
     if (validSourceIds.length > 0 && onCreateEdge) {
-      onCreateEdge(validSourceIds, this.targetId);
+      onCreateEdge(validSourceIds, this.targetId, this.endX, this.endY);
     }
 
     this.cleanup();
@@ -298,6 +317,12 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
   }
 
   private cancelCreation(): void {
+    const { onCreateEdge } = this.options;
+
+    if (this.sourceIds.length > 0 && onCreateEdge) {
+      onCreateEdge(this.sourceIds, null, this.endX, this.endY);
+    }
+
     this.cleanup();
   }
 
@@ -317,6 +342,11 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
     this.assistNodeId = null;
     this.assistEdgeIds = [];
     this.isCreating = false;
+
+    this.startX = 0;
+    this.startY = 0;
+    this.endX = 0;
+    this.endY = 0;
 
     element?.draw({ animation: false });
 
@@ -338,6 +368,10 @@ export class CreateEdge extends BaseBehavior<CreateEdgeOptions> {
     this.targetId = null;
     this.assistNodeId = null;
     this.assistEdgeIds = [];
+    this.startX = 0;
+    this.startY = 0;
+    this.endX = 0;
+    this.endY = 0;
     super.destroy();
   }
 }

@@ -1,44 +1,87 @@
-# PROJECT KNOWLEDGE BASE - @workspace/graph
+# AGENTS.md — @workspace/graph
 
-**Generated:** 2026-04-22
-**Path:** packages/graph/src
+**Package:** `@workspace/graph` · **Built on:** @antv/g6 v5 + @antv/g6-extension-react
+**Consumers:** `apps/web/app/(main)/graph/page.tsx`
 
-## OVERVIEW
-
-Graph visualization package built on @antv/g6 that renders interactive knowledge graphs and node networks for dBrain.
-
-## STRUCTURE
+## Architecture
 
 ```
 src/
-├── custom-nodes/    # Custom G6 node implementations
-├── options/         # G6 configuration (layout, behaviors, theme, etc.)
-├── graph.tsx        # Main graph component React wrapper
-├── index.ts         # Public API entry point
-├── transform.ts     # Data transformation from domain models to G6 format
-├── types.ts         # Local TypeScript type definitions
+├── graph.tsx           # Main React component (G6 Graph lifecycle, data sync)
+├── transform.ts        # Domain → G6 data transformation
+├── types.ts            # G6 module augmentation (NodeData, EdgeData extensions)
+├── index.ts            # Public API exports
+├── hooks/
+│   ├── useGraphInstance.ts    # G6 Graph instantiation + options
+│   └── useGraphEventHandlers.ts  # DOM events → UI store actions
+├── options/            # G6 configuration builders
+│   ├── layout.ts       # Layout configs (D3force, dagre, radial, compactBox, fishbone, mindmap)
+│   ├── node.tsx        # Node options (circle vs react-node by layout type)
+│   ├── edge.ts         # Edge options (line/quadratic/cubic by edgeType)
+│   ├── behaviors.ts    # Behavior list (canvas-gesture, click-select, lasso, drag, create-edge)
+│   ├── plugins.ts      # Plugin list (minimap)
+│   └── theme.ts        # Light/dark theme tokens
+└── extensions/
+    ├── index.ts        # Registers all custom extensions with G6
+    ├── behaviors/      # Custom G6 behaviors
+    │   ├── custom-canvas-gesture.ts  # Pan/zoom (ctrl+wheel for pinch-zoom)
+    │   ├── create-edge.ts            # Alt+drag edge creation
+    │   ├── drag-element.ts           # Node drag (non-force layouts)
+    │   └── drag-element-force.ts     # Node drag with d3-force position pinning
+    └── custom-nodes/    # React-based custom node renderers
+        ├── text-node.tsx
+        ├── image-node.tsx
+        ├── video-node.tsx
+        └── rich-text-node.tsx
 ```
 
-## WHERE TO LOOK
+## Key Patterns
 
-| Task                 | Location      | Notes                                                        |
-| -------------------- | ------------- | ------------------------------------------------------------ |
-| Custom node types    | custom-nodes/ | Add new node shapes and content renderers here               |
-| Graph configuration  | options/      | Adjust layout algorithms, interactions, theming, and plugins |
-| Main graph component | graph.tsx     | Top-level React component that manages graph lifecycle       |
-| Data conversion      | transform.ts  | Maps domain knowledge models to G6-compatible graph data     |
+### G6 Version
+Uses **@antv/g6 v5** (not v4). The API differs significantly — uses `graph.setData()`, `graph.setOptions()`, `graph.render()` pattern instead of old `graph.read()`.
 
-## CONVENTIONS
+### Data Sync
+Graph syncs via **mutation queue** in `useGraphStore`:
+- `latestMutations: Mutation[]` — incremental updates (add/update/delete node/edge/view)
+- `processMutations()` applies each mutation type to G6 in-place
+- Full sync via `performFullSync()` when view changes
 
-- All custom nodes implement G6's Node API with React-based rendering for rich content
-- Configuration is split by concern to keep files small and focused under options/
-- Only export public types and components from index.ts, keep internal APIs module-scoped
-- Import and reuse shared domain types from @workspace/interfaces
-- Depends on @workspace/store for graph state and @workspace/ui for design tokens
+### Layout → Node Type Coupling
+Layout type determines node renderer:
+- `D3force`, `dagre`, `radial` → **circle** node (G6 default)
+- `compactBox`, `fishbone`, `mindmap` → **react-node** (React component via @antv/g6-extension-react)
 
-## ANTI-PATTERNS
+### Custom Extensions
+All custom G6 extensions registered once via `registerExtensions()` (singleton, guards against double-registration):
+```typescript
+register(ExtensionCategory.BEHAVIOR, "custom-canvas-gesture", CustomCanvasGesture);
+register(ExtensionCategory.NODE, "react-node", ReactNode);
+// ...
+```
 
-- Don't hardcode colors or dimensions - use CSS variables from the shared @workspace/ui theme
-- Avoid modifying raw domain data during transformation - return new G6-compatible objects
-- Don't include large static assets directly in this package - reference from app-level public folders
-- Don't duplicate type definitions that already exist in @workspace/interfaces
+### Edge Creation
+Alt+drag interaction:
+- No pre-selected nodes → drag from source node
+- Has pre-selected nodes → drag from canvas to create edges from all selected
+- Creates assist edge/node temporarily, calls `onCreateEdge` callback on drop
+
+## Dependencies
+- `@workspace/interfaces` — Domain types (NodeId, EdgeId, NodeData, EdgeData, View, LayoutType, etc.)
+- `@workspace/store` — `useGraphStore` (nodes, edges, views, mutations), `useGraphUIStore` (selection, context menu, preview)
+- `@workspace/ui` — `GraphContextMenu`, `PreviewBlock`, design tokens
+- `@workspace/utils` — `filterByViewFilterConfig` for view-based data filtering
+
+## Commands
+```bash
+pnpm --filter=@workspace/graph typecheck
+pnpm --filter=@workspace/graph lint
+pnpm --filter=@workspace/graph format
+```
+
+## Anti-Patterns
+
+- **Don't hardcode colors** — use `createThemeOptions()` tokens or CSS variables from `@workspace/ui`
+- **Don't modify raw domain data** in `transform.ts` — return new G6-compatible objects
+- **Don't import internal paths** — use `@workspace/graph` public exports only
+- **Don't call `graph.render()` after every mutation** — use `graph.draw()` for incremental updates
+- **Don't forget `graph.stopLayout()`** before adding/removing nodes during force layout
