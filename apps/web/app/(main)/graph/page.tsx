@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { Graph } from "@workspace/graph";
+import { Graph } from "@workspace/graph-v2";
 import { useUIStore, useGraphStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
