@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { graphStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
+import { Handle } from '@xyflow/react';
 
 interface CircleNodeProps {
   data: GraphNodeData;
@@ -20,7 +20,6 @@ export const CircleNode = memo(function CircleNode({ data, selected }: CircleNod
 
   return (
     <>
-      <Handle type="target" position={Position.Top} />
       <div
         style={{
           width: 32,
@@ -35,7 +34,36 @@ export const CircleNode = memo(function CircleNode({ data, selected }: CircleNod
         }}
         title={data.title}
       />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle
+        id="target"
+        type="target" // 或 "source"，或两个都加
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          background: 'none',
+          border: 'none',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+      <Handle
+        id="source"
+        type="source" // 或 "source"，或两个都加
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          background: 'none',
+          border: 'none',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
     </>
   );
 });

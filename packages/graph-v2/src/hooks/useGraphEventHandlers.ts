@@ -1,6 +1,6 @@
 // packages/graph/src/hooks/useGraphEventHandlers.ts
 
-import { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { useGraphUIStore, type ContextMenuType } from '@workspace/store';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -79,11 +79,14 @@ export function useGraphEventHandlers({
     ui.closePreviewBlock();
   }, [ui]);
 
-  const handleNodeDragStart = useCallback(() => {
-    isDraggingRef.current = true;
-    if (ui.isNodeFocus) return;
-    ui.closePreviewBlock();
-  }, [ui]);
+  const handleNodeDragStart = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      isDraggingRef.current = true;
+      if (ui.isNodeFocus) return;
+      ui.closePreviewBlock();
+    },
+    [ui]
+  );
 
   const handleNodeDragStop = useCallback(() => {
     isDraggingRef.current = false;

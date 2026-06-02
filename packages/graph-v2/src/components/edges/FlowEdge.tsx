@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
 import type { GraphEdgeData, RFEdge } from '../../types';
 
+const CIRCLE_RADIUS = 16;
+
 export const FlowEdge = memo(function FlowEdge({
   id,
   sourceX,
@@ -11,10 +13,33 @@ export const FlowEdge = memo(function FlowEdge({
   selected,
   data,
 }: EdgeProps<RFEdge>) {
-  const [edgePath] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY });
+  const edgeData = data as GraphEdgeData;
+  const isRadial = edgeData.radial;
+  console.log(data, sourceX, sourceY, targetX, targetY)
+
+  let edgePath: string;
+  if (isRadial) {
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) {
+      edgePath = '';
+    } else {
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const sx = sourceX + ux * CIRCLE_RADIUS;
+      const sy = sourceY + uy * CIRCLE_RADIUS;
+      const tx = targetX - ux * CIRCLE_RADIUS;
+      const ty = targetY - uy * CIRCLE_RADIUS;
+      edgePath = `M ${sx} ${sy} L ${tx} ${ty}`;
+    }
+  } else {
+    [edgePath] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY });
+  }
+
   const strokeColor = selected ? '#FF7D00' : '#91caff';
   const strokeWidth = selected ? 3 : 2;
-  const direction = (data as GraphEdgeData)?.direction ?? 'forward';
+  const direction = edgeData.direction ?? 'forward';
 
   const showEndArrow = direction !== 'reverse' && direction !== 'undirected';
   const showStartArrow = direction !== 'forward' && direction !== 'undirected';

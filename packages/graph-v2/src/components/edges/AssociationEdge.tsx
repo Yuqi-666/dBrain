@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { BaseEdge, getStraightPath, type EdgeProps } from '@xyflow/react';
 import type { GraphEdgeData, RFEdge } from '../../types';
 
+const CIRCLE_RADIUS = 16;
+
 export const AssociationEdge = memo(function AssociationEdge({
   id,
   sourceX,
@@ -11,13 +13,35 @@ export const AssociationEdge = memo(function AssociationEdge({
   selected,
   data,
 }: EdgeProps<RFEdge>) {
-  const [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const edgeData = data as GraphEdgeData;
+  const isRadial = edgeData.radial;
+
+  let edgePath: string;
+  if (isRadial) {
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) {
+      edgePath = '';
+    } else {
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const sx = sourceX + ux * CIRCLE_RADIUS;
+      const sy = sourceY + uy * CIRCLE_RADIUS;
+      const tx = targetX - ux * CIRCLE_RADIUS;
+      const ty = targetY - uy * CIRCLE_RADIUS;
+      edgePath = `M ${sx} ${sy} L ${tx} ${ty}`;
+    }
+  } else {
+    [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  }
+
   const strokeColor = selected ? '#FF7D00' : '#91caff';
   const strokeWidth = selected ? 3 : 2;
-  const direction = (data as GraphEdgeData)?.direction ?? 'undirected';
+  const direction = edgeData.direction ?? 'forward';
 
-  const showEndArrow = direction === 'bidirectional';
-  const showStartArrow = direction === 'bidirectional';
+  const showEndArrow = direction !== 'reverse' && direction !== 'undirected';
+  const showStartArrow = direction !== 'forward' && direction !== 'undirected';
 
   return (
     <BaseEdge

@@ -17,11 +17,13 @@ import type { RFNode, RFEdge, GraphNodeData, GraphEdgeData } from './types';
 // ----------------------------------------------------------------------
 export function transformNodeToRF(
   node: NodeData,
-  _view?: View
+  view?: View
 ): RFNode {
+  const isCircularLayout = view?.layout === 'D3force' || view?.layout === 'radial';
+
   return {
     id: node.id,
-    type: getNodeType(node.nodeType),
+    type: isCircularLayout ? 'circle' : getNodeType(node.nodeType),
     position: (node.stateData as any)?.position || { x: 0, y: 0 },
     data: {
       nodeType: node.nodeType,
@@ -31,7 +33,6 @@ export function transformNodeToRF(
       tags: node.tags,
       isPinned: node.isPinned,
       stateData: node.stateData,
-      // Content fields by type
       ...extractContentFields(node),
     },
     selected: false,
@@ -42,7 +43,9 @@ export function transformNodeToRF(
 // ----------------------------------------------------------------------
 // Domain → React Flow Edge
 // ----------------------------------------------------------------------
-export function transformEdgeToRF(edge: EdgeData): RFEdge {
+export function transformEdgeToRF(edge: EdgeData, view?: View): RFEdge {
+  const isCircularLayout = view?.layout === 'D3force' || view?.layout === 'radial';
+
   return {
     id: edge.id,
     source: edge.from,
@@ -54,6 +57,7 @@ export function transformEdgeToRF(edge: EdgeData): RFEdge {
       edgeType: edge.edgeType,
       weight: edge.weight,
       stateData: edge.stateData,
+      radial: isCircularLayout,
     },
     selected: false,
     animated: false,
@@ -81,7 +85,7 @@ export function transformToRFData(
 
   const rfEdges: RFEdge[] = [];
   filteredEdges.forEach((edge) => {
-    rfEdges.push(transformEdgeToRF(edge));
+    rfEdges.push(transformEdgeToRF(edge, view));
   });
 
   return { nodes: rfNodes, edges: rfEdges };

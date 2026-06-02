@@ -1,7 +1,7 @@
 // packages/graph/src/hooks/useEdgeCreation.ts
 
 import { useCallback, useRef } from 'react';
-import { addEdge, type OnConnectStart, type OnConnectEnd, type Edge } from '@xyflow/react';
+import { type OnConnectStart, type OnConnectEnd } from '@xyflow/react';
 import type { GraphEdgeData } from '../types';
 
 interface UseEdgeCreationProps {
@@ -9,8 +9,6 @@ interface UseEdgeCreationProps {
   nodes: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   edges: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setEdges: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   upsertEdge: any;
   selectedNodeIds: Set<string>;
@@ -21,7 +19,6 @@ interface UseEdgeCreationProps {
 export function useEdgeCreation({
   nodes,
   edges,
-  setEdges,
   upsertEdge,
   selectedNodeIds,
   setContextMenu,
@@ -102,7 +99,7 @@ export function useEdgeCreation({
           if (exists) continue;
 
           const newEdge = {
-            id: `e-${sourceId}-${targetNodeId}-${Date.now()}`,
+            id: `tmp_`,
             source: sourceId,
             target: targetNodeId,
             type: 'association',
@@ -113,8 +110,6 @@ export function useEdgeCreation({
             } as GraphEdgeData,
           };
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setEdges((eds: any) => addEdge(newEdge, eds));
           upsertEdge({
             id: newEdge.id,
             from: sourceId,
@@ -137,7 +132,7 @@ export function useEdgeCreation({
         });
       }
     },
-    [edges, setEdges, upsertEdge, setContextMenu]
+    [edges, upsertEdge, setContextMenu]
   );
 
   return { onConnectStart, onConnectEnd, altPressedRef };

@@ -38,6 +38,7 @@ export interface GraphEdgeData extends Record<string, unknown> {
   edgeType: EdgeType;
   weight?: EdgeWeight;
   stateData?: Record<string, unknown>;
+  radial?: boolean;
 }
 
 // React Flow types with domain data

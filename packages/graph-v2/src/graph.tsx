@@ -1,46 +1,24 @@
-// packages/graph/src/graph.tsx
-
-"use client";
-
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   ReactFlow,
-  Background,
-  BackgroundVariant,
-  MiniMap,
-  Controls,
   useNodesState,
   useEdgesState,
-  applyNodeChanges,
-  applyEdgeChanges,
   addEdge,
-  type NodeChange,
-  type EdgeChange,
-  type Connection,
-  type Node,
-  type Edge,
-  useReactFlow,
   ReactFlowProvider,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 
-import { useGraphStore, useGraphUIStore } from '@workspace/store';
-import { transformToRFData, transformNodeToRF, transformEdgeToRF } from './transform';
-import { applyForceLayout, reheatForceSimulation, setForceNodePosition } from './layouts/force';
-import { applyDagreLayout } from './layouts/dagre';
-import { applyRadialLayout } from './layouts/elk';
+import '@xyflow/react/dist/style.css';
+import type { ViewId, View } from '@workspace/interfaces';
 import { nodeTypes } from './components/nodes';
 import { edgeTypes } from './components/edges';
-import { useGraphEventHandlers } from './hooks/useGraphEventHandlers';
-import { useEdgeCreation } from './hooks/useEdgeCreation';
-import { GraphContextMenu } from '@workspace/ui/components/graph-context-menu/graph-context-menu';
-import { PreviewBlock } from '@workspace/ui/components/preview-block';
-import type { View, ViewId, LayoutType } from '@workspace/interfaces';
-import type { GraphNodeData, GraphEdgeData, GraphMutation, RFNode, RFEdge } from './types';
+import type { Node, Edge } from '@xyflow/react';
 
-// --------------------------------------------------------------------------
-// 1. Props
-// --------------------------------------------------------------------------
+const initialNodes: Node[] = [
+  { id: '1', type: 'circle', position: { x: 0, y: 0 }, data: { title: '1', semanticId: "t7kdkl63twbj3a1" } },
+  { id: '2', type: 'circle', position: { x: 0, y: 100 }, data: { title: '2', semanticId: "t7kdkl63twbj3a1" } },
+];
+const initialEdges: Edge[] = [{ id: 'e1-2', type: 'flow', source: '1', sourceHandle: 'source', target: '2', targetHandle: 'target', data: { radial: true, direction: 'forward' } }];
+
 export interface GraphProps {
   viewId?: ViewId;
   view?: View;
@@ -55,9 +33,6 @@ export interface GraphProps {
   onLoad?: (graph: any) => void;
 }
 
-// --------------------------------------------------------------------------
-// 2. Inner component (needs ReactFlowProvider context)
-// --------------------------------------------------------------------------
 function GraphInner({
   viewId,
   view,
@@ -69,322 +44,56 @@ function GraphInner({
   onLoad,
 }: GraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const resolvedViewRef = useRef<View | undefined>(undefined);
-  const isFirstRenderRef = useRef(true);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const ui = useGraphUIStore();
-  const { fitView } = useReactFlow();
-
-  // Get domain state
-  const domainNodes = useGraphStore((s) => s.nodes);
-  const domainEdges = useGraphStore((s) => s.edges);
-  const views = useGraphStore((s) => s.views);
-  const upsertNode = useGraphStore((s) => s.upsertNode);
-  const deleteNode = useGraphStore((s) => s.deleteNode);
-  const upsertEdge = useGraphStore((s) => s.upsertEdge);
-  const deleteEdge = useGraphStore((s) => s.deleteEdge);
-  const clearMutations = useGraphStore((s) => s.clearMutations);
-
-  // Resolve current view
-  useEffect(() => {
-    if (view) {
-      resolvedViewRef.current = view;
-    } else if (viewId) {
-      resolvedViewRef.current = views.get(viewId);
-    }
-  }, [view, viewId, views]);
-
-  // Transform domain data to RF format
-  const rfData = useMemo(
-    () => transformToRFData(domainNodes, domainEdges, resolvedViewRef.current),
-    [domainNodes, domainEdges, resolvedViewRef.current]
+  const onConnect = useCallback(
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges],
   );
 
-  // Controlled state
-  const [nodes, setNodes, onNodesChange] = useNodesState(rfData.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(rfData.edges);
-
-  // Event handlers
-  const eventHandlers = useGraphEventHandlers({ nodes, edges });
-
-  // Edge creation (Alt+drag)
-  const edgeCreation = useEdgeCreation({
-    nodes,
-    edges,
-    setEdges,
-    upsertEdge,
-    selectedNodeIds: ui.selectedNodeIds,
-    setContextMenu: ui.setContextMenu,
-  });
-
-  // --------------------------------------------------------------------------
-  // Apply layout when view changes
-  // --------------------------------------------------------------------------
-  const applyLayout = useCallback(
-    async (layoutType: LayoutType) => {
-      if (layoutType === 'D3force') {
-        // d3-force runs in Web Worker — never blocks main thread
-        const layouted = await applyForceLayout(nodes, edges);
-        setNodes(layouted as RFNode[]);
-      } else if (layoutType === 'radial') {
-        // ELK radial — concentric circle layout
-        const layouted = await applyRadialLayout(nodes, edges);
-        setNodes(layouted as RFNode[]);
-      } else {
-        // dagre for standard directed layout
-        const layouted = applyDagreLayout(nodes, edges, { direction: 'TB' });
-        setNodes(layouted as RFNode[]);
-      }
-    },
-    [nodes, edges, setNodes]
-  );
-
-  // Apply layout when view layout changes
-  useEffect(() => {
-    if (!resolvedViewRef.current?.layout) return;
-    applyLayout(resolvedViewRef.current.layout);
-  }, [resolvedViewRef.current?.layout, applyLayout]);
-
-  // --------------------------------------------------------------------------
-  // Handle node changes (position, selection, dimension, remove)
-  // --------------------------------------------------------------------------
-  const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      // Apply to RF state
-      setNodes((nds) => applyNodeChanges(changes, nds) as RFNode[]);
-
-      // Sync back to domain store; also drive force simulation during drag
-      changes.forEach((change) => {
-        if (change.type === 'position' && change.position) {
-          const domainNode = domainNodes.get(change.id);
-          if (domainNode) {
-            upsertNode({
-              ...domainNode,
-              stateData: {
-                ...domainNode.stateData,
-                position: change.position,
-              },
-            });
-          }
-          // Drag interaction → reheat + pin dragged node in force sim
-          if (change.dragging && resolvedViewRef.current?.layout === 'D3force') {
-            reheatForceSimulation();
-            setForceNodePosition(change.id, change.position.x, change.position.y);
-          } else if (!change.dragging && change.position) {
-            // Drag ended → unpin
-            setForceNodePosition(change.id, null, null);
-          }
-        }
-        if (change.type === 'remove') {
-          deleteNode(change.id);
-        }
-      });
-    },
-    [setNodes, upsertNode, deleteNode, domainNodes, resolvedViewRef]
-  );
-
-  // --------------------------------------------------------------------------
-  // Handle edge changes
-  // --------------------------------------------------------------------------
-  const handleEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      setEdges((eds) => applyEdgeChanges(changes, eds) as RFEdge[]);
-
-      changes.forEach((change) => {
-        if (change.type === 'remove') {
-          deleteEdge(change.id);
-        }
-      });
-    },
-    [setEdges, deleteEdge]
-  );
-
-  // --------------------------------------------------------------------------
-  // Handle new connections
-  // --------------------------------------------------------------------------
-  // Note: Alt+drag edge creation is handled in useEdgeCreation (onConnectEnd).
-  // This handler only fires for default (non-Alt) connections.
-  // If Alt was pressed, the edge was already created in onConnectEnd — skip here.
-  const handleConnect = useCallback(
-    (connection: Connection) => {
-      // Skip if Alt was pressed — edge creation handled by useEdgeCreation
-      if (edgeCreation.altPressedRef.current) return;
-
-      const newEdge: Edge<GraphEdgeData> = {
-        id: `e-${connection.source}-${connection.target}-${Date.now()}`,
-        source: connection.source!,
-        target: connection.target!,
-        type: 'association',
-        data: {
-          semanticId: '',
-          direction: 'forward',
-          edgeType: 'association',
-        },
-      };
-      setEdges((eds) => addEdge(connection, eds) as RFEdge[]);
-      upsertEdge({
-        id: newEdge.id,
-        from: connection.source!,
-        to: connection.target!,
-        direction: 'forward',
-        semanticId: '',
-        edgeType: 'association',
-      } as any);
-    },
-    [setEdges, upsertEdge, edgeCreation.altPressedRef]
-  );
-
-  // --------------------------------------------------------------------------
-  // Subscribe to domain store mutations
-  // --------------------------------------------------------------------------
-  useEffect(() => {
-    const unsubscribe = useGraphStore.subscribe((state) => {
-      if (state.latestMutations.length === 0) return;
-
-      state.latestMutations.forEach((mutation) => {
-        switch (mutation.type) {
-          case 'upsertNode': {
-            const rfNode = transformNodeToRF(mutation.payload, resolvedViewRef.current);
-            setNodes((nds: RFNode[]) => {
-              const idx = nds.findIndex((n) => n.id === rfNode.id);
-              if (idx >= 0) {
-                const updated: RFNode[] = [...nds];
-                updated[idx] = rfNode;
-                return updated;
-              }
-              return [...nds, rfNode];
-            });
-            break;
-          }
-          case 'deleteNode':
-            setNodes((nds: RFNode[]) => nds.filter((n) => n.id !== mutation.payload.id));
-            break;
-          case 'upsertEdge': {
-            const rfEdge = transformEdgeToRF(mutation.payload);
-            setEdges((eds: RFEdge[]) => {
-              const idx = eds.findIndex((e) => e.id === rfEdge.id);
-              if (idx >= 0) {
-                const updated: RFEdge[] = [...eds];
-                updated[idx] = rfEdge;
-                return updated;
-              }
-              return [...eds, rfEdge];
-            });
-            break;
-          }
-          case 'deleteEdge':
-            setEdges((eds: RFEdge[]) => eds.filter((e) => e.id !== mutation.payload.id));
-            break;
-          case 'upsertView':
-            if (mutation.payload.id === resolvedViewRef.current?.id) {
-              resolvedViewRef.current = mutation.payload;
-              applyLayout(mutation.payload.layout);
-            }
-            break;
-        }
-      });
-
-      clearMutations();
-    });
-
-    return unsubscribe;
-  }, [setNodes, setEdges, applyLayout, clearMutations]);
-
-  // --------------------------------------------------------------------------
-  // Initial fitView after first render
-  // --------------------------------------------------------------------------
-  useEffect(() => {
-    if (isFirstRenderRef.current && nodes.length > 0) {
-      isFirstRenderRef.current = false;
-      setTimeout(() => fitView({ padding: 0.2 }), 0);
-    }
-  }, [nodes, fitView]);
-
-  // --------------------------------------------------------------------------
-  // Render
-  // --------------------------------------------------------------------------
   return (
     <div ref={containerRef} className={className} style={{ width: '100%', height: '100%', ...style }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={handleConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onSelectionChange={eventHandlers.handleSelectionChange}
-        onNodeClick={eventHandlers.handleNodeClick}
-        onEdgeClick={eventHandlers.handleEdgeClick}
-        onPaneClick={eventHandlers.handlePaneClick}
-        onNodeDoubleClick={eventHandlers.handleNodeDoubleClick}
-        onNodeMouseEnter={eventHandlers.handleNodeMouseEnter}
-        onNodeMouseLeave={eventHandlers.handleNodeMouseLeave}
-        onNodeDragStart={eventHandlers.handleNodeDragStart}
-        onNodeDragStop={eventHandlers.handleNodeDragStop}
-        onNodeContextMenu={eventHandlers.handleNodeContextMenu}
-        onEdgeContextMenu={eventHandlers.handleEdgeContextMenu}
-        onPaneContextMenu={eventHandlers.handlePaneContextMenu}
-        onConnectStart={edgeCreation.onConnectStart}
-        onConnectEnd={edgeCreation.onConnectEnd}
-        onlyRenderVisibleElements={true}
-        fitView={false}
-        defaultEdgeOptions={{
-          type: 'hierarchy',
-        }}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        fitView
+      />
+      <svg
+        style={{ position: 'absolute', width: 0, height: 0 }}
+        xmlns="http://www.w3.org/2000/svg"
       >
-        {enableGrid && (
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-          />
-        )}
-        {enableMinimap && (
-          <MiniMap
-            zoomable
-            pannable
-            nodeColor={(node) => {
-              const data = node.data as GraphNodeData;
-              return data?.semanticId
-                ? useGraphStore.getState().getNodeSemantic(data.semanticId)?.color || '#165DFF'
-                : '#165DFF';
-            }}
-          />
-        )}
-        <Controls />
-      </ReactFlow>
-
-      {/* Context Menu Overlay */}
-      {ui.contextMenu.visible && ui.contextMenu.type && ui.contextMenu.context && (
-        <GraphContextMenu
-          x={ui.contextMenu.x}
-          y={ui.contextMenu.y}
-          visible={ui.contextMenu.visible}
-          type={ui.contextMenu.type}
-          context={ui.contextMenu.context as never}
-          onClose={ui.closeContextMenu}
-          setContextMenu={ui.setContextMenu}
-        />
-      )}
-
-      {/* Preview Block Overlay */}
-      {ui.previewBlock.visible && ui.previewBlock.nodeId && (
-        <PreviewBlock
-          nodeId={ui.previewBlock.nodeId}
-          containerRef={containerRef}
-          onClose={ui.closePreviewBlock}
-          visible={ui.previewBlock.visible}
-          isFocus={ui.previewBlock.isFocus}
-        />
-      )}
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 6 3, 0 6" fill="#91caff" />
+          </marker>
+          <marker
+            id="arrowhead-start"
+            markerWidth="6"
+            markerHeight="6"
+            refX="1"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="6 0, 0 3, 6 6" fill="#91caff" />
+          </marker>
+        </defs>
+      </svg>
     </div>
   );
 }
-
-// --------------------------------------------------------------------------
-// 3. Wrapper with Provider
-// --------------------------------------------------------------------------
 export function Graph(props: GraphProps) {
   return (
     <ReactFlowProvider>
