@@ -10,7 +10,7 @@ import { GraphContextMenuAddEdge } from "./graph-context-menu-add-edge";
 import { GraphContextMenuNode } from "./graph-context-menu-node";
 import { GraphContextMenuEdge } from "./graph-context-menu-edge";
 import { GraphContextMenuCanvas } from "./graph-context-menu-canvas";
-import { useGraphContextMenu } from "./useGraphContextMenu";
+import { useGraph } from "@workspace/hooks";
 
 export type GraphContextMenuType = "node" | "edge" | "canvas" | "groupSelect" | "add-edge";
 
@@ -56,7 +56,7 @@ const GraphContextMenu = React.forwardRef<
     onChangeEdgeDirection,
     onChangeEdgeSemantic,
     onCreateEdge,
-  } = useGraphContextMenu();
+  } = useGraph();
 
   return (
     <DropdownMenu open={visible} onOpenChange={(open) => !open && onClose()}>

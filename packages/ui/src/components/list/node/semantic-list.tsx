@@ -2,22 +2,23 @@
 
 import * as React from "react";
 import {
-  DropdownMenuSubContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Input } from "@workspace/ui/components/ui/input";
-import { Search } from "lucide-react";
-import { useGraphStore } from "@workspace/store";
-import type { NodeSemantic } from "@workspace/interfaces";
+import { Search, Plus, Trash2 } from "lucide-react";
+import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import { GraphCQRS } from "@workspace/api-client";
+import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
 
 export interface SemanticListProps {
   onSelect: (semanticId: string) => void;
-  onClose: () => void;
 }
 
-export function SemanticList({ onSelect, onClose }: SemanticListProps) {
+export function SemanticList({ onSelect }: SemanticListProps) {
   const [search, setSearch] = React.useState("");
   const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
+  const openDialog = useGraphUIStore((state) => state.openNodeSemanticDialog);
 
   const nodeSemantics = React.useMemo(
     () => Array.from(nodeSemanticsMap.values()),
@@ -36,16 +37,20 @@ export function SemanticList({ onSelect, onClose }: SemanticListProps) {
 
   const handleSelect = (semanticId: string) => {
     onSelect(semanticId);
-    onClose();
     setSearch("");
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: NodeSemanticId) => {
+    e.stopPropagation();
+    try {
+      await GraphCQRS.deleteNodeSemantic(id);
+    } catch (error) {
+      console.error("Failed to delete node semantic:", error);
+    }
+  };
+
   return (
-    <DropdownMenuSubContent
-      className="w-64 p-2"
-      sideOffset={0}
-      alignOffset={0}
-    >
+    <div className="w-64 p-2">
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
@@ -65,24 +70,41 @@ export function SemanticList({ onSelect, onClose }: SemanticListProps) {
           filteredSemantics.map((semantic: NodeSemantic) => (
             <DropdownMenuItem
               key={semantic.id}
-              onClick={() => handleSelect(semantic.id)}
-              className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
+              onSelect={() => handleSelect(semantic.id)}
+              className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md group"
             >
               {semantic.icon && (
                 <span className="size-4 flex items-center justify-center">
                   {semantic.icon}
                 </span>
               )}
-              <span>{semantic.name}</span>
+              <span className="flex-1 truncate">{semantic.name}</span>
               {semantic.description && (
-                <span className="ml-auto text-xs text-muted-foreground truncate max-w-[120px]">
+                <span className="text-xs text-muted-foreground truncate max-w-[80px]">
                   {semantic.description}
                 </span>
               )}
+              <button
+                onClick={(e) => handleDelete(e, semantic.id)}
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 hover:text-destructive rounded-sm transition-opacity"
+              >
+                <Trash2 className="size-3" />
+              </button>
             </DropdownMenuItem>
           ))
         )}
       </div>
-    </DropdownMenuSubContent>
+      <DropdownMenuSeparator className="my-1.5" />
+      <DropdownMenuItem
+        onSelect={() => {
+          setSearch("");
+          openDialog();
+        }}
+        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md text-primary"
+      >
+        <Plus className="size-4" />
+        <span>Add new type</span>
+      </DropdownMenuItem>
+    </div>
   );
 }

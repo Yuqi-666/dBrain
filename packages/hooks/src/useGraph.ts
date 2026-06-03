@@ -17,12 +17,14 @@ import type {
   RichTextNodeData,
   EdgeDirection,
   EdgeData,
+  NodeTag,
+  NodeTagId,
 } from "@workspace/interfaces";
 import { useNodeEditorStore, useGraphStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
 
-export function useGraphContextMenu() {
+export function useGraph() {
   const setCurrentEditingNodeId = useNodeEditorStore(
     (state) => state.setCurrentEditingNodeId,
   );
@@ -216,6 +218,15 @@ export function useGraphContextMenu() {
     }
   }, []);
 
+  const onDeleteTag = useCallback(async (tagId: NodeTagId) => {
+    try {
+      console.log(tagId)
+      await GraphCQRS.deleteNodeTag(tagId);
+    } catch (error) {
+      console.error("Failed to delete tag:", error);
+    }
+  }, []);
+
   const getEdge = useCallback((edgeId: EdgeId) => {
     return useGraphStore.getState().edges.get(edgeId);
   }, []);
@@ -241,6 +252,31 @@ export function useGraphContextMenu() {
     },
     [],
   );
+
+  const onCreateTag = useCallback(async (tagName: string) => {
+    const tagId = `tmp_${tagName.toLowerCase().replace(/\s+/g, "-")}`;
+    const colors = [
+      "#3B82F6",
+      "#10B981",
+      "#8B5CF6",
+      "#F59E0B",
+      "#EF4444",
+      "#EC4899",
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const newTag = {
+      id: tagId,
+      name: tagName,
+      color: randomColor,
+    };
+    try {
+      const result = await GraphCQRS.upsertNodeTag(newTag);
+      return result as NodeTag | null;
+    } catch (error) {
+      console.error("Failed to create tag:", error);
+      return null;
+    }
+  }, []);
 
   const onDeleteSelected = useCallback(
     async (nodeIds: string[], edgeIds: string[]) => {
@@ -268,9 +304,11 @@ export function useGraphContextMenu() {
     onAddNode,
     onCreateEdge,
     onDeleteEdge,
+    onDeleteTag,
     onDeleteSelected,
     getEdge,
     onChangeEdgeDirection,
     onChangeEdgeSemantic,
+    onCreateTag,
   };
 }

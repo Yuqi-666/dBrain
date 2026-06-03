@@ -2,6 +2,7 @@
 
 import {
   DropdownMenuSub,
+  DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Plus } from "lucide-react";
@@ -26,12 +27,14 @@ export function GraphContextMenuCanvas({
       </DropdownMenuSubTrigger>
       <DataTypeList>
         {(nodeType) => (
-          <SemanticList
-            onSelect={(semanticId) => {
-              onAddNode?.(nodeType, semanticId);
-            }}
-            onClose={onClose}
-          />
+          <DropdownMenuSubContent>
+            <SemanticList
+              onSelect={(semanticId) => {
+                onAddNode?.(nodeType, semanticId);
+                onClose();
+              }}
+            />
+          </DropdownMenuSubContent>
         )}
       </DataTypeList>
     </DropdownMenuSub>

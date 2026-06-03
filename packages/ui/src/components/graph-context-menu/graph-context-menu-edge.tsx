@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
+  DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
@@ -75,7 +76,9 @@ export function GraphContextMenuEdge({
           >
             <span className="text-sm">Semantic</span>
           </DropdownMenuSubTrigger>
-          <EdgeSemanticList onSelect={handleSemanticSelect} onClose={onClose} />
+          <DropdownMenuSubContent>
+            <EdgeSemanticList onSelect={handleSemanticSelect} />
+          </DropdownMenuSubContent>
         </DropdownMenuSub>
         <div className="flex items-center gap-1">
           <DropdownMenuItem

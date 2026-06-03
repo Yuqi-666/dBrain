@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { useGraph } from "@workspace/hooks";
 import { GraphCQRS } from "@workspace/api-client";
-import { LinkIcon, Plus, X } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import type {
   EdgeData,
   NodeData,
-  NodeSemantic,
-  NodeTag,
   NodeTagId,
 } from "@workspace/interfaces";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -21,7 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Popover, PopoverTrigger } from "@workspace/ui/components/ui/popover";
+import { TagList, TagPill } from "@workspace/ui/components/list/node/tag-list";
+import { SemanticList } from "@workspace/ui/components/list/node/semantic-list";
+import { Plus } from "lucide-react";
 
 interface AttributesSidebarProps {
   className?: string;
@@ -119,10 +128,8 @@ function MetadataTabContent({
   node: NodeData;
   nodeId: string;
 }) {
-  const getAllNodeSemantics = useGraphStore(
-    (state) => state.getAllNodeSemantics,
-  );
-  const allSemantics = getAllNodeSemantics();
+  const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
+  const allSemantics = Array.from(nodeSemanticsMap.values());
 
   const handleAbstractChange = async (value: string) => {
     await GraphCQRS.upsertNode(nodeId, { abstract: value });
@@ -132,11 +139,11 @@ function MetadataTabContent({
     await GraphCQRS.upsertNode(nodeId, { semanticId: value });
   };
 
-  const getAllNodeTags = useGraphStore((state) => state.getAllNodeTags);
-  const allTags = getAllNodeTags();
+  const nodeTagsMap = useGraphStore((state) => state.nodeTags);
+  const allTags = Array.from(nodeTagsMap.values());
 
-  const [newTagName, setNewTagName] = useState("");
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const { onCreateTag, onDeleteTag } = useGraph();
 
   const handleToggleTag = async (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
@@ -145,32 +152,6 @@ function MetadataTabContent({
     } else {
       await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });
     }
-  };
-
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
-    const tagId = newTagName.trim().toLowerCase().replace(/\s+/g, "-");
-    const colors = [
-      "#3B82F6",
-      "#10B981",
-      "#8B5CF6",
-      "#F59E0B",
-      "#EF4444",
-      "#EC4899",
-      "#6366F1",
-      "#14B8A6",
-    ];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const newTag: NodeTag = {
-      id: tagId,
-      name: newTagName.trim(),
-      color: randomColor,
-    };
-    await GraphCQRS.upsertNodeTag(newTag);
-    const currentTags = node.tags || [];
-    await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });
-    setNewTagName("");
-    setIsCreatingTag(false);
   };
 
   const handleDeleteTag = async (tagId: NodeTagId) => {
@@ -257,117 +238,76 @@ function MetadataTabContent({
 
       <div className="space-y-1">
         <span className="text-muted-foreground text-xs">类型</span>
-        <Select
-          value={node.semanticId || ""}
-          onValueChange={handleSemanticIdChange}
-        >
-          <SelectTrigger className="text-xs">
-            <SelectValue placeholder="选择语义标签" />
-          </SelectTrigger>
-          <SelectContent>
-            {allSemantics.map((semantic: NodeSemantic) => (
-              <SelectItem key={semantic.id} value={semantic.id}>
-                <div className="flex items-center gap-2">
-                  {semantic.color && (
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: semantic.color }}
-                    />
-                  )}
-                  <span>{semantic.name}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs h-8 font-normal"
+            >
+              {node.semanticId ? (
+                (() => {
+                  const selected = allSemantics.find(s => s.id === node.semanticId);
+                  return selected ? (
+                    <div className="flex items-center gap-2">
+                      {selected.color && (
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: selected.color }}
+                        />
+                      )}
+                      <span>{selected.name}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">选择语义标签</span>
+                  );
+                })()
+              ) : (
+                <span className="text-muted-foreground">选择语义标签</span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <SemanticList
+              onSelect={handleSemanticIdChange}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="space-y-1">
         <span className="text-muted-foreground text-xs">标签</span>
-        <div className="flex flex-wrap gap-1 mb-2">
+        <div className="flex flex-wrap gap-1.5 mb-2">
           {node.tags?.map((tagId) => {
             const tag = allTags.find((t) => t.id === tagId);
             return (
-              <span
+              <TagPill
                 key={tagId}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs"
-              >
-                {tag?.color && (
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
-                )}
-                {tag?.name || tagId}
-                <button
-                  onClick={() => handleDeleteTag(tagId)}
-                  className="hover:text-destructive"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
+                tag={tag}
+                tagId={tagId}
+                onRemove={() => handleDeleteTag(tagId)}
+              />
             );
           })}
         </div>
-        {isCreatingTag ? (
-          <div className="flex gap-1">
-            <Input
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateTag();
-                if (e.key === "Escape") {
-                  setIsCreatingTag(false);
-                  setNewTagName("");
-                }
-              }}
-              placeholder="输入标签名称"
-              className="text-xs"
-              autoFocus
-            />
-            <Button type="button" size="sm" onClick={handleCreateTag}>
-              <Plus className="size-3" />
+        <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs h-8"
+            >
+              <Plus className="size-3 mr-1" />
+              添加标签
             </Button>
-          </div>
-        ) : (
-          <Select
-            value=""
-            onValueChange={(value) => {
-              if (value === "__create_new__") {
-                setIsCreatingTag(true);
-              } else {
-                handleToggleTag(value as NodeTagId);
-              }
-            }}
-          >
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="选择或创建标签" />
-            </SelectTrigger>
-            <SelectContent>
-              {allTags
-                .filter((tag) => !node.tags?.includes(tag.id))
-                .map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    <div className="flex items-center gap-2">
-                      {tag.color && (
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                      )}
-                      <span>{tag.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              <SelectItem value="__create_new__">
-                <div className="flex items-center gap-2">
-                  <Plus className="size-3" />
-                  <span>创建新标签</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        )}
+          </PopoverTrigger>
+          <TagList
+            appliedTagIds={node.tags || []}
+            onToggleTag={handleToggleTag}
+            onDeleteTag={onDeleteTag}
+            onCreateTag={onCreateTag}
+          />
+        </Popover>
       </div>
 
       {/* Editable: Abstract */}

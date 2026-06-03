@@ -551,6 +551,9 @@ importers:
       '@use-gesture/react':
         specifier: ^10.3.1
         version: 10.3.1(react@19.2.4)
+      '@workspace/hooks':
+        specifier: workspace:*
+        version: link:../hooks
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -634,6 +637,9 @@ importers:
 
   packages/hooks:
     dependencies:
+      '@workspace/hooks':
+        specifier: workspace:*
+        version: 'link:'
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -15265,7 +15271,7 @@ snapshots:
       mime-db: 1.54.0
       neo-async: 2.6.2
       schema-utils: 4.3.3
-      tapable: 2.3.0
+      tapable: 2.3.3
       terser-webpack-plugin: 5.6.1(webpack@5.107.2)
       watchpack: 2.5.1
       webpack-sources: 3.5.0

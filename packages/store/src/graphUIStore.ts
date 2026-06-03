@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
 import { useNodeEditorStore } from "./nodeEditorStore";
+import type { NodeSemantic, EdgeSemantic } from "@workspace/interfaces";
 
 // ==================== Types ====================
 
@@ -34,6 +35,14 @@ export interface GraphUIStore {
     isFocus: boolean;
   };
   isNodeFocus: boolean;
+  nodeSemanticDialog: {
+    open: boolean;
+    editingSemantic: NodeSemantic | null;
+  };
+  edgeSemanticDialog: {
+    open: boolean;
+    editingSemantic: EdgeSemantic | null;
+  };
 
   // Actions
   setSelectedNodeIds: (ids: Set<string>) => void;
@@ -45,6 +54,10 @@ export interface GraphUIStore {
   setIsNodeFocus: (value: boolean) => void;
   handleNodeEdit: (nodeId: string) => void;
   handleCreateEdge: (from: string[], to: string | null, x?: number, y?: number) => Promise<void>;
+  openNodeSemanticDialog: (semantic?: NodeSemantic | null) => void;
+  closeNodeSemanticDialog: () => void;
+  openEdgeSemanticDialog: (semantic?: EdgeSemantic | null) => void;
+  closeEdgeSemanticDialog: () => void;
 }
 
 // ==================== Store Implementation ====================
@@ -68,6 +81,14 @@ export const useGraphUIStore = create<GraphUIStore>()(
         isFocus: false,
       },
       isNodeFocus: false,
+      nodeSemanticDialog: {
+        open: false,
+        editingSemantic: null,
+      },
+      edgeSemanticDialog: {
+        open: false,
+        editingSemantic: null,
+      },
 
       // Actions
       setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
@@ -102,6 +123,26 @@ export const useGraphUIStore = create<GraphUIStore>()(
       handleNodeEdit: (nodeId) => {
         useNodeEditorStore.getState().setCurrentEditingNodeId(nodeId);
       },
+
+      openNodeSemanticDialog: (semantic = null) =>
+        set({
+          nodeSemanticDialog: { open: true, editingSemantic: semantic },
+        }),
+
+      closeNodeSemanticDialog: () =>
+        set({
+          nodeSemanticDialog: { open: false, editingSemantic: null },
+        }),
+
+      openEdgeSemanticDialog: (semantic = null) =>
+        set({
+          edgeSemanticDialog: { open: true, editingSemantic: semantic },
+        }),
+
+      closeEdgeSemanticDialog: () =>
+        set({
+          edgeSemanticDialog: { open: false, editingSemantic: null },
+        }),
     }),
     { name: "graph-ui-store" },
   ),

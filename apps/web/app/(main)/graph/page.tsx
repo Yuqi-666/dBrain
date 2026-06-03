@@ -7,7 +7,7 @@ import { GraphCQRS } from "@workspace/api-client";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
 import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
-import { NodeEditor } from "@workspace/ui/components/editor";
+import { NodeEditor, NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/editor";
 
 export default function GraphPage(): ReactNode {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -68,6 +68,8 @@ export default function GraphPage(): ReactNode {
             <NodeEditor />
           </>
         )}
+        <NodeSemanticDialog />
+        <EdgeSemanticDialog />
       </div>
     </CognitiveGraphLayout>
   );

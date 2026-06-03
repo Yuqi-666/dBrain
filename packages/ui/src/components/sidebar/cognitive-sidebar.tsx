@@ -1,6 +1,9 @@
 "use client";
-import { useGraphStore, useNodeEditorStore, useUIStore } from "@workspace/store";
+import { useGraphStore, useNodeEditorStore, useUIStore, useGraphUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
+import type {
+  NodeDataType,
+} from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Collapsible,
@@ -11,8 +14,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
+import { DataTypeList } from "../list/node/dataType-list";
+import { SemanticList } from "../list/node/semantic-list";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import { cn } from "@workspace/ui/lib/utils";
 import {
@@ -29,13 +37,17 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import LogoIcon from "../../img/icon/logo.svg";
+import { useGraph } from "@workspace/hooks";
 
 export function CognitiveSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
   const { views, nodes } = useGraphStore();
+  const setCurrentEditingNodeId = useNodeEditorStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
 
   const pinnedViews = Array.from(views.values()).filter(
     (view) => view.isPinned,
@@ -54,6 +66,8 @@ export function CognitiveSidebar() {
       toggleSidebar();
     }
   };
+
+  const { onAddNode } = useGraph()
 
   return (
     <aside
@@ -79,7 +93,7 @@ export function CognitiveSidebar() {
           <ViewsList pinnedViews={pinnedViews} recentViews={recentViews} />
           <NodeSemanticList />
           <EdgeSemanticList />
-          <NodesList nodes={recentNodes} />
+          <NodesList nodes={recentNodes} onAddNode={onAddNode} />
         </div>
       </div>
     </aside>
@@ -400,6 +414,7 @@ function NodeItem({
 
 function NodesList({
   nodes,
+  onAddNode,
 }: {
   nodes: Array<{
     id: string;
@@ -407,6 +422,7 @@ function NodesList({
     semanticId?: string;
     isPinned?: boolean;
   }>;
+  onAddNode?: (nodeType: NodeDataType, semanticId: string) => void;
 }) {
   const currentEditingNodeId = useNodeEditorStore(
     (state) => state.currentEditingNodeId,
@@ -434,13 +450,35 @@ function NodesList({
       title="Nodes"
       icon={<CircleDot className="size-3.5 text-sidebar-primary" />}
       action={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-        >
-          <Plus className="size-3.5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent sideOffset={6} align="start">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
+                <span className="text-[13px]">Add Node</span>
+              </DropdownMenuSubTrigger>
+              <DataTypeList>
+                {(nodeType) => (
+                  <DropdownMenuSubContent>
+                    <SemanticList
+                      onSelect={(semanticId) => {
+                        onAddNode?.(nodeType, semanticId);
+                      }}
+                    />
+                  </DropdownMenuSubContent>
+                )}
+              </DataTypeList>
+            </DropdownMenuSub>
+          </DropdownMenuContent>
+        </DropdownMenu>
       }
     >
       <div className="flex flex-col gap-0.5">
@@ -466,11 +504,16 @@ function NodesList({
 
 function NodeSemanticItem({
   semantic,
+  onEdit,
 }: {
   semantic: { id: string; name: string; color?: string };
+  onEdit?: (semantic: typeof semantic) => void;
 }) {
   return (
-    <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
+    <div
+      className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150 cursor-pointer"
+      onClick={() => onEdit?.(semantic)}
+    >
       <div className="flex items-center gap-2.5 min-w-0">
         <CircleDot
           className="size-3.5 shrink-0"
@@ -485,6 +528,10 @@ function NodeSemanticItem({
           variant="ghost"
           size="icon"
           className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit?.(semantic);
+          }}
         >
           <MoreHorizontal className="size-3" />
         </Button>
@@ -499,6 +546,7 @@ function NodeSemanticList() {
     () => Array.from(nodeSemanticsMap.values()),
     [nodeSemanticsMap],
   );
+  const openDialog = useGraphUIStore((state) => state.openNodeSemanticDialog);
 
   return (
     <Section
@@ -509,6 +557,7 @@ function NodeSemanticList() {
           variant="ghost"
           size="icon"
           className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
+          onClick={() => openDialog()}
         >
           <Plus className="size-3.5" />
         </Button>
@@ -517,7 +566,7 @@ function NodeSemanticList() {
       <div className="flex flex-col gap-0.5">
         {nodeSemantics.length > 0 ? (
           nodeSemantics.map((semantic) => (
-            <NodeSemanticItem key={semantic.id} semantic={semantic} />
+            <NodeSemanticItem key={semantic.id} semantic={semantic} onEdit={openDialog} />
           ))
         ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
@@ -532,9 +581,11 @@ function NodeSemanticList() {
 function EdgeSemanticCategory({
   category,
   semantics,
+  onEdit,
 }: {
   category: string;
   semantics: Array<{ id: string; name: string; color?: string }>;
+  onEdit?: (semantic: typeof semantics[0]) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -562,7 +613,8 @@ function EdgeSemanticCategory({
           {semantics.map((semantic) => (
             <div
               key={semantic.id}
-              className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150"
+              className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150 cursor-pointer"
+              onClick={() => onEdit?.(semantic)}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <Link2 className="size-3 text-sidebar-foreground/30 shrink-0" />
@@ -580,6 +632,10 @@ function EdgeSemanticCategory({
                 variant="ghost"
                 size="icon"
                 className="size-6 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(semantic);
+                }}
               >
                 <MoreHorizontal className="size-3" />
               </Button>
@@ -597,6 +653,7 @@ function EdgeSemanticList() {
     () => Array.from(edgeSemanticsMap.values()),
     [edgeSemanticsMap],
   );
+  const openDialog = useGraphUIStore((state) => state.openEdgeSemanticDialog);
 
   const categories = [
     { key: "hierarchy", label: "层次关系" },
@@ -631,6 +688,7 @@ function EdgeSemanticList() {
           variant="ghost"
           size="icon"
           className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
+          onClick={() => openDialog()}
         >
           <Plus className="size-3.5" />
         </Button>
@@ -642,6 +700,7 @@ function EdgeSemanticList() {
             key={cat.key}
             category={cat.label}
             semantics={groupedSemantics[cat.key] || []}
+            onEdit={openDialog}
           />
         ))}
       </div>

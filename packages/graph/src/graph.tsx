@@ -14,8 +14,7 @@ import {
 import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
 import type { Mutation } from "@workspace/store/graphStore";
-import { useGraphContextMenu } from "@workspace/ui/components/graph-context-menu/useGraphContextMenu";
-
+import { useGraph } from "@workspace/hooks"
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
 // ----------------------------------------------------------------------
@@ -50,7 +49,7 @@ export function Graph({
   const isMountedRef = useRef(false);
 
   const ui = useGraphUIStore();
-  const { onCreateEdge } = useGraphContextMenu()
+  const { onCreateEdge } = useGraph()
   // 图实例 Hook
   const graphRef = useGraphInstance({
     containerRef,

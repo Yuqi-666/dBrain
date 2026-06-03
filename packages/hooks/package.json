@@ -12,7 +12,9 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "@workspace/interfaces": "workspace:*",
-    "@workspace/store": "workspace:*"
+    "@workspace/api-client": "workspace:*",
+    "@workspace/store": "workspace:*",
+    "@workspace/hooks": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

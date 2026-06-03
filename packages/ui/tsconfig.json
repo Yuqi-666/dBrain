@@ -39,7 +39,8 @@
     }
   },
   "include": [
-    "."
+    ".",
+    "../hooks/src/useGraph.ts"
   ],
   "exclude": [
     "node_modules",
