@@ -1,10 +1,18 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { ViewId } from "@workspace/interfaces";
+import type { ViewId, NodeId, NodeSemantic, EdgeSemantic } from "@workspace/interfaces";
 
-/**
- * UI 状态类型定义
- */
+// ==================== Shared Types ====================
+
+export type ContextMenuType = "node" | "edge" | "canvas" | "groupSelect" | "add-edge";
+
+export type ContextMenuContext =
+  | { nodeId: string }
+  | { edgeId: string }
+  | Record<string, never>
+  | { nodeIds: string[]; edgeIds: string[] }
+  | { sourceIds: string[]; targetId: string | null };
+
 export type MainViewType = "graph" | "editor";
 
 /**
@@ -15,11 +23,75 @@ export type MainViewType = "graph" | "editor";
  */
 export type SidebarMode = "closed" | "fixed" | "temp";
 
-/**
- * UI Store 接口 - 管理认知图谱的UI状态
- */
+// ==================== Store Interface ====================
+
 export interface UIStore {
-  // ==================== Sidebar 状态 ====================
+  // ==================== Graph UI Section ====================
+  // Selection state
+  selectedNodeIds: Set<string>;
+  selectedEdgeIds: Set<string>;
+  setSelectedNodeIds: (ids: Set<string>) => void;
+  setSelectedEdgeIds: (ids: Set<string>) => void;
+
+  // Context menu
+  contextMenu: {
+    x: number;
+    y: number;
+    visible: boolean;
+    type: ContextMenuType | null;
+    context: ContextMenuContext | null;
+  };
+  setContextMenu: (menu: UIStore["contextMenu"]) => void;
+  closeContextMenu: () => void;
+
+  // Preview block
+  previewBlock: {
+    nodeId: string | null;
+    visible: boolean;
+    isFocus: boolean;
+  };
+  setPreviewBlock: (block: UIStore["previewBlock"]) => void;
+  closePreviewBlock: () => void;
+
+  // Node focus
+  isNodeFocus: boolean;
+  setIsNodeFocus: (value: boolean) => void;
+
+  // Semantic dialogs - Node
+  nodeSemanticDialog: {
+    open: boolean;
+    editingSemantic: NodeSemantic | null;
+  };
+  openNodeSemanticDialog: (semantic?: NodeSemantic | null) => void;
+  closeNodeSemanticDialog: () => void;
+
+  // Semantic dialogs - Edge
+  edgeSemanticDialog: {
+    open: boolean;
+    editingSemantic: EdgeSemantic | null;
+  };
+  openEdgeSemanticDialog: (semantic?: EdgeSemantic | null) => void;
+  closeEdgeSemanticDialog: () => void;
+
+  // Graph UI actions
+  handleNodeEdit: (nodeId: string) => void;
+  handleCreateEdge: (from: string[], to: string | null, x?: number, y?: number) => Promise<void>;
+
+  // ==================== Node Editor Section ====================
+  /** 当前正在编辑的节点ID */
+  currentEditingNodeId: NodeId | null;
+  /** 设置当前正在编辑的节点 */
+  setCurrentEditingNodeId: (nodeId: NodeId | null) => void;
+
+  // ==================== Attributes Sidebar Section ====================
+  /** 属性侧边栏是否展开 */
+  attributesSidebarOpen: boolean;
+  /** 切换属性侧边栏展开状态 */
+  toggleAttributesSidebar: () => void;
+  /** 设置属性侧边栏展开状态 */
+  setAttributesSidebarOpen: (open: boolean) => void;
+
+  // ==================== Sidebar Section ====================
   /** Sidebar 显示模式 */
   sidebarMode: SidebarMode;
   /** 切换 sidebar 显示（固定模式） */
@@ -33,19 +105,19 @@ export interface UIStore {
   /** 临时显示 sidebar（浮动面板） */
   showTempSidebar: () => void;
 
-  // ==================== 主视图状态 ====================
+  // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
   mainViewType: MainViewType;
   /** 设置主视图类型 */
   setMainViewType: (type: MainViewType) => void;
 
-  // ==================== 视图状态 ====================
+  // ==================== View Section ====================
   /** 当前选中的视图ID */
   currentViewId: ViewId | null;
   /** 设置当前选中的视图 */
   setCurrentViewId: (viewId: ViewId | null) => void;
 
-  // ==================== 命令面板状态 ====================
+  // ==================== Command Panel Section ====================
   /** 命令面板是否显示 */
   commandDialogOpen: boolean;
   /** 设置命令面板显示状态 */
@@ -53,7 +125,7 @@ export interface UIStore {
   /** 切换命令面板显示状态 */
   toggleCommandDialog: () => void;
 
-  // ==================== 面板显示状态 ====================
+  // ==================== Panel Visibility Section ====================
   /** 视图配置面板是否显示 */
   viewConfigPanelOpen: boolean;
   /** 设置视图配置面板显示状态 */
@@ -65,52 +137,134 @@ export interface UIStore {
   setOptionsMenuOpen: (open: boolean) => void;
 }
 
+// ==================== Store Implementation ====================
+
 export const useUIStore = create<UIStore>()(
   devtools(
-    (set) => ({
+    (set, _get) => ({
+      // ==================== Graph UI - Selection ====================
+      selectedNodeIds: new Set<string>(),
+      selectedEdgeIds: new Set<string>(),
+      setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+      setSelectedEdgeIds: (ids) => set({ selectedEdgeIds: ids }),
+
+      // ==================== Graph UI - Context Menu ====================
+      contextMenu: {
+        x: 0,
+        y: 0,
+        visible: false,
+        type: null,
+        context: null,
+      },
+      setContextMenu: (menu) => set({ contextMenu: menu }),
+      closeContextMenu: () =>
+        set((state) => ({
+          contextMenu: { ...state.contextMenu, visible: false },
+        })),
+
+      // ==================== Graph UI - Preview Block ====================
+      previewBlock: {
+        nodeId: null,
+        visible: false,
+        isFocus: false,
+      },
+      setPreviewBlock: (block) =>
+        set({
+          previewBlock: block,
+          isNodeFocus: block.isFocus,
+        }),
+      closePreviewBlock: () =>
+        set({
+          previewBlock: {
+            nodeId: null,
+            visible: false,
+            isFocus: false,
+          },
+          isNodeFocus: false,
+        }),
+
+      // ==================== Graph UI - Node Focus ====================
+      isNodeFocus: false,
+      setIsNodeFocus: (value) => set({ isNodeFocus: value }),
+
+      // ==================== Graph UI - Semantic Dialogs ====================
+      nodeSemanticDialog: {
+        open: false,
+        editingSemantic: null,
+      },
+      openNodeSemanticDialog: (semantic = null) =>
+        set({
+          nodeSemanticDialog: { open: true, editingSemantic: semantic },
+        }),
+      closeNodeSemanticDialog: () =>
+        set({
+          nodeSemanticDialog: { open: false, editingSemantic: null },
+        }),
+
+      edgeSemanticDialog: {
+        open: false,
+        editingSemantic: null,
+      },
+      openEdgeSemanticDialog: (semantic = null) =>
+        set({
+          edgeSemanticDialog: { open: true, editingSemantic: semantic },
+        }),
+      closeEdgeSemanticDialog: () =>
+        set({
+          edgeSemanticDialog: { open: false, editingSemantic: null },
+        }),
+
+      // ==================== Graph UI - Actions ====================
+      handleNodeEdit: (nodeId) => {
+        // Access internal state setter directly to avoid circular dependency issues
+        set({ currentEditingNodeId: nodeId });
+      },
+
+      handleCreateEdge: async (_from, _to, _x, _y) => {
+        // Placeholder - implementation depends on edge creation logic
+      },
+
+      // ==================== Node Editor ====================
+      currentEditingNodeId: null,
+      setCurrentEditingNodeId: (nodeId) => set({ currentEditingNodeId: nodeId }),
+
+      // ==================== Attributes Sidebar ====================
+      attributesSidebarOpen: false,
+      toggleAttributesSidebar: () =>
+        set((state) => ({ attributesSidebarOpen: !state.attributesSidebarOpen })),
+      setAttributesSidebarOpen: (open) => set({ attributesSidebarOpen: open }),
+
+      // ==================== Sidebar ====================
       sidebarMode: "closed",
-
-      mainViewType: "graph",
-
-      currentViewId: null,
-
-      editorPinned: false,
-
-      commandDialogOpen: false,
-
-      viewConfigPanelOpen: false,
-      nodeInfoPanelOpen: false,
-      optionsMenuOpen: false,
-
       toggleSidebar: () =>
         set((state) => ({
           sidebarMode: state.sidebarMode === "fixed" ? "closed" : "fixed",
         })),
-
       setSidebarMode: (mode) => set({ sidebarMode: mode }),
-
       convertTempToFixed: () => set({ sidebarMode: "fixed" }),
-
       closeSidebar: () => set({ sidebarMode: "closed" }),
-
       showTempSidebar: () => set({ sidebarMode: "temp" }),
 
-      // ==================== 主视图 Actions ====================
+      // ==================== Main View ====================
+      mainViewType: "graph",
       setMainViewType: (type) => set({ mainViewType: type }),
 
-      // ==================== 视图 Actions ====================
+      // ==================== View ====================
+      currentViewId: null,
       setCurrentViewId: (viewId) => set({ currentViewId: viewId }),
 
-      // ==================== 命令面板 Actions ====================
+      // ==================== Command Panel ====================
+      commandDialogOpen: false,
       setCommandDialogOpen: (open) => set({ commandDialogOpen: open }),
-
       toggleCommandDialog: () =>
         set((state) => ({
           commandDialogOpen: !state.commandDialogOpen,
         })),
 
-      // ==================== 面板 Actions ====================
+      // ==================== Panel Visibility ====================
+      viewConfigPanelOpen: false,
       setViewConfigPanelOpen: (open) => set({ viewConfigPanelOpen: open }),
+      optionsMenuOpen: false,
       setOptionsMenuOpen: (open) => set({ optionsMenuOpen: open }),
     }),
     { name: "ui-store" },

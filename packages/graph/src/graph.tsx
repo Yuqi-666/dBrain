@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef, useEffect } from "react";
 import { Graph as G6Graph } from "@antv/g6";
-import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import type { View, ViewId } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
@@ -13,7 +13,7 @@ import {
 } from "./options";
 import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
-import type { Mutation } from "@workspace/store/graphStore";
+import type { Mutation } from "@workspace/store/useDataStore";
 import { useGraph } from "@workspace/hooks"
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
@@ -48,7 +48,7 @@ export function Graph({
   const resolvedViewRef = useRef<View | undefined>(undefined);
   const isMountedRef = useRef(false);
 
-  const ui = useGraphUIStore();
+  const ui = useUIStore();
   const { onCreateEdge } = useGraph()
   // 图实例 Hook
   const graphRef = useGraphInstance({
@@ -79,7 +79,7 @@ export function Graph({
 
   // 全量同步
   const performFullSync = (graph: G6Graph) => {
-    const state = useGraphStore.getState();
+    const state = useDataStore.getState();
     const { nodes, edges, views } = state;
     // Stop any running layout before making changes
     if (isMountedRef.current) {
@@ -203,10 +203,10 @@ export function Graph({
 
   // 1. 订阅全局 Store 的增量更新
   useEffect(() => {
-    const unsubscribe = useGraphStore.subscribe((state) => {
+    const unsubscribe = useDataStore.subscribe((state) => {
       if (!graphRef.current || state.latestMutations.length === 0) return;
       processMutations(graphRef.current, state.latestMutations);
-      useGraphStore.getState().clearMutations();
+      useDataStore.getState().clearMutations();
     });
     return () => {
       unsubscribe();

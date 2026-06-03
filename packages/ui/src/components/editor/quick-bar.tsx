@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -32,8 +32,8 @@ export function RelationshipQuickBar({
   className,
 }: RelationshipQuickBarProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const edges = useGraphStore((state) => state.edges);
-  const nodes = useGraphStore((state) => state.nodes);
+  const edges = useDataStore((state) => state.edges);
+  const nodes = useDataStore((state) => state.nodes);
 
   // Get connected nodes
   const connectedEdges = Array.from(edges.values()).filter(

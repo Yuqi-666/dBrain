@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { useGraph } from "@workspace/hooks";
 import { GraphCQRS } from "@workspace/api-client";
 import { LinkIcon } from "lucide-react";
@@ -63,11 +63,11 @@ export function AttributesSidebar({ className }: AttributesSidebarProps) {
     "metadata",
   );
 
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const nodes = useGraphStore((state) => state.nodes);
-  const edges = useGraphStore((state) => state.edges);
+  const nodes = useDataStore((state) => state.nodes);
+  const edges = useDataStore((state) => state.edges);
 
   const currentNode = currentEditingNodeId
     ? nodes.get(currentEditingNodeId)
@@ -128,7 +128,7 @@ function MetadataTabContent({
   node: NodeData;
   nodeId: string;
 }) {
-  const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
+  const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const allSemantics = Array.from(nodeSemanticsMap.values());
 
   const handleAbstractChange = async (value: string) => {
@@ -139,7 +139,7 @@ function MetadataTabContent({
     await GraphCQRS.upsertNode(nodeId, { semanticId: value });
   };
 
-  const nodeTagsMap = useGraphStore((state) => state.nodeTags);
+  const nodeTagsMap = useDataStore((state) => state.nodeTags);
   const allTags = Array.from(nodeTagsMap.values());
 
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);

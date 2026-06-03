@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Search } from "lucide-react";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import type { NodeData } from "@workspace/interfaces";
 
 export interface NodeListProps {
@@ -17,7 +17,7 @@ export interface NodeListProps {
 
 export function NodeList({ onSelect, onClose }: NodeListProps) {
   const [search, setSearch] = React.useState("");
-  const nodesMap = useGraphStore((state) => state.nodes);
+  const nodesMap = useDataStore((state) => state.nodes);
 
   const nodes = React.useMemo(
     () => Array.from(nodesMap.values()),

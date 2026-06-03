@@ -41,7 +41,7 @@ src/
 Uses **@antv/g6 v5** (not v4). The API differs significantly — uses `graph.setData()`, `graph.setOptions()`, `graph.render()` pattern instead of old `graph.read()`.
 
 ### Data Sync
-Graph syncs via **mutation queue** in `useGraphStore`:
+Graph syncs via **mutation queue** in `useDataStore`:
 - `latestMutations: Mutation[]` — incremental updates (add/update/delete node/edge/view)
 - `processMutations()` applies each mutation type to G6 in-place
 - Full sync via `performFullSync()` when view changes
@@ -67,7 +67,7 @@ Alt+drag interaction:
 
 ## Dependencies
 - `@workspace/interfaces` — Domain types (NodeId, EdgeId, NodeData, EdgeData, View, LayoutType, etc.)
-- `@workspace/store` — `useGraphStore` (nodes, edges, views, mutations), `useGraphUIStore` (selection, context menu, preview)
+- `@workspace/store` — `useDataStore` (nodes, edges, views, mutations), `useGraphUIStore` (selection, context menu, preview)
 - `@workspace/ui` — `GraphContextMenu`, `PreviewBlock`, design tokens
 - `@workspace/utils` — `filterByViewFilterConfig` for view-based data filtering
 

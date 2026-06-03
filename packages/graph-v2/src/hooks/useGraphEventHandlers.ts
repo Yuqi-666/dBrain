@@ -1,7 +1,7 @@
 // packages/graph/src/hooks/useGraphEventHandlers.ts
 
 import React, { useCallback, useRef, useEffect } from 'react';
-import { useGraphUIStore, type ContextMenuType } from '@workspace/store';
+import { useUIStore, type ContextMenuType } from '@workspace/store';
 import type { Node, Edge } from '@xyflow/react';
 
 interface UseGraphEventHandlersProps {
@@ -15,7 +15,7 @@ export function useGraphEventHandlers({
 }: UseGraphEventHandlersProps) {
   const isDraggingRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ui = useGraphUIStore();
+  const ui = useUIStore();
 
   const handleSelectionChange = useCallback(
     ({ nodes: selectedNodes, edges: selectedEdges }: { nodes: Node[]; edges: Edge[] }) => {

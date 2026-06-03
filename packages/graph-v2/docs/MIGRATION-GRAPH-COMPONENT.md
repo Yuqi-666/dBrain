@@ -33,7 +33,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { useGraphStore, useGraphUIStore } from '@workspace/store';
+import { useDataStore, useGraphUIStore } from '@workspace/store';
 import { transformToRFData, transformNodeToRF, transformEdgeToRF } from './transform';
 import { applyForceLayout, reheatForceSimulation, setForceNodePosition } from './layouts/force';
 import { applyDagreLayout } from './layouts/dagre';
@@ -85,14 +85,14 @@ function GraphInner({
   const { fitView } = useReactFlow();
 
   // Get domain state
-  const domainNodes = useGraphStore((s) => s.nodes);
-  const domainEdges = useGraphStore((s) => s.edges);
-  const views = useGraphStore((s) => s.views);
-  const upsertNode = useGraphStore((s) => s.upsertNode);
-  const deleteNode = useGraphStore((s) => s.deleteNode);
-  const upsertEdge = useGraphStore((s) => s.upsertEdge);
-  const deleteEdge = useGraphStore((s) => s.deleteEdge);
-  const clearMutations = useGraphStore((s) => s.clearMutations);
+  const domainNodes = useDataStore((s) => s.nodes);
+  const domainEdges = useDataStore((s) => s.edges);
+  const views = useDataStore((s) => s.views);
+  const upsertNode = useDataStore((s) => s.upsertNode);
+  const deleteNode = useDataStore((s) => s.deleteNode);
+  const upsertEdge = useDataStore((s) => s.upsertEdge);
+  const deleteEdge = useDataStore((s) => s.deleteEdge);
+  const clearMutations = useDataStore((s) => s.clearMutations);
 
   // Resolve current view
   useEffect(() => {
@@ -247,7 +247,7 @@ function GraphInner({
   // Subscribe to domain store mutations
   // ------------------------------------------------------------------
   useEffect(() => {
-    const unsubscribe = useGraphStore.subscribe((state) => {
+    const unsubscribe = useDataStore.subscribe((state) => {
       if (state.latestMutations.length === 0) return;
 
       state.latestMutations.forEach((mutation: GraphMutation) => {
@@ -356,7 +356,7 @@ function GraphInner({
             nodeColor={(node) => {
               const data = node.data as GraphNodeData;
               return data?.semanticId
-                ? useGraphStore.getState().getNodeSemantic(data.semanticId)?.color || '#165DFF'
+                ? useDataStore.getState().getNodeSemantic(data.semanticId)?.color || '#165DFF'
                 : '#165DFF';
             }}
           />

@@ -2,12 +2,12 @@ import type { EdgeOptions, EdgeData } from "@antv/g6";
 import { createThemeOptions } from "./theme";
 import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 import type { EdgeStyle } from "@antv/g6/lib/spec/element/edge";
-import { graphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 
 export interface EdgeConfigOptions { }
 
 export function createEdgeOptions(options?: EdgeConfigOptions): EdgeOptions {
-  const getEdgeSemantic = graphStore.getState().getEdgeSemantic;
+  const getEdgeSemantic = useDataStore.getState().getEdgeSemantic;
   return {
     type: (data: EdgeData) => {
       const semantic = getEdgeSemantic(data.semanticId!);

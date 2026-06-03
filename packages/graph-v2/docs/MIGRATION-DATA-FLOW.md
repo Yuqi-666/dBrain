@@ -9,7 +9,7 @@
 ### Current G6 Data Flow
 
 ```
-useGraphStore (domain data)
+useDataStore (domain data)
     ↓ latestMutations queue
 graph.tsx: processMutations()
     ↓ graph.addNodeData() / graph.updateNodeData() / graph.removeNodeData()
@@ -21,7 +21,7 @@ useGraphUIStore (selection, context menu, preview)
 ### New React Flow Data Flow
 
 ```
-useGraphStore (domain data)
+useDataStore (domain data)
     ↓ latestMutations queue
 graph.tsx: applyMutationToRFState()
     ↓ setNodes() / setEdges() (controlled state)
@@ -31,7 +31,7 @@ graph.tsx: handleNodesChange() / handleEdgesChange()
     ↓ dispatch actions
 useGraphUIStore (selection, context menu, preview)
     ↓ (read domain data via getState())
-useGraphStore (sync back node positions after layout)
+useDataStore (sync back node positions after layout)
 ```
 
 ---
@@ -96,7 +96,7 @@ export type GraphNodeChange =
   | { type: 'add'; item: RFNode }
   | { type: 'replace'; item: RFNode };
 
-// Mutation types from graphStore
+// Mutation types from useDataStore
 export type GraphMutation =
   | { type: 'upsertNode'; payload: NodeData }
   | { type: 'deleteNode'; payload: { id: NodeId } }

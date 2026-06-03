@@ -1,11 +1,7 @@
 "use client";
 
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  useUIStore,
-  useNodeEditorStore,
-  useGraphStore,
-} from "@workspace/store";
+import { useUIStore, useDataStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
@@ -26,13 +22,13 @@ interface NodeEditorProps {
  */
 export function NodeEditor({ className }: NodeEditorProps) {
   const mainViewType = useUIStore((state) => state.mainViewType);
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const setCurrentEditingNodeId = useNodeEditorStore(
+  const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
-  const node = useGraphStore((state) =>
+  const node = useDataStore((state) =>
     currentEditingNodeId ? state.nodes.get(currentEditingNodeId) : undefined,
   );
 
@@ -102,7 +98,7 @@ function NodeEditorContent({
   showQuickBar,
   className,
 }: NodeEditorContentProps) {
-  const attributesSidebarOpen = useNodeEditorStore(
+  const attributesSidebarOpen = useUIStore(
     (state) => state.attributesSidebarOpen,
   );
 

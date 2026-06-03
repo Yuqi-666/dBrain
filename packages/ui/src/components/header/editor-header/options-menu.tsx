@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { OptionsButton } from "./options-button";
-import { useGraphStore, useUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import {
   CopyIcon,
@@ -31,7 +31,7 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const nodes = useGraphStore((state) => state.nodes);
+  const nodes = useDataStore((state) => state.nodes);
   const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );

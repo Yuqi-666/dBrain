@@ -23,14 +23,14 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME, DARK_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
 interface TextNodeProps extends NodeProps<GraphNodeData> {}
 
 export const TextNode = memo(function TextNode({ data, selected }: TextNodeProps) {
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME; // derived from prop/context in real implementation
   const nodeSemantic = getNodeSemantic(data.semanticId);
 
@@ -82,7 +82,7 @@ export const TextNode = memo(function TextNode({ data, selected }: TextNodeProps
 
 import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
@@ -90,7 +90,7 @@ interface ImageNodeProps extends NodeProps<GraphNodeData> {}
 
 export const ImageNode = memo(function ImageNode({ data, selected }: ImageNodeProps) {
   const [imageError, setImageError] = useState(false);
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 
@@ -166,7 +166,7 @@ export const ImageNode = memo(function ImageNode({ data, selected }: ImageNodePr
 
 import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
@@ -174,7 +174,7 @@ interface VideoNodeProps extends NodeProps<GraphNodeData> {}
 
 export const VideoNode = memo(function VideoNode({ data, selected }: VideoNodeProps) {
   const [imageError, setImageError] = useState(false);
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 
@@ -291,14 +291,14 @@ export const VideoNode = memo(function VideoNode({ data, selected }: VideoNodePr
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
 interface RichTextNodeProps extends NodeProps<GraphNodeData> {}
 
 export const RichTextNode = memo(function RichTextNode({ data, selected }: RichTextNodeProps) {
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 

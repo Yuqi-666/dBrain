@@ -8,7 +8,7 @@ import { PinButton } from "./pin-button";
 import { NodeTitle } from "./node-title";
 import { OptionsMenu } from "./options-menu";
 import { Button } from "@workspace/ui/components/ui/button";
-import { useNodeEditorStore, useUIStore } from "@workspace/store";
+import { useUIStore } from "@workspace/store";
 import { InfoIcon } from "lucide-react";
 
 interface EditorHeaderProps {
@@ -16,16 +16,16 @@ interface EditorHeaderProps {
 }
 
 export function EditorHeader({ className }: EditorHeaderProps) {
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const setCurrentEditingNodeId = useNodeEditorStore(
+  const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
   const sidebarMode = useUIStore((state) => state.sidebarMode);
   const mainViewType = useUIStore((state) => state.mainViewType);
   const setMainViewType = useUIStore((state) => state.setMainViewType);
-  const toggleAttributesSidebar = useNodeEditorStore(
+  const toggleAttributesSidebar = useUIStore(
     (state) => state.toggleAttributesSidebar,
   );
   return (

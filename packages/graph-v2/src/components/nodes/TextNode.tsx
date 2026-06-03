@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
@@ -10,7 +10,7 @@ interface TextNodeProps {
 }
 
 export const TextNode = memo(function TextNode({ data, selected }: TextNodeProps) {
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 

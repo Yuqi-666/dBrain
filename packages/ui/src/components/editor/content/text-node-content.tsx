@@ -2,7 +2,7 @@
 
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { cn } from "@workspace/ui/lib/utils";
-import { useNodeEditorStore } from "@workspace/store";
+import { useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type { TextNodeData } from "@workspace/interfaces";
 
@@ -12,7 +12,7 @@ interface TextNodeContentProps {
 }
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
 

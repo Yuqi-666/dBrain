@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { useNodeEditorStore, useGraphStore } from "@workspace/store";
+import { useUIStore, useDataStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type { NodeData, NodeId } from "@workspace/interfaces";
 
@@ -11,12 +11,12 @@ import type { NodeData, NodeId } from "@workspace/interfaces";
  */
 export function useNodeEditor() {
   // Get current editing node ID from UI store
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
 
   // Get graph store methods
-  const getNode = useGraphStore((state) => state.getNode);
+  const getNode = useDataStore((state) => state.getNode);
 
   // Get current node data
   const node = useMemo(() => {

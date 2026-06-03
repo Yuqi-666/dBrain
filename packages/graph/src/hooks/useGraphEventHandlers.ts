@@ -5,7 +5,7 @@ import {
   EdgeEvent,
   CanvasEvent,
 } from "@antv/g6";
-import { useGraphUIStore } from "@workspace/store";
+import { useUIStore } from "@workspace/store";
 
 interface UseGraphEventHandlersProps {
   graphRef: React.RefObject<G6Graph | null>;
@@ -21,7 +21,7 @@ export function useGraphEventHandlers({
   const isNodeFocusRef = useRef(false);
 
   useEffect(() => {
-    isNodeFocusRef.current = useGraphUIStore.getState().isNodeFocus;
+    isNodeFocusRef.current = useUIStore.getState().isNodeFocus;
   });
 
   useEffect(() => {
@@ -35,13 +35,13 @@ export function useGraphEventHandlers({
       const { client: { x, y } } = e;
       const targetId = e.target?.id;
 
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().closePreviewBlock();
 
-      const { selectedNodeIds, selectedEdgeIds } = useGraphUIStore.getState();
+      const { selectedNodeIds, selectedEdgeIds } = useUIStore.getState();
       const isMultipleSelected = selectedNodeIds.size + selectedEdgeIds.size > 1;
 
       if (isMultipleSelected) {
-        useGraphUIStore.getState().setContextMenu({
+        useUIStore.getState().setContextMenu({
           x,
           y,
           type: "groupSelect",
@@ -49,19 +49,19 @@ export function useGraphEventHandlers({
           visible: true,
         });
       } else if (e.targetType === "node" && targetId) {
-        useGraphUIStore.getState().setContextMenu({ x, y, type: "node", context: { nodeId: targetId }, visible: true });
+        useUIStore.getState().setContextMenu({ x, y, type: "node", context: { nodeId: targetId }, visible: true });
       } else if (e.targetType === "edge" && targetId) {
-        useGraphUIStore.getState().setContextMenu({ x, y, type: "edge", context: { edgeId: targetId }, visible: true });
+        useUIStore.getState().setContextMenu({ x, y, type: "edge", context: { edgeId: targetId }, visible: true });
       } else {
-        useGraphUIStore.getState().setContextMenu({ x, y, type: "canvas", context: {}, visible: true });
+        useUIStore.getState().setContextMenu({ x, y, type: "canvas", context: {}, visible: true });
       }
     };
     // 画布点击关闭菜单和预览
     const handleCanvasClick = () => {
-      useGraphUIStore.getState().setSelectedNodeIds(new Set())
-      useGraphUIStore.getState().setSelectedEdgeIds(new Set())
-      useGraphUIStore.getState().closeContextMenu();
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().setSelectedNodeIds(new Set())
+      useUIStore.getState().setSelectedEdgeIds(new Set())
+      useUIStore.getState().closeContextMenu();
+      useUIStore.getState().closePreviewBlock();
     };
 
     // 节点悬停进入
@@ -74,7 +74,7 @@ export function useGraphEventHandlers({
         return;
       }
       hoverTimerRef.current = setTimeout(() => {
-        useGraphUIStore.getState().setPreviewBlock({
+        useUIStore.getState().setPreviewBlock({
           nodeId,
           visible: true,
           isFocus: false,
@@ -91,7 +91,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().closePreviewBlock();
     };
 
     // 画布悬停进入
@@ -99,7 +99,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().closePreviewBlock();
     };
 
     // 节点拖拽
@@ -109,7 +109,7 @@ export function useGraphEventHandlers({
       if (isNodeFocusRef.current) {
         return;
       }
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().closePreviewBlock();
     };
 
     // 节点拖拽结束
@@ -119,8 +119,8 @@ export function useGraphEventHandlers({
 
     const handleNodeDBClick = (e: any) => {
       const nodeId = e.target?.id;
-      useGraphUIStore.getState().handleNodeEdit(nodeId);
-      useGraphUIStore.getState().closePreviewBlock();
+      useUIStore.getState().handleNodeEdit(nodeId);
+      useUIStore.getState().closePreviewBlock();
     };
 
     // 绑定事件

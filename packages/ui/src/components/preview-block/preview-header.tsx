@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import type { NodeData } from "@workspace/interfaces";
 import {
   FileText,
@@ -27,7 +27,7 @@ const nodeTypeIcons = {
 };
 
 export function PreviewHeader({ node }: { node: NodeData }) {
-  const nodeSemantics = useGraphStore((state) => state.nodeSemantics);
+  const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const semantic = nodeSemantics.get(node.semanticId);
   const Icon = nodeTypeIcons[node.nodeType] || FileText;
 

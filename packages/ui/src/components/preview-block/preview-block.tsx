@@ -3,7 +3,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import type { NodeData } from "@workspace/interfaces";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { PREVIEW_WIDTH, PREVIEW_MAX_HEIGHT, PREVIEW_MARGIN } from "./types";
 import { PreviewHeader } from "./preview-header";
 import { TextPreview } from "./previews/text-preview";
@@ -96,7 +96,7 @@ export function PreviewBlock({
   visible,
   isFocus,
 }: PreviewBlockProps) {
-  const node = useGraphStore((state) => state.nodes.get(nodeId));
+  const node = useDataStore((state) => state.nodes.get(nodeId));
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [previewSize, setPreviewSize] = React.useState({
     width: PREVIEW_WIDTH,

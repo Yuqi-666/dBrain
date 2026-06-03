@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { NodeData } from "@antv/g6";
-import { graphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { createThemeOptions } from "../../options/theme";
 
 export interface ImageNodeProps {
@@ -9,7 +9,7 @@ export interface ImageNodeProps {
 
 export const ImageNodeComponent = ({ data }: ImageNodeProps) => {
   const [imageError, setImageError] = useState(false);
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = createThemeOptions();
   const nodeSemantic = getNodeSemantic(data.semanticId!);
 

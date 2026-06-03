@@ -1,5 +1,5 @@
 "use client";
-import { useGraphStore, useNodeEditorStore, useUIStore, useGraphUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type {
   NodeDataType,
@@ -44,8 +44,8 @@ import { useGraph } from "@workspace/hooks";
 export function CognitiveSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
-  const { views, nodes } = useGraphStore();
-  const setCurrentEditingNodeId = useNodeEditorStore(
+  const { views, nodes } = useDataStore();
+  const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
 
@@ -424,10 +424,10 @@ function NodesList({
   }>;
   onAddNode?: (nodeType: NodeDataType, semanticId: string) => void;
 }) {
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const setCurrentEditingNodeId = useNodeEditorStore(
+  const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
 
@@ -541,12 +541,12 @@ function NodeSemanticItem({
 }
 
 function NodeSemanticList() {
-  const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
+  const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const nodeSemantics = useMemo(
     () => Array.from(nodeSemanticsMap.values()),
     [nodeSemanticsMap],
   );
-  const openDialog = useGraphUIStore((state) => state.openNodeSemanticDialog);
+  const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
 
   return (
     <Section
@@ -648,12 +648,12 @@ function EdgeSemanticCategory({
 }
 
 function EdgeSemanticList() {
-  const edgeSemanticsMap = useGraphStore((state) => state.edgeSemantics);
+  const edgeSemanticsMap = useDataStore((state) => state.edgeSemantics);
   const edgeSemantics = useMemo(
     () => Array.from(edgeSemanticsMap.values()),
     [edgeSemanticsMap],
   );
-  const openDialog = useGraphUIStore((state) => state.openEdgeSemanticDialog);
+  const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
 
   const categories = [
     { key: "hierarchy", label: "层次关系" },

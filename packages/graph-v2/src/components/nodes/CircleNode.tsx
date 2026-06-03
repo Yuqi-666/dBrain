@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 import { Handle } from '@xyflow/react';
@@ -12,7 +12,7 @@ interface CircleNodeProps {
 // Simple circle node used for D3force and radial layouts
 // These layouts don't render complex content — circles are just position markers
 export const CircleNode = memo(function CircleNode({ data, selected }: CircleNodeProps) {
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 

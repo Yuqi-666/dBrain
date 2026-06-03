@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import {
   Dialog,
@@ -24,10 +24,10 @@ import type {
 import { Trash2Icon, PlusIcon } from "lucide-react";
 
 export function NodeSemanticDialog() {
-  const { open, editingSemantic } = useGraphUIStore(
+  const { open, editingSemantic } = useUIStore(
     (state) => state.nodeSemanticDialog,
   );
-  const closeDialog = useGraphUIStore((state) => state.closeNodeSemanticDialog);
+  const closeDialog = useUIStore((state) => state.closeNodeSemanticDialog);
 
   const handleSubmit = useCallback(
     async (formData: {
@@ -49,7 +49,7 @@ export function NodeSemanticDialog() {
         if (editingSemantic) {
           await GraphCQRS.upsertNodeSemantic(editingSemantic.id, semanticData);
         } else {
-          const id = crypto.randomUUID() as NodeSemanticId;
+          const id = "tmp_" as NodeSemanticId;
           await GraphCQRS.upsertNodeSemantic({ id, ...semanticData });
         }
 
@@ -202,10 +202,10 @@ const EDGE_TYPE_OPTIONS: { value: EdgeType; label: string }[] = [
 ];
 
 export function EdgeSemanticDialog() {
-  const { open, editingSemantic } = useGraphUIStore(
+  const { open, editingSemantic } = useUIStore(
     (state) => state.edgeSemanticDialog,
   );
-  const closeDialog = useGraphUIStore((state) => state.closeEdgeSemanticDialog);
+  const closeDialog = useUIStore((state) => state.closeEdgeSemanticDialog);
 
   const handleSubmit = useCallback(
     async (formData: {
@@ -227,7 +227,7 @@ export function EdgeSemanticDialog() {
         if (editingSemantic) {
           await GraphCQRS.upsertEdgeSemantic(editingSemantic.id, semanticData);
         } else {
-          const id = crypto.randomUUID() as EdgeSemanticId;
+          const id = "tmp_" as EdgeSemanticId;
           await GraphCQRS.upsertEdgeSemantic({ id, ...semanticData });
         }
 
@@ -385,10 +385,10 @@ export function EdgeSemanticDialogContent({
 }
 
 export function NodeSemanticManager({ className }: { className?: string }) {
-  const nodeSemantics = useGraphStore((state) =>
+  const nodeSemantics = useDataStore((state) =>
     state.getAllNodeSemantics(),
   );
-  const openDialog = useGraphUIStore((state) => state.openNodeSemanticDialog);
+  const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
 
   const handleDelete = async (id: NodeSemanticId) => {
     try {
@@ -451,10 +451,10 @@ export function NodeSemanticManager({ className }: { className?: string }) {
 }
 
 export function EdgeSemanticManager({ className }: { className?: string }) {
-  const edgeSemantics = useGraphStore((state) =>
+  const edgeSemantics = useDataStore((state) =>
     state.getAllEdgeSemantics(),
   );
-  const openDialog = useGraphUIStore((state) => state.openEdgeSemanticDialog);
+  const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
 
   const handleDelete = async (id: EdgeSemanticId) => {
     try {

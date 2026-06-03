@@ -24,7 +24,7 @@ const defaultEdgeOptions = useMemo(() => ({
 }), []);
 
 // 5. Subscribe selectively to avoid unnecessary re-renders
-const nodes = useGraphStore((s) => s.nodes); // Not entire store
+const nodes = useDataStore((s) => s.nodes); // Not entire store
 
 // 6. d3-force runs off main thread in Web Worker
 // Main thread never blocked by force simulation ticks

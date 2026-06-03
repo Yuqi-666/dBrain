@@ -20,12 +20,12 @@ import type {
   NodeTag,
   NodeTagId,
 } from "@workspace/interfaces";
-import { useNodeEditorStore, useGraphStore } from "@workspace/store";
+import { useUIStore, useDataStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
 
 export function useGraph() {
-  const setCurrentEditingNodeId = useNodeEditorStore(
+  const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
 
@@ -228,7 +228,7 @@ export function useGraph() {
   }, []);
 
   const getEdge = useCallback((edgeId: EdgeId) => {
-    return useGraphStore.getState().edges.get(edgeId);
+    return useDataStore.getState().edges.get(edgeId);
   }, []);
 
   const onChangeEdgeDirection = useCallback(

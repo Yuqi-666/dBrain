@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { Graph } from "@workspace/graph";
-import { useUIStore, useGraphStore } from "@workspace/store";
+import { useUIStore, useDataStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
@@ -28,12 +28,12 @@ export default function GraphPage(): ReactNode {
         GraphCQRS.syncNodeTag(),
       ]);
 
-      const views = useGraphStore.getState().views;
+      const views = useDataStore.getState().views;
       const firstViewId = views.keys().next().value;
       if (firstViewId) {
         ui_store.setCurrentViewId(firstViewId);
       }
-      useGraphStore.getState().clearMutations()
+      useDataStore.getState().clearMutations()
       setIsInitialized(true);
     };
 

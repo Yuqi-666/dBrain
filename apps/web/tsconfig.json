@@ -3,21 +3,45 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@workspace/editor/*": ["../../packages/editor/*"],
-      "@workspace/ui/*": ["../../packages/ui/src/*"],
-      "@workspace/store": ["../../packages/store/src"],
-      "@workspace/store/*": ["../../packages/store/src/*"],
-      "@workspace/graph": ["../../packages/graph/src"],
-      "@workspace/graph/*": ["../../packages/graph/src/*"],
-      "@workspace/interfaces": ["../../packages/interfaces/src"],
-      "@workspace/interfaces/*": ["../../packages/interfaces/src/*"],
-      "@workspace/dev": ["../../packages/dev/src"],
-      "@workspace/dev/*": ["../../packages/dev/src/*"],
-      "@workspace/api-client": ["../../packages/api-client/src"],
-      "@workspace/api-client/*": ["../../packages/api-client/src/*"],
-      "@workspace/adapter-front": ["../../backend/adapter-front/src"],
-      "@workspace/adapter-front/*": ["../../backend/adapter-front/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@workspace/editor/*": [
+        "../../packages/editor/*"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@workspace/store": [
+        "../../packages/store/src"
+      ],
+      "@workspace/store/*": [
+        "../../packages/store/src/*"
+      ],
+      "@workspace/graph": [
+        "../../packages/graph/src"
+      ],
+      "@workspace/graph/*": [
+        "../../packages/graph/src/*"
+      ],
+      "@workspace/interfaces": [
+        "../../packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../../packages/interfaces/src/*"
+      ],
+      "@workspace/api-client": [
+        "../../packages/api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../../packages/api-client/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
+      ]
     },
     "plugins": [
       {

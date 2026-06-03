@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { graphStore } from '@workspace/store';
+import { useDataStore } from '@workspace/store';
 import { LIGHT_THEME } from '../../theme/theme';
 import type { GraphNodeData } from '../../types';
 
@@ -11,7 +11,7 @@ interface ImageNodeProps {
 
 export const ImageNode = memo(function ImageNode({ data, selected }: ImageNodeProps) {
   const [imageError, setImageError] = useState(false);
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
   const theme = LIGHT_THEME;
   const nodeSemantic = getNodeSemantic(data.semanticId);
 

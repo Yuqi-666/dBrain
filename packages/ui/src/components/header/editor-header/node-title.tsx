@@ -1,7 +1,7 @@
 "use client";
 
 import { Input } from "@workspace/ui/components/ui/input";
-import { useGraphStore, useNodeEditorStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
 interface NodeTitleProps {
@@ -9,10 +9,10 @@ interface NodeTitleProps {
 }
 
 export function NodeTitle({ className }: NodeTitleProps) {
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const nodes = useGraphStore((state) => state.nodes);
+  const nodes = useDataStore((state) => state.nodes);
 
   const currentNode = currentEditingNodeId
     ? nodes.get(currentEditingNodeId)

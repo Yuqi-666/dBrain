@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import type { NodeTag, NodeTagId } from "@workspace/interfaces";
 import {
   Popover,
@@ -32,7 +32,7 @@ export function TagList({
   onCreateTag,
 }: TagListProps) {
   const [search, setSearch] = React.useState("");
-  const nodeTagsMap = useGraphStore((state) => state.nodeTags);
+  const nodeTagsMap = useDataStore((state) => state.nodeTags);
   const allTags = React.useMemo(
     () => Array.from(nodeTagsMap.values()),
     [nodeTagsMap],

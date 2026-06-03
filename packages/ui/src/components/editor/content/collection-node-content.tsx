@@ -1,6 +1,6 @@
 "use client";
 
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
 import { FolderIcon } from "lucide-react";
 import type { CollectionNodeData, NodeData } from "@workspace/interfaces";
@@ -18,7 +18,7 @@ export function CollectionNodeContent({
   node,
   className,
 }: CollectionNodeContentProps) {
-  const nodes = useGraphStore((state) => state.nodes);
+  const nodes = useDataStore((state) => state.nodes);
 
   const nodeIds = node.content.filterConfig?.selectedNodes || [];
   const collectionType =

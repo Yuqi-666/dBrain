@@ -12,7 +12,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@workspace/dev": "workspace:*",
     "@workspace/graph": "workspace:*",
     "@workspace/graph-v2": "workspace:*",
     "@workspace/interfaces": "workspace:*",

@@ -45,7 +45,7 @@ export interface GraphEdgeData extends Record<string, unknown> {
 export type RFNode = Node<GraphNodeData>;
 export type RFEdge = Edge<GraphEdgeData>;
 
-// Mutation types from graphStore
+// Mutation types from useDataStore
 export type GraphMutation =
   | { type: 'upsertNode'; payload: NodeData }
   | { type: 'deleteNode'; payload: { id: NodeId } }

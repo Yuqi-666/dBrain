@@ -20,7 +20,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { useGraphStore, useGraphUIStore } from '@workspace/store';
+import { useDataStore, useUIStore } from '@workspace/store';
 import { GraphCQRS } from '@workspace/api-client';
 import { transformToRFData, transformNodeToRF, transformEdgeToRF } from './transform';
 import { applyForceLayout, reheatForceSimulation, setForceNodePosition } from './layouts/force';
@@ -69,14 +69,14 @@ function GraphInner({
   const resolvedViewRef = useRef<View | undefined>(undefined);
   const isFirstRenderRef = useRef(true);
 
-  const ui = useGraphUIStore();
+  const ui = useUIStore();
   const { fitView } = useReactFlow();
 
   // Get domain state
-  const domainNodes = useGraphStore((s) => s.nodes);
-  const domainEdges = useGraphStore((s) => s.edges);
-  const views = useGraphStore((s) => s.views);
-  const clearMutations = useGraphStore((s) => s.clearMutations);
+  const domainNodes = useDataStore((s) => s.nodes);
+  const domainEdges = useDataStore((s) => s.edges);
+  const views = useDataStore((s) => s.views);
+  const clearMutations = useDataStore((s) => s.clearMutations);
 
   const rfData = useMemo(
     () => {
@@ -210,7 +210,7 @@ function GraphInner({
   // );
 
   // useEffect(() => {
-  //   const unsubscribe = useGraphStore.subscribe((state) => {
+  //   const unsubscribe = useDataStore.subscribe((state) => {
   //     if (state.latestMutations.length === 0) return;
   //
   //     state.latestMutations.forEach((mutation) => {
@@ -317,7 +317,7 @@ function GraphInner({
         {/*     nodeColor={(node) => { */}
         {/*       const data = node.data as GraphNodeData; */}
         {/*       return data?.semanticId */}
-        {/*         ? useGraphStore.getState().getNodeSemantic(data.semanticId)?.color || '#165DFF' */}
+        {/*         ? useDataStore.getState().getNodeSemantic(data.semanticId)?.color || '#165DFF' */}
         {/*         : '#165DFF'; */}
         {/*     }} */}
         {/*   /> */}

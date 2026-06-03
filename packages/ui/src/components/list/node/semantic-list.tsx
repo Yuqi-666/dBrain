@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Search, Plus, Trash2 } from "lucide-react";
-import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
 
@@ -17,8 +17,8 @@ export interface SemanticListProps {
 
 export function SemanticList({ onSelect }: SemanticListProps) {
   const [search, setSearch] = React.useState("");
-  const nodeSemanticsMap = useGraphStore((state) => state.nodeSemantics);
-  const openDialog = useGraphUIStore((state) => state.openNodeSemanticDialog);
+  const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
+  const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
 
   const nodeSemantics = React.useMemo(
     () => Array.from(nodeSemanticsMap.values()),

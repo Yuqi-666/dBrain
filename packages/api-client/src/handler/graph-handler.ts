@@ -10,8 +10,8 @@ export async function handleNodeUpdated(event: IDomainEvent): Promise<void> {
 }
 
 export function handleNodeDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteNode(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteNode(event.data.id as string);
 }
 
 export async function handleEdgeAdded(event: IDomainEvent): Promise<void> {
@@ -23,8 +23,8 @@ export async function handleEdgeUpdated(event: IDomainEvent): Promise<void> {
 }
 
 export function handleEdgeDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteEdge(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteEdge(event.data.id as string);
 }
 
 export async function handleViewAdded(event: IDomainEvent): Promise<void> {
@@ -36,8 +36,8 @@ export async function handleViewUpdated(event: IDomainEvent): Promise<void> {
 }
 
 export function handleViewDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteView(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteView(event.data.id as string);
 }
 
 export async function handleNodeSemanticAdded(event: IDomainEvent): Promise<void> {
@@ -49,8 +49,8 @@ export async function handleNodeSemanticUpdated(event: IDomainEvent): Promise<vo
 }
 
 export function handleNodeSemanticDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteNodeSemantic(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteNodeSemantic(event.data.id as string);
 }
 
 export async function handleEdgeSemanticAdded(event: IDomainEvent): Promise<void> {
@@ -62,8 +62,8 @@ export async function handleEdgeSemanticUpdated(event: IDomainEvent): Promise<vo
 }
 
 export function handleEdgeSemanticDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteEdgeSemantic(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteEdgeSemantic(event.data.id as string);
 }
 
 export async function handleNodeTagAdded(event: IDomainEvent): Promise<void> {
@@ -75,6 +75,6 @@ export async function handleNodeTagUpdated(event: IDomainEvent): Promise<void> {
 }
 
 export function handleNodeTagDeleted(event: IDomainEvent): void {
-  const { useGraphStore } = require("@workspace/store");
-  useGraphStore.getState().deleteNodeTag(event.data.id as string);
+  const { useDataStore } = require("@workspace/store");
+  useDataStore.getState().deleteNodeTag(event.data.id as string);
 }

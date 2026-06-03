@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Search, Plus, Trash2 } from "lucide-react";
-import { useGraphStore, useGraphUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 
@@ -17,8 +17,8 @@ export interface EdgeSemanticListProps {
 
 export function EdgeSemanticList({ onSelect }: EdgeSemanticListProps) {
   const [search, setSearch] = React.useState("");
-  const edgeSemanticsMap = useGraphStore((state) => state.edgeSemantics);
-  const openDialog = useGraphUIStore((state) => state.openEdgeSemanticDialog);
+  const edgeSemanticsMap = useDataStore((state) => state.edgeSemantics);
+  const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
 
   const edgeSemantics = React.useMemo(
     () => Array.from(edgeSemanticsMap.values()),

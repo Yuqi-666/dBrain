@@ -13,7 +13,7 @@ import {
   type NodeTagId,
 } from "@workspace/interfaces";
 import { trpcClient } from "../trpc/client";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 
 export const GraphCQRS = {
   // ================== Command ==================
@@ -23,7 +23,7 @@ export const GraphCQRS = {
     idOrSemantic: NodeSemanticId | NodeSemantic,
     updates?: Partial<NodeSemantic>,
   ): Promise<NodeSemantic | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrSemantic === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
@@ -48,7 +48,7 @@ export const GraphCQRS = {
   },
 
   async deleteNodeSemantic(id: NodeSemanticId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldSemantic = store.nodeSemantics.get(id);
     if (!oldSemantic) throw new Error("Node semantic not found");
     store.deleteNodeSemantic(id);
@@ -65,7 +65,7 @@ export const GraphCQRS = {
     idOrSemantic: EdgeSemanticId | EdgeSemantic,
     updates?: Partial<EdgeSemantic>,
   ): Promise<EdgeSemantic | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrSemantic === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
@@ -90,7 +90,7 @@ export const GraphCQRS = {
   },
 
   async deleteEdgeSemantic(id: EdgeSemanticId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldSemantic = store.edgeSemantics.get(id);
     if (!oldSemantic) throw new Error("Edge semantic not found");
     store.deleteEdgeSemantic(id);
@@ -107,7 +107,7 @@ export const GraphCQRS = {
     idOrTag: NodeTagId | NodeTag,
     updates?: Partial<NodeTag>,
   ): Promise<NodeTag | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrTag === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
@@ -132,7 +132,7 @@ export const GraphCQRS = {
   },
 
   async deleteNodeTag(id: NodeTagId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldTag = store.nodeTags.get(id);
     if (!oldTag) throw new Error("Node tag not found");
     store.deleteNodeTag(id);
@@ -149,7 +149,7 @@ export const GraphCQRS = {
     idOrNode: NodeId | NodeData,
     updates?: Partial<NodeData>,
   ): Promise<NodeData | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrNode === "string") {
       const id = idOrNode;
@@ -174,7 +174,7 @@ export const GraphCQRS = {
   },
 
   async deleteNode(id: NodeId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldNode = store.nodes.get(id);
     if (!oldNode) throw new Error("Node not found");
     store.deleteNode(id);
@@ -191,7 +191,7 @@ export const GraphCQRS = {
     idOrEdge: EdgeId | EdgeData,
     updates?: Partial<EdgeData>,
   ): Promise<EdgeData | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrEdge === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
@@ -216,7 +216,7 @@ export const GraphCQRS = {
   },
 
   async deleteEdge(id: EdgeId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldEdge = store.edges.get(id);
     if (!oldEdge) throw new Error("Edge not found");
     store.deleteEdge(id);
@@ -233,7 +233,7 @@ export const GraphCQRS = {
     idOrView: ViewId | View,
     updates?: Partial<View>,
   ): Promise<View | void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
 
     if (typeof idOrView === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
@@ -258,7 +258,7 @@ export const GraphCQRS = {
   },
 
   async deleteView(id: ViewId): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     const oldView = store.views.get(id);
     if (!oldView) throw new Error("View not found");
     store.deleteView(id);
@@ -273,7 +273,7 @@ export const GraphCQRS = {
   // ==================== Query ====================
 
   async syncNodeSemantic(ids?: NodeSemanticId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (NodeSemantic | null)[] = await Promise.all(
         ids.map((id) => trpcClient.nodeSemantic.getById.query({ id })),
@@ -286,7 +286,7 @@ export const GraphCQRS = {
   },
 
   async syncEdgeSemantic(ids?: EdgeSemanticId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (EdgeSemantic | null)[] = await Promise.all(
         ids.map((id) => trpcClient.edgeSemantic.getById.query({ id })),
@@ -299,7 +299,7 @@ export const GraphCQRS = {
   },
 
   async syncNodeTag(ids?: NodeTagId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (NodeTag | null)[] = await Promise.all(
         ids.map((id) => trpcClient.nodeTag.getById.query({ id })),
@@ -312,7 +312,7 @@ export const GraphCQRS = {
   },
 
   async syncNode(ids?: NodeId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (NodeData | null)[] = await Promise.all(
         ids.map((id) => trpcClient.node.getById.query({ id })),
@@ -325,7 +325,7 @@ export const GraphCQRS = {
   },
 
   async syncEdge(ids?: EdgeId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (EdgeData | null)[] = await Promise.all(
         ids.map((id) => trpcClient.edge.getById.query({ id })),
@@ -338,7 +338,7 @@ export const GraphCQRS = {
   },
 
   async syncView(ids?: ViewId[]): Promise<void> {
-    const store = useGraphStore.getState();
+    const store = useDataStore.getState();
     if (ids !== undefined) {
       const results: (View | null)[] = await Promise.all(
         ids.map((id) => trpcClient.view.getById.query({ id })),

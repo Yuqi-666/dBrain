@@ -2,7 +2,7 @@
 
 import { cn } from "@workspace/ui/lib/utils";
 import { NotionEditor } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 import type { RichTextNodeData } from "@workspace/interfaces";
 
@@ -12,7 +12,7 @@ interface RichTextNodeContentProps {
 }
 
 export function RichTextNodeContent({ node, className }: RichTextNodeContentProps) {
-  const getNode = useGraphStore((state) => state.getNode);
+  const getNode = useDataStore((state) => state.getNode);
 
   return (
     <NotionEditor

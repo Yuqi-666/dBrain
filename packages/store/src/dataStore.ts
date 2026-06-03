@@ -33,7 +33,7 @@ export type Mutation =
 /**
  * Unified Zustand store for managing all cognitive graph data
  */
-export interface GraphStore {
+export interface DataStore {
   // ==================== 核心状态 ====================
   nodeSemantics: Map<NodeSemanticId, NodeSemantic>;
   nodeTags: Map<NodeTagId, NodeTag>;
@@ -94,7 +94,7 @@ export interface GraphStore {
 
 }
 
-export const useGraphStore = create<GraphStore>()(
+export const useDataStore = create<DataStore>()(
   devtools(
     (set, get) => ({
       // ==================== 初始状态 ====================
@@ -415,5 +415,3 @@ export const useGraphStore = create<GraphStore>()(
     { name: "graph-store" },
   ),
 );
-
-export const graphStore = useGraphStore;

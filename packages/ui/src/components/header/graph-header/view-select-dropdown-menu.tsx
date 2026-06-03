@@ -1,6 +1,6 @@
 "use client";
 
-import { useGraphStore, useUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ interface ViewSelectDropdownMenuProps {
 export function ViewSelectDropdownMenu({
   className,
 }: ViewSelectDropdownMenuProps) {
-  const views = useGraphStore((state) => state.views);
+  const views = useDataStore((state) => state.views);
   const currentViewId = useUIStore((state) => state.currentViewId);
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
 

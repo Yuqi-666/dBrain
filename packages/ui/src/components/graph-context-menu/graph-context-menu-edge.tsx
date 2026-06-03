@@ -9,7 +9,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import type { EdgeId, EdgeDirection } from "@workspace/interfaces";
-import { useGraphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import { EdgeSemanticList } from "@workspace/ui/components/list/edge/semantic-list";
 
 function directionToFlags(direction: EdgeDirection): [boolean, boolean] {
@@ -47,7 +47,7 @@ export function GraphContextMenuEdge({
   onChangeEdgeSemantic,
   onClose,
 }: GraphContextMenuEdgeProps) {
-  const edge = useGraphStore((state) => state.edges.get(edgeId));
+  const edge = useDataStore((state) => state.edges.get(edgeId));
   const currentDirection = edge?.direction ?? "forward";
   const [showFromTo, showToFrom] = directionToFlags(currentDirection);
 

@@ -2,7 +2,7 @@
 
 import { PinIcon, PinOffIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { useNodeEditorStore, useGraphStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { GraphCQRS } from "@workspace/api-client";
 
 interface PinButtonProps {
@@ -13,10 +13,10 @@ interface PinButtonProps {
  * 图钉按钮 - 切换节点置顶状态
  */
 export function PinButton({ className }: PinButtonProps) {
-  const currentEditingNodeId = useNodeEditorStore(
+  const currentEditingNodeId = useUIStore(
     (s) => s.currentEditingNodeId,
   );
-  const node = useGraphStore((s) =>
+  const node = useDataStore((s) =>
     currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined,
   );
 

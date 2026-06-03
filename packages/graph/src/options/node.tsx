@@ -2,7 +2,7 @@ import React from "react";
 import type { NodeOptions, NodeData } from "@antv/g6";
 import type { NodeStyle } from "@antv/g6/lib/spec/element/node";
 import { createThemeOptions } from "./theme";
-import { graphStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import type { LayoutType } from "@workspace/interfaces";
 import { createNodeComponent } from "../extensions/custom-nodes";
 
@@ -21,7 +21,7 @@ export function createNodeOptions(options?: NodeConfigOptions): NodeOptions {
   ) {
     isReactNode = true;
   }
-  const getNodeSemantic = graphStore.getState().getNodeSemantic;
+  const getNodeSemantic = useDataStore.getState().getNodeSemantic;
 
   if (!isReactNode) {
     return {
