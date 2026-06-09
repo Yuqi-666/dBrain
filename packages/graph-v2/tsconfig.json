@@ -24,6 +24,12 @@
       "@workspace/utils": [
         "../utils/src"
       ],
+      "@workspace/hooks/*": [
+        "../hooks/src/*"
+      ],
+      "@workspace/hooks": [
+        "../hooks/src"
+      ],
       "@workspace/api-client": [
         "../api-client/src"
       ],
