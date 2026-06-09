@@ -4,14 +4,13 @@ import type { ViewCreated, ViewDeleted, ViewUpdated } from "@workspace/domain";
 import type { CreateViewCommand, UpdateViewCommand, DeleteViewCommand } from "./command";
 import type { ViewDTO, VisualConfigDTO } from "../../dto/view.dto";
 import { View } from "@workspace/domain/models/view/entities";
-import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
-import { LayoutType } from "@workspace/domain/models/layout/value-objects";
+import { ViewId, VisualConfig, ViewType } from "@workspace/domain/models/view/value-objects";
 import { FilterConfig, NodeId } from "@workspace/domain";
 function toViewDTO(view: View): ViewDTO {
   return {
     id: view.id.toString(),
     name: view.name,
-    layout: view.layout.getValue() as ViewDTO["layout"],
+    viewType: view.viewType.getValue() as ViewDTO["viewType"],
     visualConfig: {
       backgroundColor: view.visualConfig.backgroundColor,
       backgroundStyle: view.visualConfig.backgroundStyle,
@@ -50,7 +49,7 @@ export class ViewCommandService {
     const view = View.create({
       id: cmd.id,
       name: cmd.name,
-      layout: LayoutType.fromString(cmd.layout),
+      viewType: ViewType.fromString(cmd.viewType),
       visualConfig,
       filterConfig,
       isPinned: cmd.isPinned ?? false,
@@ -90,8 +89,8 @@ export class ViewCommandService {
       updated = updated.updateName(cmd.name);
     }
 
-    if (cmd.layout !== undefined) {
-      updated = updated.updateLayout(LayoutType.fromString(cmd.layout));
+    if (cmd.viewType !== undefined) {
+      updated = updated.updateViewType(ViewType.fromString(cmd.viewType));
     }
 
     if (cmd.visualConfig !== undefined) {

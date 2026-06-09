@@ -1,5 +1,4 @@
 import { FilterConfig } from "../filter/value-objects";
-import { LayoutType } from "../layout/value-objects";
 
 /**
  * ViewId value object - wraps a string with validation
@@ -41,6 +40,53 @@ export class ViewId {
    */
   toString(): string {
     return this._value;
+  }
+}
+
+/**
+ * ViewType value object - represents the high-level type of a view
+ * (semantic view category, not a specific G6 layout algorithm).
+ */
+export class ViewType {
+  private static readonly VALID_TYPES = ["Force", "Flow"] as const;
+
+  private readonly value: string;
+
+  private constructor(value: string) {
+    this.value = value;
+  }
+
+  static force(): ViewType {
+    return new ViewType("Force");
+  }
+
+  static flow(): ViewType {
+    return new ViewType("Flow");
+  }
+
+  static fromString(value: string): ViewType {
+    if (!ViewType.VALID_TYPES.includes(value as (typeof ViewType.VALID_TYPES)[number])) {
+      throw new Error(
+        `Invalid view type: ${value}. Valid values are: ${ViewType.VALID_TYPES.join(", ")}`,
+      );
+    }
+    return new ViewType(value);
+  }
+
+  getValue(): string {
+    return this.value;
+  }
+
+  equals(other: ViewType): boolean {
+    return this.value === other.value;
+  }
+
+  isForce(): boolean {
+    return this.value === "Force";
+  }
+
+  isFlow(): boolean {
+    return this.value === "Flow";
   }
 }
 

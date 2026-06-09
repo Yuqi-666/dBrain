@@ -41,8 +41,7 @@ import type {
 } from "../models/edge/value-objects";
 
 import { View } from "../models/view/entities";
-import type { ViewId } from "../models/view/value-objects";
-import type { LayoutType } from "../models/layout/value-objects";
+import type { ViewId, ViewType } from "../models/view/value-objects";
 
 import type {
   NodeSemantic,
@@ -88,7 +87,7 @@ export interface EdgeQuery {
  */
 export interface ViewQuery {
   isPinned?: boolean;
-  layout?: LayoutType["value"];
+  viewType?: ViewType["value"];
 }
 
 // ============================================================

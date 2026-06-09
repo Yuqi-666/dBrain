@@ -1,5 +1,5 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
-import type { LayoutType } from "@workspace/interfaces/models/layout";
+import type { ViewType } from "@workspace/domain";
 
 export interface VisualConfigDTO {
   backgroundColor?: string;
@@ -13,7 +13,7 @@ export interface VisualConfigDTO {
 export interface ViewDTO {
   id: string;
   name: string;
-  layout: LayoutType;
+  viewType: ViewType["value"];
   visualConfig: VisualConfigDTO;
   filterConfig: FilterConfig;
   isPinned: boolean;

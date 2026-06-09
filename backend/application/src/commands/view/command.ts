@@ -3,7 +3,7 @@ import type { FilterConfig } from "@workspace/interfaces";
 export interface CreateViewCommand {
   id: string;
   name: string;
-  layout: string;
+  viewType: string;
   visualConfig?: {
     backgroundColor?: string;
     showLabels?: boolean;
@@ -18,7 +18,7 @@ export interface CreateViewCommand {
 export interface UpdateViewCommand {
   id: string;
   name?: string;
-  layout?: string;
+  viewType?: string;
   visualConfig?: {
     backgroundColor?: string;
     showLabels?: boolean;

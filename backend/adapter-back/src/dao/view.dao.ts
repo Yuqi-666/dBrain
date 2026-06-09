@@ -2,7 +2,7 @@ import type {
   IViewRepository,
   ViewQuery,
 } from "@workspace/domain/repositories";
-import type { View, LayoutType } from "@workspace/domain/models";
+import type { View, ViewType } from "@workspace/domain/models";
 import { ViewId } from "@workspace/domain/models/view/value-objects";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
 
@@ -45,8 +45,8 @@ export class ViewDao implements IViewRepository {
     return this.repository.deleteMany(ids);
   }
 
-  async findByLayout(layout: LayoutType): Promise<View[]> {
-    return this.repository.findAll({ layout: layout.getValue() });
+  async findByViewType(viewType: ViewType): Promise<View[]> {
+    return this.repository.findAll({ viewType: viewType.getValue() });
   }
 
   async findContainingNodes(nodeIds: NodeId[]): Promise<View[]> {

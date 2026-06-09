@@ -5,7 +5,7 @@ import type {
   EdgeData,
   View,
   EdgeSemanticId,
-  LayoutType,
+  ViewType,
 } from "@workspace/interfaces";
 
 import { treeToGraphData } from "@antv/g6";
@@ -16,6 +16,7 @@ import type {
   EdgeData as G6EdgeData,
   TreeData as G6TreeData,
 } from "@antv/g6";
+import type { G6LayoutName } from "./options/layout";
 
 export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
   const g6Nodes: G6NodeData[] = [];
@@ -165,7 +166,7 @@ export function transformToG6Data(
   nodes: Map<NodeId, NodeData>,
   edges: Map<EdgeId, EdgeData>,
   view?: View,
-  layoutType?: LayoutType,
+  layoutType?: G6LayoutName,
 ): GraphData {
   const { filteredNodes, filteredEdges } = filterByViewFilterConfig(
     nodes,
@@ -173,7 +174,7 @@ export function transformToG6Data(
     view,
   );
 
-  const treeLayouts: LayoutType[] = ["compactBox", "fishbone", "mindmap"];
+  const treeLayouts: G6LayoutName[] = ["compactBox", "fishbone", "mindmap"];
   const isTreeLayout = layoutType && treeLayouts.includes(layoutType);
 
   if (isTreeLayout) {

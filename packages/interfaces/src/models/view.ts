@@ -1,14 +1,7 @@
-import type { NodeId } from "./node/base";
 import type { FilterConfig } from "./filter";
-import type { LayoutType } from "./layout";
-
-// export interface ViewportState {
-//   x: number;
-//   y: number;
-//   zoom: number;
-// }
 
 export type ViewId = string;
+export type ViewType = "Force" | "Flow"
 export interface VisualConfig {
   backgroundColor?: string;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
@@ -21,8 +14,7 @@ export interface VisualConfig {
 export interface View {
   id: ViewId;
   name: string;
-  layout: LayoutType;
-  // viewport: ViewportState;
+  viewType: ViewType;
   visualConfig: VisualConfig;
   filterConfig: FilterConfig;
   isPinned?: boolean;

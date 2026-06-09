@@ -70,7 +70,7 @@ migrate((app) => {
     deleteRule: "",
     fields: [
       { name: "name", type: "text" },
-      { name: "layout", type: "select", required: true, values: ["dagre", "D3force", "radial", "compactBox", "fishbone", "mindmap"] },
+      { name: "viewType", type: "select", required: true, values: ["Force", "Flow"] },
       { name: "visualConfig", type: "json" },
       { name: "filterConfig", type: "json" },
       { name: "isPinned", type: "bool" },

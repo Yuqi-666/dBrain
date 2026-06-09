@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from "react";
 import { Graph as G6Graph } from "@antv/g6";
 import { useDataStore, useUIStore } from "@workspace/store";
-import type { View, ViewId } from "@workspace/interfaces";
+import type { View, ViewId, ViewType } from "@workspace/interfaces";
 import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block";
 import { transformToG6Data } from "./transform";
@@ -15,6 +15,11 @@ import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
 import type { Mutation } from "@workspace/store/useDataStore";
 import { useGraph } from "@workspace/hooks"
+
+const VIEW_TYPE_TO_LAYOUT: Record<ViewType, "D3force" | "dagre"> = {
+  Force: "D3force",
+  Flow: "dagre",
+};
 // ----------------------------------------------------------------------
 // 1. 定义组件 Props
 // ----------------------------------------------------------------------
@@ -100,17 +105,17 @@ export function Graph({
       nodes,
       edges,
       currentView,
-      currentView?.layout,
+      currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
     );
     graph.setData(g6Data);
-    graph.setLayout(createLayoutOptions({ layoutType: currentView?.layout }));
+    graph.setLayout(createLayoutOptions({ viewType: currentView?.viewType }));
     graph.setOptions({
-      node: createNodeOptions({ layoutType: currentView?.layout }),
+      node: createNodeOptions({ viewType: currentView?.viewType }),
     });
 
     if (isMountedRef.current) {
       graph.render().then(() => {
-        if (currentView?.layout != "D3force") {
+        if (currentView?.viewType !== "Force") {
           graph.fitCenter();
         }
       });
@@ -129,7 +134,7 @@ export function Graph({
             new Map([[node.id, node]]),
             new Map(),
             currentView,
-            currentView?.layout,
+            currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
           );
           const newNodes = adapted.nodes ?? [];
           const newNode = newNodes[0];
@@ -159,7 +164,7 @@ export function Graph({
             new Map(),
             new Map([[edge.id, edge]]),
             currentView,
-            currentView?.layout,
+            currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
           );
           const newEdges = adapted.edges ?? [];
           const newEdge = newEdges[0];

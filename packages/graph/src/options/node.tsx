@@ -3,11 +3,13 @@ import type { NodeOptions, NodeData } from "@antv/g6";
 import type { NodeStyle } from "@antv/g6/lib/spec/element/node";
 import { createThemeOptions } from "./theme";
 import { useDataStore } from "@workspace/store";
-import type { LayoutType } from "@workspace/interfaces";
+import type { ViewType } from "@workspace/interfaces";
 import { createNodeComponent } from "../extensions/custom-nodes";
+import type { G6LayoutName } from "./layout";
 
 export interface NodeConfigOptions {
-  layoutType?: LayoutType;
+  layoutType?: G6LayoutName;
+  viewType?: ViewType;
 }
 
 export function createNodeOptions(options?: NodeConfigOptions): NodeOptions {

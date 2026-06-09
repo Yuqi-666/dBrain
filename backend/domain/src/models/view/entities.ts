@@ -1,23 +1,22 @@
-import { ViewId, VisualConfig } from "./value-objects";
-import { LayoutType } from "../layout/value-objects";
+import { ViewId, VisualConfig, ViewType } from "./value-objects";
 import { FilterConfig } from "../filter/value-objects";
 interface ViewProps {
   id: ViewId;
   name: string;
-  layout: LayoutType;
+  viewType: ViewType;
   visualConfig: VisualConfig;
   filterConfig: FilterConfig;
   isPinned: boolean;
 }
 
 /**
- * View entity - represents a graph view with layout and visual configuration
+ * View entity - represents a graph view with type and visual configuration
  * All properties are readonly - use update methods to create new instances
  */
 export class View {
   readonly id: ViewId;
   readonly name: string;
-  readonly layout: LayoutType;
+  readonly viewType: ViewType;
   readonly visualConfig: VisualConfig;
   readonly filterConfig: FilterConfig;
   readonly isPinned: boolean;
@@ -25,7 +24,7 @@ export class View {
   private constructor(props: ViewProps) {
     this.id = props.id;
     this.name = props.name;
-    this.layout = props.layout;
+    this.viewType = props.viewType;
     this.visualConfig = props.visualConfig;
     this.filterConfig = props.filterConfig;
     this.isPinned = props.isPinned ?? false;
@@ -37,17 +36,17 @@ export class View {
   static create(props: {
     id: string | ViewId;
     name: string;
-    layout: LayoutType | string;
+    viewType: ViewType | string;
     visualConfig: VisualConfig;
     filterConfig: FilterConfig;
     isPinned?: boolean;
   }): View {
     const id =
       typeof props.id === "string" ? ViewId.create(props.id) : props.id;
-    const layout =
-      typeof props.layout === "string"
-        ? LayoutType.fromString(props.layout)
-        : props.layout;
+    const viewType =
+      typeof props.viewType === "string"
+        ? ViewType.fromString(props.viewType)
+        : props.viewType;
     const visualConfig =
       props.visualConfig instanceof VisualConfig
         ? props.visualConfig
@@ -56,7 +55,7 @@ export class View {
     return new View({
       id,
       name: props.name,
-      layout,
+      viewType,
       visualConfig,
       filterConfig: props.filterConfig,
       isPinned: props.isPinned ?? false,
@@ -77,7 +76,7 @@ export class View {
     return new View({
       id: this.id,
       name,
-      layout: this.layout,
+      viewType: this.viewType,
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
@@ -85,13 +84,13 @@ export class View {
   }
 
   /**
-   * Creates a copy with updated layout
+   * Creates a copy with updated view type
    */
-  updateLayout(layout: LayoutType): View {
+  updateViewType(viewType: ViewType): View {
     return new View({
       id: this.id,
       name: this.name,
-      layout,
+      viewType,
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
@@ -105,7 +104,7 @@ export class View {
     return new View({
       id: this.id,
       name: this.name,
-      layout: this.layout,
+      viewType: this.viewType,
       visualConfig: config,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
@@ -119,7 +118,7 @@ export class View {
     return new View({
       id: this.id,
       name: this.name,
-      layout: this.layout,
+      viewType: this.viewType,
       visualConfig: this.visualConfig,
       filterConfig: config,
       isPinned: this.isPinned,
@@ -134,7 +133,7 @@ export class View {
     return new View({
       id: this.id,
       name: this.name,
-      layout: this.layout,
+      viewType: this.viewType,
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: true,
@@ -149,7 +148,7 @@ export class View {
     return new View({
       id: this.id,
       name: this.name,
-      layout: this.layout,
+      viewType: this.viewType,
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: false,

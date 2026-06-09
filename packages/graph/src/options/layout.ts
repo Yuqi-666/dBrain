@@ -1,7 +1,20 @@
-import type { LayoutOptions, EdgeData } from "@antv/g6";
-import type { LayoutType } from "@workspace/interfaces";
+import type { LayoutOptions } from "@antv/g6";
+import type { ViewType } from "@workspace/interfaces";
 
-export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
+/**
+ * G6 layout algorithm names.
+ * Internal to the graph package — these are G6-specific implementation details,
+ * not exposed via the domain layer.
+ */
+export type G6LayoutName =
+  | "D3force"
+  | "dagre"
+  | "radial"
+  | "compactBox"
+  | "fishbone"
+  | "mindmap";
+
+export const LAYOUT_CONFIGS: Record<G6LayoutName, LayoutOptions> = {
   D3force: {
     type: "d3-force",
     link: {
@@ -46,12 +59,27 @@ export const LAYOUT_CONFIGS: Record<LayoutType, LayoutOptions> = {
   mindmap: { type: "mindmap", direction: "H", radius: 20 },
 };
 
+/**
+ * Map high-level ViewType to a G6 layout name.
+ * This keeps the layout algorithm choice encapsulated in the graph package
+ * while respecting the ViewType contract from the domain.
+ */
+const VIEW_TYPE_TO_LAYOUT: Record<ViewType, G6LayoutName> = {
+  Force: "D3force",
+  Flow: "dagre",
+};
+
 export interface LayoutConfigOptions {
-  layoutType?: LayoutType;
+  layoutType?: G6LayoutName;
+  viewType?: ViewType;
 }
 
 export function createLayoutOptions(
   options?: LayoutConfigOptions,
 ): LayoutOptions {
-  return LAYOUT_CONFIGS[options?.layoutType || "dagre"];
+  const layoutName =
+    options?.layoutType ??
+    (options?.viewType ? VIEW_TYPE_TO_LAYOUT[options.viewType] : undefined) ??
+    "dagre";
+  return LAYOUT_CONFIGS[layoutName];
 }

@@ -98,7 +98,7 @@ migrate((app) => {
   app.save(new Record(edgesCol, { from: n13.id, to: n15.id, semanticId: es4.id, direction: "forward", weight: 2, edgeType: "association" }));
 
   const viewsCol = app.findCollectionByNameOrId("views");
-  app.save(new Record(viewsCol, { name: "Demo View", layout: "D3force", isPinned: true, visualConfig: { showMinimap: true, backgroundStyle: "grid" }, filterConfig: {} }));
+  app.save(new Record(viewsCol, { name: "Demo View", viewType: "Force", isPinned: true, visualConfig: { showMinimap: true, backgroundStyle: "grid" }, filterConfig: {} }));
 }, (app) => {
   const deleteAll = (col) => {
     const records = col.getFullList();

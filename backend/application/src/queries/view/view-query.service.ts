@@ -13,7 +13,7 @@ function toViewDTO(view: View): ViewDTO {
   return {
     id: view.id.toString(),
     name: view.name,
-    layout: view.layout.getValue() as ViewDTO['layout'],
+    viewType: view.viewType.getValue() as ViewDTO['viewType'],
     visualConfig: {
       backgroundColor: view.visualConfig.backgroundColor,
       backgroundStyle: view.visualConfig.backgroundStyle,
@@ -34,7 +34,7 @@ function toViewDTO(view: View): ViewDTO {
 function toViewQuery(q: ListViewsQuery): ViewQuery {
   return {
     isPinned: q.isPinned,
-    layout: q.layout as ViewQuery['layout'],
+    viewType: q.viewType as ViewQuery['viewType'],
   };
 }
 

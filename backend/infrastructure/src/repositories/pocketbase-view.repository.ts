@@ -122,8 +122,8 @@ export class PocketBaseViewRepository implements IViewRepository {
       filters.push(`isPinned = ${query.isPinned}`);
     }
 
-    if (query?.layout !== undefined) {
-      filters.push(`layout = "${query.layout}"`);
+    if (query?.viewType !== undefined) {
+      filters.push(`viewType = "${query.viewType}"`);
     }
 
     if (filters.length === 0) {

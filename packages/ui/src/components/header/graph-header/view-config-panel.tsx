@@ -22,7 +22,7 @@ import {
   MapIcon,
   LayoutIcon,
 } from "lucide-react";
-import type { VisualConfig, LayoutType } from "@workspace/interfaces";
+import type { VisualConfig, ViewType } from "@workspace/interfaces";
 
 const BACKGROUND_COLORS = [
   { label: "默认白", value: "#ffffff" },
@@ -38,13 +38,9 @@ const GRID_STYLES = [
   { label: "无", value: "none" },
 ];
 
-const LAYOUTS = [
-  { label: "力导向", value: "D3force" },
-  { label: "层级布局", value: "dagre" },
-  { label: "辐射布局", value: "radial" },
-  { label: "紧凑盒", value: "compactBox" },
-  { label: "鱼骨图", value: "fishbone" },
-  { label: "思维导图", value: "mindmap" },
+const VIEW_TYPES = [
+  { label: "力导向视图", value: "Force" },
+  { label: "工作流视图", value: "Flow" },
 ] as const;
 
 interface ViewConfigPanelProps {
@@ -68,9 +64,9 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
     });
   };
 
-  const handleUpdateLayout = async (layout: LayoutType) => {
+  const handleUpdateViewType = async (viewType: ViewType) => {
     if (!currentViewId) return;
-    await GraphCQRS.upsertView(currentViewId, { layout });
+    await GraphCQRS.upsertView(currentViewId, { viewType });
   };
 
   return (
@@ -136,16 +132,16 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <LayoutIcon className="size-4 mr-2" />
-            <span>布局方式</span>
+            <span>视图类型</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-32">
-            {LAYOUTS.map((layout) => (
+            {VIEW_TYPES.map((viewType) => (
               <DropdownMenuItem
-                key={layout.value}
-                onClick={() => handleUpdateLayout(layout.value)}
+                key={viewType.value}
+                onClick={() => handleUpdateViewType(viewType.value as ViewType)}
               >
-                <span>{layout.label}</span>
-                {currentView?.layout === layout.value && (
+                <span>{viewType.label}</span>
+                {currentView?.viewType === viewType.value && (
                   <CheckIcon className="size-3 ml-auto" />
                 )}
               </DropdownMenuItem>

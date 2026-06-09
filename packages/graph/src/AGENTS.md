@@ -66,7 +66,7 @@ Alt+drag interaction:
 - Creates assist edge/node temporarily, calls `onCreateEdge` callback on drop
 
 ## Dependencies
-- `@workspace/interfaces` — Domain types (NodeId, EdgeId, NodeData, EdgeData, View, LayoutType, etc.)
+- `@workspace/interfaces` — Domain types (NodeId, EdgeId, NodeData, EdgeData, View, ViewType, etc.)
 - `@workspace/store` — `useDataStore` (nodes, edges, views, mutations), `useGraphUIStore` (selection, context menu, preview)
 - `@workspace/ui` — `GraphContextMenu`, `PreviewBlock`, design tokens
 - `@workspace/utils` — `filterByViewFilterConfig` for view-based data filtering

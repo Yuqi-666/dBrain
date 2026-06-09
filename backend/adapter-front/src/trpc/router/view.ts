@@ -6,7 +6,7 @@ const addSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
-  layout: z.enum(["dagre", "radial", "compactBox", "D3force", "fishbone", "mindmap"]),
+  viewType: z.enum(["Force", "Flow"]),
   filter: z.any().optional(),
 });
 
@@ -15,7 +15,7 @@ const updateSchema = z.object({
   updates: z.object({
     name: z.string().optional(),
     description: z.string().optional(),
-    layout: z.enum(["dagre", "radial", "compactBox", "D3force", "fishbone", "mindmap"]).optional(),
+    viewType: z.enum(["Force", "Flow"]).optional(),
     filter: z.any().optional(),
   }),
 });
@@ -29,7 +29,7 @@ export const viewRouter = router({
     const result = await container().viewCommandService.createView({
       id: input.id,
       name: input.name,
-      layout: input.layout,
+      viewType: input.viewType,
       filterConfig: input.filter,
       isPinned: false,
       userId: ctx.userId,
@@ -56,7 +56,7 @@ export const viewRouter = router({
   list: protectedProcedure
     .input(z.object({
       isPinned: z.boolean().optional(),
-      layout: z.enum(["dagre", "radial", "compactBox", "D3force", "fishbone", "mindmap"]).optional(),
+      viewType: z.enum(["Force", "Flow"]).optional(),
     }))
     .query(async ({ input }) => {
       return container().viewQueryService.list(input);

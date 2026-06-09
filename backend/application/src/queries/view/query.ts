@@ -4,7 +4,7 @@ export interface GetViewByIdQuery {
 
 export interface ListViewsQuery {
   isPinned?: boolean;
-  layout?: string;
+  viewType?: string;
 }
 
 export interface GetViewsByNodeQuery {

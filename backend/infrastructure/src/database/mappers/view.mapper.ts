@@ -1,15 +1,14 @@
 import type { RecordModel } from "pocketbase";
 import { FilterConfig } from "@workspace/domain/models/filter/value-objects";
 import { View } from "@workspace/domain/models/view/entities";
-import { ViewId, VisualConfig } from "@workspace/domain/models/view/value-objects";
-import { LayoutType } from "@workspace/domain/models/layout/value-objects";
+import { ViewId, VisualConfig, ViewType } from "@workspace/domain/models/view/value-objects";
 
 export class ViewMapper {
   static toDomain(record: RecordModel): View {
     return View.create({
       id: ViewId.create(record.id),
       name: record.name as string,
-      layout: LayoutType.fromString(record.layout as string),
+      viewType: ViewType.fromString(record.viewType as string),
       visualConfig: VisualConfig.create(
         record.visualConfig as Partial<VisualConfig>,
       ),
@@ -22,7 +21,7 @@ export class ViewMapper {
     return {
       id: view.id.value,
       name: view.name,
-      layout: view.layout.getValue(),
+      viewType: view.viewType.getValue(),
       visualConfig: {
         backgroundColor: view.visualConfig.backgroundColor,
         backgroundStyle: view.visualConfig.backgroundStyle,

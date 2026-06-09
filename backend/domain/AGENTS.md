@@ -16,9 +16,8 @@ src/
 ├── models/
 │   ├── node/           # Node entities + events + value objects
 │   ├── edge/           # Edge, EdgeSemantic entities + events + value objects
-│   ├── view/           # View entity + events + value objects
+│   ├── view/           # View entity + events + value objects (incl. ViewType)
 │   ├── semantic/       # NodeSemantic, EdgeSemantic, NodeTag entities + events
-│   ├── layout/        # LayoutType value object
 │   ├── filter/         # FilterConfig value object
 │   └── index.ts        # Re-exports all models
 ├── repositories/
