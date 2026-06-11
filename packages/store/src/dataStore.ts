@@ -15,20 +15,29 @@ import type {
   ViewId,
 } from "@workspace/interfaces";
 
-// 定义变更操作的类型
-export type Mutation =
-  | { type: "upsertNodeSemantic"; payload: NodeSemantic }
-  | { type: "deleteNodeSemantic"; payload: { id: NodeSemanticId } }
-  | { type: "upsertNodeTag"; payload: NodeTag }
-  | { type: "deleteNodeTag"; payload: { id: NodeTagId } }
-  | { type: "upsertEdgeSemantic"; payload: EdgeSemantic }
-  | { type: "deleteEdgeSemantic"; payload: { id: EdgeSemanticId } }
-  | { type: "upsertNode"; payload: NodeData }
-  | { type: "deleteNode"; payload: { id: NodeId } }
-  | { type: "upsertEdge"; payload: EdgeData }
-  | { type: "deleteEdge"; payload: { id: EdgeId } }
-  | { type: "upsertView"; payload: View }
-  | { type: "deleteView"; payload: { id: ViewId } };
+export interface EntityDiff<TData, TId> {
+  added: TData[];
+  updated: TData[];
+  removed: TId[];
+}
+
+export interface Diff {
+  nodes: EntityDiff<NodeData, NodeId>;
+  edges: EntityDiff<EdgeData, EdgeId>;
+  nodeSemantics: EntityDiff<NodeSemantic, NodeSemanticId>;
+  nodeTags: EntityDiff<NodeTag, NodeTagId>;
+  edgeSemantics: EntityDiff<EdgeSemantic, EdgeSemanticId>;
+  views: EntityDiff<View, ViewId>;
+}
+
+const createEmptyDiff = (): Diff => ({
+  nodes: { added: [], updated: [], removed: [] },
+  edges: { added: [], updated: [], removed: [] },
+  nodeSemantics: { added: [], updated: [], removed: [] },
+  nodeTags: { added: [], updated: [], removed: [] },
+  edgeSemantics: { added: [], updated: [], removed: [] },
+  views: { added: [], updated: [], removed: [] },
+});
 
 /**
  * Unified Zustand store for managing all cognitive graph data
@@ -42,12 +51,8 @@ export interface DataStore {
   edges: Map<EdgeId, EdgeData>;
   views: Map<ViewId, View>;
 
-  // ==================== 变更队列状态 ====================
-  /** 用于 G6 消费的变更队列 */
-  latestMutations: Mutation[];
-
-  /** G6 消费完变更后，调用此方法清空队列 */
-  clearMutations: () => void;
+  diff: Diff;
+  clearDiff: () => void;
 
   // ==================== CRUD Actions (upsert/delete only) ====================
   // -- Node Semantic --
@@ -91,6 +96,7 @@ export interface DataStore {
   getEdge: (id: EdgeId) => EdgeData | undefined;
   getEdgesForNode: (nodeId: NodeId) => EdgeData[];
   getView: (id: ViewId) => View | undefined;
+  isDiffEmpty: () => boolean;
 
 }
 
@@ -104,294 +110,421 @@ export const useDataStore = create<DataStore>()(
       nodes: new Map(),
       edges: new Map(),
       views: new Map(),
-      latestMutations: [],
+      diff: createEmptyDiff(),
 
-      // 清空队列的方法
-      clearMutations: () => { set({ latestMutations: [] }) },
+      // 清空 Diff 的方法
+      clearDiff: () => { set({ diff: createEmptyDiff() }) },
 
       // ==================== Node Semantic Actions ====================
       upsertNodeSemantic: (semantic) => {
         set((state) => {
+          const existed = state.nodeSemantics.has(semantic.id);
           const newSemantics = new Map(state.nodeSemantics);
           newSemantics.set(semantic.id, semantic);
-          return { nodeSemantics: newSemantics };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeSemantics: {
+              ...state.diff.nodeSemantics,
+              [bucket]: [...state.diff.nodeSemantics[bucket], semantic],
+            },
+          };
+
+          return { nodeSemantics: newSemantics, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertNodeSemantic", payload: semantic },
-          ],
-        }));
       },
 
       upsertNodeSemantics: (semantics) => {
         set((state) => {
           const newSemantics = new Map(state.nodeSemantics);
+          const added: NodeSemantic[] = [];
+          const updated: NodeSemantic[] = [];
           for (const s of semantics) {
+            if (newSemantics.has(s.id)) {
+              updated.push(s);
+            } else {
+              added.push(s);
+            }
             newSemantics.set(s.id, s);
           }
-          return { nodeSemantics: newSemantics };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeSemantics: {
+              ...state.diff.nodeSemantics,
+              added: [...state.diff.nodeSemantics.added, ...added],
+              updated: [...state.diff.nodeSemantics.updated, ...updated],
+            },
+          };
+
+          return { nodeSemantics: newSemantics, diff: newDiff };
         });
-        // Batch mutation - one per item
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...semantics.map((s) => ({ type: "upsertNodeSemantic" as const, payload: s })),
-          ],
-        }));
       },
 
       deleteNodeSemantic: (id) => {
         set((state) => {
+          if (!state.nodeSemantics.has(id)) {
+            return state;
+          }
           const newSemantics = new Map(state.nodeSemantics);
           newSemantics.delete(id);
-          return { nodeSemantics: newSemantics };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeSemantics: {
+              ...state.diff.nodeSemantics,
+              removed: [...state.diff.nodeSemantics.removed, id],
+            },
+          };
+
+          return { nodeSemantics: newSemantics, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteNodeSemantic", payload: { id } },
-          ],
-        }));
       },
 
       // ==================== Node Tag Actions ====================
       upsertNodeTag: (tag) => {
         set((state) => {
+          const existed = state.nodeTags.has(tag.id);
           const newTags = new Map(state.nodeTags);
           newTags.set(tag.id, tag);
-          return { nodeTags: newTags };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeTags: {
+              ...state.diff.nodeTags,
+              [bucket]: [...state.diff.nodeTags[bucket], tag],
+            },
+          };
+
+          return { nodeTags: newTags, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertNodeTag", payload: tag },
-          ],
-        }));
       },
 
       upsertNodeTags: (tags) => {
         set((state) => {
           const newTags = new Map(state.nodeTags);
+          const added: NodeTag[] = [];
+          const updated: NodeTag[] = [];
           for (const t of tags) {
+            if (newTags.has(t.id)) {
+              updated.push(t);
+            } else {
+              added.push(t);
+            }
             newTags.set(t.id, t);
           }
-          return { nodeTags: newTags };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeTags: {
+              ...state.diff.nodeTags,
+              added: [...state.diff.nodeTags.added, ...added],
+              updated: [...state.diff.nodeTags.updated, ...updated],
+            },
+          };
+
+          return { nodeTags: newTags, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...tags.map((t) => ({ type: "upsertNodeTag" as const, payload: t })),
-          ],
-        }));
       },
 
       deleteNodeTag: (id) => {
         set((state) => {
+          if (!state.nodeTags.has(id)) {
+            return state;
+          }
           const newTags = new Map(state.nodeTags);
           newTags.delete(id);
-          return { nodeTags: newTags };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            nodeTags: {
+              ...state.diff.nodeTags,
+              removed: [...state.diff.nodeTags.removed, id],
+            },
+          };
+
+          return { nodeTags: newTags, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteNodeTag", payload: { id } },
-          ],
-        }));
       },
 
       // ==================== Edge Semantic Actions ====================
       upsertEdgeSemantic: (semantic) => {
         set((state) => {
+          const existed = state.edgeSemantics.has(semantic.id);
           const newSemantics = new Map(state.edgeSemantics);
           newSemantics.set(semantic.id, semantic);
-          return { edgeSemantics: newSemantics };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            edgeSemantics: {
+              ...state.diff.edgeSemantics,
+              [bucket]: [...state.diff.edgeSemantics[bucket], semantic],
+            },
+          };
+
+          return { edgeSemantics: newSemantics, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertEdgeSemantic", payload: semantic },
-          ],
-        }));
       },
 
       upsertEdgeSemantics: (semantics) => {
         set((state) => {
           const newSemantics = new Map(state.edgeSemantics);
+          const added: EdgeSemantic[] = [];
+          const updated: EdgeSemantic[] = [];
           for (const s of semantics) {
+            if (newSemantics.has(s.id)) {
+              updated.push(s);
+            } else {
+              added.push(s);
+            }
             newSemantics.set(s.id, s);
           }
-          return { edgeSemantics: newSemantics };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            edgeSemantics: {
+              ...state.diff.edgeSemantics,
+              added: [...state.diff.edgeSemantics.added, ...added],
+              updated: [...state.diff.edgeSemantics.updated, ...updated],
+            },
+          };
+
+          return { edgeSemantics: newSemantics, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...semantics.map((s) => ({ type: "upsertEdgeSemantic" as const, payload: s })),
-          ],
-        }));
       },
 
       deleteEdgeSemantic: (id) => {
         set((state) => {
+          if (!state.edgeSemantics.has(id)) {
+            return state;
+          }
           const newSemantics = new Map(state.edgeSemantics);
           newSemantics.delete(id);
-          return { edgeSemantics: newSemantics };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            edgeSemantics: {
+              ...state.diff.edgeSemantics,
+              removed: [...state.diff.edgeSemantics.removed, id],
+            },
+          };
+
+          return { edgeSemantics: newSemantics, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteEdgeSemantic", payload: { id } },
-          ],
-        }));
       },
 
       // ==================== Node Actions ====================
       upsertNode: (node) => {
         set((state) => {
+          const existed = state.nodes.has(node.id);
           const newNodes = new Map(state.nodes);
           newNodes.set(node.id, node);
-          return { nodes: newNodes };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            nodes: {
+              ...state.diff.nodes,
+              [bucket]: [...state.diff.nodes[bucket], node],
+            },
+          };
+
+          return { nodes: newNodes, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertNode", payload: node },
-          ],
-        }));
       },
 
       upsertNodes: (nodes) => {
         set((state) => {
           const newNodes = new Map(state.nodes);
+          const added: NodeData[] = [];
+          const updated: NodeData[] = [];
           for (const n of nodes) {
+            if (newNodes.has(n.id)) {
+              updated.push(n);
+            } else {
+              added.push(n);
+            }
             newNodes.set(n.id, n);
           }
-          return { nodes: newNodes };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            nodes: {
+              ...state.diff.nodes,
+              added: [...state.diff.nodes.added, ...added],
+              updated: [...state.diff.nodes.updated, ...updated],
+            },
+          };
+
+          return { nodes: newNodes, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...nodes.map((n) => ({ type: "upsertNode" as const, payload: n })),
-          ],
-        }));
       },
 
       deleteNode: (id) => {
-        const associatedEdges = [];
-        const currentEdges = get().edges; // 从 store 拿当前边
-
-        for (const [edgeId, edge] of currentEdges) {
+        const associatedEdges: EdgeId[] = [];
+        for (const [edgeId, edge] of get().edges) {
           if (edge.from === id || edge.to === id) {
             associatedEdges.push(edgeId);
           }
         }
-
-        associatedEdges.forEach(edgeId => {
+        for (const edgeId of associatedEdges) {
           get().deleteEdge(edgeId);
-        });
+        }
 
         set((state) => {
+          if (!state.nodes.has(id)) {
+            return state;
+          }
           const newNodes = new Map(state.nodes);
           newNodes.delete(id);
-          return { nodes: newNodes };
-        });
 
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteNode", payload: { id } },
-          ],
-        }));
+          const newDiff: Diff = {
+            ...state.diff,
+            nodes: {
+              ...state.diff.nodes,
+              removed: [...state.diff.nodes.removed, id],
+            },
+          };
+
+          return { nodes: newNodes, diff: newDiff };
+        });
       },
 
       // ==================== Edge Actions ====================
       upsertEdge: (edge) => {
         set((state) => {
+          const existed = state.edges.has(edge.id);
           const newEdges = new Map(state.edges);
           newEdges.set(edge.id, edge);
-          return { edges: newEdges };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            edges: {
+              ...state.diff.edges,
+              [bucket]: [...state.diff.edges[bucket], edge],
+            },
+          };
+
+          return { edges: newEdges, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertEdge", payload: edge },
-          ],
-        }));
       },
 
       upsertEdges: (edges) => {
         set((state) => {
           const newEdges = new Map(state.edges);
+          const added: EdgeData[] = [];
+          const updated: EdgeData[] = [];
           for (const e of edges) {
+            if (newEdges.has(e.id)) {
+              updated.push(e);
+            } else {
+              added.push(e);
+            }
             newEdges.set(e.id, e);
           }
-          return { edges: newEdges };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            edges: {
+              ...state.diff.edges,
+              added: [...state.diff.edges.added, ...added],
+              updated: [...state.diff.edges.updated, ...updated],
+            },
+          };
+
+          return { edges: newEdges, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...edges.map((e) => ({ type: "upsertEdge" as const, payload: e })),
-          ],
-        }));
       },
 
       deleteEdge: (id) => {
         set((state) => {
+          if (!state.edges.has(id)) {
+            return state;
+          }
           const newEdges = new Map(state.edges);
           newEdges.delete(id);
-          return { edges: newEdges };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            edges: {
+              ...state.diff.edges,
+              removed: [...state.diff.edges.removed, id],
+            },
+          };
+
+          return { edges: newEdges, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteEdge", payload: { id } },
-          ],
-        }));
       },
 
       // ==================== View Actions ====================
       upsertView: (view) => {
         set((state) => {
+          const existed = state.views.has(view.id);
           const newViews = new Map(state.views);
           newViews.set(view.id, view);
-          return { views: newViews };
+
+          const bucket: "added" | "updated" = existed ? "updated" : "added";
+          const newDiff: Diff = {
+            ...state.diff,
+            views: {
+              ...state.diff.views,
+              [bucket]: [...state.diff.views[bucket], view],
+            },
+          };
+
+          return { views: newViews, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "upsertView", payload: view },
-          ],
-        }));
       },
 
       upsertViews: (views) => {
         set((state) => {
           const newViews = new Map(state.views);
+          const added: View[] = [];
+          const updated: View[] = [];
           for (const v of views) {
+            if (newViews.has(v.id)) {
+              updated.push(v);
+            } else {
+              added.push(v);
+            }
             newViews.set(v.id, v);
           }
-          return { views: newViews };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            views: {
+              ...state.diff.views,
+              added: [...state.diff.views.added, ...added],
+              updated: [...state.diff.views.updated, ...updated],
+            },
+          };
+
+          return { views: newViews, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            ...views.map((v) => ({ type: "upsertView" as const, payload: v })),
-          ],
-        }));
       },
 
       deleteView: (id) => {
         set((state) => {
+          if (!state.views.has(id)) {
+            return state;
+          }
           const newViews = new Map(state.views);
           newViews.delete(id);
-          return { views: newViews };
+
+          const newDiff: Diff = {
+            ...state.diff,
+            views: {
+              ...state.diff.views,
+              removed: [...state.diff.views.removed, id],
+            },
+          };
+
+          return { views: newViews, diff: newDiff };
         });
-        set((state) => ({
-          latestMutations: [
-            ...state.latestMutations,
-            { type: "deleteView", payload: { id } },
-          ],
-        }));
       },
 
       // ==================== Getters  ====================
@@ -410,6 +543,15 @@ export const useDataStore = create<DataStore>()(
         );
       },
       getView: (id) => get().views.get(id),
+      isDiffEmpty: () => {
+        const d = get().diff;
+        for (const bucket of Object.values(d)) {
+          if (bucket.added.length || bucket.updated.length || bucket.removed.length) {
+            return false;
+          }
+        }
+        return true;
+      },
 
     }),
     { name: "graph-store" },

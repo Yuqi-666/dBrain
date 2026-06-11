@@ -13,8 +13,8 @@ import {
 } from "./options";
 import { useGraphInstance } from "./hooks/useGraphInstance";
 import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
-import type { Mutation } from "@workspace/store/useDataStore";
 import { useGraph } from "@workspace/hooks"
+import type { Diff } from "@workspace/store/dataStore";
 
 const VIEW_TYPE_TO_LAYOUT: Record<ViewType, "D3force" | "dagre"> = {
   Force: "D3force",
@@ -123,83 +123,69 @@ export function Graph({
   };
 
   // 增量同步
-  const processMutations = (graph: G6Graph, mutations: Mutation[]) => {
+  const processDiff = (graph: G6Graph, diff: Diff) => {
     const currentView = resolvedViewRef.current;
+    const layoutKind = currentView?.viewType
+      ? VIEW_TYPE_TO_LAYOUT[currentView.viewType]
+      : undefined;
 
-    mutations.forEach((mutation) => {
-      switch (mutation.type) {
-        case "upsertNode": {
-          const node = mutation.payload;
-          const adapted = transformToG6Data(
-            new Map([[node.id, node]]),
-            new Map(),
-            currentView,
-            currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
-          );
-          const newNodes = adapted.nodes ?? [];
-          const newNode = newNodes[0];
-          if (newNode?.id) {
-            const existingNode = graph.hasNode(newNode.id);
-            if (existingNode) {
-              graph.updateNodeData([newNode]);
-              graph.draw();
-            } else {
-              graph.stopLayout();
-              graph.addNodeData([newNode]);
-              graph.render();
-            }
+    const upsertNodes = [...diff.nodes.added, ...diff.nodes.updated];
+    if (upsertNodes.length > 0) {
+      const nodeMap = new Map(upsertNodes.map((n) => [n.id, n]));
+      const adapted = transformToG6Data(nodeMap, new Map(), currentView, layoutKind);
+      const newNodes = adapted.nodes ?? [];
+      const existing = newNodes.filter((n) => graph.hasNode(n.id!));
+      const added = newNodes.filter((n) => !graph.hasNode(n.id!));
 
-          }
-          break;
-        }
-        case "deleteNode": {
-          graph.stopLayout();
-          graph.removeNodeData([mutation.payload.id]);
-          graph.render();
-          break;
-        }
-        case "upsertEdge": {
-          const edge = mutation.payload;
-          const adapted = transformToG6Data(
-            new Map(),
-            new Map([[edge.id, edge]]),
-            currentView,
-            currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
-          );
-          const newEdges = adapted.edges ?? [];
-          const newEdge = newEdges[0];
-          if (newEdge?.id) {
-            const existingEdge = graph.hasEdge(newEdge.id);
-            if (existingEdge) {
-              graph.updateEdgeData([newEdge]);
-              graph.draw();
-            } else {
-              graph.stopLayout();
-              graph.addEdgeData([newEdge]);
-              graph.render();
-            }
-          }
-          break;
-        }
-        case "deleteEdge": {
-          graph.stopLayout();
-          graph.removeEdgeData([mutation.payload.id]);
-          graph.render();
-          break;
-        }
-        case "upsertView": {
-          const updatedView = mutation.payload;
-          const currentViewId = resolvedViewRef.current?.id;
-          if (currentViewId && updatedView.id === currentViewId) {
-            performFullSync(graph);
-          }
-          break;
-        }
-        case "deleteView": {
-          break;
-        }
+      if (existing.length > 0) {
+        graph.updateNodeData(existing);
+        graph.draw();
       }
-    });
+      if (added.length > 0) {
+        graph.stopLayout();
+        graph.addNodeData(added);
+        graph.render();
+      }
+    }
+
+    if (diff.nodes.removed.length > 0) {
+      graph.stopLayout();
+      graph.removeNodeData(diff.nodes.removed);
+      graph.render();
+    }
+
+    const upsertEdges = [...diff.edges.added, ...diff.edges.updated];
+    if (upsertEdges.length > 0) {
+      const edgeMap = new Map(upsertEdges.map((e) => [e.id, e]));
+      const adapted = transformToG6Data(new Map(), edgeMap, currentView, layoutKind);
+      const newEdges = adapted.edges ?? [];
+      const existing = newEdges.filter((e) => graph.hasEdge(e.id!));
+      const added = newEdges.filter((e) => !graph.hasEdge(e.id!));
+
+      if (existing.length > 0) {
+        graph.updateEdgeData(existing);
+        graph.draw();
+      }
+      if (added.length > 0) {
+        graph.stopLayout();
+        graph.addEdgeData(added);
+        graph.render();
+      }
+    }
+
+    if (diff.edges.removed.length > 0) {
+      graph.stopLayout();
+      graph.removeEdgeData(diff.edges.removed);
+      graph.render();
+    }
+
+    for (const updatedView of diff.views.updated) {
+      const currentViewId = resolvedViewRef.current?.id;
+      if (currentViewId && updatedView.id === currentViewId) {
+        performFullSync(graph);
+      }
+    }
+    // diff.views.added / removed: 当前实现与旧 Mutation 实现一致，不触发额外同步
   };
 
   // ----------------------------------------------------------------------
@@ -209,9 +195,10 @@ export function Graph({
   // 1. 订阅全局 Store 的增量更新
   useEffect(() => {
     const unsubscribe = useDataStore.subscribe((state) => {
-      if (!graphRef.current || state.latestMutations.length === 0) return;
-      processMutations(graphRef.current, state.latestMutations);
-      useDataStore.getState().clearMutations();
+      if (!graphRef.current || state.isDiffEmpty()) return;
+      const diff = state.diff;
+      processDiff(graphRef.current, diff);
+      useDataStore.getState().clearDiff();
     });
     return () => {
       unsubscribe();
