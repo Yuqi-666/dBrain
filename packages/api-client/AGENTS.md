@@ -9,25 +9,26 @@ This package provides the typed tRPC client for frontend applications to communi
 
 ## WHERE TO LOOK
 
-| What            | Location                         | Notes                              |
-| --------------- | -------------------------------- | ---------------------------------- |
-| Main exports    | `./src/index.ts`                 | All public APIs                    |
-| tRPC client     | `./src/trpc/client.ts`           | HTTP + WS split link               |
-| React Provider  | `./src/trpc/provider.tsx`        | TRPCProvider + QueryClientProvider |
-| Graph hooks     | `./src/trpc/hooks/useGraph.ts`   | Mutation + subscription hooks      |
-| Subscriptions   | `./src/trpc/subscriptions.ts`    | useGraphSubscriptions              |
-| CQRS operations | `./src/cqrs/graph-cqrs.ts`       | Optimistic updates + rollback      |
-| Store handlers  | `./src/handler/graph-handler.ts` | Zustand store update callbacks     |
+| What           | Location                       | Notes                              |
+| -------------- | ------------------------------ | ---------------------------------- |
+| Main exports   | `./src/index.ts`               | All public APIs                    |
+| tRPC client    | `./src/trpc/client.ts`         | HTTP + WS split link               |
+| React Provider | `./src/trpc/provider.tsx`      | TRPCProvider + QueryClientProvider |
+| Graph hooks    | `./src/trpc/hooks/useGraph.ts` | Mutation + subscription hooks      |
+| Subscriptions  | `./src/trpc/subscriptions.ts`  | useGraphSubscriptions              |
 
 ## ARCHITECTURE
 
 ```
 apps/web ──────► @workspace/api-client ──────► backend/adapter-front
-                      │
-                      ├── trpc/client.ts      (HTTP batch + WS split)
-                      ├── trpc/provider.tsx   (React context)
-                      ├── cqrs/graph-cqrs.ts (optimistic mutations)
-                      └── trpc/subscriptions.ts (real-time updates)
+       │                  │
+       │                  ├── trpc/client.ts      (HTTP batch + WS split)
+       │                  ├── trpc/provider.tsx   (React context)
+       │                  └── trpc/subscriptions.ts (real-time updates)
+       │
+       └────────────► @workspace/services (optimistic mutations + event handlers)
+                              │
+                              └── graph/*.service.ts (Node/Edge/View/NodeSemantic/EdgeSemantic/NodeTag)
 ```
 
 ## USAGE
@@ -53,13 +54,14 @@ function App() {
 ### Mutations (optimistic updates with rollback)
 
 ```typescript
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 
 // All operations are optimistic - store updates first, rollback on error
-await GraphCQRS.addNode(nodeData);
-await GraphCQRS.updateNode(id, updates);
-await GraphCQRS.deleteNode(id);
-await GraphCQRS.sync(query);
+await NodeService.upsert(nodeData);
+await NodeService.upsert(id, updates);
+await NodeService.delete(id);
+await NodeService.sync(); // full sync
+await NodeService.sync([id]); // partial sync
 ```
 
 ### Direct tRPC (for custom hooks)
@@ -76,13 +78,13 @@ await mutation.mutateAsync(nodeData);
 - **Server URL**: `ws://localhost:3001` (all operations: queries, mutations, subscriptions)
 - **AppRouter type**: Imported from `@workspace/adapter-front`
 - **Subscriptions**: Must be called inside React component context (hooks)
-- **CQRS**: All operations use optimistic updates with automatic rollback on failure
+- **Services**: Optimistic mutations with rollback now live in `@workspace/services`
 
 ## CONVENTIONS
 
 - All mutations return `{ success: true, data?: T }` on success
 - All subscriptions receive typed events from `@workspace/interfaces`
-- Store handlers in `handler/graph-handler.ts` update Zustand store directly
+- Subscription event handlers live in `@workspace/services/handler/graph-handler.ts`
 - No Socket.io code remains - pure tRPC implementation
 
 ## DEVELOPMENT

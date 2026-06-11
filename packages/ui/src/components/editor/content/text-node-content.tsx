@@ -3,7 +3,7 @@
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { cn } from "@workspace/ui/lib/utils";
 import { useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 import type { TextNodeData } from "@workspace/interfaces";
 
 interface TextNodeContentProps {
@@ -29,11 +29,15 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
       <div className="space-y-2 flex-1">
         <Textarea
           value={getValue()}
-          onChange={async (e) => {
+          onChange={(e) => {
             if (!currentEditingNodeId) return;
-            await GraphCQRS.upsertNode(currentEditingNodeId, {
-              content: { docs: { content: e.target.value } },
-            });
+            void NodeService.upsert(
+              currentEditingNodeId,
+              {
+                content: { docs: { content: e.target.value } },
+              },
+              { debounce: true },
+            );
           }}
           placeholder="输入正文内容..."
           className="min-h-[200px] resize-none font-mono text-sm"

@@ -1,6 +1,6 @@
 "use client";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService, ViewService } from "@workspace/services";
 import type {
   NodeDataType,
 } from "@workspace/interfaces";
@@ -313,7 +313,7 @@ function ViewsList({
   }>;
 }) {
   const handleTogglePin = async (id: string, isPinned: boolean) => {
-    await GraphCQRS.upsertView(id, { isPinned });
+    await ViewService.upsert(id, { isPinned });
   };
 
   const nonPinnedRecentViews = recentViews.filter(
@@ -432,7 +432,7 @@ function NodesList({
   );
 
   const handleTogglePin = async (id: string, isPinned: boolean) => {
-    await GraphCQRS.upsertNode(id, { isPinned });
+    await NodeService.upsert(id, { isPinned });
   };
 
   const handleSelectNode = (id: string) => {

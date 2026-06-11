@@ -133,9 +133,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@workspace/dev':
-        specifier: workspace:*
-        version: link:../../packages/dev
       '@workspace/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -148,6 +145,9 @@ importers:
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../../packages/interfaces
+      '@workspace/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       '@workspace/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -290,6 +290,9 @@ importers:
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
+      '@workspace/services':
+        specifier: workspace:*
+        version: link:../services
       pocketbase:
         specifier: ^0.21.0
         version: 0.21.5
@@ -588,9 +591,15 @@ importers:
 
   packages/graph-v2:
     dependencies:
-      '@dagrejs/dagre':
-        specifier: ^3.0.0
-        version: 3.0.0
+      '@use-gesture/core':
+        specifier: ^10.3.1
+        version: 10.3.1
+      '@use-gesture/react':
+        specifier: ^10.3.1
+        version: 10.3.1(react@19.2.4)
+      '@workspace/hooks':
+        specifier: workspace:*
+        version: link:../hooks
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -603,18 +612,6 @@ importers:
       '@workspace/utils':
         specifier: workspace:*
         version: link:../utils
-      '@xyflow/react':
-        specifier: ^12.10.2
-        version: 12.10.2(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      d3-force:
-        specifier: ^3.0.0
-        version: 3.0.0
-      elkjs:
-        specifier: ^0.11.1
-        version: 0.11.1
-      nanoid:
-        specifier: ^5.1.11
-        version: 5.1.11
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -637,12 +634,18 @@ importers:
 
   packages/hooks:
     dependencies:
+      '@workspace/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@workspace/hooks':
         specifier: workspace:*
         version: 'link:'
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
+      '@workspace/services':
+        specifier: workspace:*
+        version: link:../services
       '@workspace/store':
         specifier: workspace:*
         version: link:../store
@@ -669,6 +672,31 @@ importers:
         specifier: workspace:*
         version: link:../utils
     devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/services:
+    dependencies:
+      '@workspace/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@workspace/interfaces':
+        specifier: workspace:*
+        version: link:../interfaces
+      '@workspace/store':
+        specifier: workspace:*
+        version: link:../store
+      '@workspace/utils':
+        specifier: workspace:*
+        version: link:../utils
+    devDependencies:
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -705,6 +733,9 @@ importers:
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
+      '@workspace/services':
+        specifier: workspace:*
+        version: link:../services
       '@workspace/store':
         specifier: workspace:*
         version: link:../store
@@ -1077,12 +1108,6 @@ packages:
 
   '@chevrotain/utils@12.0.0':
     resolution: {integrity: sha512-lB59uJoaGIfOOL9knQqQRfhl9g7x8/wqFkp13zTdkRu1huG9kg6IJs1O8hqj9rs6h7orGxHJUKb+mX3rPbWGhA==}
-
-  '@dagrejs/dagre@3.0.0':
-    resolution: {integrity: sha512-ZzhnTy1rfuoew9Ez3EIw4L2znPGnYYhfn8vc9c4oB8iw6QAsszbiU0vRhlxWPFnmmNSFAkrYeF1PhM5m4lAN0Q==}
-
-  '@dagrejs/graphlib@4.0.1':
-    resolution: {integrity: sha512-IvcV6FduIIAmLwnH+yun+QtV36SC7mERqa86aClNqmMN09WhmPPYU8ckHrZBozErf+UvHPWOTJYaGYiIcs0DgA==}
 
   '@dotenvx/dotenvx@1.54.1':
     resolution: {integrity: sha512-41gU3q7v05GM92QPuPUf4CmUw+mmF8p4wLUh6MCRlxpCkJ9ByLcY9jUf6MwrMNmiKyG/rIckNxj9SCfmNCmCqw==}
@@ -3850,15 +3875,6 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  '@xyflow/react@12.10.2':
-    resolution: {integrity: sha512-CgIi6HwlcHXwlkTpr0fxLv/0sRVNZ8IdwKLzzeCscaYBwpvfcH1QFOCeaTCuEn1FQEs/B8CjnTSjhs8udgmBgQ==}
-    peerDependencies:
-      react: '>=17'
-      react-dom: '>=17'
-
-  '@xyflow/system@0.0.76':
-    resolution: {integrity: sha512-hvwvnRS1B3REwVDlWexsq7YQaPZeG3/mKo1jv38UmnpWmxihp14bW6VtEOuHEwJX2FvzFw8k77LyKSk/wiZVNA==}
-
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
@@ -4195,9 +4211,6 @@ packages:
 
   class-variance-authority@0.7.1:
     resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
-
-  classcat@5.0.5:
-    resolution: {integrity: sha512-JhZUT7JFcQy/EzW605k/ktHtncoo9vnyW/2GspNYwFlN1C/WmjuV/xtS04e9SOkL2sTdw0VAZ2UGCcQ9lR6p6w==}
 
   clean-stack@2.2.0:
     resolution: {integrity: sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==}
@@ -4762,9 +4775,6 @@ packages:
 
   electron-to-chromium@1.5.286:
     resolution: {integrity: sha512-9tfDXhJ4RKFNerfjdCcZfufu49vg620741MNs26a9+bhLThdB+plgMeou98CAaHu/WATj2iHOOHTp1hWtABj2A==}
-
-  elkjs@0.11.1:
-    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -6218,11 +6228,6 @@ packages:
   nanoid@4.0.2:
     resolution: {integrity: sha512-7ZtY5KTCNheRGfEFxnedV5zFiORN1+Y1N6zvPTnHQd8ENUvfaDBeuJDZb2bN/oXwXxu3qkTXDzy57W5vAmDTBw==}
     engines: {node: ^14 || ^16 || >=18}
-    hasBin: true
-
-  nanoid@5.1.11:
-    resolution: {integrity: sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==}
-    engines: {node: ^18 || >=20}
     hasBin: true
 
   napi-postinstall@0.3.4:
@@ -8292,12 +8297,6 @@ snapshots:
   '@chevrotain/utils@11.0.3': {}
 
   '@chevrotain/utils@12.0.0': {}
-
-  '@dagrejs/dagre@3.0.0':
-    dependencies:
-      '@dagrejs/graphlib': 4.0.1
-
-  '@dagrejs/graphlib@4.0.1': {}
 
   '@dotenvx/dotenvx@1.54.1':
     dependencies:
@@ -11028,29 +11027,6 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  '@xyflow/react@12.10.2(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      '@xyflow/system': 0.0.76
-      classcat: 5.0.5
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)
-    transitivePeerDependencies:
-      - '@types/react'
-      - immer
-
-  '@xyflow/system@0.0.76':
-    dependencies:
-      '@types/d3-drag': 3.0.7
-      '@types/d3-interpolate': 3.0.4
-      '@types/d3-selection': 3.0.11
-      '@types/d3-transition': 3.0.9
-      '@types/d3-zoom': 3.0.8
-      d3-drag: 3.0.0
-      d3-interpolate: 3.0.1
-      d3-selection: 3.0.0
-      d3-zoom: 3.0.0
-
   accepts@2.0.0:
     dependencies:
       mime-types: 3.0.2
@@ -11450,8 +11426,6 @@ snapshots:
   class-variance-authority@0.7.1:
     dependencies:
       clsx: 2.1.1
-
-  classcat@5.0.5: {}
 
   clean-stack@2.2.0: {}
 
@@ -12041,8 +12015,6 @@ snapshots:
   ee-first@1.1.1: {}
 
   electron-to-chromium@1.5.286: {}
-
-  elkjs@0.11.1: {}
 
   emoji-regex@10.6.0: {}
 
@@ -13654,8 +13626,6 @@ snapshots:
   nanoid@3.3.3: {}
 
   nanoid@4.0.2: {}
-
-  nanoid@5.1.11: {}
 
   napi-postinstall@0.3.4: {}
 

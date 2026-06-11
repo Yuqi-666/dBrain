@@ -8,7 +8,7 @@ import {
 import { Input } from "@workspace/ui/components/ui/input";
 import { Search, Plus, Trash2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { EdgeSemanticService } from "@workspace/services";
 import type { EdgeSemantic, EdgeSemanticId } from "@workspace/interfaces";
 
 export interface EdgeSemanticListProps {
@@ -43,7 +43,7 @@ export function EdgeSemanticList({ onSelect }: EdgeSemanticListProps) {
   const handleDelete = async (e: React.MouseEvent, id: EdgeSemanticId) => {
     e.stopPropagation();
     try {
-      await GraphCQRS.deleteEdgeSemantic(id);
+      await EdgeSemanticService.delete(id);
     } catch (error) {
       console.error("Failed to delete edge semantic:", error);
     }

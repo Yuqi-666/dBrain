@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { useGraph } from "@workspace/hooks";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 import { LinkIcon } from "lucide-react";
 import type {
   EdgeData,
@@ -131,12 +131,16 @@ function MetadataTabContent({
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const allSemantics = Array.from(nodeSemanticsMap.values());
 
-  const handleAbstractChange = async (value: string) => {
-    await GraphCQRS.upsertNode(nodeId, { abstract: value });
+  const handleAbstractChange = (value: string) => {
+    void NodeService.upsert(nodeId, { abstract: value }, { debounce: true });
   };
 
-  const handleSemanticIdChange = async (value: string) => {
-    await GraphCQRS.upsertNode(nodeId, { semanticId: value });
+  const handleSemanticIdChange = (value: string) => {
+    void NodeService.upsert(
+      nodeId,
+      { semanticId: value },
+      { debounce: true },
+    );
   };
 
   const nodeTagsMap = useDataStore((state) => state.nodeTags);
@@ -145,40 +149,60 @@ function MetadataTabContent({
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const { onCreateTag, onDeleteTag } = useGraph();
 
-  const handleToggleTag = async (tagId: NodeTagId) => {
+  const handleToggleTag = (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
     if (currentTags.includes(tagId)) {
-      await GraphCQRS.upsertNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+      void NodeService.upsert(
+        nodeId,
+        { tags: currentTags.filter((t) => t !== tagId) },
+        { debounce: true },
+      );
     } else {
-      await GraphCQRS.upsertNode(nodeId, { tags: [...currentTags, tagId] });
+      void NodeService.upsert(
+        nodeId,
+        { tags: [...currentTags, tagId] },
+        { debounce: true },
+      );
     }
   };
 
-  const handleDeleteTag = async (tagId: NodeTagId) => {
+  const handleDeleteTag = (tagId: NodeTagId) => {
     const currentTags = node.tags || [];
-    await GraphCQRS.upsertNode(nodeId, { tags: currentTags.filter((t) => t !== tagId) });
+    void NodeService.upsert(
+      nodeId,
+      { tags: currentTags.filter((t) => t !== tagId) },
+      { debounce: true },
+    );
   };
 
-  const handleContentUrlChange = async (field: string, value: string) => {
+  const handleContentUrlChange = (field: string, value: string) => {
     if (!node.content) return;
-    await GraphCQRS.upsertNode(nodeId, {
-      content: { ...node.content, [field]: value },
-    });
+    void NodeService.upsert(
+      nodeId,
+      {
+        content: { ...node.content, [field]: value },
+      },
+      { debounce: true },
+    );
   };
 
-  const handleCollectionTypeChange = async (value: string) => {
+  const handleCollectionTypeChange = (value: string) => {
     if (node.nodeType !== "collection") return;
     const newCollectionType = value as "ordered" | "unordered" | "cards";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await GraphCQRS.upsertNode(nodeId, {
-      content: {
-        ...node.content,
-        filterConfig: {
-          ...(node.content as any)?.filterConfig,
-          collectionType: newCollectionType,
+    void NodeService.upsert(
+      nodeId,
+      {
+        content: {
+          ...node.content,
+          filterConfig: {
+            ...(node.content as any)?.filterConfig,
+            collectionType: newCollectionType,
+          },
         },
-      },
-    } as any);
+      } as any,
+      { debounce: true },
+    );
   };
 
   // Helper to get content url based on node type

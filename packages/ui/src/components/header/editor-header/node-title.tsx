@@ -2,7 +2,7 @@
 
 import { Input } from "@workspace/ui/components/ui/input";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 
 interface NodeTitleProps {
   className?: string;
@@ -18,10 +18,14 @@ export function NodeTitle({ className }: NodeTitleProps) {
     ? nodes.get(currentEditingNodeId)
     : null;
 
-  const handleTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (currentEditingNodeId && currentNode) {
-      let title = e.target.value
-      await GraphCQRS.upsertNode(currentEditingNodeId, { title: title });
+      const title = e.target.value;
+      void NodeService.upsert(
+        currentEditingNodeId,
+        { title },
+        { debounce: true },
+      );
     }
   };
 

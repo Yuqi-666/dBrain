@@ -8,7 +8,7 @@ import {
 import { Input } from "@workspace/ui/components/ui/input";
 import { Search, Plus, Trash2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeSemanticService } from "@workspace/services";
 import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
 
 export interface SemanticListProps {
@@ -43,7 +43,7 @@ export function SemanticList({ onSelect }: SemanticListProps) {
   const handleDelete = async (e: React.MouseEvent, id: NodeSemanticId) => {
     e.stopPropagation();
     try {
-      await GraphCQRS.deleteNodeSemantic(id);
+      await NodeSemanticService.delete(id);
     } catch (error) {
       console.error("Failed to delete node semantic:", error);
     }

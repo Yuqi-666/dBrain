@@ -1,7 +1,7 @@
 "use client";
 
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { ViewService } from "@workspace/services";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,16 +57,20 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
   const currentView = currentViewId ? views.get(currentViewId) : null;
   const visualConfig = currentView?.visualConfig || {};
 
-  const handleUpdateVisualConfig = async (updates: Partial<VisualConfig>) => {
+  const handleUpdateVisualConfig = (updates: Partial<VisualConfig>) => {
     if (!currentViewId) return;
-    await GraphCQRS.upsertView(currentViewId, {
-      visualConfig: { ...visualConfig, ...updates },
-    });
+    void ViewService.upsert(
+      currentViewId,
+      {
+        visualConfig: { ...visualConfig, ...updates },
+      },
+      { debounce: true },
+    );
   };
 
-  const handleUpdateViewType = async (viewType: ViewType) => {
+  const handleUpdateViewType = (viewType: ViewType) => {
     if (!currentViewId) return;
-    await GraphCQRS.upsertView(currentViewId, { viewType });
+    void ViewService.upsert(currentViewId, { viewType }, { debounce: true });
   };
 
   return (

@@ -21,6 +21,12 @@
       "@workspace/store/*": [
         "../store/src/*"
       ],
+      "@workspace/services": [
+        "../services/src"
+      ],
+      "@workspace/services/*": [
+        "../services/src/*"
+      ],
       "@workspace/adapter-front": [
         "../../backend/adapter-front/src"
       ],

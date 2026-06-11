@@ -1,0 +1,18 @@
+{
+  "extends": "@workspace/typescript-config/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/services": ["../services/src"],
+      "@workspace/services/*": ["../services/src/*"],
+      "@workspace/api-client": ["../api-client/src"],
+      "@workspace/api-client/*": ["../api-client/src/*"],
+      "@workspace/interfaces": ["../interfaces/src"],
+      "@workspace/interfaces/*": ["../interfaces/src/*"],
+      "@workspace/store": ["../store/src"],
+      "@workspace/store/*": ["../store/src/*"]
+    }
+  },
+  "include": [".", "../services/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { OptionsButton } from "./options-button";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 import {
   CopyIcon,
   TrashIcon,
@@ -41,7 +41,7 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
 
   const handleDelete = async () => {
     if (targetNodeId) {
-      await GraphCQRS.deleteNode(targetNodeId);
+      await NodeService.delete(targetNodeId);
       setCurrentEditingNodeId(null);
     }
   };

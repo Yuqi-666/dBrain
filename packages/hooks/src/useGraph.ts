@@ -21,7 +21,7 @@ import type {
   NodeTagId,
 } from "@workspace/interfaces";
 import { useUIStore, useDataStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService, EdgeService, NodeTagService } from "@workspace/services";
 
 
 export function useGraph() {
@@ -38,7 +38,7 @@ export function useGraph() {
 
   const onDeleteNode = useCallback(async (nodeId: NodeId) => {
     try {
-      await GraphCQRS.deleteNode(nodeId);
+      await NodeService.delete(nodeId);
     } catch (error) {
       console.error("Failed to delete node:", error);
     }
@@ -156,7 +156,7 @@ export function useGraph() {
       }
 
       try {
-        const result = await GraphCQRS.upsertNode(newNode) as NodeData;
+        const result = await NodeService.upsert(newNode) as NodeData;
         setCurrentEditingNodeId(result.id as NodeId);
       } catch (error) {
         console.error("Failed to add node:", error);
@@ -196,7 +196,7 @@ export function useGraph() {
         };
 
         try {
-          const newEdge = await GraphCQRS.upsertEdge(edgeData) as EdgeData;
+          const newEdge = await EdgeService.upsert(edgeData) as EdgeData;
           if (firstEdgeId === null) {
             firstEdgeId = newEdge.id;
           }
@@ -212,7 +212,7 @@ export function useGraph() {
 
   const onDeleteEdge = useCallback(async (edgeId: EdgeId) => {
     try {
-      await GraphCQRS.deleteEdge(edgeId);
+      await EdgeService.delete(edgeId);
     } catch (error) {
       console.error("Failed to delete edge:", error);
     }
@@ -221,7 +221,7 @@ export function useGraph() {
   const onDeleteTag = useCallback(async (tagId: NodeTagId) => {
     try {
       console.log(tagId)
-      await GraphCQRS.deleteNodeTag(tagId);
+      await NodeTagService.delete(tagId);
     } catch (error) {
       console.error("Failed to delete tag:", error);
     }
@@ -234,7 +234,11 @@ export function useGraph() {
   const onChangeEdgeDirection = useCallback(
     async (edgeId: EdgeId, direction: EdgeDirection) => {
       try {
-        await GraphCQRS.upsertEdge(edgeId, { direction });
+        await EdgeService.upsert(
+          edgeId,
+          { direction },
+          { debounce: true },
+        );
       } catch (error) {
         console.error("Failed to change edge direction:", error);
       }
@@ -245,7 +249,11 @@ export function useGraph() {
   const onChangeEdgeSemantic = useCallback(
     async (edgeId: EdgeId, semanticId: string) => {
       try {
-        await GraphCQRS.upsertEdge(edgeId, { semanticId });
+        await EdgeService.upsert(
+          edgeId,
+          { semanticId },
+          { debounce: true },
+        );
       } catch (error) {
         console.error("Failed to change edge semantic:", error);
       }
@@ -270,7 +278,7 @@ export function useGraph() {
       color: randomColor,
     };
     try {
-      const result = await GraphCQRS.upsertNodeTag(newTag);
+      const result = await NodeTagService.upsert(newTag);
       return result as NodeTag | null;
     } catch (error) {
       console.error("Failed to create tag:", error);
@@ -282,14 +290,14 @@ export function useGraph() {
     async (nodeIds: string[], edgeIds: string[]) => {
       for (const id of edgeIds) {
         try {
-          await GraphCQRS.deleteEdge(id as EdgeId);
+          await EdgeService.delete(id as EdgeId);
         } catch (error) {
           console.error("Failed to delete edge:", id, error);
         }
       }
       for (const id of nodeIds) {
         try {
-          await GraphCQRS.deleteNode(id as NodeId);
+          await NodeService.delete(id as NodeId);
         } catch (error) {
           console.error("Failed to delete node:", id, error);
         }

@@ -18,7 +18,8 @@
     "react-dom": "^19.2.4",
     "superjson": "^2.2.0",
     "@workspace/interfaces": "workspace:*",
-    "@workspace/adapter-front": "workspace:*"
+    "@workspace/adapter-front": "workspace:*",
+    "@workspace/services": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

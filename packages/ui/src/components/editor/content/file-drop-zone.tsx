@@ -12,7 +12,8 @@ import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import { X } from "lucide-react";
-import { useFileUpload, uploadFile, GraphCQRS } from "@workspace/api-client";
+import { useFileUpload, uploadFile } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 
 interface FileDropZoneProps {
   nodeId: string;
@@ -137,7 +138,7 @@ export function FileDropZone({
         if (variant === "pdf" || variant === "video") {
           coverUrl = await generateCover(fileItems[0]?.file, variant);
         }
-        await GraphCQRS.upsertNode(nodeId, {
+        await NodeService.upsert(nodeId, {
           content: { url, coverUrl },
         });
       },

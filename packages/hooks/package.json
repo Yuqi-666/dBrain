@@ -13,6 +13,7 @@
     "react-dom": "^19.2.4",
     "@workspace/interfaces": "workspace:*",
     "@workspace/api-client": "workspace:*",
+    "@workspace/services": "workspace:*",
     "@workspace/store": "workspace:*",
     "@workspace/hooks": "workspace:*"
   },

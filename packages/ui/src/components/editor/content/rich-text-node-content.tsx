@@ -3,7 +3,7 @@
 import { cn } from "@workspace/ui/lib/utils";
 import { NotionEditor } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor";
 import { useDataStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 import type { RichTextNodeData } from "@workspace/interfaces";
 
 interface RichTextNodeContentProps {
@@ -18,13 +18,17 @@ export function RichTextNodeContent({ node, className }: RichTextNodeContentProp
     <NotionEditor
       room={node.id}
       placeholder="开始写作..."
-      onContentChange={async (content) => {
-        await GraphCQRS.upsertNode(node.id, {
-          content: {
-            referencedNodes: node.content.referencedNodes,
-            docs: content,
+      onContentChange={(content) => {
+        void NodeService.upsert(
+          node.id,
+          {
+            content: {
+              referencedNodes: node.content.referencedNodes,
+              docs: content,
+            },
           },
-        });
+          { debounce: true },
+        );
       }}
       getInitialContent={() => getNode(node.id)?.content ?? {}}
     />

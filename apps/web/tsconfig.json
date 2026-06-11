@@ -36,6 +36,12 @@
       "@workspace/api-client/*": [
         "../../packages/api-client/src/*"
       ],
+      "@workspace/services": [
+        "../../packages/services/src"
+      ],
+      "@workspace/services/*": [
+        "../../packages/services/src/*"
+      ],
       "@workspace/adapter-front": [
         "../../backend/adapter-front/src"
       ],

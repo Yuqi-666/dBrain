@@ -205,26 +205,9 @@ export function EditorProvider(props: EditorProviderProps) {
   const { user } = useUser();
   const { setTocContent } = useToc();
 
-  // Debounced callback ref for content updates
-  const debouncedCallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleContentChange = useCallback((content: any) => {
-    if (debouncedCallbackRef.current) {
-      clearTimeout(debouncedCallbackRef.current);
-    }
-    debouncedCallbackRef.current = setTimeout(() => {
-      onContentChange?.(content);
-    }, 500);
+    onContentChange?.(content);
   }, [onContentChange]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debouncedCallbackRef.current) {
-        clearTimeout(debouncedCallbackRef.current);
-      }
-    };
-  }, []);
 
   const editor = useEditor({
     immediatelyRender: false,

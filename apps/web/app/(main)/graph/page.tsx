@@ -3,7 +3,14 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Graph } from "@workspace/graph";
 import { useUIStore, useDataStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import {
+  NodeService,
+  EdgeService,
+  ViewService,
+  NodeSemanticService,
+  EdgeSemanticService,
+  NodeTagService,
+} from "@workspace/services";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
 import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
@@ -20,12 +27,12 @@ export default function GraphPage(): ReactNode {
     const initGraph = async () => {
 
       await Promise.all([
-        GraphCQRS.syncView(),
-        GraphCQRS.syncNodeSemantic(),
-        GraphCQRS.syncEdgeSemantic(),
-        GraphCQRS.syncNode(),
-        GraphCQRS.syncEdge(),
-        GraphCQRS.syncNodeTag(),
+        ViewService.sync(),
+        NodeSemanticService.sync(),
+        EdgeSemanticService.sync(),
+        NodeService.sync(),
+        EdgeService.sync(),
+        NodeTagService.sync(),
       ]);
 
       const views = useDataStore.getState().views;

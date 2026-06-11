@@ -18,6 +18,12 @@
       "@workspace/api-client/*": [
         "../api-client/src/*"
       ],
+      "@workspace/services": [
+        "../services/src"
+      ],
+      "@workspace/services/*": [
+        "../services/src/*"
+      ],
       "@workspace/editor": [
         "../editor/src"
       ],

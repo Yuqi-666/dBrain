@@ -1,6 +1,6 @@
 /**
  * Unified Domain Event type
- * data only contains entity ID, full data fetched via GraphCQRS.syncXxx()
+ * data only contains entity ID, full data fetched via @workspace/services sync methods
  */
 export interface DomainEvent<T = unknown> {
   eventType: string;

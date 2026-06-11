@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { GlobeIcon } from "lucide-react";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeService } from "@workspace/services";
 import {
   Dialog,
   DialogContent,
@@ -53,7 +53,7 @@ export function WebsiteNodeContent({
       hostname = new URL(processedUrl).hostname;
     } catch {
       // Invalid URL, still save it but don't generate favicon
-      await GraphCQRS.upsertNode(node.id, {
+      await NodeService.upsert(node.id, {
         content: {
           ...node.content,
           url: processedUrl,
@@ -66,7 +66,7 @@ export function WebsiteNodeContent({
     // Generate favicon URL using Google Favicon API
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
 
-    await GraphCQRS.upsertNode(node.id, {
+    await NodeService.upsert(node.id, {
       content: {
         ...node.content,
         url: processedUrl,

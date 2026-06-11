@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
+import { NodeSemanticService, EdgeSemanticService } from "@workspace/services";
 import {
   Dialog,
   DialogContent,
@@ -47,10 +47,10 @@ export function NodeSemanticDialog() {
         };
 
         if (editingSemantic) {
-          await GraphCQRS.upsertNodeSemantic(editingSemantic.id, semanticData);
+          await NodeSemanticService.upsert(editingSemantic.id, semanticData);
         } else {
           const id = "tmp_" as NodeSemanticId;
-          await GraphCQRS.upsertNodeSemantic({ id, ...semanticData });
+          await NodeSemanticService.upsert({ id, ...semanticData });
         }
 
         closeDialog();
@@ -67,7 +67,7 @@ export function NodeSemanticDialog() {
       onOpenChange={(o) => !o && closeDialog()}
       editingSemantic={editingSemantic}
       onSubmit={handleSubmit}
-      onDelete={editingSemantic ? () => GraphCQRS.deleteNodeSemantic(editingSemantic.id) : undefined}
+      onDelete={editingSemantic ? () => NodeSemanticService.delete(editingSemantic.id) : undefined}
     />
   );
 }
@@ -225,10 +225,10 @@ export function EdgeSemanticDialog() {
         };
 
         if (editingSemantic) {
-          await GraphCQRS.upsertEdgeSemantic(editingSemantic.id, semanticData);
+          await EdgeSemanticService.upsert(editingSemantic.id, semanticData);
         } else {
           const id = "tmp_" as EdgeSemanticId;
-          await GraphCQRS.upsertEdgeSemantic({ id, ...semanticData });
+          await EdgeSemanticService.upsert({ id, ...semanticData });
         }
 
         closeDialog();
@@ -247,7 +247,7 @@ export function EdgeSemanticDialog() {
       onSubmit={handleSubmit}
       onDelete={
         editingSemantic
-          ? () => GraphCQRS.deleteEdgeSemantic(editingSemantic.id)
+          ? () => EdgeSemanticService.delete(editingSemantic.id)
           : undefined
       }
     />
@@ -392,7 +392,7 @@ export function NodeSemanticManager({ className }: { className?: string }) {
 
   const handleDelete = async (id: NodeSemanticId) => {
     try {
-      await GraphCQRS.deleteNodeSemantic(id);
+      await NodeSemanticService.delete(id);
     } catch (error) {
       console.error("Failed to delete node semantic:", error);
     }
@@ -458,7 +458,7 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
 
   const handleDelete = async (id: EdgeSemanticId) => {
     try {
-      await GraphCQRS.deleteEdgeSemantic(id);
+      await EdgeSemanticService.delete(id);
     } catch (error) {
       console.error("Failed to delete edge semantic:", error);
     }

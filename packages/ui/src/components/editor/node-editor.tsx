@@ -2,7 +2,6 @@
 
 import { cn } from "@workspace/ui/lib/utils";
 import { useUIStore, useDataStore } from "@workspace/store";
-import { GraphCQRS } from "@workspace/api-client";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
 import { RelationshipQuickBar } from "./quick-bar";
