@@ -1,7 +1,49 @@
 {
   "extends": "@workspace/typescript-config/react-library.json",
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/interfaces": [
+        "../interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../interfaces/src/*"
+      ],
+      "@workspace/store": [
+        "../store/src"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
+      ],
+      "@workspace/ui/*": [
+        "../ui/src/*"
+      ],
+      "@workspace/utils/*": [
+        "../utils/src/*"
+      ],
+      "@workspace/utils": [
+        "../utils/src"
+      ],
+      "@workspace/hooks/*": [
+        "../hooks/src/*"
+      ],
+      "@workspace/hooks": [
+        "../hooks/src"
+      ],
+      "@workspace/api-client": [
+        "../api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../api-client/src/*"
+      ],
+      "@workspace/services": [
+        "../services/src"
+      ],
+      "@workspace/services/*": [
+        "../services/src/*"
+      ]
+    }
   },
   "include": ["src", "turbo"],
   "exclude": ["node_modules", "dist"]
