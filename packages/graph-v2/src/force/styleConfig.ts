@@ -15,7 +15,7 @@
  */
 
 import type { Theme } from "../types";
-import type { UiState } from "./types";
+import type { ForceConfig, UiState } from "./types";
 
 // -----------------------------------------------------------------------
 // Theme tokens
@@ -79,9 +79,9 @@ export interface StateVisual {
 export const NODE_STATE_STYLES: Record<UiState, StateVisual> = {
   default: { stroke: "currentColor", lineWidth: 2 },
   active: {
-    stroke: "#FF7D00",
-    lineWidth: 3,
-    shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
+    stroke: "#FF9500",
+    lineWidth: 4,
+    shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
   },
   selected: {
     stroke: "#FF7D00",
@@ -108,9 +108,9 @@ export const NODE_STATE_STYLES: Record<UiState, StateVisual> = {
 export const EDGE_STATE_STYLES: Record<UiState, StateVisual> = {
   default: { stroke: "currentColor", lineWidth: 2 },
   active: {
-    stroke: "#FF7D00",
-    lineWidth: 3,
-    shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
+    stroke: "#FF9500",
+    lineWidth: 4,
+    shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
   },
   selected: {
     stroke: "#FF7D00",
@@ -157,6 +157,7 @@ export function buildForceStyle(opts: ForceStyleOptions): import("./types").Forc
     nodeRadius: opts.nodeRadius ?? 8,
     edgeLineWidth: opts.edgeLineWidth ?? 2,
     edgeDash: [6, 4],
+    gridColor: tokens.gridColor,
   };
 }
 
@@ -168,16 +169,20 @@ export interface DefaultForceConfig {
   strength: number;
   collisionRadius: number;
   linkDistance: number;
+  centerX: number;
+  centerY: number;
   alphaMin: number;
   alphaDecay: number;
   velocityDecay: number;
 }
 
-export const DEFAULT_FORCE_CONFIG: DefaultForceConfig = {
+export const DEFAULT_FORCE_CONFIG = {
   strength: -300,
   collisionRadius: 12, // weight (8) + 4
   linkDistance: 80,
+  centerX: 0,
+  centerY: 0,
   alphaMin: 0.001,
   alphaDecay: 0.0228,
   velocityDecay: 0.4,
-};
+} as const satisfies Partial<ForceConfig>;

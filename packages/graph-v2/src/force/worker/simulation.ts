@@ -93,6 +93,13 @@ let selectedEdgeIds: Set<EdgeId> = new Set();
 let hoveredNodeId: NodeId | null = null;
 let neighborNodeIds: Set<NodeId> = new Set();
 
+/** Multi-select drag offsets (FIX 1.2). */
+const dragOffsets = new Map<NodeId, { ox: number; oy: number }>();
+
+/** Double-click detection (FIX 1.4). */
+let lastClickTime = 0;
+let lastClickNode: NodeId | null = null;
+
 /** Listeners that get fired on every `tick`. */
 let tickListeners: Array<(alpha: number) => void> = [];
 
@@ -102,18 +109,28 @@ let tickListeners: Array<(alpha: number) => void> = [];
 
 /** Update the internal `ui` for every node based on hover / selection. */
 function recomputeUiStates(): void {
-  const hasSelection = selectedNodeIds.size > 0;
+  const hasSelection = selectedNodeIds.size > 0 || selectedEdgeIds.size > 0;
   for (const node of nodes) {
-    if (selectedNodeIds.has(node.id)) {
-      node.ui = "selected";
-    } else if (hoveredNodeId === node.id) {
-      node.ui = "hover";
-    } else if (neighborNodeIds.has(node.id)) {
-      node.ui = "neighborActive";
-    } else if (hasSelection) {
-      node.ui = "inactive";
+    const isSelected = selectedNodeIds.has(node.id);
+    const isHovered = hoveredNodeId === node.id;
+    if (isSelected && isHovered) node.ui = "active";
+    else if (isSelected) node.ui = "selected";
+    else if (isHovered) node.ui = "hover";
+    else if (neighborNodeIds.has(node.id)) node.ui = "neighborActive";
+    else if (hasSelection) node.ui = "inactive";
+    else node.ui = "default";
+  }
+  for (const link of links) {
+    const isEdgeSelected = selectedEdgeIds.has(link.id);
+    if (isEdgeSelected) {
+      link.ui = "selected";
     } else {
-      node.ui = "default";
+      const srcSel = selectedNodeIds.has(link.source.id);
+      const tgtSel = selectedNodeIds.has(link.target.id);
+      if (srcSel && tgtSel) link.ui = "selected";
+      else if (srcSel || tgtSel) link.ui = "neighborActive";
+      else if (hasSelection) link.ui = "inactive";
+      else link.ui = "default";
     }
   }
 }
@@ -164,7 +181,7 @@ function applyConfig(forceCfg: ForceConfig): void {
     .force(
       "collide",
       forceCollide<SimNode>().radius(
-        (d) => (d.weight ?? 8) + (cfg.collisionRadius
+        (d) => (d.weight ?? 8) + (cfg.collisionRadius != null
           ? cfg.collisionRadius - 8
           : DEFAULT_FORCE_CONFIG.collisionRadius - 8),
       ),
@@ -445,6 +462,10 @@ export function setNodePosition(
   if (!node || !sim) return;
   node.x = x;
   node.y = y;
+  // Keep the pin in sync with the drag target — without this, d3-force
+  // resets x/y back to the stale fx/fy on every tick.
+  if (node.fx !== null) node.fx = x;
+  if (node.fy !== null) node.fy = y;
   sim.alpha(0.3).restart();
 }
 
@@ -464,8 +485,14 @@ export function setSelectedEdges(ids: EdgeId[]): void {
 
 export function setHoveredNode(id: NodeId | null): void {
   if (hoveredNodeId === id) return;
+  const prev = hoveredNodeId;
   hoveredNodeId = id;
   recomputeUiStates();
+  if (id !== null) {
+    emit({ type: "node:pointer-enter", nodeId: id });
+  } else if (prev !== null) {
+    emit({ type: "node:pointer-leave", nodeId: prev });
+  }
 }
 
 export function getSelectionState() {
@@ -483,6 +510,7 @@ export function clearSelection(): void {
   hoveredNodeId = null;
   recomputeNeighbors();
   recomputeUiStates();
+  emit({ type: "selection:changed", selectedNodeIds: [], selectedEdgeIds: [] });
 }
 
 // -----------------------------------------------------------------------
@@ -560,8 +588,10 @@ export function hitTest(
   let closest: SimNode | null = null;
   let minDist = Infinity;
   for (const n of nodes) {
-    const dx = x - (n.x ?? 0);
-    const dy = y - (n.y ?? 0);
+    const nx = Number.isFinite(n.x) ? n.x! : 0;
+    const ny = Number.isFinite(n.y) ? n.y! : 0;
+    const dx = x - nx;
+    const dy = y - ny;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < minDist && dist <= radius) {
       minDist = dist;
@@ -569,6 +599,129 @@ export function hitTest(
     }
   }
   return closest;
+}
+
+// -----------------------------------------------------------------------
+// Edge hit-testing
+// -----------------------------------------------------------------------
+
+/**
+ * Point-to-line-segment distance. Used for straight edges (hierarchy /
+ * association).
+ */
+function pointToSegment(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number,
+): number {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const len2 = abx * abx + aby * aby;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * abx + (py - ay) * aby) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * abx;
+  const cy = ay + t * aby;
+  return Math.hypot(px - cx, py - cy);
+}
+
+/**
+ * Sample a cubic bezier at parameter `t` (0..1).
+ */
+function sampleCubic(
+  t: number,
+  sx: number, sy: number,
+  cx1: number, cy1: number,
+  cx2: number, cy2: number,
+  tx: number, ty: number,
+): { x: number; y: number } {
+  const u = 1 - t;
+  return {
+    x: u * u * u * sx + 3 * u * u * t * cx1 + 3 * u * t * t * cx2 + t * t * t * tx,
+    y: u * u * u * sy + 3 * u * u * t * cy1 + 3 * u * t * t * cy2 + t * t * t * ty,
+  };
+}
+
+/** Minimum distance from point to a quadratic bezier (sampled). */
+function pointToQuadratic(
+  px: number, py: number,
+  sx: number, sy: number,
+  mx: number, my: number,
+  tx: number, ty: number,
+): number {
+  let min = Infinity;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const u = 1 - t;
+    const x = u * u * sx + 2 * u * t * mx + t * t * tx;
+    const y = u * u * sy + 2 * u * t * my + t * t * ty;
+    min = Math.min(min, Math.hypot(px - x, py - y));
+  }
+  return min;
+}
+
+/** Minimum distance from point to a cubic bezier (sampled). */
+function pointToCubic(
+  px: number, py: number,
+  sx: number, sy: number,
+  cx1: number, cy1: number,
+  cx2: number, cy2: number,
+  tx: number, ty: number,
+): number {
+  let min = Infinity;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const p = sampleCubic(t, sx, sy, cx1, cy1, cx2, cy2, tx, ty);
+    min = Math.min(min, Math.hypot(px - p.x, py - p.y));
+  }
+  return min;
+}
+
+/**
+ * Hit-test all edges. Returns the closest edge within `threshold`
+ * device pixels, or null.
+ */
+export function hitTestEdge(
+  x: number,
+  y: number,
+  threshold: number = 10,
+): { link: SimLink; dist: number } | null {
+  let closest: SimLink | null = null;
+  let minDist = Infinity;
+
+  for (const link of links) {
+    const sx = link.source.x ?? 0;
+    const sy = link.source.y ?? 0;
+    const tx = link.target.x ?? 0;
+    const ty = link.target.y ?? 0;
+    if (!Number.isFinite(sx) || !Number.isFinite(sy) ||
+        !Number.isFinite(tx) || !Number.isFinite(ty)) continue;
+
+    let dist: number;
+    const isBidirectional = link.direction === "bidirectional";
+    const useCubic = isBidirectional || link.edgeType === "interaction";
+    const useQuadratic = !useCubic && link.edgeType === "flow";
+
+    if (useCubic) {
+      const cx1 = sx + (tx - sx) * 0.4;
+      const cy1 = sy;
+      const cx2 = tx - (tx - sx) * 0.4;
+      const cy2 = ty;
+      dist = pointToCubic(x, y, sx, sy, cx1, cy1, cx2, cy2, tx, ty);
+    } else if (useQuadratic) {
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2 - 40;
+      dist = pointToQuadratic(x, y, sx, sy, mx, my, tx, ty);
+    } else {
+      dist = pointToSegment(x, y, sx, sy, tx, ty);
+    }
+
+    if (dist < minDist && dist <= threshold) {
+      minDist = dist;
+      closest = link;
+    }
+  }
+  return closest ? { link: closest, dist: minDist } : null;
 }
 
 // -----------------------------------------------------------------------
@@ -584,61 +737,97 @@ export function hitTest(
  * thread owns the UI mirror (e.g. `useUIStore.selectedNodeIds`); the worker
  * only emits the high-level semantic events needed to drive that store.
  */
-export function handleProxiedEvent(
-  evt: ProxiedDomEvent,
-  canvasViewport: { x: number; y: number; scale: number },
-): void {
+export function handleProxiedEvent(evt: ProxiedDomEvent): void {
   switch (evt.type) {
     case "pointer-down": {
-      if (evt.button === 2) return; // right click → handled by context-menu event
-      const target = hitTest(evt.x, evt.y);
+      if (evt.button === 2) return;
+      const target = hitTest(evt.x, evt.y, 10);
+
+      // Double-click detection (FIX 1.4)
+      const now = Date.now();
+      if (target && target.id === lastClickNode && now - lastClickTime < 300) {
+        clearSelection();
+        setSelectedNodes([target.id]);
+        recomputeUiStates();
+        emit({ type: "node:dblclick", nodeId: target.id });
+        lastClickTime = 0;
+        lastClickNode = null;
+        return;
+      }
       if (target) {
-        // Modifier semantics (from worker/design.md §4.3, force/design.md §4.3):
-        //   Alt: do not start drag (let create-edge handle it). The main
-        //        thread also surfaces the assist-edge flow, so we just
-        //        leave selection unchanged.
+        lastClickTime = now;
+        lastClickNode = target.id;
+      }
+      if (target) {
         if (evt.modifiers.alt) return;
-        if (evt.modifiers.ctrl) {
-          // Lasso mode is handled at the canvas level; the worker
-          // doesn't need to do anything special.
+        if (evt.modifiers.ctrl) return;
+        if (evt.modifiers.shift) {
+          const next = new Set(selectedNodeIds);
+          if (next.has(target.id)) next.delete(target.id);
+          else next.add(target.id);
+          const idsArr = [...next];
+          setSelectedNodes(idsArr);
+          for (const id of idsArr) {
+            const n = nodes.find((nn) => nn.id === id);
+            if (n) dragOffsets.set(id, { ox: (n.x ?? 0) - evt.x, oy: (n.y ?? 0) - evt.y });
+          }
+          emit({ type: "selection:changed", selectedNodeIds: idsArr, selectedEdgeIds: [] });
           return;
         }
         setSelectedNodes([target.id]);
+        for (const id of selectedNodeIds) {
+          const n = nodes.find((nn) => nn.id === id);
+          if (n) dragOffsets.set(id, { ox: (n.x ?? 0) - evt.x, oy: (n.y ?? 0) - evt.y });
+        }
+        emit({ type: "selection:changed", selectedNodeIds: [target.id], selectedEdgeIds: [] });
         setNodeFixed(target.id, true, target.x, target.y);
         emit({ type: "node:drag-start", nodeId: target.id, x: target.x ?? 0, y: target.y ?? 0 });
       } else {
-        // Click on empty canvas.
-        clearSelection();
-        emit({ type: "canvas:pointer-down", x: evt.x, y: evt.y, modifiers: evt.modifiers });
+        // No node hit — try edge hit-test before falling back to canvas.
+        const edgeTarget = hitTestEdge(evt.x, evt.y, 10);
+        if (edgeTarget) {
+          clearSelection();
+          setSelectedEdges([edgeTarget.link.id]);
+          recomputeUiStates();
+          emit({ type: "edge:click", edgeId: edgeTarget.link.id, modifiers: evt.modifiers });
+        } else {
+          clearSelection();
+          recomputeUiStates();
+          emit({ type: "canvas:pointer-down", x: evt.x, y: evt.y, modifiers: evt.modifiers });
+        }
       }
       break;
     }
     case "pointer-move": {
-      if (selectedNodeIds.size > 0 && !evt.modifiers.alt && !evt.modifiers.ctrl) {
-        // Drag the first selected node (we treat multi-select drag the same
-        // way — the main thread can compute per-node offsets).
+      // Only drag when the primary button is held — without this check,
+      // clicking a node (press+release) then moving the mouse would
+      // continue to drag the selected node.
+      if (
+        (evt.buttons & 1) !== 0 &&
+        selectedNodeIds.size > 0 &&
+        !evt.modifiers.alt &&
+        !evt.modifiers.ctrl
+      ) {
         for (const id of selectedNodeIds) {
           const n = nodes.find((nn) => nn.id === id);
           if (!n) continue;
-          setNodePosition(id, evt.x, evt.y);
-          emit({ type: "node:drag", nodeId: id, x: evt.x, y: evt.y });
+          const offset = dragOffsets.get(id) ?? { ox: 0, oy: 0 };
+          setNodePosition(id, evt.x + offset.ox, evt.y + offset.oy);
+          emit({ type: "node:drag", nodeId: id, x: evt.x + offset.ox, y: evt.y + offset.oy });
         }
       }
       const target = hitTest(evt.x, evt.y);
-      if (target) {
-        setHoveredNode(target.id);
-        emit({ type: "node:pointer-enter", nodeId: target.id });
-      } else if (hoveredNodeId) {
-        const prev = hoveredNodeId;
-        setHoveredNode(null);
-        emit({ type: "node:pointer-leave", nodeId: prev });
-      }
+      setHoveredNode(target?.id ?? null);
       emit({ type: "canvas:pointer-move", x: evt.x, y: evt.y });
       break;
     }
     case "pointer-up": {
-      // Release pin for all selected nodes unless Ctrl is held (lasso
-      // keep-position mode).
+      // Right-click: the context-menu handler owns hit-test + selection.
+      // If we emit canvas:click here, it would race with the deferred
+      // context menu and close it immediately.
+      if (evt.button === 2) break;
+
+      const wasDragging = selectedNodeIds.size > 0;
       const keepFixed = evt.modifiers.ctrl;
       for (const id of selectedNodeIds) {
         setNodeFixed(id, keepFixed);
@@ -651,24 +840,44 @@ export function handleProxiedEvent(
         });
       }
       emit({ type: "canvas:pointer-up", x: evt.x, y: evt.y });
-      // Up after a drag is also a click — emit canvas:click so the main
-      // thread can clear preview / menus.
-      emit({ type: "canvas:click", x: evt.x, y: evt.y });
+      if (!wasDragging) {
+        const upTarget = hitTest(evt.x, evt.y);
+        if (upTarget) break;
+        // No node hit — check edge before treating as canvas click.
+        // Without this, clicking an edge then releasing emits canvas:click,
+        // which clears the edge selection we just made in pointer-down.
+        const upEdge = hitTestEdge(evt.x, evt.y);
+        if (upEdge) break;
+        emit({ type: "canvas:click", x: evt.x, y: evt.y });
+      }
       break;
     }
     case "wheel": {
-      // Pure viewport handling lives in the main thread. We forward the
-      // raw event so the orchestrator can run its own logic; for now
-      // just emit a status event.
-      emit({ type: "canvas:wheel", deltaX: evt.deltaX, deltaY: evt.deltaY, modifiers: evt.modifiers });
+      // Viewport pan/zoom is owned by the main thread (eventListener.ts
+      // wheel handler → onViewportChange → api.setViewport). The worker
+      // never receives wheel events through this path; the ProxiedDomEvent
+      // "wheel" variant exists solely to satisfy the exhaustive union type.
       break;
     }
     case "context-menu": {
-      const target = hitTest(evt.x, evt.y);
+      const target = hitTest(evt.x, evt.y, 10);
       if (target) {
-        emit({ type: "node:click", nodeId: target.id, modifiers: evt.modifiers });
+        clearSelection();
+        setSelectedNodes([target.id]);
+        recomputeUiStates();
+        emit({ type: "context-menu:node", nodeId: target.id, clientX: evt.clientX, clientY: evt.clientY });
       } else {
-        emit({ type: "canvas:click", x: evt.x, y: evt.y });
+        const edgeHit = hitTestEdge(evt.x, evt.y, 10);
+        if (edgeHit) {
+          clearSelection();
+          setSelectedEdges([edgeHit.link.id]);
+          recomputeUiStates();
+          emit({ type: "context-menu:edge", edgeId: edgeHit.link.id, clientX: evt.clientX, clientY: evt.clientY });
+        } else {
+          clearSelection();
+          recomputeUiStates();
+          emit({ type: "context-menu:canvas", clientX: evt.clientX, clientY: evt.clientY });
+        }
       }
       break;
     }
@@ -683,7 +892,6 @@ export function handleProxiedEvent(
       void _exhaustive;
     }
   }
-  void canvasViewport; // currently unused — kept for future per-event viewport math
 }
 
 // -----------------------------------------------------------------------

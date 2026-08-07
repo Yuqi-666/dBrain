@@ -36,6 +36,7 @@ import type {
 import { useDataStore } from "@workspace/store";
 import { filterByViewFilterConfig } from "@workspace/utils";
 import { ForceGraph } from "./force/ForceGraph";
+import { ForceGraphErrorBoundary } from "./force/ForceGraphErrorBoundary";
 import { FlowGraph } from "./flow/FlowGraph";
 import type { Theme } from "./types";
 import type {
@@ -172,16 +173,18 @@ export function Graph(props: GraphProps) {
   }
 
   return (
-    <ForceGraph
-      view={resolvedView}
-      viewId={viewIdProp}
-      getDataSnapshot={getDataSnapshot}
-      subscribeDiff={subscribeDiff}
-      filter={filter}
-      eventHandler={eventHandler}
-      theme={theme}
-      className={className}
-      style={style}
-    />
+    <ForceGraphErrorBoundary>
+      <ForceGraph
+        view={resolvedView}
+        viewId={viewIdProp}
+        getDataSnapshot={getDataSnapshot}
+        subscribeDiff={subscribeDiff}
+        filter={filter}
+        eventHandler={eventHandler}
+        theme={theme}
+        className={className}
+        style={style}
+      />
+    </ForceGraphErrorBoundary>
   );
 }

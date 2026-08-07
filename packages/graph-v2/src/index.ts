@@ -40,7 +40,6 @@ export type {
   ForceDiffPayload,
   WorkerEvent,
   WorkerInbound,
-  WorkerOutbound,
   ProxiedDomEvent,
   ViewportState,
   Dimensions,

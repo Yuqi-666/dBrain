@@ -2,8 +2,7 @@
  * OffscreenCanvas renderer (runs inside the WebWorker).
  *
  * Owns:
- *   - The `OffscreenCanvas` (set via `initCanvas` from the main thread
- *     after Comlink.transfer).
+ *   - The `OffscreenCanvas` (created internally via `createCanvas`).
  *   - The 2D rendering context (2d, with webgl fallback per
  *     worker/design.md §5.1).
  *   - The current `ForceStyle` and viewport.
@@ -41,16 +40,14 @@ let viewport: ViewportState = { x: 0, y: 0, scale: 1 };
 // -----------------------------------------------------------------------
 
 /**
- * Bind the OffscreenCanvas and select a 2D context. Per
+ * Create a detached OffscreenCanvas and select a 2D context. Per
  * worker/design.md §5.1, this must be called exactly once.
  */
-export function initCanvas(
-  canvas: OffscreenCanvas,
-  dims: { width: number; height: number },
+export function createCanvas(
+  width: number,
+  height: number,
 ): void {
-  offscreen = canvas;
-  offscreen.width = dims.width;
-  offscreen.height = dims.height;
+  offscreen = new OffscreenCanvas(width, height);
 
   ctx = offscreen.getContext("2d") as OffscreenCanvasRenderingContext2D | null;
   if (!ctx) {
@@ -101,17 +98,43 @@ export function renderFrame(): void {
   c.fillRect(0, 0, width, height);
   c.restore();
 
-  // 2. Apply viewport transform
+  // 2. Grid (only when zoomed in enough)
+  if (viewport.scale > 0.5 && currentStyle.gridColor) {
+    c.save();
+    c.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.x, viewport.y);
+    c.strokeStyle = currentStyle.gridColor;
+    c.lineWidth = 0.5 / viewport.scale;
+    c.beginPath();
+    const step = 50;
+    // Draw grid within visible area
+    const invScale = 1 / viewport.scale;
+    const startX = Math.floor(-viewport.x * invScale / step) * step;
+    const startY = Math.floor(-viewport.y * invScale / step) * step;
+    const endX = startX + (width * invScale) + step;
+    const endY = startY + (height * invScale) + step;
+    for (let gx = startX; gx <= endX; gx += step) {
+      c.moveTo(gx, startY);
+      c.lineTo(gx, endY);
+    }
+    for (let gy = startY; gy <= endY; gy += step) {
+      c.moveTo(startX, gy);
+      c.lineTo(endX, gy);
+    }
+    c.stroke();
+    c.restore();
+  }
+
+  // 3. Apply viewport transform
   c.save();
   c.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.x, viewport.y);
 
-  // 3. Draw edges first (under nodes).
+  // 4. Draw edges first (under nodes).
   const { links } = readSimulationState();
   for (const link of links) {
     drawEdge(c, link, currentStyle);
   }
 
-  // 4. Draw nodes.
+  // 5. Draw nodes.
   const { nodes } = readSimulationState();
   for (const node of nodes) {
     drawNode(c, node, currentStyle);
@@ -142,6 +165,7 @@ function drawNode(
 ): void {
   const x = node.x ?? 0;
   const y = node.y ?? 0;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   const r = node.weight ?? style.nodeRadius;
   const stateStyle = NODE_STATE_STYLES[node.ui] ?? NODE_STATE_STYLES.default;
 
@@ -216,7 +240,14 @@ function drawEdge(
   const sy = link.source.y ?? 0;
   const tx = link.target.x ?? 0;
   const ty = link.target.y ?? 0;
+  if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) return;
   const stateStyle = EDGE_STATE_STYLES[link.ui] ?? EDGE_STATE_STYLES.default;
+
+  // Self-loop: draw a small loop arc with arrow.
+  if (link.source === link.target) {
+    drawSelfLoop(c, link, sx, sy, style.nodeRadius ?? 8);
+    return;
+  }
 
   c.beginPath();
   c.strokeStyle = link.semanticColor ?? style.edgeColor;
@@ -273,15 +304,22 @@ function drawArrow(
   ty: number,
 ): void {
   const ARROW_SIZE = 8;
-  const angle = Math.atan2(ty - sy, tx - sx);
+  const DEFAULT_RADIUS = 8;
+  const targetR = (link.target.weight ?? DEFAULT_RADIUS) + ARROW_SIZE;
+  const sourceR = (link.source.weight ?? DEFAULT_RADIUS) + ARROW_SIZE;
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 0.001) return; // self-loop handled separately
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const angle = Math.atan2(dy, dx);
 
-  // Forward arrow at target.
   if (link.direction === "forward" || link.direction === "bidirectional") {
-    drawArrowHead(c, tx, ty, angle, ARROW_SIZE);
+    drawArrowHead(c, tx - ux * targetR, ty - uy * targetR, angle, ARROW_SIZE);
   }
-  // Reverse arrow at source.
   if (link.direction === "reverse" || link.direction === "bidirectional") {
-    drawArrowHead(c, sx, sy, angle + Math.PI, ARROW_SIZE);
+    drawArrowHead(c, sx + ux * sourceR, sy + uy * sourceR, angle + Math.PI, ARROW_SIZE);
   }
 }
 
@@ -304,4 +342,19 @@ function drawArrowHead(
   c.fillStyle = c.strokeStyle as string;
   c.fill();
   c.restore();
+}
+
+function drawSelfLoop(
+  c: OffscreenCanvasRenderingContext2D,
+  _link: SimLink,
+  x: number,
+  y: number,
+  r: number,
+): void {
+  const loopR = r + 12;
+  c.beginPath();
+  c.arc(x, y - loopR, 8, -Math.PI * 0.8, Math.PI * 0.8);
+  c.stroke();
+  // arrow at arc top
+  drawArrowHead(c, x + 8, y - loopR - 8, -Math.PI / 2, 6);
 }

@@ -10,9 +10,9 @@
  *   3. Handle worker-level lifecycle (init canvas from a one-time
  *      Comlink.transfer call).
  *
- * The OffscreenCanvas itself is sent in from the main thread *after*
- * `Comlink.expose`, via a separate `postMessage` (see `setOffscreenCanvas`
- * in `api.ts`'s extension). The canvas is **not** part of the Comlink
+ * The worker creates its own detached OffscreenCanvas internally from
+ * dimensions sent via a separate `postMessage` (see `createCanvas`
+ * in `canvas.ts`). The canvas is **not** part of the Comlink
  * surface because Comlink cannot transfer it by default (issue #512).
  *
  * Cross-document contract: worker/design.md §1, §2.
@@ -20,7 +20,19 @@
 
 import * as Comlink from "comlink";
 import { api } from "./api";
-import { initCanvas } from "./canvas";
+
+// -----------------------------------------------------------------------
+// Global error traps — surface worker crashes to the main thread so it
+// can tear down and report instead of hanging on a dead worker.
+// -----------------------------------------------------------------------
+
+self.addEventListener("error", (ev) => {
+  console.error("[force-worker] Uncaught error:", ev.message);
+});
+self.addEventListener("unhandledrejection", (ev) => {
+  console.error("[force-worker] Unhandled rejection:", ev.reason);
+  self.postMessage({ type: "__ERROR__", message: String(ev.reason) });
+});
 
 // -----------------------------------------------------------------------
 // 1. Expose the Comlink API surface.
@@ -29,10 +41,8 @@ import { initCanvas } from "./canvas";
 Comlink.expose(api);
 
 // -----------------------------------------------------------------------
-// 2. Raw message channel — handles two distinct message shapes:
-//    (a) { type: "__SET_CANVAS__", canvas: OffscreenCanvas } — from main
-//        thread, transfers the OffscreenCanvas to us.
-//    (b) { type: "__PING__" } — health check from the main thread.
+// 2. Raw message channel — handles one distinct message shape:
+//    (a) { type: "__PING__" } — health check from the main thread.
 // -----------------------------------------------------------------------
 
 const ctx = self as unknown as Worker;
@@ -42,17 +52,6 @@ ctx.addEventListener("message", (ev: MessageEvent) => {
   if (!data || typeof data !== "object") return;
 
   switch (data.type) {
-    case "__SET_CANVAS__": {
-      const canvas = data.canvas as OffscreenCanvas;
-      const width = (data.width as number) ?? canvas.width;
-      const height = (data.height as number) ?? canvas.height;
-      try {
-        initCanvas(canvas, { width, height });
-      } catch (err) {
-        console.error("[force.worker] initCanvas failed:", err);
-      }
-      break;
-    }
     case "__PING__": {
       ctx.postMessage({ type: "__PONG__" });
       break;

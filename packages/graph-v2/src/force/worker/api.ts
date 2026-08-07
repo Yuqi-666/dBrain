@@ -27,7 +27,6 @@ import {
   getStatus,
   handleProxiedEvent,
   onTickListener,
-  ping,
   reheat,
   resumeSimulation,
   setEventHandler,
@@ -38,6 +37,7 @@ import {
   updateDims,
 } from "./simulation";
 import {
+  createCanvas,
   renderAndTransfer,
   resizeCanvas,
   setStyle,
@@ -99,6 +99,12 @@ export const api: WorkerInbound = {
     links: ForceLinkSeed[],
     dims: { width: number; height: number },
   ): Promise<void> {
+    try {
+      createCanvas(dims.width, dims.height);
+    } catch (err) {
+      postError(`Canvas init failed: ${err}`);
+      throw err;
+    }
     updateDims(dims.width, dims.height);
     createOrUpdate(nodes, links, dims);
     scheduleFrame();
@@ -161,7 +167,12 @@ export const api: WorkerInbound = {
 
   async setDimensions(width: number, height: number): Promise<void> {
     updateDims(width, height);
-    resizeCanvas({ width, height });
+    try {
+      resizeCanvas({ width, height });
+    } catch (err) {
+      postError(`Canvas resize failed: ${err}`);
+      throw err;
+    }
     scheduleFrame();
   },
 
@@ -172,17 +183,22 @@ export const api: WorkerInbound = {
   },
 
   async proxyEvent(event: ProxiedDomEvent): Promise<void> {
-    handleProxiedEvent(event, canvasViewport);
+    handleProxiedEvent(event);
+    // Interaction may change selection/hover state without restarting
+    // the d3 simulation. Always push a frame so the canvas stays in
+    // sync with the worker's internal UI state.
+    scheduleFrame();
   },
 };
 
 // -----------------------------------------------------------------------
-// Health check (WorkerOutbound)
+// Error reporting
 // -----------------------------------------------------------------------
 
-// These are exposed via the worker's own `self` global in the entry file
-// (`force.worker.ts`) as direct functions, not via Comlink.
-export const healthCheck = {
-  ping,
-  getStatus,
-};
+function postError(msg: string): void {
+  try {
+    self.postMessage({ type: "__ERROR__", message: msg });
+  } catch {
+    // The message channel may already be gone (worker is shutting down).
+  }
+}

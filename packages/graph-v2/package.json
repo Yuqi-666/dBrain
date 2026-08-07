@@ -19,13 +19,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@use-gesture/core": "^10.3.1",
-    "@use-gesture/react": "^10.3.1",
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",
     "@workspace/ui": "workspace:*",
     "@workspace/utils": "workspace:*",
     "@workspace/hooks": "workspace:*",
+    "@workspace/services": "workspace:*",
     "@xyflow/react": "^12.0.0",
     "comlink": "^4.4.2",
     "d3-force": "^3.0.0",

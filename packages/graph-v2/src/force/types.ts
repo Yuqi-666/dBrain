@@ -73,6 +73,8 @@ export type ProxiedDomEvent =
       type: "context-menu";
       x: number;
       y: number;
+      clientX: number;
+      clientY: number;
       modifiers: Modifiers;
     }
   | {
@@ -216,6 +218,8 @@ export interface ForceStyle {
   edgeLineWidth: number;
   /** Edge dash for `association` type. */
   edgeDash: number[];
+  /** Foreground grid line color (undefined = no grid). */
+  gridColor?: string;
 }
 
 /**
@@ -247,7 +251,6 @@ export interface ForceDiffPayload {
  * is not a default Comlink Transferable (worker/design.md §2.3).
  */
 export type WorkerEvent =
-  | { type: "node:click"; nodeId: NodeId; modifiers: Modifiers }
   | { type: "node:dblclick"; nodeId: NodeId }
   | { type: "node:pointer-enter"; nodeId: NodeId }
   | { type: "node:pointer-leave"; nodeId: NodeId }
@@ -282,7 +285,13 @@ export type WorkerEvent =
     }
   | { type: "frame"; bitmap: ImageBitmap }
   | { type: "tick"; alpha: number }
-  | { type: "status"; status: "idle" | "running" | "stopped" };
+  | { type: "status"; status: "idle" | "running" | "stopped" }
+  // Context-menu results — carry clientX/clientY back to the main
+  // thread so the orchestrator can open the menu at the right position
+  // without a pendingRef bridge.
+  | { type: "context-menu:node"; nodeId: NodeId; clientX: number; clientY: number }
+  | { type: "context-menu:edge"; edgeId: EdgeId; clientX: number; clientY: number }
+  | { type: "context-menu:canvas"; clientX: number; clientY: number };
 
 // -----------------------------------------------------------------------
 // 6. WorkerInbound (Comlink.expose surface — main → worker)
@@ -349,21 +358,7 @@ export interface WorkerInbound {
 }
 
 // -----------------------------------------------------------------------
-// 7. WorkerOutbound (main → worker health check, optional)
-// -----------------------------------------------------------------------
-
-/**
- * Reverse RPC: methods the main thread exposes on the worker side. Not
- * used by the current implementation but documented for future health
- * checks.
- */
-export interface WorkerOutbound {
-  ping(): Promise<"pong">;
-  getStatus(): Promise<"idle" | "running" | "stopped">;
-}
-
-// -----------------------------------------------------------------------
-// 8. Viewport + canvas types
+// 7. Viewport + canvas types
 // -----------------------------------------------------------------------
 
 /** Camera state (translation + uniform scale). */
@@ -380,7 +375,7 @@ export interface Dimensions {
 }
 
 // -----------------------------------------------------------------------
-// 9. Render context (re-export of canvas.ts internals for main thread)
+// 8. Render context (re-export of canvas.ts internals for main thread)
 // -----------------------------------------------------------------------
 
 /**

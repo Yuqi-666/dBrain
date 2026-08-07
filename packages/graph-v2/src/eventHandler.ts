@@ -171,9 +171,6 @@ export function useGraphEventHandler(): GraphEventHandler {
     return {
       handleWorkerEvent(event) {
         switch (event.type) {
-          case "node:click":
-            set((s) => s.setSelectedNodeIds(new Set([event.nodeId])));
-            return;
           case "node:dblclick":
             set((s) => {
               s.closePreviewBlock();
@@ -190,13 +187,29 @@ export function useGraphEventHandler(): GraphEventHandler {
             );
             return;
           case "node:pointer-leave":
-            set((s) => s.closePreviewBlock());
+            set((s) => {
+              if (!s.previewBlock.isFocus) s.closePreviewBlock();
+            });
             return;
           case "node:drag-start":
             set((s) => s.closePreviewBlock());
             return;
           case "edge:click":
             set((s) => s.setSelectedEdgeIds(new Set([event.edgeId])));
+            return;
+          // Context-menu results (selection only — menu is opened
+          // by ForceGraph's onWorkerEvent from the same event).
+          case "context-menu:node":
+            set((s) => s.setSelectedNodeIds(new Set([event.nodeId])));
+            return;
+          case "context-menu:edge":
+            set((s) => s.setSelectedEdgeIds(new Set([event.edgeId])));
+            return;
+          case "context-menu:canvas":
+            set((s) => {
+              s.setSelectedNodeIds(new Set());
+              s.setSelectedEdgeIds(new Set());
+            });
             return;
           case "canvas:click":
             set((s) => {

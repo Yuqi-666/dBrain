@@ -15,7 +15,6 @@
 import type {
   EdgeData,
   NodeData,
-  NodeId,
   ViewId,
 } from "@workspace/interfaces";
 import type { SourceDiff } from "../types";
@@ -52,25 +51,13 @@ export function getPositionForView(
   if (!Array.isArray(positionMap)) return null;
   const entry = positionMap.find((p) => p.viewId === viewId);
   if (!entry) return null;
+  if (!Number.isFinite(entry.x) || !Number.isFinite(entry.y)) {
+    return null;
+  }
   if (typeof entry.x !== "number" || typeof entry.y !== "number") {
     return null;
   }
   return { x: entry.x, y: entry.y };
-}
-
-/**
- * Compute the degree (incoming + outgoing edge count) for a node, used as
- * the `weight` hint for forceCollide.
- */
-export function computeDegree(
-  nodeId: NodeId,
-  edges: Iterable<EdgeData>,
-): number {
-  let deg = 0;
-  for (const e of edges) {
-    if (e.from === nodeId || e.to === nodeId) deg += 1;
-  }
-  return deg;
 }
 
 // -----------------------------------------------------------------------

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { Graph } from "@workspace/graph";
+import { Graph } from "@workspace/graph-v2";
+// import { Graph } from "@workspace/graph";
 import { useUIStore, useDataStore } from "@workspace/store";
 import {
   NodeService,
@@ -23,6 +24,8 @@ export default function GraphPage(): ReactNode {
   const mainView = useUIStore((state) => state.mainViewType);
   const currentViewId = ui_store.currentViewId ?? undefined;
 
+  // Service sync — required for both v1 and v2 (Graph reads from store,
+  // services populate the store)
   useEffect(() => {
     const initGraph = async () => {
 
@@ -57,16 +60,22 @@ export default function GraphPage(): ReactNode {
               <Graph
                 theme={theme}
                 viewId={currentViewId}
-                enableMinimap={true}
-                enableGrid={true}
-                enableFisheye={false}
-                enableNodeDragging={true}
-                enableEdgeInteractions={true}
                 className="w-full h-full"
-                onLoad={(graph) =>
-                  console.log("[GraphDemo] Graph loaded", graph)
-                }
               />
+              // v1 (rollback):
+              // <Graph
+              //   theme={theme}
+              //   viewId={currentViewId}
+              //   enableMinimap={true}
+              //   enableGrid={true}
+              //   enableFisheye={false}
+              //   enableNodeDragging={true}
+              //   enableEdgeInteractions={true}
+              //   className="w-full h-full"
+              //   onLoad={(graph) =>
+              //     console.log("[GraphDemo] Graph loaded", graph)
+              //   }
+              // />
             )}
             <NodeEditor />
           </>

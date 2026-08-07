@@ -7,8 +7,8 @@
  * Responsibilities:
  *
  *   1. **Worker lifecycle**: instantiate a `Worker` from
- *      `./worker/force.worker.ts`, expose its API via Comlink, register
- *      the OffscreenCanvas via `Comlink.transfer(offscreen, [offscreen])`.
+ *      `./worker/force.worker.ts`, expose its API via Comlink, send
+ *      canvas dimensions for the worker to create its own OffscreenCanvas.
  *   2. **Data pipeline**:
  *      - Pull a snapshot from `getDataSnapshot()` (parent `Graph`).
  *      - Apply `view.filterConfig` via the `filter` callback (parent
@@ -143,10 +143,10 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const workerRef = useRef<Worker | null>(null);
     const apiRef = useRef<WorkerInbound | null>(null);
-    const offscreenRef = useRef<OffscreenCanvas | null>(null);
-    const listenersRef = useRef<(() => void) | null>(null);
+    const listenersRef = useRef<import("./eventListener").InstalledListeners | null>(null);
     const canvasRectRef = useRef<DOMRect | null>(null);
     const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
+    const dprRef = useRef(Math.max(1, globalThis.devicePixelRatio ?? 1));
     const currentViewIdRef = useRef<ViewId>(viewId);
 
     // ---- Local state ------------------------------------------------
@@ -177,12 +177,16 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       const rect = container.getBoundingClientRect();
       canvasRectRef.current = rect;
       const dpr = Math.max(1, globalThis.devicePixelRatio ?? 1);
+      dprRef.current = dpr;
       const width = Math.max(1, Math.floor(rect.width * dpr));
       const height = Math.max(1, Math.floor(rect.height * dpr));
       canvas.width = width;
       canvas.height = height;
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
+
+      const ctx2d = canvas.getContext("2d");
+      if (!ctx2d) throw new Error("Canvas 2D context unavailable");
 
       const worker = new Worker(
         new URL("./worker/force.worker.ts", import.meta.url),
@@ -193,25 +197,39 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         const onMsg = (ev: MessageEvent) => {
           if (ev.data?.type === "__READY__") {
             worker.removeEventListener("message", onMsg);
+            clearTimeout(timeoutId);
             resolve();
           }
         };
+        const timeoutId = setTimeout(
+          () => reject(new Error("worker boot timeout")),
+          5000,
+        );
         worker.addEventListener("message", onMsg);
-        worker.addEventListener("error", reject, { once: true });
-        setTimeout(() => reject(new Error("worker boot timeout")), 5000);
+        worker.addEventListener(
+          "error",
+          () => {
+            clearTimeout(timeoutId);
+            reject(new Error("worker boot error"));
+          },
+          { once: true },
+        );
+      });
+
+      // Persistent error handler — surface unexpected worker crashes
+      worker.addEventListener("error", (ev) => {
+        console.error("[ForceGraph] Worker error:", ev.message);
+        setError(new Error(`Worker crash: ${ev.message}`));
       });
 
       const api = Comlink.wrap<WorkerInbound>(worker);
 
-      const offscreen = canvas.transferControlToOffscreen();
-      offscreenRef.current = offscreen;
-      worker.postMessage(
-        { type: "__SET_CANVAS__", canvas: offscreen, width, height },
-        [offscreen],
-      );
-
-      const ctx2d = canvas.getContext("2d");
       const onFrame = (ev: MessageEvent) => {
+        if (ev.data?.type === "__ERROR__") {
+          console.error("[ForceGraph] Worker reported error:", ev.data.message);
+          setError(new Error(ev.data.message));
+          return;
+        }
         if (ev.data?.type === "__FRAME__" && ctx2d) {
           const bitmap = ev.data.bitmap as ImageBitmap;
           ctx2d.save();
@@ -270,42 +288,52 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     // decide whether each removed id was actually rendered.
     const subscribeStore = useCallback(() => {
       return subscribeDiff((diff) => {
-        const api = apiRef.current;
-        if (!api) return;
+        try {
+          const api = apiRef.current;
+          if (!api) return;
 
-        const filteredNodesAdded = filter(diff.nodes.added, [], view).nodes;
-        const filteredNodesUpdated = filter(diff.nodes.updated, [], view).nodes;
+          const filteredNodesAdded = filter(diff.nodes.added, [], view).nodes;
+          const filteredNodesUpdated = filter(
+            diff.nodes.updated,
+            [],
+            view,
+          ).nodes;
 
-        const endpointIds = collectEdgeEndpointIds(diff);
-        const snapshot = getDataSnapshot();
-        const endpointNodes = snapshot.nodes.filter((n) => endpointIds.has(n.id));
-        const filteredEdgesAdded = filter(
-          endpointNodes,
-          diff.edges.added,
-          view,
-        ).edges;
-        const filteredEdgesUpdated = filter(
-          endpointNodes,
-          diff.edges.updated,
-          view,
-        ).edges;
+          const endpointIds = collectEdgeEndpointIds(diff);
+          const snapshot = getDataSnapshot();
+          const endpointNodes = snapshot.nodes.filter((n) =>
+            endpointIds.has(n.id),
+          );
+          const filteredEdgesAdded = filter(
+            endpointNodes,
+            diff.edges.added,
+            view,
+          ).edges;
+          const filteredEdgesUpdated = filter(
+            endpointNodes,
+            diff.edges.updated,
+            view,
+          ).edges;
 
-        const trimmed: SourceDiff = {
-          nodes: {
-            added: filteredNodesAdded,
-            updated: filteredNodesUpdated,
-            removed: diff.nodes.removed,
-          },
-          edges: {
-            added: filteredEdgesAdded,
-            updated: filteredEdgesUpdated,
-            removed: diff.edges.removed,
-          },
-        };
-        const payload = diffToForcePayload(trimmed, { viewId });
-        api.applyDiff(payload).catch((err) => {
-          console.error("[ForceGraph] applyDiff failed:", err);
-        });
+          const trimmed: SourceDiff = {
+            nodes: {
+              added: filteredNodesAdded,
+              updated: filteredNodesUpdated,
+              removed: diff.nodes.removed,
+            },
+            edges: {
+              added: filteredEdgesAdded,
+              updated: filteredEdgesUpdated,
+              removed: diff.edges.removed,
+            },
+          };
+          const payload = diffToForcePayload(trimmed, { viewId });
+          api.applyDiff(payload).catch((err) => {
+            console.error("[ForceGraph] applyDiff failed:", err);
+          });
+        } catch (err) {
+          console.error("[ForceGraph] subscribeDiff callback failed:", err);
+        }
       });
     }, [subscribeDiff, getDataSnapshot, filter, view, viewId]);
 
@@ -315,25 +343,86 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     // useUIStore / useGraph().
     const onWorkerEvent = useCallback(
       (event: WorkerEvent) => {
+        if (event.type === "selection:changed") {
+          if (event.selectedNodeIds.length > 0 || event.selectedEdgeIds.length > 0) {
+            listenersRef.current?.cancelPan();
+          }
+        } else if (
+          event.type === "node:dblclick" ||
+          event.type === "node:drag-start" ||
+          event.type === "edge:click"
+        ) {
+          listenersRef.current?.cancelPan();
+        }
+
+        // Context-menu results: the worker returns the hit-test target
+        // with client coordinates, so we can open the menu directly.
+        switch (event.type) {
+          case "context-menu:node":
+            setContextMenuState({
+              x: event.clientX,
+              y: event.clientY,
+              visible: true,
+              type: "node",
+              context: { nodeId: event.nodeId as string },
+              onClose: () => setContextMenuState(null),
+            });
+            break;
+          case "context-menu:edge":
+            setContextMenuState({
+              x: event.clientX,
+              y: event.clientY,
+              visible: true,
+              type: "edge",
+              context: { edgeId: event.edgeId as string },
+              onClose: () => setContextMenuState(null),
+            });
+            break;
+          case "context-menu:canvas":
+            setContextMenuState({
+              x: event.clientX,
+              y: event.clientY,
+              visible: true,
+              type: "canvas",
+              context: {} as Record<string, never>,
+              onClose: () => setContextMenuState(null),
+            });
+            break;
+        }
+
         eventHandler.handleWorkerEvent(event);
       },
       [eventHandler],
     );
 
-    // ---- Effect: boot + cleanup -------------------------------------
+    // ---- Effect: Worker lifecycle (mount/unmount only) -----------------
     useEffect(() => {
       let cancelled = false;
+      let worker: Worker | null = null;
+      let api: WorkerInbound | null = null;
       let unsubDiff: (() => void) | null = null;
+
       (async () => {
         try {
-          const { api } = await setupWorker();
+          const result = await setupWorker();
+          worker = result.worker;
+          api = result.api;
+
           if (cancelled) {
-            workerRef.current?.terminate();
-            workerRef.current = null;
+            worker.terminate();
             return;
           }
+
           await api.setEventHandler(Comlink.proxy(onWorkerEvent));
           await performFullSync();
+
+          // ★ Re-check cancelled BEFORE subscribing (fixes 0.4 leak)
+          if (cancelled) {
+            api.setEventHandler(null).catch(() => {});
+            worker.terminate();
+            return;
+          }
+
           unsubDiff = subscribeStore();
           if (!cancelled) setIsReady(true);
         } catch (err) {
@@ -348,33 +437,20 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         viewportRef,
         {
           proxyEvent: (ev) => {
-            const api = apiRef.current;
             if (!api) return Promise.resolve();
-            return api.proxyEvent(ev);
-          },
-          onContextMenu: (x, y) => {
-            // Route the canvas context menu through the shared
-            // event handler — keeps all side-effect writes in one
-            // place.
-            eventHandler.onContextMenu({
-              kind: "canvas",
-              clientX: x,
-              clientY: y,
+            return api.proxyEvent(ev).catch((err) => {
+              console.debug("[ForceGraph] proxyEvent rejected:", err);
             });
-            // Also keep the local `contextMenuState` in sync so the
-            // `<GraphContextMenu>` overlay can render.
-            setContextMenuState({
-              x,
-              y,
-              visible: true,
-              type: "canvas",
-              context: {} as Record<string, never>,
-              onClose: () => setContextMenuState(null),
-            } as GraphContextMenuProps);
+          },
+          onViewportChange: (x, y, scale) => {
+            api?.setViewport(x, y, scale).catch((err) => {
+              if (import.meta.env?.DEV) console.debug("[ForceGraph] setViewport failed:", err);
+            });
           },
         },
+        dprRef.current,
       );
-      listenersRef.current = domListeners.dispose;
+      listenersRef.current = domListeners;
 
       return () => {
         cancelled = true;
@@ -382,18 +458,15 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         listenersRef.current = null;
         if (unsubDiff) unsubDiff();
         try {
-          apiRef.current?.setEventHandler(null);
+          api?.setEventHandler(null);
         } catch {
           // Worker may already be dead.
         }
-        workerRef.current?.terminate();
-        workerRef.current = null;
-        apiRef.current = null;
-        offscreenRef.current = null;
+        worker?.terminate();
         setIsReady(false);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subscribeStore]);
+    }, []);
 
     // ---- Effect: viewId change triggers re-init ---------------------
     useEffect(() => {
@@ -423,13 +496,13 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           );
         },
         stop: () => {
-          apiRef.current?.stop().catch(() => {
-            // ignored
+          apiRef.current?.stop().catch((err) => {
+            console.debug("[ForceGraph] stop failed:", err);
           });
         },
         resume: () => {
-          apiRef.current?.resume().catch(() => {
-            // ignored
+          apiRef.current?.resume().catch((err) => {
+            console.debug("[ForceGraph] resume failed:", err);
           });
         },
       }),
@@ -443,25 +516,31 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       const ro = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (!entry) return;
-        const rect = entry.contentRect;
+        // IMPORTANT: entry.contentRect.x/y are always 0 (relative to the
+        // element's own padding box, NOT the viewport). We must use
+        // getBoundingClientRect() for viewport-relative left/top so that
+        // screenToSimulation() in eventListener.ts doesn't produce offset
+        // coords when the sidebar (or any ancestor) reflows the container.
+        const bounds = container.getBoundingClientRect();
         canvasRectRef.current = new DOMRect(
-          rect.left,
-          rect.top,
-          rect.width,
-          rect.height,
+          bounds.left,
+          bounds.top,
+          entry.contentRect.width,
+          entry.contentRect.height,
         );
         const canvas = canvasRef.current;
         if (!canvas) return;
         const dpr = Math.max(1, globalThis.devicePixelRatio ?? 1);
-        const width = Math.max(1, Math.floor(rect.width * dpr));
-        const height = Math.max(1, Math.floor(rect.height * dpr));
+        dprRef.current = dpr;
+        const width = Math.max(1, Math.floor(entry.contentRect.width * dpr));
+        const height = Math.max(1, Math.floor(entry.contentRect.height * dpr));
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
-          canvas.style.width = `${rect.width}px`;
-          canvas.style.height = `${rect.height}px`;
-          apiRef.current?.setDimensions(width, height).catch(() => {
-            // ignored
+          canvas.style.width = `${entry.contentRect.width}px`;
+          canvas.style.height = `${entry.contentRect.height}px`;
+          apiRef.current?.setDimensions(width, height).catch((err) => {
+            console.debug("[ForceGraph] setDimensions failed:", err);
           });
         }
       });
