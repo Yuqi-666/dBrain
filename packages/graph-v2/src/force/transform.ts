@@ -1,33 +1,33 @@
 /**
  * Force mode: source data → d3-force seed conversion.
  *
- * Responsibilities:
- *   - Convert `NodeData[]` → `ForceNodeSeed[]` (with first-load position
- *     backfill from `stateData.position[currentViewId]`, per main design
- *     L432).
- *   - Convert `EdgeData[]` → `ForceLinkSeed[]` (pass-through with
- *     `ui: "default"`).
- *   - Build `ForceNodeSeed` from a single `NodeData` (used by diff handlers).
+ * Merge order (lower → higher priority):
+ *   defaults → business(stateData.server + semantic) → client(stateData.client) → worker(render)
  *
- * Cross-document contract: force/design.md §2.4, worker/design.md §4.5.
+ * Layers 1–3 are resolved here. Layer 4 (render rules) is applied at paint
+ * time in canvas.ts — it never changes the seed data.
  */
 
 import type {
   EdgeData,
+  EdgeSemanticId,
+  EdgeType,
   NodeData,
+  NodeSemanticId,
   ViewId,
 } from "@workspace/interfaces";
 import type { SourceDiff } from "../types";
-import type { UiState } from "./types";
-import type {
-  ForceLinkSeed,
-  ForceNodeSeed,
-} from "./types";
+import type { ForceLinkSeed, ForceNodeSeed } from "./types";
+import {
+  NODE_DEFAULTS,
+  EDGE_DEFAULTS,
+  NODE_BUSINESS_RULES,
+  EDGE_BUSINESS_RULES,
+  resolveBusinessStyle,
+} from "./styleConfig";
 
 // -----------------------------------------------------------------------
-// Position persistence helpers (shared with flow mode conceptually, but
-// force has its own copy because the flow transform.ts is a separate file
-// and force never imports from flow).
+// Position persistence helpers
 // -----------------------------------------------------------------------
 
 export interface PositionEntry {
@@ -36,13 +36,6 @@ export interface PositionEntry {
   y: number;
 }
 
-/**
- * Read the position entry for a given view from `NodeData.stateData.position`.
- * Returns `null` when no entry exists.
- *
- * Matches the schema in main design L417-428:
- *   stateData.position = [{ viewId, x, y }, ...]
- */
 export function getPositionForView(
   node: NodeData,
   viewId: ViewId,
@@ -51,117 +44,171 @@ export function getPositionForView(
   if (!Array.isArray(positionMap)) return null;
   const entry = positionMap.find((p) => p.viewId === viewId);
   if (!entry) return null;
-  if (!Number.isFinite(entry.x) || !Number.isFinite(entry.y)) {
-    return null;
-  }
-  if (typeof entry.x !== "number" || typeof entry.y !== "number") {
-    return null;
-  }
+  if (!Number.isFinite(entry.x) || !Number.isFinite(entry.y)) return null;
+  if (typeof entry.x !== "number" || typeof entry.y !== "number") return null;
   return { x: entry.x, y: entry.y };
 }
 
 // -----------------------------------------------------------------------
-// Source → Seed conversion
+// EdgeType → shape / strokeType mappings
+// -----------------------------------------------------------------------
+
+const EDGE_TYPE_TO_SHAPE: Record<EdgeType, ForceLinkSeed["shape"]> = {
+  hierarchy: "straight",
+  association: "straight",
+  flow: "curve",
+  interaction: "s-curve",
+};
+
+const EDGE_TYPE_TO_STROKE_TYPE: Record<EdgeType, ForceLinkSeed["strokeType"]> = {
+  association: "dashed",
+  hierarchy: "solid",
+  flow: "solid",
+  interaction: "solid",
+};
+
+// -----------------------------------------------------------------------
+// Transform options
 // -----------------------------------------------------------------------
 
 export interface TransformOptions {
-  /** Current view id (used to look up `stateData.position[viewId]`). */
   viewId: ViewId;
-  /** Default state to assign to every seed (default: "default"). */
-  defaultState?: UiState;
+  /** External joined data: NodeSemantic.id → color. Applied at business layer. */
+  semanticColorMap?: Map<NodeSemanticId, string>;
+  /** External joined data: EdgeSemantic.id → color. Applied at business layer. */
+  edgeSemanticColorMap?: Map<EdgeSemanticId, string>;
 }
 
+// -----------------------------------------------------------------------
+// Node conversion
+// -----------------------------------------------------------------------
+
 /**
- * Convert a list of `NodeData` to `ForceNodeSeed[]`.
+ * Convert `NodeData[]` → `ForceNodeSeed[]`.
  *
- * For each node:
- *   1. Read the persisted position from `stateData.position[viewId]` if
- *      present, and use it as `x` / `y` (no `fx`/`fy` — force mode does
- *      not persist pins, only initial coords).
- *   2. Otherwise leave `x` / `y` undefined so d3-force falls back to its
- *      phyllotaxis initializer.
- *   3. Use `node.title` as the canvas label.
- *   4. Use the `weight` from the node's `stateData.weight`, or default
- *      to 8 (matches styleConfig default radius).
+ * Per-node merge pipeline (later wins):
+ *   1. NODE_DEFAULTS
+ *   2. stateData.server → resolveBusinessStyle() via NODE_BUSINESS_RULES
+ *   3. semanticColorMap[semanticId] → fillColor (external joined data)
+ *   4. stateData.client → spread overrides (explicit display)
  */
 export function nodeDataToForceSeeds(
   nodes: ReadonlyArray<NodeData>,
   options: TransformOptions,
 ): ForceNodeSeed[] {
-  const defaultState = options.defaultState ?? "default";
   return nodes.map((node) => {
+    // Layer 1: defaults
+    let resolved: Record<string, unknown> = { ...NODE_DEFAULTS };
+
+    // Layer 2: business — stateData.server rules + semantic color
+    const server = node.stateData?.server as Record<string, unknown> | undefined;
+    resolved = resolveBusinessStyle(server, NODE_BUSINESS_RULES, resolved);
+    if (node.semanticId && options.semanticColorMap) {
+      const semanticColor = options.semanticColorMap.get(node.semanticId);
+      if (semanticColor) resolved = { ...resolved, fillColor: semanticColor };
+    }
+
+    // Layer 3: client — explicit display overrides (highest priority before worker)
+    const client = node.stateData?.client as Record<string, unknown> | undefined;
+    if (client) resolved = { ...resolved, ...client };
+
     const seed: ForceNodeSeed = {
       id: node.id,
-      title: node.title,
-      ui: defaultState,
-      viewId: options.viewId,
+      fillColor: resolved.fillColor as string,
+      strokeColor: resolved.strokeColor as string,
+      strokeWidth: resolved.strokeWidth as number,
+      label: node.title,
+      labelColor: resolved.labelColor as string,
+      labelSize: resolved.labelSize as number,
+      radius: (node.stateData?.weight as number) ?? (resolved.radius as number),
       nodeType: node.nodeType,
+      viewId: options.viewId,
     };
+
     const persisted = getPositionForView(node, options.viewId);
     if (persisted) {
       seed.x = persisted.x;
       seed.y = persisted.y;
     }
-    // Pin coordinates are intentionally left undefined. They are only
-    // set when the user actively drags a node (force/eventListener.ts).
+
     return seed;
   });
 }
 
+// -----------------------------------------------------------------------
+// Edge conversion
+// -----------------------------------------------------------------------
+
 /**
- * Convert `EdgeData[]` to `ForceLinkSeed[]`. Pass-through with
- * `ui: "default"`.
+ * Convert `EdgeData[]` → `ForceLinkSeed[]`.
+ *
+ * Per-edge merge pipeline (later wins):
+ *   1. EDGE_DEFAULTS + edgeType → shape/strokeType
+ *   2. stateData.server → resolveBusinessStyle() via EDGE_BUSINESS_RULES
+ *   3. edgeSemanticColorMap[semanticId] → strokeColor (external joined data)
+ *   4. stateData.client → spread overrides (explicit display)
  */
 export function edgeDataToForceSeeds(
   edges: ReadonlyArray<EdgeData>,
-  options?: { defaultState?: UiState },
+  options?: TransformOptions,
 ): ForceLinkSeed[] {
-  const defaultState = options?.defaultState ?? "default";
-  return edges.map((edge) => ({
-    id: edge.id,
-    source: edge.from,
-    target: edge.to,
-    edgeType: edge.edgeType,
-    direction: edge.direction,
-    ui: defaultState,
-    weight: edge.weight,
-  }));
+  return edges.map((edge) => {
+    // Layer 1: defaults + edgeType-driven shape/strokeType
+    let resolved: Record<string, unknown> = {
+      ...EDGE_DEFAULTS,
+      shape: EDGE_TYPE_TO_SHAPE[edge.edgeType],
+      strokeType: EDGE_TYPE_TO_STROKE_TYPE[edge.edgeType],
+    };
+
+    // Layer 2: business — stateData.server rules + semantic color
+    const server = edge.stateData?.server as Record<string, unknown> | undefined;
+    resolved = resolveBusinessStyle(server, EDGE_BUSINESS_RULES, resolved);
+    if (edge.semanticId && options?.edgeSemanticColorMap) {
+      const semanticColor = options.edgeSemanticColorMap.get(edge.semanticId);
+      if (semanticColor) resolved = { ...resolved, strokeColor: semanticColor };
+    }
+
+    // Layer 3: client — explicit display overrides
+    const client = edge.stateData?.client as Record<string, unknown> | undefined;
+    if (client) resolved = { ...resolved, ...client };
+
+    return {
+      id: edge.id,
+      source: edge.from,
+      target: edge.to,
+      label: (edge.stateData?.label as string) ?? "",
+      labelColor: resolved.labelColor as string,
+      labelSize: resolved.labelSize as number,
+      shape: resolved.shape as ForceLinkSeed["shape"],
+      strokeType: resolved.strokeType as ForceLinkSeed["strokeType"],
+      strokeColor: resolved.strokeColor as string,
+      strokeWidth: resolved.strokeWidth as number,
+      direction: edge.direction,
+      weight: edge.weight,
+    };
+  });
 }
 
-/**
- * Build a single `ForceNodeSeed` from a `NodeData` (used by diff handlers
- * to emit an `nodeUpsert` entry). Honors the same position backfill logic
- * as `nodeDataToForceSeeds`.
- */
+// -----------------------------------------------------------------------
+// Single-seed helpers (diff)
+// -----------------------------------------------------------------------
+
 export function singleNodeToForceSeed(
   node: NodeData,
   options: TransformOptions,
 ): ForceNodeSeed {
-  return nodeDataToForceSeeds([node], options)[0] as ForceNodeSeed;
+  return nodeDataToForceSeeds([node], options)[0]!;
 }
 
-/**
- * Build a single `ForceLinkSeed` from an `EdgeData`.
- */
 export function singleEdgeToForceSeed(
   edge: EdgeData,
-  options?: { defaultState?: UiState },
 ): ForceLinkSeed {
-  return edgeDataToForceSeeds([edge], options)[0] as ForceLinkSeed;
+  return edgeDataToForceSeeds([edge])[0]!;
 }
 
 // -----------------------------------------------------------------------
 // Diff extraction
 // -----------------------------------------------------------------------
-
-/**
- * Convert a store-level `Diff` (added/updated/removed) into a Comlink-
- * friendly `ForceDiffPayload` for the worker.
- *
- * The `viewId` filter is applied here so the worker only sees entries that
- * belong to the current view. Edges that reference filtered-out nodes are
- * dropped too (to avoid dangling references).
- */
 
 export function diffToForcePayload(
   diff: SourceDiff,
@@ -172,13 +219,8 @@ export function diffToForcePayload(
   const nodeRemovals = diff.nodes.removed;
 
   const upsertedEdges = [...diff.edges.added, ...diff.edges.updated];
-  const linkUpserts = edgeDataToForceSeeds(upsertedEdges, options);
+  const linkUpserts = edgeDataToForceSeeds(upsertedEdges);
   const linkRemovals = diff.edges.removed;
 
-  return {
-    nodeUpserts,
-    nodeRemovals,
-    linkUpserts,
-    linkRemovals,
-  };
+  return { nodeUpserts, nodeRemovals, linkUpserts, linkRemovals };
 }

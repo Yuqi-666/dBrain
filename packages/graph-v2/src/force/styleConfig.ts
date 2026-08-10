@@ -1,164 +1,180 @@
 /**
- * Force mode PRIVATE theme + state palette.
+ * Force mode PRIVATE style configuration.
  *
- * Single source of truth for the visual tokens consumed by both the
- * OffscreenCanvas renderer (`worker/canvas.ts`) and the main thread
- * `ForceGraph.tsx` (for fallback rendering during worker init failures).
+ * Four-layer style pipeline (lower → higher priority):
+ *   1. Defaults — baseline visual properties.
+ *   2. Business layer — stateData.server (runtime business state) + semantic.color (external joined data).
+ *   3. Client layer — stateData.client (explicit display overrides from user).
+ *   4. Render layer — worker interaction state (hover/select/active) applied at paint time.
  *
- * Color tables come straight from the main design (L156-168 for nodes,
- * L194-201 for edges, L222-225 for themes).
+ * Merge order: defaults → business → client → worker
  *
- * Architectural note: the `Theme` enum ("light" | "dark") is defined
- * in the shared `../types` layer (it applies to both force and flow
- * modes). This module uses it but does NOT re-export it. Consumers
- * who need the `Theme` type should import from `../types` directly.
+ * All visual properties (layers 1–3) are resolved on the main thread during
+ * seed construction. The worker only applies render rules at canvas paint time.
  */
 
-import type { Theme } from "../types";
-import type { ForceConfig, UiState } from "./types";
+import type { ForceConfig, RenderState } from "./types";
 
 // -----------------------------------------------------------------------
-// Theme tokens
+// 1. Defaults
 // -----------------------------------------------------------------------
 
-
-
-export interface ThemeTokens {
-  /** Canvas background fill color. */
-  backgroundColor: string;
-  /** Default node fill when no semantic color is provided. */
-  nodeColor: string;
-  /** Default edge stroke when no semantic color is provided. */
-  edgeColor: string;
-  /** Label text color. */
-  labelColor: string;
-  /** Foreground grid line color (optional, used for debugging). */
-  gridColor?: string;
-}
-
-export const LIGHT_THEME: ThemeTokens = {
-  backgroundColor: "#ffffff",
-  nodeColor: "#165DFF",
-  edgeColor: "#91caff",
+export const NODE_DEFAULTS = {
+  fillColor: "#165DFF",
+  strokeColor: "#165DFF",
+  strokeWidth: 2,
   labelColor: "#1f2937",
-  gridColor: "#e5e7eb",
-};
+  labelSize: 14,
+  radius: 8,
+} as const;
 
-export const DARK_THEME: ThemeTokens = {
-  backgroundColor: "#0a0a0a",
-  nodeColor: "#4080FF",
-  edgeColor: "#69b1ff",
-  labelColor: "#f3f4f6",
-  gridColor: "#262626",
-};
+export const EDGE_DEFAULTS = {
+  strokeColor: "#91caff",
+  strokeWidth: 2,
+  labelColor: "#9ca3af",
+  labelSize: 12,
+  shape: "straight" as const,
+  strokeType: "solid" as const,
+} as const;
 
-export function getThemeTokens(theme: Theme): ThemeTokens {
-  return theme === "dark" ? DARK_THEME : LIGHT_THEME;
+// -----------------------------------------------------------------------
+// 2. Business layer (stateData.server + external joined data)
+// -----------------------------------------------------------------------
+
+export interface BusinessStyleRule {
+  field: string;
+  mapping: Record<string, Partial<{
+    fillColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    labelColor: string;
+    labelSize: number;
+    radius: number;
+  }>>;
+}
+
+export const NODE_BUSINESS_RULES: BusinessStyleRule[] = [];
+
+export interface EdgeBusinessStyleRule {
+  field: string;
+  mapping: Record<string, Partial<{
+    strokeColor: string;
+    strokeWidth: number;
+    labelColor: string;
+    labelSize: number;
+    shape: "straight" | "curve" | "s-curve";
+    strokeType: "solid" | "dotted" | "dashed";
+  }>>;
+}
+
+export const EDGE_BUSINESS_RULES: EdgeBusinessStyleRule[] = [];
+
+export function resolveBusinessStyle<T extends Record<string, unknown>>(
+  stateData: Record<string, unknown> | undefined,
+  rules: ReadonlyArray<{ field: string; mapping: Record<string, Partial<T>> }>,
+  defaults: T,
+): T {
+  if (!stateData) return defaults;
+  let result = { ...defaults };
+  for (const rule of rules) {
+    const value = stateData[rule.field];
+    if (value === undefined || value === null) continue;
+    const key = String(value);
+    const overrides = rule.mapping[key];
+    if (overrides) result = { ...result, ...overrides };
+  }
+  return result;
 }
 
 // -----------------------------------------------------------------------
-// State color palette (UiState → colors + line width + shadow)
+// 3. Render rules (worker interaction state → canvas paint-time adjustments)
 // -----------------------------------------------------------------------
 
-export interface StateVisual {
-  /** Stroke / outline color. */
-  stroke: string;
-  /** Fill color (overrides theme nodeColor when present). */
-  fill?: string;
-  /** Stroke width in pixels. */
-  lineWidth: number;
-  /** Optional CSS-style drop shadow. */
-  shadow?: { color: string; blur: number };
-}
-
-/**
- * Node state → visual style (per main design L156-168).
- *
- * Order matches the `UiState` enum declaration in `types.ts`.
- */
-export const NODE_STATE_STYLES: Record<UiState, StateVisual> = {
-  default: { stroke: "currentColor", lineWidth: 2 },
-  active: {
-    stroke: "#FF9500",
-    lineWidth: 4,
-    shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
-  },
-  selected: {
-    stroke: "#FF7D00",
-    lineWidth: 3,
-    shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
-  },
-  hover: {
-    stroke: "#4080FF",
-    lineWidth: 2.5,
-    shadow: { color: "rgba(22,93,255,0.2)", blur: 5 },
-  },
-  neighborActive: {
-    stroke: "#FFB266",
-    lineWidth: 2.5,
-    shadow: { color: "rgba(255,178,102,0.15)", blur: 5 },
-  },
-  inactive: { stroke: "#9ca3af", lineWidth: 2 },
-  disabled: { stroke: "#d1d5db", lineWidth: 1 },
-};
-
-/**
- * Edge state → visual style (per main design L194-201).
- */
-export const EDGE_STATE_STYLES: Record<UiState, StateVisual> = {
-  default: { stroke: "currentColor", lineWidth: 2 },
-  active: {
-    stroke: "#FF9500",
-    lineWidth: 4,
-    shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
-  },
-  selected: {
-    stroke: "#FF7D00",
-    lineWidth: 3,
-    shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
-  },
-  hover: {
-    stroke: "#4080FF",
-    lineWidth: 2.5,
-    shadow: { color: "rgba(22,93,255,0.2)", blur: 5 },
-  },
-  neighborActive: {
-    stroke: "#FFB266",
-    lineWidth: 2.5,
-    shadow: { color: "rgba(255,178,102,0.15)", blur: 5 },
-  },
-  inactive: { stroke: "#9ca3af", lineWidth: 2 },
-  disabled: { stroke: "#d1d5db", lineWidth: 1 },
-};
-
-// -----------------------------------------------------------------------
-// Combined ForceStyle (used to push to worker)
-// -----------------------------------------------------------------------
-
-export interface ForceStyleOptions {
-  theme: Theme;
-  /** Override the default node radius (used as `weight` too). */
-  nodeRadius?: number;
-  /** Override the default edge line width. */
-  edgeLineWidth?: number;
-}
-
-/**
- * Build a full `ForceStyle` payload (sent to worker via `updateStyle`).
- */
-export function buildForceStyle(opts: ForceStyleOptions): import("./types").ForceStyle {
-  const tokens = getThemeTokens(opts.theme);
-  return {
-    theme: opts.theme,
-    backgroundColor: tokens.backgroundColor,
-    nodeColor: tokens.nodeColor,
-    edgeColor: tokens.edgeColor,
-    labelColor: tokens.labelColor,
-    nodeRadius: opts.nodeRadius ?? 8,
-    edgeLineWidth: opts.edgeLineWidth ?? 2,
-    edgeDash: [6, 4],
-    gridColor: tokens.gridColor,
+export interface WorkerRenderRule {
+  condition: "selected" | "hover" | "active" | "neighbor" | "inactive";
+  adjust: {
+    strokeWidthMultiplier?: number;
+    strokeColorOverride?: string;
+    shadow?: { color: string; blur: number };
   };
+}
+
+export const NODE_RENDER_RULES: WorkerRenderRule[] = [
+  {
+    condition: "active",
+    adjust: {
+      strokeWidthMultiplier: 2.0,
+      strokeColorOverride: "#FF9500",
+      shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
+    },
+  },
+  {
+    condition: "selected",
+    adjust: {
+      strokeWidthMultiplier: 1.5,
+      strokeColorOverride: "#FF7D00",
+      shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
+    },
+  },
+  {
+    condition: "hover",
+    adjust: {
+      strokeWidthMultiplier: 1.25,
+      strokeColorOverride: "#4080FF",
+      shadow: { color: "rgba(22,93,255,0.2)", blur: 5 },
+    },
+  },
+  {
+    condition: "neighbor",
+    adjust: { strokeColorOverride: "#FFB266", shadow: { color: "rgba(255,178,102,0.15)", blur: 5 } },
+  },
+  {
+    condition: "inactive",
+    adjust: { strokeColorOverride: "#9ca3af" },
+  },
+];
+
+export const EDGE_RENDER_RULES: WorkerRenderRule[] = [
+  {
+    condition: "active",
+    adjust: {
+      strokeWidthMultiplier: 2.0,
+      strokeColorOverride: "#FF9500",
+      shadow: { color: "rgba(255,149,0,0.5)", blur: 8 },
+    },
+  },
+  {
+    condition: "selected",
+    adjust: {
+      strokeWidthMultiplier: 1.5,
+      strokeColorOverride: "#FF7D00",
+      shadow: { color: "rgba(255,125,0,0.3)", blur: 5 },
+    },
+  },
+  {
+    condition: "hover",
+    adjust: {
+      strokeWidthMultiplier: 1.25,
+      strokeColorOverride: "#4080FF",
+      shadow: { color: "rgba(22,93,255,0.2)", blur: 5 },
+    },
+  },
+  {
+    condition: "neighbor",
+    adjust: { strokeColorOverride: "#FFB266", shadow: { color: "rgba(255,178,102,0.15)", blur: 5 } },
+  },
+  {
+    condition: "inactive",
+    adjust: { strokeColorOverride: "#9ca3af" },
+  },
+];
+
+export function getRenderAdjustment(
+  renderState: RenderState | undefined,
+  rules: ReadonlyArray<WorkerRenderRule>,
+): WorkerRenderRule["adjust"] | undefined {
+  if (!renderState || renderState === "default") return undefined;
+  return rules.find((r) => r.condition === renderState)?.adjust;
 }
 
 // -----------------------------------------------------------------------
@@ -178,7 +194,7 @@ export interface DefaultForceConfig {
 
 export const DEFAULT_FORCE_CONFIG = {
   strength: -300,
-  collisionRadius: 12, // weight (8) + 4
+  collisionRadius: 12,
   linkDistance: 80,
   centerX: 0,
   centerY: 0,

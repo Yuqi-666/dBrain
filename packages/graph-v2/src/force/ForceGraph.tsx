@@ -24,9 +24,7 @@
  *      back and dispatch them to `props.eventHandler.handleWorkerEvent`
  *      (the shared `GraphEventHandler` from `eventHandler.ts`).
  *   5. **ViewId changes**: re-pull data, re-init the worker.
- *   6. **Theme / style changes**: push a new `ForceStyle` via
- *      `api.updateStyle`.
- *   7. **StrictMode cleanup**: every effect must clean up its worker,
+ *   6. **StrictMode cleanup**: every effect must clean up its worker,
  *      listeners, and frame handlers.
  *
  * Per main design L384, this component does **not** receive a
@@ -53,8 +51,7 @@ import type {
   View,
   ViewId,
 } from "@workspace/interfaces";
-import { buildForceStyle, DEFAULT_FORCE_CONFIG } from "./styleConfig";
-import type { Theme } from "../types";
+import { DEFAULT_FORCE_CONFIG } from "./styleConfig";
 import type {
   ForceConfig,
   WorkerEvent,
@@ -67,6 +64,7 @@ import {
 } from "./transform";
 import { installDomEventProxy } from "./eventListener";
 import { useUIStore } from "@workspace/store";
+import { useDataStore } from "@workspace/store";
 import {
   GraphContextMenu,
   type GraphContextMenuProps,
@@ -102,7 +100,6 @@ export interface ForceGraphProps {
    * directly — every gesture is routed through here.
    */
   eventHandler: GraphEventHandler;
-  theme?: Theme;
   /** Optional className for the outer container. */
   className?: string;
   /** Optional inline style for the outer container. */
@@ -133,7 +130,6 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       subscribeDiff,
       filter,
       eventHandler,
-      theme = "light",
       className,
       style,
     } = props;
@@ -249,13 +245,30 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     }, []);
 
     // ---- Full sync (re-init from snapshot) ----------------------------
+    const buildSemanticColorMaps = useCallback(() => {
+      const storeState = useDataStore.getState();
+      const semanticColorMap = new Map<string, string>();
+      for (const [id, sem] of storeState.nodeSemantics) {
+        if (sem.color) semanticColorMap.set(id, sem.color);
+      }
+      const edgeSemanticColorMap = new Map<string, string>();
+      for (const [id, sem] of storeState.edgeSemantics) {
+        if (sem.color) edgeSemanticColorMap.set(id, sem.color);
+      }
+      return { semanticColorMap, edgeSemanticColorMap };
+    }, []);
+
     const performFullSync = useCallback(async () => {
       const api = apiRef.current;
       if (!api) return;
       const raw = getDataSnapshot();
       const filtered = filter(raw.nodes, raw.edges, view);
-      const seeds = nodeDataToForceSeeds(filtered.nodes, { viewId });
-      const linkSeeds = edgeDataToForceSeeds(filtered.edges);
+
+      const { semanticColorMap, edgeSemanticColorMap } = buildSemanticColorMaps();
+      const opts = { viewId, semanticColorMap, edgeSemanticColorMap };
+
+      const seeds = nodeDataToForceSeeds(filtered.nodes, opts);
+      const linkSeeds = edgeDataToForceSeeds(filtered.edges, opts);
 
       const canvas = canvasRef.current;
       const dims = canvas
@@ -264,8 +277,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
       await api.initData(seeds, linkSeeds, dims);
 
-      const stylePayload = buildForceStyle({ theme });
-      await api.updateStyle(stylePayload);
+      await api.updateStyle({ backgroundColor: "#ffffff", gridColor: "#e5e7eb" });
       const cfg: ForceConfig = {
         ...DEFAULT_FORCE_CONFIG,
         centerX: dims.width / 2,
@@ -277,7 +289,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         viewportRef.current.y,
         viewportRef.current.scale,
       );
-    }, [getDataSnapshot, filter, view, viewId, theme]);
+    }, [getDataSnapshot, filter, view, viewId]);
 
     // ---- Diff subscriber ---------------------------------------------
     // Each diff bucket is filtered through the SAME `filter` predicate
@@ -327,17 +339,65 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               removed: diff.edges.removed,
             },
           };
-          const payload = diffToForcePayload(trimmed, { viewId });
+          const payload = diffToForcePayload(trimmed, {
+            viewId,
+            ...buildSemanticColorMaps(),
+          });
           api.applyDiff(payload).catch((err) => {
             console.error("[ForceGraph] applyDiff failed:", err);
           });
+
+          // ---- Semantic color live-update -------------------------
+          // When a NodeSemantic/EdgeSemantic's color changes, the affected
+          // nodes/edges need their fillColor/strokeColor updated. Semantic
+          // diffs don't produce node/edge diffs, so we handle them here.
+          handleSemanticColorUpdate(diff);
         } catch (err) {
           console.error("[ForceGraph] subscribeDiff callback failed:", err);
         }
       });
-    }, [subscribeDiff, getDataSnapshot, filter, view, viewId]);
+    }, [subscribeDiff, getDataSnapshot, filter, view, viewId, buildSemanticColorMaps]);
 
-    // ---- WorkerEvent forwarder (from Comlink proxy) -----------------
+    // ---- Semantic color change handler -------------------------------
+    // NodeSemantic/EdgeSemantic color changes don't produce NodeData/EdgeData
+    // diffs, so they're handled separately. We find all nodes/edges that
+    // reference the changed semanticId, re-transform just those, and push
+    // as a nodeUpserts-only diff (no simulation restart, no removals).
+    const handleSemanticColorUpdate = useCallback(
+      (diff: SourceDiff) => {
+        const sd = diff.semanticDiffs;
+        if (!sd) return;
+        const api = apiRef.current;
+        if (!api) return;
+
+        const changedNodeSemIds = new Set(
+          sd.nodeSemantics.updated.filter((s) => s.color !== undefined).map((s) => s.id),
+        );
+        const changedEdgeSemIds = new Set(
+          sd.edgeSemantics.updated.filter((s) => s.color !== undefined).map((s) => s.id),
+        );
+        if (changedNodeSemIds.size === 0 && changedEdgeSemIds.size === 0) return;
+
+        const raw = getDataSnapshot();
+        const affectedNodes = raw.nodes.filter(
+          (n) => n.semanticId && changedNodeSemIds.has(n.semanticId),
+        );
+        const affectedEdges = raw.edges.filter(
+          (e) => e.semanticId && changedEdgeSemIds.has(e.semanticId),
+        );
+        if (affectedNodes.length === 0 && affectedEdges.length === 0) return;
+
+        const { semanticColorMap, edgeSemanticColorMap } = buildSemanticColorMaps();
+        const opts = { viewId, semanticColorMap, edgeSemanticColorMap };
+        const nodeUpserts = nodeDataToForceSeeds(affectedNodes, opts);
+        const linkUpserts = edgeDataToForceSeeds(affectedEdges, opts);
+
+        api.applyDiff({ nodeUpserts, linkUpserts }).catch((err) => {
+          console.error("[ForceGraph] semantic color update failed:", err);
+        });
+      },
+      [getDataSnapshot, viewId, buildSemanticColorMaps],
+    );
     // Per main design L229-232 / L365-367, worker events are forwarded
     // straight to the shared event handler, which owns the routing to
     // useUIStore / useGraph().
@@ -476,15 +536,6 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         console.error("[ForceGraph] re-init on viewId change failed:", err),
       );
     }, [viewId, performFullSync]);
-
-    // ---- Effect: theme change pushes a new style -------------------
-    useEffect(() => {
-      const api = apiRef.current;
-      if (!api) return;
-      api.updateStyle(buildForceStyle({ theme })).catch((err) => {
-        console.error("[ForceGraph] updateStyle failed:", err);
-      });
-    }, [theme]);
 
     // ---- Imperative handle ------------------------------------------
     useImperativeHandle(

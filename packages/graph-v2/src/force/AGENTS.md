@@ -9,7 +9,7 @@ Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 
 │  graph.tsx → ForceGraph.tsx (编排器)                           │
 │    ├─ eventListener.ts    DOM事件 → ProxiedDomEvent 序列化     │
 │    ├─ transform.ts        NodeData/EdgeData → 种子数据转换      │
-│    ├─ styleConfig.ts      主题 + 7态视觉调色板                  │
+│    ├─ styleConfig.ts      四层样式管线（defaults/business/client/render）│
 │    └─ eventHandler.ts     WorkerEvent → useUIStore 写入        │
 ├────────────────────────────────────────────────────────────────┤
 │  Comlink RPC + 原始 postMessage (ImageBitmap / __READY__)      │
@@ -29,9 +29,9 @@ Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 
 | `ForceGraph.tsx`              | 623  | 主线程编排器：启动 Worker、同步数据、渲染 canvas | `ForceGraph`(forwardRef)、`ForceGraphHandle`                            |
 | `ForceGraphErrorBoundary.tsx` | 44   | React 错误边界                                   | `ForceGraphErrorBoundary`                                               |
 | `eventListener.ts`            | 330  | DOM 事件捕获→序列化 + 延迟拖拽平移状态机         | `installDomEventProxy`、`screenToSimulation`                            |
-| `styleConfig.ts`              | 188  | 主题 token + 7 态视觉调色板 + d3 默认参数        | `LIGHT_THEME`/`DARK_THEME`、`NODE_STATE_STYLES`、`DEFAULT_FORCE_CONFIG` |
-| `transform.ts`                | 184  | 源数据→Worker 种子转换 + diff 提取               | `nodeDataToForceSeeds`、`edgeDataToForceSeeds`、`diffToForcePayload`    |
-| `types.ts`                    | 391  | Force 私有类型系统 + Comlink RPC 契约            | `ProxiedDomEvent`、`UiState`、`WorkerInbound`、`WorkerEvent`            |
+| `styleConfig.ts`              | 188  | 四层样式管线 + d3 默认参数 | `NODE_DEFAULTS`/`EDGE_DEFAULTS`、`*_BUSINESS_RULES`、`*_RENDER_RULES`、`DEFAULT_FORCE_CONFIG`、`resolveBusinessStyle`、`getRenderAdjustment` |
+| `transform.ts`                | 184  | 源数据→Worker 种子转换 + 四层 merge + diff 提取 | `nodeDataToForceSeeds`、`edgeDataToForceSeeds`、`diffToForcePayload`    |
+| `types.ts`                    | 391  | Force 私有类型系统 + Comlink RPC 契约            | `ProxiedDomEvent`、`RenderState`、`WorkerInbound`、`WorkerEvent`            |
 | `worker/api.ts`               | 240  | WorkerInbound 实现 + 帧循环调度 + 静态帧跳过      | `api`                                                                   |
 | `worker/canvas.ts`            | 405  | OffscreenCanvas 2D 渲染 + 视锥裁剪 + 标签缓存     | `renderAndTransfer`、`renderFrame`、`truncateLabel`、`getContext`       |
 | `worker/force.worker.ts`      | 69   | Worker 入口：Comlink.expose + 启动信号           | （无——入口文件）                                                        |
@@ -54,13 +54,16 @@ ForceGraph.tsx (mount effect)
   ├─ api.setEventHandler(Comlink.proxy(onWorkerEvent))
   │
   ├─ performFullSync():
-  │     快照 → filter 过滤 → nodeDataToForceSeeds / edgeDataToForceSeeds 转换
+  │     快照 → filter 过滤
+  │     → buildSemanticColorMaps() 构建语义色 map
+  │     → nodeDataToForceSeeds(nodes, {viewId, semanticColorMap, edgeSemanticColorMap})
   │     → api.initData(seeds, links, {width, height})
-  │     → api.updateStyle(buildForceStyle({theme}))
+  │     → api.updateStyle({ backgroundColor: "#ffffff", gridColor: "#e5e7eb" })
   │     → api.updateConfig({...DEFAULT_FORCE_CONFIG, centerX/Y})
   │     → api.setViewport(0, 0, 1)
   │
   ├─ subscribeStore(): 订阅 store diff → 逐桶重新过滤 → diffToForcePayload → api.applyDiff
+  │     + handleSemanticColorUpdate() — semantic 颜色变更独立处理
   │
   └─ installDomEventProxy(): 安装所有 DOM 监听器
 ```
@@ -72,7 +75,7 @@ ForceGraph.tsx (mount effect)
    - 原位合并节点（当 `fx===null` 且已有坐标时保留运行中的 x/y）
    - 从 `stateData.position[viewId]` 回填位置（仅首次加载）
    - 强制 `seed.fx ?? null`（d3 期望 `number|null` 而非 `undefined`）
-   - 创建/重建 `forceSimulation`：`forceLink`(距离 80)、`forceManyBody`(-300)、`forceCollide`(weight+4)、`forceCenter`(dims/2)
+    - 创建/重建 `forceSimulation`：`forceLink`(距离 80)、`forceManyBody`(-300)、`forceCollide`(d.radius+4)、`forceCenter`(dims/2)
    - `alphaMin`: 0.001, `alphaDecay`: 0.0228, `velocityDecay`: 0.4
    - `alpha(1).restart()` — 完全重启
 
@@ -94,16 +97,16 @@ canvas.ts renderFrame():
   2. 网格线（50px 步长，仅当 viewport.scale > 0.5）
   3. setTransform(scale, 0, 0, scale, vp.x, vp.y)
   4. 计算可见区域（invScale 反变换 + 50px 边距），绘制边（跳过两端均不可见者）：
-      - hierarchy/association → 直线（association: 虚线 [6,4]）
-      - flow → 二次贝塞尔 (mx, my-40)
-      - interaction/bidirectional → 三次贝塞尔
+      - straight → 直线，curve → 二次贝塞尔 (mx, my-40)，s-curve → 三次贝塞尔
+      - bidirectional 强制 s-curve
       - 自环：节点上方弧线
-      - 箭头：按 edge.direction 绘制 forward/reverse/bidirectional
-      - 状态样式：EDGE_STATE_STYLES 的 stroke/lineWidth/shadow
+      - 箭头：按 link.direction 绘制 forward/reverse/bidirectional
+      - strokeType: solid / dotted / dashed
+      - 交互态：getRenderAdjustment(link.renderState, EDGE_RENDER_RULES) → strokeColor/strokeWidth 微调
   5. 绘制节点（仅可见区域内）：
-      - 圆形填充（semanticColor || 主题 nodeColor）
-      - 圆形描边 + 阴影（NODE_STATE_STYLES）
-      - 标签（优先读 SimNode.__label 预计算缓存，fallback 二分搜索 measureText）
+      - 圆形填充（node.fillColor — seed 已确定，渲染时不改）
+      - 圆形描边 + 阴影（node.strokeColor × getRenderAdjustment(node.renderState, NODE_RENDER_RULES)）
+      - 标签（{ node.label, node.labelColor, node.labelSize }，优先读 __label 缓存，fallback truncateLabel）
   │
   ▼
 transferToImageBitmap() → 原始 postMessage({type:"__FRAME__", bitmap}, [bitmap])
@@ -153,147 +156,172 @@ WorkerEvent → ForceGraph.onWorkerEvent:
   └─ 所有事件 → eventHandler.handleWorkerEvent(event) → useUIStore 变更
 ```
 
-### 六、样式系统（两层架构：Theme + UiState）
+### 六、样式系统（四层管线：defaults → business → client → worker）
 
-Force 模式的样式系统是两层叠加架构，定义在 `styleConfig.ts`（188 行），最终由 Worker 的 OffscreenCanvas 渲染器消费。修改样式时必须同步更新 `styleConfig.ts` 和 `canvas.ts` 的消费逻辑。
+Force 模式的样式系统采用四层管线（**优先级从低到高**），Layers 1–3 在 `transform.ts` 阶段确定，Layer 4 在 `canvas.ts` 渲染时微调。
 
 ```
-┌─ 第一层：Theme（主题层）────────────────────────────────────────────┐
-│  ThemeTokens: backgroundColor / nodeColor / edgeColor / labelColor  │
-│  LIGHT_THEME ← "light"    DARK_THEME ← "dark"                      │
-│  提供全局色彩基调，不随交互状态变化                                    │
-├──────────────────────────────────────────────────────────────────────┤
-│  "currentColor" 引用 ← 状态层通过此关键词引用主题层的 nodeColor       │
-├──────────────────────────────────────────────────────────────────────┤
-│  第二层：UiState（状态层）                                           │
-│  7 态枚举 → StateVisual { stroke, fill?, lineWidth, shadow? }       │
-│  覆盖描边/线宽/阴影，不改变填充色                                     │
-└──────────────────────────────────────────────────────────────────────┘
+┌─ Layer 1: Defaults（`styleConfig.ts`）──────────────────────────────┐
+│  NODE_DEFAULTS / EDGE_DEFAULTS                                      │
+│  → 基线视觉属性（fillColor, strokeColor, strokeWidth, ...）          │
+├─────────────────────────────────────────────────────────────────────┤
+│  Layer 2: Business（`styleConfig.ts` + 外部 join 数据）              │
+│  stateData.server → resolveBusinessStyle(NODE_BUSINESS_RULES)       │
+│  例：{isChecked: true} → fillColor=#22c55e                          │
+│  semanticColorMap[semanticId] → fillColor（外部 joined 的 semantic.color）│
+├─────────────────────────────────────────────────────────────────────┤
+│  Layer 3: Client（用户显式指定）                                     │
+│  stateData.client → { fillColor, strokeColor, strokeWidth, ... }    │
+│  覆盖 business 和 defaults 的所有视觉属性                             │
+├─────────────────────────────────────────────────────────────────────┤
+│  Layer 4: Worker Render（canvas.ts 渲染时 — 不在 seed 上）           │
+│  交互态 → getRenderAdjustment(renderState, *_RENDER_RULES)          │
+│  → strokeColorOverride, strokeWidthMultiplier, shadow                │
+│  不改变 fill — 仅调整描边和投影                                      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 6.1 主题层：ThemeTokens
+**优先级：worker > client > business > defaults**
+
+#### 6.1 数据结构
+
+**ForceNodeSeed**（主线程全量确定的节点视觉属性）：
 
 ```typescript
-interface ThemeTokens {
-  backgroundColor: string;  // Canvas 背景填充
-  nodeColor: string;        // 默认节点填充色
-  edgeColor: string;        // 默认边描边色
-  labelColor: string;       // 标签文字色
-  gridColor?: string;       // 网格线色（可选）
+interface ForceNodeSeed {
+  id: NodeId;
+  fillColor: string;       // 填充色（defaults → business → client → 最终值）
+  strokeColor: string;     // 描边色
+  strokeWidth: number;     // 描边宽度 (px)
+  label: string;           // 显示文本
+  labelColor: string;      // 标签色
+  labelSize: number;       // 标签字号 (px)
+  radius: number;          // 节点半径（也用于 forceCollide）
+  x?, y?, fx?, fy?;       // 布局坐标
+  nodeType?, viewId?;      // 身份标识
 }
 ```
 
-| 属性 | Light (`#ffffff` 背景) | Dark (`#0a0a0a` 背景) |
+**ForceLinkSeed**（主线程全量确定的边视觉属性）：
+
+```typescript
+interface ForceLinkSeed {
+  id: EdgeId;
+  source, target: NodeId;
+  label: string;
+  labelColor, labelSize: ...;
+  shape: "straight" | "curve" | "s-curve";    // 由此决定路径算法
+  strokeType: "solid" | "dotted" | "dashed";  // 线型
+  strokeColor, strokeWidth: ...;
+  direction: EdgeDirection;
+  weight?: EdgeWeight;
+}
+```
+
+**ForceStyle**（全局 Canvas 属性，仅包含背景和网格）：
+
+```typescript
+interface ForceStyle {
+  backgroundColor: string;
+  gridColor?: string;
+}
+```
+
+#### 6.2 Defaults
+
+定义在 `styleConfig.ts`，作为所有节点/边的视觉基线：
+
+| 属性 | 节点默认值 | 边默认值 |
 | --- | --- | --- |
-| `nodeColor` | `#165DFF` | `#4080FF` |
-| `edgeColor` | `#91caff` | `#69b1ff` |
-| `labelColor` | `#1f2937` | `#f3f4f6` |
-| `gridColor` | `#e5e7eb` | `#262626` |
+| `fillColor` | `#165DFF` | — |
+| `strokeColor` | `#165DFF` | `#91caff` |
+| `strokeWidth` | 2 | 2 |
+| `labelColor` | `#1f2937` | `#9ca3af` |
+| `labelSize` | 14 | 12 |
+| `radius` | 8 | — |
+| `shape` | — | `straight`（由 edgeType 映射）|
+| `strokeType` | — | `solid`（`association`→`dashed`）|
 
-`getThemeTokens(theme: Theme): ThemeTokens` — `Theme` 是跨 force/flow 共享的 `"light" | "dark"` 枚举（定义在 `../types.ts`），`styleConfig.ts` 消费它但不重新导出。
+**edgeType → shape/strokeType 映射**（`transform.ts`）：
+- `hierarchy` → `straight` / `solid`
+- `flow` → `curve` / `solid`
+- `association` → `straight` / `dashed`
+- `interaction` → `s-curve` / `solid`
 
-#### 6.2 状态层：7 态 UiState → StateVisual
+#### 6.3 Business 层（stateData.server + semantic.color）
 
-`UiState` = `default | hover | selected | active | neighborActive | inactive | disabled`（force 私有，`types.ts:107`）。状态顺序有意义——`simulation.ts` 中 `recomputeUiStates()` 按优先级覆盖（如 `active` 覆盖 `selected`）。
-
-每个状态映射到 `StateVisual`：
+**stateData.server**：server 端运行时业务数据字段，通过 `NODE_BUSINESS_RULES` 映射为视觉属性：
 
 ```typescript
-interface StateVisual {
-  stroke: string;                                // 描边色（"currentColor" = 用主题 nodeColor）
-  fill?: string;                                 // 可选填充覆盖
-  lineWidth: number;                             // 描边宽度（px）
-  shadow?: { color: string; blur: number };      // 可选 CSS 风格投影
+interface BusinessStyleRule {
+  field: string;
+  mapping: Record<string, Partial<NodeVisualProps>>;
 }
+// 例：{ field: "isChecked", mapping: { "true": { fillColor: "#22c55e" } } }
 ```
 
-`NODE_STATE_STYLES` 和 `EDGE_STATE_STYLES` **内容相同**（字节一致），但各自独立定义：
+规则表默认空。添加规则：在 `styleConfig.ts` 的 `NODE_BUSINESS_RULES` / `EDGE_BUSINESS_RULES` 中追加。
 
-| UiState | stroke | lineWidth | shadow | 语义 |
-| --- | --- | --- | --- | --- |
-| `default` | `currentColor` | 2 | — | 无交互 |
-| `hover` | `#4080FF` | 2.5 | `rgba(22,93,255,0.2)` blur 5 | 鼠标悬停 |
-| `selected` | `#FF7D00` | 3 | `rgba(255,125,0,0.3)` blur 5 | 已被选中 |
-| `active` | `#FF9500` | 4 | `rgba(255,149,0,0.5)` blur 8 | 选中+悬停（最显眼） |
-| `neighborActive` | `#FFB266` | 2.5 | `rgba(255,178,102,0.15)` blur 5 | 选中节点的邻居 |
-| `inactive` | `#9ca3af` | 2 | — | 有选中，但自身未被选 |
-| `disabled` | `#d1d5db` | 1 | — | 被禁用/不可交互 |
+**semantic.color**：外部 joined 的 NodeSemantic/EdgeSemantic 的 `color` 字段。ForceGraph 在 `performFullSync` 中从 `useDataStore.getState()` 构建 `semanticColorMap` / `edgeSemanticColorMap`，传入 `TransformOptions`。与 stateData.server 同属 business 层——transform 先 resolve business rules，再覆盖 semanticColor。
 
-`"currentColor"` 在 Canvas 渲染时被解析为当前主题的 `nodeColor`（`canvas.ts:212-214`）：
+**semantic.color 变更同步**：ForceGraph 通过 `SourceDiff.semanticDiffs` 接收语义实体变更。收到颜色变更时，查找所有引用该 semanticId 的节点/边，仅对这些受影响的元素重算视觉属性并通过 `applyDiff({ nodeUpserts, linkUpserts })` 推送。不重启仿真，不重新计算位置。
 
-```typescript
-c.strokeStyle = stateStyle.stroke === "currentColor"
-  ? style.nodeColor
-  : stateStyle.stroke;
-```
-
-**recomputeUiStates() 每帧运行：**
-
-**节点优先级：** selected+hovered→`active` > selected→`selected` > hovered→`hover` > neighbor→`neighborActive` > 有选中→`inactive` > 其他→`default`
-
-**边优先级：** 显式选中→`selected` > 两端点均选中→`selected` > 单端点选中→`neighborActive` > 有选中→`inactive` > 其他→`default`
-
-#### 6.3 数据流：主线程 → Worker
+#### 6.4 数据流：ForceGraph → transform → seed
 
 ```
-ForceGraph.tsx (main thread)
+ForceGraph.tsx performFullSync()
   │
-  ├─ performFullSync() / theme useEffect:
-  │     buildForceStyle({ theme })          ← 组装 ForceStyle 载荷
-  │     ├─ getThemeTokens(theme)            ← 选 light/dark 令牌
-  │     ├─ 合并默认值：nodeRadius=8, edgeLineWidth=2, edgeDash=[6,4]
-  │     └─ 返回 ForceStyle { theme, backgroundColor, nodeColor,
-  │                          edgeColor, labelColor, nodeRadius,
-  │                          edgeLineWidth, edgeDash, gridColor }
+  ├─ useDataStore.getState().nodeSemantics → semanticColorMap
+  ├─ useDataStore.getState().edgeSemantics → edgeSemanticColorMap
   │
-  └─ api.updateStyle(stylePayload)          ← Comlink RPC 发送
-        │
-        └─ worker/canvas.ts: setStyle()     ← Worker 侧存储到模块级
-               currentStyle: ForceStyle | null
+  └─ nodeDataToForceSeeds(nodes, { viewId, semanticColorMap, edgeSemanticColorMap })
+         │
+         ▼ Per-node merge（later wins）:
+           NODE_DEFAULTS                                      // Layer 1
+             → resolveBusinessStyle(server, NODE_BUSINESS_RULES)  // Layer 2a
+             → (if semanticColor) set fillColor                  // Layer 2b
+             → { ...result, ...stateData.client }                // Layer 3
+         │
+         ▼ ForceNodeSeed { fillColor, strokeColor, ... }
+         │ Comlink RPC: api.initData / api.applyDiff
+         ▼
+       Worker: SimNode 持有所有属性，零查表
 ```
 
-**触发时机**：
-- 初始化：`performFullSync()` 在 Worker 启动后调用一次
-- 主题切换：`useEffect([theme])` — ForceGraph.tsx:481-487 自动响应
-- 未来扩展：可通过 `buildForceStyle()` 的 `ForceStyleOptions` 覆盖 `nodeRadius`/`edgeLineWidth`
+优先级：**client > business > defaults**。Layer 4 (worker render) 在 canvas 渲染时再叠加。
 
-#### 6.4 Canvas 渲染消费
+#### 6.5 Worker Render Rules（交互态微调）
 
-**节点绘制**（`canvas.ts drawNode`, L185-227）：
-1. **Fill** — `node.semanticColor ?? style.nodeColor`（语义色优先）
-2. **Stroke + Shadow** — 查 `NODE_STATE_STYLES[node.ui]`，`"currentColor"` → `style.nodeColor`
-3. **Label** — 14px sans-serif，`style.labelColor`，优先读 `node.__label` 缓存，fallback `truncateLabel()` 截断到 ~100px
+Worker 内部维护 `SimNode.renderState` / `SimLink.renderState`。渲染时查 `getRenderAdjustment()`：
 
-**边绘制**（`canvas.ts drawEdge`, L259-321）：
-1. **Path Shape** — 根据 `edgeType` 选择路径：`interaction`/bidirectional → 三次贝塞尔，`flow` → 二次贝塞尔(mx, my-40)，其余 → 直线
-2. **Stroke** — `link.semanticColor ?? style.edgeColor`
-3. **Dash** — `association` 且非 bidirectional → `[6, 4]` 虚线
-4. **Arrow** — `drawArrow()` 按 `edge.direction` 绘制单向/双向箭头
-5. **Self-loop** — 自环绘制节点上方弧线 + 箭头
+| 状态 | strokeWidth 倍率 | strokeColor | 投影 |
+| --- | --- | --- | --- |
+| `active` | ×2.0 | `#FF9500` | blur 8, 50% |
+| `selected` | ×1.5 | `#FF7D00` | blur 5, 30% |
+| `hover` | ×1.25 | `#4080FF` | blur 5, 20% |
+| `neighbor` | — | `#FFB266` | 浅投影 |
+| `inactive` | — | `#9ca3af` | — |
+| `default` | — | 取 seed.strokeColor | — |
 
-边描边的线宽和阴影来自 `EDGE_STATE_STYLES[link.ui]`，不直接使用 `style.edgeLineWidth`（后者仅在 `StateVisual` 的 fallback 路径中作为备选）。
+Render rules **只调整描边和投影，不改变填充色**。填充色完全由 seed 数据决定。
 
-#### 6.5 语义色覆盖（Semantic Color）
-
-节点和边的 seed DTO（`ForceNodeSeed` / `ForceLinkSeed`）都有可选的 `semanticColor?: string` 字段。当存在时，在 Canvas 渲染中**覆盖主题默认色**（填充色或边描边色）：
-
-- 节点：`fillStyle = node.semanticColor ?? style.nodeColor`
-- 边：`strokeStyle = link.semanticColor ?? style.edgeColor`
-
-语义色独立于 7 态系统——节点可以同时拥有蓝色填充（语义色）和橙色描边（selected 状态）。语义色来自 `NodeData` 源数据，由 `transform.ts` 的 `nodeDataToForceSeeds()` 传入。
+**Worker 内交互态计算**（`simulation.ts recomputeWorkerState`）：
+- 节点优先级：selected+hovered→`active` > selected→`selected` > hovered→`hover` > neighbor→`neighbor` > 有选中→`inactive` > 其他→`default`
+- 边优先级：显式选中→`selected` > 两端点均选中→`selected` > 单端点选中→`neighbor` > 有选中→`inactive` > 其他→`default`
 
 #### 6.6 关键设计决策
 
 | 决策 | 说明 |
 | --- | --- |
-| 两层分离 | 主题层管全局基调，状态层管交互反馈。两层解耦，修改主题不影响状态映射 |
-| `"currentColor"` 占位 | 状态层的 `default` 状态描边用 `"currentColor"` 而非硬编码色值——确保主题切换时自动适配 |
-| byte-identical 双表 | `NODE_STATE_STYLES` 和 `EDGE_STATE_STYLES` 内容完全一致但独立定义——为未来节点/边差异化提供扩展点 |
-| 主题非同步推送到 Worker | 主题变化时只发 `updateStyle(ForceStyle)`，不重建仿真，不丢失节点状态 |
-| ForceStyle 是 Worker 的单一真理来源 | Worker 不维护独立主题副本，不推断主题——完全由主线程推送 |
-| Flow 模式无 UiState | `UiState` 是 force 独有的概念。Flow 依赖 ReactFlow 内置的 `selected` prop（`.rf-selected` CSS 类），无等价 7 态系统 |
+| 四层优先级 | worker > client > business > defaults — 每层可覆盖前层 |
+| visual 属性前置到 seed | 每个 seed 自带完整视觉效果，Worker 零查表、零 JOIN |
+| client 覆盖 business | `stateData.client` 是用户显式指定的显示属性，优先级高于 business 层的推断 |
+| semantic.color 属 business 层 | 与 `stateData.server` 同级 merge，client 可覆盖它 |
+| Worker 只做乘法 | 交互态不查固定颜色表，仅对 seed 上的属性做乘法和覆盖 |
+| SimNode/SimLink 对称继承 | `SimLink extends Omit<ForceLinkSeed, "source" \| "target">` |
+| Flow 模式无此系统 | RenderState 是 force 独有的概念 |
 
-### 七、Diff 增量更新
+### 七、Diff 增量更新 + 样式同步
 
 ```
 Store 发出 diff → subscribeStore 回调:
@@ -306,11 +334,19 @@ Store 发出 diff → subscribeStore 回调:
 
 Worker applyDiff():
   1. 过滤掉已删除的节点/边，清理选择/悬停状态
-  2. Upsert（已有节点原位合并，新节点 push）
-  3. sim.nodes(nodes); force("link").links(links)
-  4. recomputeNeighbors() + recomputeUiStates() + rebuildQuadtree()
-  5. sim.alphaTarget(0.1).restart() — 小幅能量注入让新布局平稳过渡
+  2. Upsert（已有节点原位合并视觉属性，新节点 push → hasTopologyChange=true）
+  3. 若 hasTopologyChange → sim.alphaTarget(0.1).restart()
+     否则 → 仅 sim.nodes/.links 同步引用（属性更新不含仿真重启）
+  4. recomputeNeighbors() + recomputeWorkerState() + rebuildQuadtree()
+
+Semantic 颜色同步（独立路径，不经过 NodeData diff）：
+  SourceDiff.semanticDiffs → handleSemanticColorUpdate()
+    → 查找所有引用变更 semanticId 的节点/边
+    → transform 重算 → api.applyDiff({ nodeUpserts, linkUpserts })
+    → hasTopologyChange=false → 不重启仿真
 ```
+
+**仿真重启规则**：仅增删节点或增删边时触发 `alphaTarget(0.1).restart()`。属性更新（`stateData.client`、`stateData.server`、`semantic.color` 变更）只更新 Worker 内存中的值，位置不动。
 
 ### 八、消息协议（4 条原始通道 + Comlink RPC）
 
@@ -335,6 +371,9 @@ Worker applyDiff():
 9. **固定坐标强制转换**：`seed.fx ?? null` — 主线程发送 `number|undefined`，Worker 需要 `number|null` 适配 d3
 10. **AbortController 清理**：单次 `abort()` 移除所有监听器（StrictMode 安全）
 11. **错误韧性**：Worker 崩溃通过 `setError()` 暴露，显示红色错误横幅。Canvas 异常发送 `__ERROR__` 消息
+12. **仿真仅拓扑变更时重启**：`applyDiff` 用 `hasTopologyChange` 标志——节点/边增删触发 `alphaTarget(0.1).restart()`，纯属性更新（颜色、stateData）仅更新内存值，不重启仿真
+13. **视觉属性前置到 seed**：`ForceNodeSeed`/`ForceLinkSeed` 包含完整的 fillColor/strokeColor/strokeWidth/labelSize/... — Worker 零查表、零 JOIN
+14. **四层样式管线**：defaults → business(stateData.server + semantic.color) → client(stateData.client) → worker(hover/select 交互态)。优先级：worker > client > business > defaults
 
 ### 十、性能优化（2026-08 实施）
 

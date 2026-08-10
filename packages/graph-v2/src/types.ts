@@ -57,8 +57,12 @@ export type Theme = "light" | "dark";
 import type {
   EdgeData,
   EdgeId,
+  EdgeSemantic,
+  EdgeSemanticId,
   NodeData,
   NodeId,
+  NodeSemantic,
+  NodeSemanticId,
 } from "@workspace/interfaces";
 
 /**
@@ -73,7 +77,7 @@ export interface GraphSnapshot {
 }
 
 /** Re-export of the diff payload shape. Mirrors
- *  `useDataStore.diff.nodes/edges` but is renderer-agnostic. */
+ *  `useDataStore.diff` but is renderer-agnostic. */
 export interface SourceDiff {
   nodes: {
     added: NodeData[];
@@ -84,6 +88,19 @@ export interface SourceDiff {
     added: EdgeData[];
     updated: EdgeData[];
     removed: EdgeId[];
+  };
+  /** Semantic entity diffs — consumed by ForceGraph for color-live-update. */
+  semanticDiffs?: {
+    nodeSemantics: {
+      added: NodeSemantic[];
+      updated: NodeSemantic[];
+      removed: NodeSemanticId[];
+    };
+    edgeSemantics: {
+      added: EdgeSemantic[];
+      updated: EdgeSemantic[];
+      removed: EdgeSemanticId[];
+    };
   };
 }
 

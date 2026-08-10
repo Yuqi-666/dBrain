@@ -38,7 +38,6 @@ import { filterByViewFilterConfig } from "@workspace/utils";
 import { ForceGraph } from "./force/ForceGraph";
 import { ForceGraphErrorBoundary } from "./force/ForceGraphErrorBoundary";
 import { FlowGraph } from "./flow/FlowGraph";
-import type { Theme } from "./types";
 import type {
   GraphSnapshot,
   DiffCallback,
@@ -55,8 +54,6 @@ export interface GraphProps {
   viewId?: ViewId;
   /** Pass the view directly (mutually exclusive with `viewId`). */
   view?: View;
-  /** Optional theme override. Defaults to "light". */
-  theme?: Theme;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -76,7 +73,7 @@ const VIEW_TYPE_TO_MODE: Record<ViewType, Mode> = {
 };
 
 export function Graph(props: GraphProps) {
-  const { viewId, view: viewProp, theme = "light", className, style } = props;
+  const { viewId, view: viewProp, className, style } = props;
 
   // ---- Resolve the view ------------------------------------------
   const views = useDataStore((s) => s.views);
@@ -124,6 +121,10 @@ export function Graph(props: GraphProps) {
       const diff: SourceDiff = {
         nodes: d.nodes,
         edges: d.edges,
+        semanticDiffs: {
+          nodeSemantics: d.nodeSemantics,
+          edgeSemantics: d.edgeSemantics,
+        },
       };
       cb(diff);
       state.clearDiff();
@@ -181,7 +182,6 @@ export function Graph(props: GraphProps) {
         subscribeDiff={subscribeDiff}
         filter={filter}
         eventHandler={eventHandler}
-        theme={theme}
         className={className}
         style={style}
       />

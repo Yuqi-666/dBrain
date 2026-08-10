@@ -100,17 +100,11 @@ export {
   getPositionForView,
 } from "./flow/transform";
 
-// Force theme tokens (LIGHT/DARK/THEME palette + state colors).
+// Force sim defaults.
 export {
-  LIGHT_THEME,
-  DARK_THEME,
-  getThemeTokens,
-  NODE_STATE_STYLES,
-  EDGE_STATE_STYLES,
   DEFAULT_FORCE_CONFIG,
-  buildForceStyle,
 } from "./force/styleConfig";
-export type { ThemeTokens, StateVisual, DefaultForceConfig } from "./force/styleConfig";
+export type { DefaultForceConfig } from "./force/styleConfig";
 
 // Shared event handler (the single callback surface injected into
 // ForceGraph / FlowGraph).

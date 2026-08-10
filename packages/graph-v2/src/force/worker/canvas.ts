@@ -16,8 +16,9 @@
 
 import type { ForceStyle, ViewportState } from "../types";
 import {
-  EDGE_STATE_STYLES,
-  NODE_STATE_STYLES,
+  EDGE_RENDER_RULES,
+  NODE_RENDER_RULES,
+  getRenderAdjustment,
 } from "../styleConfig";
 import {
   readSimulationState,
@@ -190,38 +191,38 @@ function drawNode(
   const x = node.x ?? 0;
   const y = node.y ?? 0;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  const r = node.weight ?? style.nodeRadius;
-  const stateStyle = NODE_STATE_STYLES[node.ui] ?? NODE_STATE_STYLES.default;
+  const r = node.radius;
+  const adj = getRenderAdjustment(node.renderState, NODE_RENDER_RULES);
 
-  // 1. Fill (semantic color or theme default).
+  // 1. Fill.
   c.beginPath();
   c.arc(x, y, r, 0, Math.PI * 2);
-  c.fillStyle = node.semanticColor ?? style.nodeColor;
+  c.fillStyle = node.fillColor;
   c.fill();
 
   // 2. Stroke + shadow.
   c.beginPath();
   c.arc(x, y, r, 0, Math.PI * 2);
-  c.lineWidth = stateStyle.lineWidth;
-  if (stateStyle.shadow) {
-    c.shadowColor = stateStyle.shadow.color;
-    c.shadowBlur = stateStyle.shadow.blur;
+  c.strokeStyle = adj?.strokeColorOverride ?? node.strokeColor;
+  c.lineWidth = adj?.strokeWidthMultiplier
+    ? node.strokeWidth * adj.strokeWidthMultiplier
+    : node.strokeWidth;
+  if (adj?.shadow) {
+    c.shadowColor = adj.shadow.color;
+    c.shadowBlur = adj.shadow.blur;
   } else {
     c.shadowBlur = 0;
   }
-  c.strokeStyle = stateStyle.stroke === "currentColor"
-    ? style.nodeColor
-    : stateStyle.stroke;
   c.stroke();
   c.shadowBlur = 0;
 
-  // 3. Label (truncated to 100px width via simple character slice).
-  if (node.title) {
-    c.font = "14px sans-serif";
-    c.fillStyle = style.labelColor;
+  // 3. Label.
+  if (node.label) {
+    c.font = `${node.labelSize}px sans-serif`;
+    c.fillStyle = node.labelColor;
     c.textAlign = "center";
     c.textBaseline = "top";
-    const label = node.__label ?? truncateLabel(node.title, 100, c);
+    const label = node.__label ?? truncateLabel(node.label, 100, c);
     c.fillText(label, x, y + r + 4);
   }
 }
@@ -259,35 +260,35 @@ export function truncateLabel(
 function drawEdge(
   c: OffscreenCanvasRenderingContext2D,
   link: SimLink,
-  style: ForceStyle,
+  _style: ForceStyle,
 ): void {
   const sx = link.source.x ?? 0;
   const sy = link.source.y ?? 0;
   const tx = link.target.x ?? 0;
   const ty = link.target.y ?? 0;
   if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) return;
-  const stateStyle = EDGE_STATE_STYLES[link.ui] ?? EDGE_STATE_STYLES.default;
+  const adj = getRenderAdjustment(link.renderState, EDGE_RENDER_RULES);
 
-  // Self-loop: draw a small loop arc with arrow.
   if (link.source === link.target) {
-    drawSelfLoop(c, link, sx, sy, style.nodeRadius ?? 8);
+    drawSelfLoop(c, link, sx, sy, link.source.radius);
     return;
   }
 
   c.beginPath();
-  c.strokeStyle = link.semanticColor ?? style.edgeColor;
-  c.lineWidth = stateStyle.lineWidth;
-  if (stateStyle.shadow) {
-    c.shadowColor = stateStyle.shadow.color;
-    c.shadowBlur = stateStyle.shadow.blur;
+  c.strokeStyle = adj?.strokeColorOverride ?? link.strokeColor;
+  c.lineWidth = adj?.strokeWidthMultiplier
+    ? link.strokeWidth * adj.strokeWidthMultiplier
+    : link.strokeWidth;
+  if (adj?.shadow) {
+    c.shadowColor = adj.shadow.color;
+    c.shadowBlur = adj.shadow.blur;
   } else {
     c.shadowBlur = 0;
   }
 
-  // Shape: edgeType → path (bidirectional overrides to cubic).
   const isBidirectional = link.direction === "bidirectional";
-  const useCubic = isBidirectional || link.edgeType === "interaction";
-  const useQuadratic = !useCubic && link.edgeType === "flow";
+  const useCubic = isBidirectional || link.shape === "s-curve";
+  const useQuadratic = !useCubic && link.shape === "curve";
 
   if (useCubic) {
     const cx1 = sx + (tx - sx) * 0.4;
@@ -306,9 +307,10 @@ function drawEdge(
     c.lineTo(tx, ty);
   }
 
-  // Dash for `association` (when not bidirectional).
-  if (link.edgeType === "association" && !isBidirectional) {
+  if (link.strokeType === "dashed") {
     c.setLineDash([6, 4]);
+  } else if (link.strokeType === "dotted") {
+    c.setLineDash([2, 4]);
   } else {
     c.setLineDash([]);
   }
@@ -316,7 +318,6 @@ function drawEdge(
   c.setLineDash([]);
   c.shadowBlur = 0;
 
-  // Arrow markers.
   drawArrow(c, link, sx, sy, tx, ty);
 }
 
@@ -330,8 +331,8 @@ function drawArrow(
 ): void {
   const ARROW_SIZE = 8;
   const DEFAULT_RADIUS = 8;
-  const targetR = (link.target.weight ?? DEFAULT_RADIUS) + ARROW_SIZE;
-  const sourceR = (link.source.weight ?? DEFAULT_RADIUS) + ARROW_SIZE;
+  const targetR = (link.target.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
+  const sourceR = (link.source.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
   const dx = tx - sx;
   const dy = ty - sy;
   const dist = Math.hypot(dx, dy);

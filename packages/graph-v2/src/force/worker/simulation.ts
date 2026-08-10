@@ -25,7 +25,6 @@ import {
   forceCollide,
   forceCenter,
   type Simulation,
-  type SimulationLinkDatum,
 } from "d3-force";
 import { quadtree, type Quadtree } from "d3-quadtree";
 import type { EdgeId, NodeId } from "@workspace/interfaces";
@@ -35,7 +34,7 @@ import type {
   ForceNodeSeed,
   ProxiedDomEvent,
 } from "../types";
-import type { UiState } from "../types";
+import type { RenderState } from "../types";
 import { DEFAULT_FORCE_CONFIG } from "../styleConfig";
 
 // -----------------------------------------------------------------------
@@ -60,17 +59,15 @@ export interface SimNode extends Omit<ForceNodeSeed, "fx" | "fy"> {
   index?: number;
   /** Cached label text (truncated for canvas). */
   __label?: string;
+  /** Worker-internal interaction state for render rules. */
+  renderState?: RenderState;
 }
 
-export interface SimLink extends Omit<SimulationLinkDatum<SimNode>, "source" | "target"> {
-  id: EdgeId;
+export interface SimLink extends Omit<ForceLinkSeed, "source" | "target"> {
   source: SimNode;
   target: SimNode;
-  edgeType: ForceLinkSeed["edgeType"];
-  direction: ForceLinkSeed["direction"];
-  ui: UiState;
-  semanticColor?: string;
-  weight?: ForceLinkSeed["weight"];
+  index?: number;
+  renderState?: RenderState;
 }
 
 // -----------------------------------------------------------------------
@@ -112,29 +109,29 @@ let tickListeners: Array<(alpha: number) => void> = [];
 // -----------------------------------------------------------------------
 
 /** Update the internal `ui` for every node based on hover / selection. */
-function recomputeUiStates(): void {
+function recomputeWorkerState(): void {
   const hasSelection = selectedNodeIds.size > 0 || selectedEdgeIds.size > 0;
   for (const node of nodes) {
     const isSelected = selectedNodeIds.has(node.id);
     const isHovered = hoveredNodeId === node.id;
-    if (isSelected && isHovered) node.ui = "active";
-    else if (isSelected) node.ui = "selected";
-    else if (isHovered) node.ui = "hover";
-    else if (neighborNodeIds.has(node.id)) node.ui = "neighborActive";
-    else if (hasSelection) node.ui = "inactive";
-    else node.ui = "default";
+    if (isSelected && isHovered) node.renderState = "active";
+    else if (isSelected) node.renderState = "selected";
+    else if (isHovered) node.renderState = "hover";
+    else if (neighborNodeIds.has(node.id)) node.renderState = "neighbor";
+    else if (hasSelection) node.renderState = "inactive";
+    else node.renderState = "default";
   }
   for (const link of links) {
     const isEdgeSelected = selectedEdgeIds.has(link.id);
     if (isEdgeSelected) {
-      link.ui = "selected";
+      link.renderState = "selected";
     } else {
       const srcSel = selectedNodeIds.has(link.source.id);
       const tgtSel = selectedNodeIds.has(link.target.id);
-      if (srcSel && tgtSel) link.ui = "selected";
-      else if (srcSel || tgtSel) link.ui = "neighborActive";
-      else if (hasSelection) link.ui = "inactive";
-      else link.ui = "default";
+      if (srcSel && tgtSel) link.renderState = "selected";
+      else if (srcSel || tgtSel) link.renderState = "neighbor";
+      else if (hasSelection) link.renderState = "inactive";
+      else link.renderState = "default";
     }
   }
 }
@@ -185,7 +182,7 @@ function applyConfig(forceCfg: ForceConfig): void {
     .force(
       "collide",
       forceCollide<SimNode>().radius(
-        (d) => (d.weight ?? 8) + (cfg.collisionRadius != null
+        (d) => d.radius + (cfg.collisionRadius != null
           ? cfg.collisionRadius - 8
           : DEFAULT_FORCE_CONFIG.collisionRadius - 8),
       ),
@@ -236,12 +233,16 @@ export function createOrUpdate(
     const existing = nodeById.get(seed.id);
     if (existing) {
       // Update mutable fields in place.
-      existing.title = seed.title;
-      existing.ui = seed.ui;
-      existing.semanticColor = seed.semanticColor;
+      existing.label = seed.label;
+      existing.fillColor = seed.fillColor;
+      existing.strokeColor = seed.strokeColor;
+      existing.strokeWidth = seed.strokeWidth;
+      existing.labelColor = seed.labelColor;
+      existing.labelSize = seed.labelSize;
+      existing.radius = seed.radius;
       existing.nodeType = seed.nodeType ?? existing.nodeType;
       existing.viewId = seed.viewId ?? existing.viewId;
-      if (typeof seed.weight === "number") existing.weight = seed.weight;
+      existing.__label = undefined;
       // First-load coords override the running x/y (only on initial sync
       // — we detect "initial" by checking that fx/fy are both null AND
       // x/y are also null).
@@ -292,10 +293,14 @@ export function createOrUpdate(
     if (existing) {
       existing.source = source;
       existing.target = target;
-      existing.edgeType = seed.edgeType;
+      existing.label = seed.label;
+      existing.labelColor = seed.labelColor;
+      existing.labelSize = seed.labelSize;
+      existing.shape = seed.shape;
+      existing.strokeType = seed.strokeType;
+      existing.strokeColor = seed.strokeColor;
+      existing.strokeWidth = seed.strokeWidth;
       existing.direction = seed.direction;
-      existing.ui = seed.ui;
-      existing.semanticColor = seed.semanticColor;
       existing.weight = seed.weight;
       nextLinks.push(existing);
     } else {
@@ -303,10 +308,14 @@ export function createOrUpdate(
         id: seed.id,
         source,
         target,
-        edgeType: seed.edgeType,
+        label: seed.label,
+        labelColor: seed.labelColor,
+        labelSize: seed.labelSize,
+        shape: seed.shape,
+        strokeType: seed.strokeType,
+        strokeColor: seed.strokeColor,
+        strokeWidth: seed.strokeWidth,
         direction: seed.direction,
-        ui: seed.ui,
-        semanticColor: seed.semanticColor,
         weight: seed.weight,
       });
     }
@@ -339,8 +348,11 @@ export function applyDiff(
 ): void {
   if (!sim) return;
 
+  let hasTopologyChange = false;
+
   // -- Nodes ----------------------------------------------------------
   if (payload.nodeRemovals && payload.nodeRemovals.length > 0) {
+    hasTopologyChange = true;
     const removeSet = new Set(payload.nodeRemovals);
     nodes = nodes.filter((n) => !removeSet.has(n.id));
     for (const id of payload.nodeRemovals) nodeMap.delete(id);
@@ -356,13 +368,15 @@ export function applyDiff(
     for (const seed of payload.nodeUpserts) {
       const existing = nodeMap.get(seed.id);
       if (existing) {
-        existing.title = seed.title;
-        existing.ui = seed.ui;
-        existing.semanticColor = seed.semanticColor;
+        existing.label = seed.label;
+        existing.fillColor = seed.fillColor;
+        existing.strokeColor = seed.strokeColor;
+        existing.strokeWidth = seed.strokeWidth;
+        existing.labelColor = seed.labelColor;
+        existing.labelSize = seed.labelSize;
+        existing.radius = seed.radius;
         existing.nodeType = seed.nodeType ?? existing.nodeType;
         existing.viewId = seed.viewId ?? existing.viewId;
-        if (typeof seed.weight === "number") existing.weight = seed.weight;
-        // Invalidate cached label so computeLabels() recalculates it.
         existing.__label = undefined;
       } else {
         const newNode: SimNode = {
@@ -372,6 +386,7 @@ export function applyDiff(
         };
         nodes.push(newNode);
         nodeMap.set(seed.id, newNode);
+        hasTopologyChange = true;
       }
     }
   }
@@ -383,6 +398,7 @@ export function applyDiff(
     selectedEdgeIds = new Set(
       [...selectedEdgeIds].filter((id) => !removeSet.has(id)),
     );
+    hasTopologyChange = true;
   }
 
   if (payload.linkUpserts && payload.linkUpserts.length > 0) {
@@ -400,36 +416,53 @@ export function applyDiff(
       if (existing) {
         existing.source = source;
         existing.target = target;
-        existing.edgeType = seed.edgeType;
+        existing.label = seed.label;
+        existing.labelColor = seed.labelColor;
+        existing.labelSize = seed.labelSize;
+        existing.shape = seed.shape;
+        existing.strokeType = seed.strokeType;
+        existing.strokeColor = seed.strokeColor;
+        existing.strokeWidth = seed.strokeWidth;
         existing.direction = seed.direction;
-        existing.ui = seed.ui;
-        existing.semanticColor = seed.semanticColor;
         existing.weight = seed.weight;
       } else {
-        links.push({
-          id: seed.id,
-          source,
-          target,
-          edgeType: seed.edgeType,
-          direction: seed.direction,
-          ui: seed.ui,
-          semanticColor: seed.semanticColor,
-          weight: seed.weight,
-        });
+          links.push({
+            id: seed.id,
+            source,
+            target,
+            label: seed.label,
+            labelColor: seed.labelColor,
+            labelSize: seed.labelSize,
+            shape: seed.shape,
+            strokeType: seed.strokeType,
+            strokeColor: seed.strokeColor,
+            strokeWidth: seed.strokeWidth,
+            direction: seed.direction,
+            weight: seed.weight,
+          });
+          hasTopologyChange = true;
       }
     }
   }
 
-  sim.nodes(nodes);
-  (sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>> | null)
-    ?.links(links);
+  // Only rebuild the simulation when topology changed (adds/removes).
+  // Pure property updates (e.g. semantic color change) skip the restart.
+  if (hasTopologyChange) {
+    sim.nodes(nodes);
+    (sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>> | null)
+      ?.links(links);
+    sim.alphaTarget(0.1).restart();
+  } else {
+    // Still need to tell d3 about the updated nodes array in case
+    // radius changed (affects forceCollide). But no simulation injection.
+    sim.nodes(nodes);
+    (sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>> | null)
+      ?.links(links);
+  }
 
   recomputeNeighbors();
-  recomputeUiStates();
+  recomputeWorkerState();
   rebuildQuadtree();
-
-  // Small alpha bump so the new positions settle into the layout.
-  sim.alphaTarget(0.1).restart();
 }
 
 // -----------------------------------------------------------------------
@@ -448,8 +481,8 @@ export function populateNodeLabels(
   getLabel: (title: string) => string,
 ): void {
   for (const node of nodes) {
-    if (node.title) {
-      node.__label = getLabel(node.title);
+    if (node.label) {
+      node.__label = getLabel(node.label);
     }
   }
 }
@@ -507,7 +540,7 @@ export function setNodePosition(
 export function setSelectedNodes(ids: NodeId[]): void {
   selectedNodeIds = new Set(ids);
   recomputeNeighbors();
-  recomputeUiStates();
+  recomputeWorkerState();
 }
 
 export function setSelectedEdges(ids: EdgeId[]): void {
@@ -518,7 +551,7 @@ export function setHoveredNode(id: NodeId | null): void {
   if (hoveredNodeId === id) return;
   const prev = hoveredNodeId;
   hoveredNodeId = id;
-  recomputeUiStates();
+  recomputeWorkerState();
   if (id !== null) {
     emit({ type: "node:pointer-enter", nodeId: id });
   } else if (prev !== null) {
@@ -540,7 +573,7 @@ export function clearSelection(): void {
   selectedEdgeIds = new Set();
   hoveredNodeId = null;
   recomputeNeighbors();
-  recomputeUiStates();
+  recomputeWorkerState();
   emit({ type: "selection:changed", selectedNodeIds: [], selectedEdgeIds: [] });
 }
 
@@ -767,8 +800,8 @@ export function hitTestEdge(
 
     let dist: number;
     const isBidirectional = link.direction === "bidirectional";
-    const useCubic = isBidirectional || link.edgeType === "interaction";
-    const useQuadratic = !useCubic && link.edgeType === "flow";
+    const useCubic = isBidirectional || link.shape === "s-curve";
+    const useQuadratic = !useCubic && link.shape === "curve";
 
     if (useCubic) {
       const cx1 = sx + (tx - sx) * 0.4;
@@ -816,7 +849,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target && target.id === lastClickNode && now - lastClickTime < 300) {
         clearSelection();
         setSelectedNodes([target.id]);
-        recomputeUiStates();
+        recomputeWorkerState();
         emit({ type: "node:dblclick", nodeId: target.id });
         lastClickTime = 0;
         lastClickNode = null;
@@ -856,11 +889,11 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         if (edgeTarget) {
           clearSelection();
           setSelectedEdges([edgeTarget.link.id]);
-          recomputeUiStates();
+          recomputeWorkerState();
           emit({ type: "edge:click", edgeId: edgeTarget.link.id, modifiers: evt.modifiers });
         } else {
           clearSelection();
-          recomputeUiStates();
+          recomputeWorkerState();
           emit({ type: "canvas:pointer-down", x: evt.x, y: evt.y, modifiers: evt.modifiers });
         }
       }
@@ -934,18 +967,18 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target) {
         clearSelection();
         setSelectedNodes([target.id]);
-        recomputeUiStates();
+        recomputeWorkerState();
         emit({ type: "context-menu:node", nodeId: target.id, clientX: evt.clientX, clientY: evt.clientY });
       } else {
         const edgeHit = hitTestEdge(evt.x, evt.y, 10);
         if (edgeHit) {
           clearSelection();
           setSelectedEdges([edgeHit.link.id]);
-          recomputeUiStates();
+          recomputeWorkerState();
           emit({ type: "context-menu:edge", edgeId: edgeHit.link.id, clientX: evt.clientX, clientY: evt.clientY });
         } else {
           clearSelection();
-          recomputeUiStates();
+          recomputeWorkerState();
           emit({ type: "context-menu:canvas", clientX: evt.clientX, clientY: evt.clientY });
         }
       }
