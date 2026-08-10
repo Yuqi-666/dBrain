@@ -27,6 +27,7 @@ import {
   getStatus,
   handleProxiedEvent,
   onTickListener,
+  populateNodeLabels,
   reheat,
   resumeSimulation,
   setEventHandler,
@@ -38,10 +39,12 @@ import {
 } from "./simulation";
 import {
   createCanvas,
+  getContext,
   renderAndTransfer,
   resizeCanvas,
   setStyle,
   setViewport as setCanvasViewport,
+  truncateLabel,
 } from "./canvas";
 
 // -----------------------------------------------------------------------
@@ -71,21 +74,27 @@ function pushFrame(): void {
 }
 
 // Throttle frame pushes to at most one per animation frame to avoid
-// flooding the main thread.
+// flooding the main thread. Additionally, skip rendering when the
+// simulation is idle (no position changes) and nothing else dirtied the
+// frame (no viewport change, no interaction).
 let pendingFrame = false;
+let isDirty = true;
+
 function scheduleFrame(): void {
   if (pendingFrame) return;
   pendingFrame = true;
-  // We can't use requestAnimationFrame inside all worker environments; fall
-  // back to a microtask coalescing.
   queueMicrotask(() => {
     pendingFrame = false;
-    pushFrame();
+    if (isDirty) {
+      isDirty = false;
+      pushFrame();
+    }
   });
 }
 
 // Subscribe to simulation ticks so we re-render every step.
-onTickListener(() => {
+onTickListener((alpha: number) => {
+  if (alpha > 0.001) isDirty = true;
   scheduleFrame();
 });
 
@@ -107,21 +116,27 @@ export const api: WorkerInbound = {
     }
     updateDims(dims.width, dims.height);
     createOrUpdate(nodes, links, dims);
+    computeLabels();
+    isDirty = true;
     scheduleFrame();
   },
 
   async applyDiff(diff: ForceDiffPayload): Promise<void> {
     applyDiff(diff);
+    computeLabels();
+    isDirty = true;
     scheduleFrame();
   },
 
   async updateConfig(config: ForceConfig): Promise<void> {
     updateConfig(config);
+    isDirty = true;
     scheduleFrame();
   },
 
   async updateStyle(style: ForceStyle): Promise<void> {
     setStyle(style);
+    isDirty = true;
     scheduleFrame();
   },
 
@@ -132,6 +147,7 @@ export const api: WorkerInbound = {
     y?: number,
   ): Promise<void> {
     setNodeFixed(nodeId, fixed, x, y);
+    isDirty = true;
     scheduleFrame();
   },
 
@@ -141,11 +157,13 @@ export const api: WorkerInbound = {
     y: number,
   ): Promise<void> {
     setNodePosition(nodeId, x, y);
+    isDirty = true;
     scheduleFrame();
   },
 
   async reheat(): Promise<void> {
     reheat();
+    isDirty = true;
     scheduleFrame();
   },
 
@@ -160,6 +178,9 @@ export const api: WorkerInbound = {
   },
 
   async setViewport(x: number, y: number, scale: number): Promise<void> {
+    if (canvasViewport.x !== x || canvasViewport.y !== y || canvasViewport.scale !== scale) {
+      isDirty = true;
+    }
     canvasViewport = { x, y, scale };
     setCanvasViewport(canvasViewport);
     scheduleFrame();
@@ -173,6 +194,7 @@ export const api: WorkerInbound = {
       postError(`Canvas resize failed: ${err}`);
       throw err;
     }
+    isDirty = true;
     scheduleFrame();
   },
 
@@ -187,9 +209,20 @@ export const api: WorkerInbound = {
     // Interaction may change selection/hover state without restarting
     // the d3 simulation. Always push a frame so the canvas stays in
     // sync with the worker's internal UI state.
+    isDirty = true;
     scheduleFrame();
   },
 };
+
+// -----------------------------------------------------------------------
+// Label pre-computation
+// -----------------------------------------------------------------------
+
+function computeLabels(): void {
+  const c = getContext();
+  if (!c) return;
+  populateNodeLabels((title) => truncateLabel(title, 100, c));
+}
 
 // -----------------------------------------------------------------------
 // Error reporting

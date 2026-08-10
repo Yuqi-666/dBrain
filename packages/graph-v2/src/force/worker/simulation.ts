@@ -80,7 +80,11 @@ export interface SimLink extends Omit<SimulationLinkDatum<SimNode>, "source" | "
 let sim: Simulation<SimNode, SimLink> | null = null;
 let nodes: SimNode[] = [];
 let links: SimLink[] = [];
+let nodeMap: Map<NodeId, SimNode> = new Map();
 let qt: Quadtree<SimNode> | null = null;
+
+/** Tick counter for throttled quadtree rebuild. */
+let tickCount = 0;
 
 /** Cached simulation config — kept so we can rebuild forces after diff. */
 let currentConfig: ForceConfig = { ...DEFAULT_FORCE_CONFIG };
@@ -263,15 +267,13 @@ export function createOrUpdate(
     }
   }
   nodes = next;
+  nodeMap = new Map(nodes.map((n): [NodeId, SimNode] => [n.id, n]));
 
   // Build the link list (forceLink expects objects whose source/target
   // are node references, but the d3 link force can also resolve ids at
   // initialization time when `link.id(d => d.id)` is set).
   const seedLinksById = new Map<EdgeId, ForceLinkSeed>();
   for (const seed of linkSeeds) seedLinksById.set(seed.id, seed);
-
-  const nodeMap = new Map<NodeId, SimNode>();
-  for (const n of nodes) nodeMap.set(n.id, n);
 
   // Drop links whose endpoints are not in the new node set.
   links = links.filter((l) =>
@@ -325,6 +327,7 @@ export function createOrUpdate(
 
   // Build the quadtree lazily.
   rebuildQuadtree();
+  tickCount = 0;
 
   // Restart with full alpha so the new dataset visibly settles.
   sim.alpha(1).restart();
@@ -340,6 +343,7 @@ export function applyDiff(
   if (payload.nodeRemovals && payload.nodeRemovals.length > 0) {
     const removeSet = new Set(payload.nodeRemovals);
     nodes = nodes.filter((n) => !removeSet.has(n.id));
+    for (const id of payload.nodeRemovals) nodeMap.delete(id);
     selectedNodeIds = new Set(
       [...selectedNodeIds].filter((id) => !removeSet.has(id)),
     );
@@ -349,14 +353,8 @@ export function applyDiff(
   }
 
   if (payload.nodeUpserts && payload.nodeUpserts.length > 0) {
-    const seedById = new Map<NodeId, ForceNodeSeed>();
-    for (const seed of payload.nodeUpserts) seedById.set(seed.id, seed);
-
-    const nodeById = new Map<NodeId, SimNode>();
-    for (const n of nodes) nodeById.set(n.id, n);
-
     for (const seed of payload.nodeUpserts) {
-      const existing = nodeById.get(seed.id);
+      const existing = nodeMap.get(seed.id);
       if (existing) {
         existing.title = seed.title;
         existing.ui = seed.ui;
@@ -364,12 +362,16 @@ export function applyDiff(
         existing.nodeType = seed.nodeType ?? existing.nodeType;
         existing.viewId = seed.viewId ?? existing.viewId;
         if (typeof seed.weight === "number") existing.weight = seed.weight;
+        // Invalidate cached label so computeLabels() recalculates it.
+        existing.__label = undefined;
       } else {
-        nodes.push({
+        const newNode: SimNode = {
           ...seed,
           fx: seed.fx ?? null,
           fy: seed.fy ?? null,
-        });
+        };
+        nodes.push(newNode);
+        nodeMap.set(seed.id, newNode);
       }
     }
   }
@@ -384,15 +386,15 @@ export function applyDiff(
   }
 
   if (payload.linkUpserts && payload.linkUpserts.length > 0) {
-    const nodeMap = new Map<NodeId, SimNode>();
-    for (const n of nodes) nodeMap.set(n.id, n);
+    const linkNodeMap = new Map<NodeId, SimNode>();
+    for (const n of nodes) linkNodeMap.set(n.id, n);
 
     const linkById = new Map<EdgeId, SimLink>();
     for (const l of links) linkById.set(l.id, l);
 
     for (const seed of payload.linkUpserts) {
-      const source = nodeMap.get(seed.source);
-      const target = nodeMap.get(seed.target);
+      const source = linkNodeMap.get(seed.source);
+      const target = linkNodeMap.get(seed.target);
       if (!source || !target) continue;
       const existing = linkById.get(seed.id);
       if (existing) {
@@ -431,6 +433,28 @@ export function applyDiff(
 }
 
 // -----------------------------------------------------------------------
+// Label pre-computation
+// -----------------------------------------------------------------------
+
+/**
+ * Pre-compute `__label` for every node that has a title. Call this after
+ * data ingestion (createOrUpdate / applyDiff) to avoid per-frame
+ * `measureText` calls in the canvas renderer.
+ *
+ * @param getLabel — function that maps a title string to its truncated label.
+ *   Typically `truncateLabel` from canvas.ts, invoked with the canvas context.
+ */
+export function populateNodeLabels(
+  getLabel: (title: string) => string,
+): void {
+  for (const node of nodes) {
+    if (node.title) {
+      node.__label = getLabel(node.title);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------
 // Node mutation
 // -----------------------------------------------------------------------
 
@@ -440,7 +464,7 @@ export function setNodeFixed(
   x?: number,
   y?: number,
 ): void {
-  const node = nodes.find((n) => n.id === nodeId);
+  const node = nodeMap.get(nodeId);
   if (!node || !sim) return;
   if (typeof x === "number") node.x = x;
   if (typeof y === "number") node.y = y;
@@ -453,19 +477,26 @@ export function setNodeFixed(
   }
 }
 
+function setNodePositionRaw(
+  nodeId: NodeId,
+  x: number,
+  y: number,
+): void {
+  const node = nodeMap.get(nodeId);
+  if (!node) return;
+  node.x = x;
+  node.y = y;
+  if (node.fx !== null) node.fx = x;
+  if (node.fy !== null) node.fy = y;
+}
+
 export function setNodePosition(
   nodeId: NodeId,
   x: number,
   y: number,
 ): void {
-  const node = nodes.find((n) => n.id === nodeId);
-  if (!node || !sim) return;
-  node.x = x;
-  node.y = y;
-  // Keep the pin in sync with the drag target — without this, d3-force
-  // resets x/y back to the stale fx/fy on every tick.
-  if (node.fx !== null) node.fx = x;
-  if (node.fy !== null) node.fy = y;
+  if (!sim) return;
+  setNodePositionRaw(nodeId, x, y);
   sim.alpha(0.3).restart();
 }
 
@@ -550,9 +581,13 @@ export function updateDims(width: number, height: number): void {
 
 function onTick(): void {
   if (!sim) return;
-  for (const cb of tickListeners) cb(sim.alpha());
-  // Throttled quadtree rebuild — only useful when nodes move significantly.
-  if (qt) rebuildQuadtree();
+  const alpha = sim.alpha();
+  for (const cb of tickListeners) cb(alpha);
+  // Throttle quadtree rebuild: only every 5 ticks, or when simulation is
+  // active enough that nodes move significantly between frames.
+  if (qt && (++tickCount % 5 === 0 || alpha > 0.01)) {
+    rebuildQuadtree();
+  }
 }
 
 export function onTickListener(cb: (alpha: number) => void): () => void {
@@ -680,6 +715,11 @@ function pointToCubic(
 /**
  * Hit-test all edges. Returns the closest edge within `threshold`
  * device pixels, or null.
+ *
+ * When the d3-quadtree is available (n ≥ 2000), we pre-filter edges by
+ * finding candidate nodes near the hit point first, then only checking
+ * edges incident to those candidates. This avoids the O(m) brute-force
+ * iteration for large graphs.
  */
 export function hitTestEdge(
   x: number,
@@ -689,7 +729,35 @@ export function hitTestEdge(
   let closest: SimLink | null = null;
   let minDist = Infinity;
 
+  // Spatial pre-filter: when quadtree exists, find candidate nodes near
+  // the hit point. Search radius = linkDistance (80) + threshold (10) +
+  // padding, since edges can span up to ~linkDistance in the layout.
+  let candidateNodeIds: Set<NodeId> | null = null;
+  if (qt) {
+    const searchRadius = 100;
+    const candidateIds = new Set<NodeId>();
+    qt.visit((node, x1, y1, x2, y2) => {
+      if (node) {
+        const ndx = (node.x ?? 0) - x;
+        const ndy = (node.y ?? 0) - y;
+        if (Math.sqrt(ndx * ndx + ndy * ndy) <= searchRadius) {
+          candidateIds.add(node.id);
+        }
+        return true;
+      }
+      const dx = x < x1 ? x1 - x : (x > x2 ? x - x2 : 0);
+      const dy = y < y1 ? y1 - y : (y > y2 ? y - y2 : 0);
+      return dx * dx + dy * dy < searchRadius * searchRadius;
+    });
+    candidateNodeIds = candidateIds;
+  }
+
   for (const link of links) {
+    // Pre-filter: skip edges whose both endpoints are outside the candidate set.
+    if (candidateNodeIds && !candidateNodeIds.has(link.source.id) && !candidateNodeIds.has(link.target.id)) {
+      continue;
+    }
+
     const sx = link.source.x ?? 0;
     const sy = link.source.y ?? 0;
     const tx = link.target.x ?? 0;
@@ -768,7 +836,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
           const idsArr = [...next];
           setSelectedNodes(idsArr);
           for (const id of idsArr) {
-            const n = nodes.find((nn) => nn.id === id);
+            const n = nodeMap.get(id);
             if (n) dragOffsets.set(id, { ox: (n.x ?? 0) - evt.x, oy: (n.y ?? 0) - evt.y });
           }
           emit({ type: "selection:changed", selectedNodeIds: idsArr, selectedEdgeIds: [] });
@@ -776,7 +844,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         }
         setSelectedNodes([target.id]);
         for (const id of selectedNodeIds) {
-          const n = nodes.find((nn) => nn.id === id);
+          const n = nodeMap.get(id);
           if (n) dragOffsets.set(id, { ox: (n.x ?? 0) - evt.x, oy: (n.y ?? 0) - evt.y });
         }
         emit({ type: "selection:changed", selectedNodeIds: [target.id], selectedEdgeIds: [] });
@@ -809,12 +877,14 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         !evt.modifiers.ctrl
       ) {
         for (const id of selectedNodeIds) {
-          const n = nodes.find((nn) => nn.id === id);
+          const n = nodeMap.get(id);
           if (!n) continue;
           const offset = dragOffsets.get(id) ?? { ox: 0, oy: 0 };
-          setNodePosition(id, evt.x + offset.ox, evt.y + offset.oy);
+          setNodePositionRaw(id, evt.x + offset.ox, evt.y + offset.oy);
           emit({ type: "node:drag", nodeId: id, x: evt.x + offset.ox, y: evt.y + offset.oy });
         }
+        // Restart once after all selected nodes have been moved.
+        sim?.alpha(0.3).restart();
       }
       const target = hitTest(evt.x, evt.y);
       setHoveredNode(target?.id ?? null);
@@ -831,7 +901,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       const keepFixed = evt.modifiers.ctrl;
       for (const id of selectedNodeIds) {
         setNodeFixed(id, keepFixed);
-        const n = nodes.find((nn) => nn.id === id);
+        const n = nodeMap.get(id);
         emit({
           type: "node:drag-end",
           nodeId: id,

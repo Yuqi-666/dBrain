@@ -72,6 +72,10 @@ export function setViewport(v: ViewportState): void {
   viewport = v;
 }
 
+export function getContext(): OffscreenCanvasRenderingContext2D | null {
+  return ctx;
+}
+
 export function resizeCanvas(dims: { width: number; height: number }): void {
   if (!offscreen) return;
   offscreen.width = dims.width;
@@ -129,14 +133,34 @@ export function renderFrame(): void {
   c.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.x, viewport.y);
 
   // 4. Draw edges first (under nodes).
+  // Frustum culling: compute visible bounds in simulation coords with
+  // a generous padding margin (50px) to account for node radii + labels.
+  const invScale = 1 / viewport.scale;
+  const PAD = 50;
+  const vpLeft = -viewport.x * invScale - PAD;
+  const vpRight = (-viewport.x + width) * invScale + PAD;
+  const vpTop = -viewport.y * invScale - PAD;
+  const vpBottom = (-viewport.y + height) * invScale + PAD;
+
+  // Helper: check if a node is visible (center point within padded viewport).
+  const isNodeVisible = (nx: number | undefined, ny: number | undefined): boolean => {
+    if (nx === undefined || ny === undefined) return false;
+    return nx >= vpLeft && nx <= vpRight && ny >= vpTop && ny <= vpBottom;
+  };
+
   const { links } = readSimulationState();
   for (const link of links) {
+    const srcVisible = isNodeVisible(link.source.x, link.source.y);
+    const tgtVisible = isNodeVisible(link.target.x, link.target.y);
+    // Skip edge only when BOTH endpoints are outside the viewport.
+    if (!srcVisible && !tgtVisible) continue;
     drawEdge(c, link, currentStyle);
   }
 
   // 5. Draw nodes.
   const { nodes } = readSimulationState();
   for (const node of nodes) {
+    if (!isNodeVisible(node.x, node.y)) continue;
     drawNode(c, node, currentStyle);
   }
 
@@ -197,16 +221,17 @@ function drawNode(
     c.fillStyle = style.labelColor;
     c.textAlign = "center";
     c.textBaseline = "top";
-    const label = truncateLabel(node.title, 100, c);
+    const label = node.__label ?? truncateLabel(node.title, 100, c);
     c.fillText(label, x, y + r + 4);
   }
 }
 
 /**
  * Rough character-based truncation to keep the label within ~100px.
- * Uses the canvas measureText to estimate width.
+ * Uses the canvas measureText to estimate width. Exported for label
+ * pre-computation during data ingestion (see api.ts initData).
  */
-function truncateLabel(
+export function truncateLabel(
   text: string,
   maxWidth: number,
   c: OffscreenCanvasRenderingContext2D,
