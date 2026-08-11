@@ -144,6 +144,11 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
     const dprRef = useRef(Math.max(1, globalThis.devicePixelRatio ?? 1));
     const currentViewIdRef = useRef<ViewId>(viewId);
+    // Always point to the latest view — the mount effect captures
+    // callbacks once, so they read view via this ref to stay fresh when
+    // the same-id View object changes (e.g. filterConfig edit).
+    const viewRef = useRef(view);
+    viewRef.current = view;
 
     // ---- Local state ------------------------------------------------
     const [isReady, setIsReady] = useState(false);
@@ -230,7 +235,6 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           const bitmap = ev.data.bitmap as ImageBitmap;
           ctx2d.save();
           ctx2d.setTransform(1, 0, 0, 1, 0, 0);
-          ctx2d.clearRect(0, 0, canvas.width, canvas.height);
           ctx2d.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
           ctx2d.restore();
           bitmap.close();
@@ -262,7 +266,8 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       const api = apiRef.current;
       if (!api) return;
       const raw = getDataSnapshot();
-      const filtered = filter(raw.nodes, raw.edges, view);
+      const currentView = viewRef.current;
+      const filtered = filter(raw.nodes, raw.edges, currentView);
 
       const { semanticColorMap, edgeSemanticColorMap } = buildSemanticColorMaps();
       const opts = { viewId, semanticColorMap, edgeSemanticColorMap };
@@ -303,28 +308,32 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         try {
           const api = apiRef.current;
           if (!api) return;
+          const currentView = viewRef.current;
 
-          const filteredNodesAdded = filter(diff.nodes.added, [], view).nodes;
+          const filteredNodesAdded = filter(diff.nodes.added, [], currentView).nodes;
           const filteredNodesUpdated = filter(
             diff.nodes.updated,
             [],
-            view,
+            currentView,
           ).nodes;
 
           const endpointIds = collectEdgeEndpointIds(diff);
-          const snapshot = getDataSnapshot();
-          const endpointNodes = snapshot.nodes.filter((n) =>
-            endpointIds.has(n.id),
-          );
+          const endpointNodes: NodeData[] = [];
+          if (endpointIds.size > 0) {
+            const snapshot = getDataSnapshot();
+            endpointNodes.push(
+              ...snapshot.nodes.filter((n) => endpointIds.has(n.id)),
+            );
+          }
           const filteredEdgesAdded = filter(
             endpointNodes,
             diff.edges.added,
-            view,
+            currentView,
           ).edges;
           const filteredEdgesUpdated = filter(
             endpointNodes,
             diff.edges.updated,
-            view,
+            currentView,
           ).edges;
 
           const trimmed: SourceDiff = {
@@ -528,14 +537,20 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ---- Effect: viewId change triggers re-init ---------------------
+    // ---- Effect: view or viewId change triggers re-init ------------
     useEffect(() => {
-      if (currentViewIdRef.current === viewId) return;
+      const viewIdChanged = currentViewIdRef.current !== viewId;
       currentViewIdRef.current = viewId;
-      performFullSync().catch((err) =>
-        console.error("[ForceGraph] re-init on viewId change failed:", err),
-      );
-    }, [viewId, performFullSync]);
+      if (viewIdChanged) {
+        performFullSync().catch((err) =>
+          console.error("[ForceGraph] re-init on viewId change failed:", err),
+        );
+      }
+      // When the View object identity changes with the same id
+      // (e.g. filterConfig edited), performFullSync uses viewRef.current
+      // to pick up the latest filter. No additional action needed here
+      // since the diff subscriber also reads via viewRef.current.
+    }, [viewId, view, performFullSync]);
 
     // ---- Imperative handle ------------------------------------------
     useImperativeHandle(
@@ -564,39 +579,48 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
       const ro = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (!entry) return;
-        // IMPORTANT: entry.contentRect.x/y are always 0 (relative to the
-        // element's own padding box, NOT the viewport). We must use
-        // getBoundingClientRect() for viewport-relative left/top so that
-        // screenToSimulation() in eventListener.ts doesn't produce offset
-        // coords when the sidebar (or any ancestor) reflows the container.
-        const bounds = container.getBoundingClientRect();
-        canvasRectRef.current = new DOMRect(
-          bounds.left,
-          bounds.top,
-          entry.contentRect.width,
-          entry.contentRect.height,
-        );
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const dpr = Math.max(1, globalThis.devicePixelRatio ?? 1);
-        dprRef.current = dpr;
-        const width = Math.max(1, Math.floor(entry.contentRect.width * dpr));
-        const height = Math.max(1, Math.floor(entry.contentRect.height * dpr));
-        if (canvas.width !== width || canvas.height !== height) {
-          canvas.width = width;
-          canvas.height = height;
-          canvas.style.width = `${entry.contentRect.width}px`;
-          canvas.style.height = `${entry.contentRect.height}px`;
-          apiRef.current?.setDimensions(width, height).catch((err) => {
-            console.debug("[ForceGraph] setDimensions failed:", err);
-          });
-        }
+        // Debounce: only apply after the resize stream settles.
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          // IMPORTANT: entry.contentRect.x/y are always 0 (relative to the
+          // element's own padding box, NOT the viewport). We must use
+          // getBoundingClientRect() for viewport-relative left/top so that
+          // screenToSimulation() in eventListener.ts doesn't produce offset
+          // coords when the sidebar (or any ancestor) reflows the container.
+          const bounds = container.getBoundingClientRect();
+          canvasRectRef.current = new DOMRect(
+            bounds.left,
+            bounds.top,
+            entry.contentRect.width,
+            entry.contentRect.height,
+          );
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const dpr = Math.max(1, globalThis.devicePixelRatio ?? 1);
+          dprRef.current = dpr;
+          const width = Math.max(1, Math.floor(entry.contentRect.width * dpr));
+          const height = Math.max(1, Math.floor(entry.contentRect.height * dpr));
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = `${entry.contentRect.width}px`;
+            canvas.style.height = `${entry.contentRect.height}px`;
+            apiRef.current?.setDimensions(width, height).catch((err) => {
+              console.debug("[ForceGraph] setDimensions failed:", err);
+            });
+          }
+        }, 150);
       });
       ro.observe(container);
-      return () => ro.disconnect();
+      return () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        ro.disconnect();
+      };
     }, []);
 
     // ---- Dismiss focused preview on outside click --------------------

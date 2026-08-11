@@ -36,6 +36,9 @@ let ctx: OffscreenCanvasRenderingContext2D | null = null;
 let currentStyle: ForceStyle | null = null;
 let viewport: ViewportState = { x: 0, y: 0, scale: 1 };
 
+// Avoid per-node per-frame string allocation for font.
+const fontCache = { labelSize: -1, font: "" };
+
 // -----------------------------------------------------------------------
 // Init
 // -----------------------------------------------------------------------
@@ -149,7 +152,9 @@ export function renderFrame(): void {
     return nx >= vpLeft && nx <= vpRight && ny >= vpTop && ny <= vpBottom;
   };
 
-  const { links } = readSimulationState();
+  const state = readSimulationState();
+  const { links, nodes: simNodes } = state;
+
   for (const link of links) {
     const srcVisible = isNodeVisible(link.source.x, link.source.y);
     const tgtVisible = isNodeVisible(link.target.x, link.target.y);
@@ -159,8 +164,7 @@ export function renderFrame(): void {
   }
 
   // 5. Draw nodes.
-  const { nodes } = readSimulationState();
-  for (const node of nodes) {
+  for (const node of simNodes) {
     if (!isNodeVisible(node.x, node.y)) continue;
     drawNode(c, node, currentStyle);
   }
@@ -218,7 +222,11 @@ function drawNode(
 
   // 3. Label.
   if (node.label) {
-    c.font = `${node.labelSize}px sans-serif`;
+    if (fontCache.labelSize !== node.labelSize) {
+      fontCache.labelSize = node.labelSize;
+      fontCache.font = `${node.labelSize}px sans-serif`;
+    }
+    c.font = fontCache.font;
     c.fillStyle = node.labelColor;
     c.textAlign = "center";
     c.textBaseline = "top";

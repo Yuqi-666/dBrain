@@ -123,7 +123,8 @@ export const api: WorkerInbound = {
 
   async applyDiff(diff: ForceDiffPayload): Promise<void> {
     applyDiff(diff);
-    computeLabels();
+    const upsertedIds = diff.nodeUpserts?.map((s) => s.id);
+    computeLabels(upsertedIds);
     isDirty = true;
     scheduleFrame();
   },
@@ -218,10 +219,16 @@ export const api: WorkerInbound = {
 // Label pre-computation
 // -----------------------------------------------------------------------
 
-function computeLabels(): void {
+function computeLabels(nodeIds?: NodeId[]): void {
   const c = getContext();
   if (!c) return;
-  populateNodeLabels((title) => truncateLabel(title, 100, c));
+  if (nodeIds && nodeIds.length > 0) {
+    // Only recompute labels for the actually upserted nodes.
+    populateNodeLabels((title) => truncateLabel(title, 100, c), nodeIds);
+  } else {
+    // Full recompute (initData path).
+    populateNodeLabels((title) => truncateLabel(title, 100, c));
+  }
 }
 
 // -----------------------------------------------------------------------

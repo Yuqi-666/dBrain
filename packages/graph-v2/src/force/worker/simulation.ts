@@ -78,6 +78,8 @@ let sim: Simulation<SimNode, SimLink> | null = null;
 let nodes: SimNode[] = [];
 let links: SimLink[] = [];
 let nodeMap: Map<NodeId, SimNode> = new Map();
+/** Module-level index: EdgeId → SimLink. Always kept in sync with the `links` array. */
+let linkMap: Map<EdgeId, SimLink> = new Map();
 let qt: Quadtree<SimNode> | null = null;
 
 /** Tick counter for throttled quadtree rebuild. */
@@ -327,6 +329,7 @@ export function createOrUpdate(
     }
   }
   links = nextLinks;
+  linkMap = new Map(links.map((l): [EdgeId, SimLink] => [l.id, l]));
 
   // (Re)create the simulation. d3's `forceSimulation` mutates its input
   // arrays, which is fine here.
@@ -401,6 +404,7 @@ export function applyDiff(
   if (payload.linkRemovals && payload.linkRemovals.length > 0) {
     const removeSet = new Set(payload.linkRemovals);
     links = links.filter((l) => !removeSet.has(l.id));
+    for (const id of payload.linkRemovals) linkMap.delete(id);
     selectedEdgeIds = new Set(
       [...selectedEdgeIds].filter((id) => !removeSet.has(id)),
     );
@@ -408,17 +412,11 @@ export function applyDiff(
   }
 
   if (payload.linkUpserts && payload.linkUpserts.length > 0) {
-    const linkNodeMap = new Map<NodeId, SimNode>();
-    for (const n of nodes) linkNodeMap.set(n.id, n);
-
-    const linkById = new Map<EdgeId, SimLink>();
-    for (const l of links) linkById.set(l.id, l);
-
     for (const seed of payload.linkUpserts) {
-      const source = linkNodeMap.get(seed.source);
-      const target = linkNodeMap.get(seed.target);
+      const source = nodeMap.get(seed.source);
+      const target = nodeMap.get(seed.target);
       if (!source || !target) continue;
-      const existing = linkById.get(seed.id);
+      const existing = linkMap.get(seed.id);
       if (existing) {
         existing.source = source;
         existing.target = target;
@@ -432,21 +430,23 @@ export function applyDiff(
         existing.direction = seed.direction;
         existing.weight = seed.weight;
       } else {
-          links.push({
-            id: seed.id,
-            source,
-            target,
-            label: seed.label,
-            labelColor: seed.labelColor,
-            labelSize: seed.labelSize,
-            shape: seed.shape,
-            strokeType: seed.strokeType,
-            strokeColor: seed.strokeColor,
-            strokeWidth: seed.strokeWidth,
-            direction: seed.direction,
-            weight: seed.weight,
-          });
-          hasTopologyChange = true;
+        const newLink: SimLink = {
+          id: seed.id,
+          source,
+          target,
+          label: seed.label,
+          labelColor: seed.labelColor,
+          labelSize: seed.labelSize,
+          shape: seed.shape,
+          strokeType: seed.strokeType,
+          strokeColor: seed.strokeColor,
+          strokeWidth: seed.strokeWidth,
+          direction: seed.direction,
+          weight: seed.weight,
+        };
+        links.push(newLink);
+        linkMap.set(newLink.id, newLink);
+        hasTopologyChange = true;
       }
     }
   }
@@ -468,7 +468,9 @@ export function applyDiff(
 
   recomputeNeighbors();
   recomputeWorkerState();
-  rebuildQuadtree();
+  if (hasTopologyChange) {
+    rebuildQuadtree();
+  }
 }
 
 // -----------------------------------------------------------------------
@@ -476,19 +478,31 @@ export function applyDiff(
 // -----------------------------------------------------------------------
 
 /**
- * Pre-compute `__label` for every node that has a title. Call this after
+ * Pre-compute `__label` for nodes that have a title. Call this after
  * data ingestion (createOrUpdate / applyDiff) to avoid per-frame
  * `measureText` calls in the canvas renderer.
  *
  * @param getLabel — function that maps a title string to its truncated label.
  *   Typically `truncateLabel` from canvas.ts, invoked with the canvas context.
+ * @param nodeIds — optional subset of node ids to recompute. When omitted,
+ *   all nodes are processed (full sync path).
  */
 export function populateNodeLabels(
   getLabel: (title: string) => string,
+  nodeIds?: NodeId[],
 ): void {
-  for (const node of nodes) {
-    if (node.label) {
-      node.__label = getLabel(node.label);
+  if (nodeIds && nodeIds.length > 0) {
+    for (const id of nodeIds) {
+      const node = nodeMap.get(id);
+      if (node?.label) {
+        node.__label = getLabel(node.label);
+      }
+    }
+  } else {
+    for (const node of nodes) {
+      if (node.label) {
+        node.__label = getLabel(node.label);
+      }
     }
   }
 }
@@ -624,9 +638,10 @@ function onTick(): void {
   if (!sim) return;
   const alpha = sim.alpha();
   for (const cb of tickListeners) cb(alpha);
-  // Throttle quadtree rebuild: only every 5 ticks, or when simulation is
-  // active enough that nodes move significantly between frames.
-  if (qt && (++tickCount % 5 === 0 || alpha > 0.01)) {
+  // Throttle quadtree rebuild: once every 5 ticks. The quadtree is
+  // always rebuilt after topology changes (applyDiff), so the per-tick
+  // path only needs a fixed-interval refresh.
+  if (qt && ++tickCount % 5 === 0) {
     rebuildQuadtree();
   }
 }

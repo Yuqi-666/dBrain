@@ -108,13 +108,17 @@ export function installDomEventProxy(
   const signal = ac.signal;
 
   const getSimCoord = (clientX: number, clientY: number) => {
-    // Always fetch a live bounding rect — the cached ref can go stale
-    // when ancestors reflow the container (sidebar expand/collapse, etc.)
-    // without triggering a ResizeObserver on the container itself.
-    const rect = target.getBoundingClientRect();
-    canvasRectRef.current = rect;
+    // Use the cached rect from ResizeObserver when available to avoid
+    // forced layout on every pointermove. Falls back to live
+    // getBoundingClientRect() when the cache is cold (first event).
+    const rect = canvasRectRef.current ?? target.getBoundingClientRect();
+    if (!canvasRectRef.current) canvasRectRef.current = rect;
     return screenToSimulation(clientX, clientY, rect, viewportRef.current, dpr);
   };
+
+  // ---- Pointer-move throttle: at most one proxyEvent per rAF ---------
+  let pendingPointerMove: ProxiedDomEvent | null = null;
+  let pointerMoveRafId: number | null = null;
 
   // ---- Drag-to-pan state machine -------------------------------------
   // Pan does NOT start on pointerdown. Instead we enter "pending" and
@@ -146,6 +150,10 @@ export function installDomEventProxy(
     (e: PointerEvent) => {
       // Right-click is handled by the contextmenu listener below.
       if (e.button !== 0) return;
+
+      // Refresh the cached bounding rect on every interaction start
+      // to cover scroll / reflow edge cases between ResizeObserver ticks.
+      canvasRectRef.current = target.getBoundingClientRect();
 
       const sim = getSimCoord(e.clientX, e.clientY);
       const mods = extractModifiers(e);
@@ -204,13 +212,36 @@ export function installDomEventProxy(
         );
       }
 
-      handlers.proxyEvent({
-        type: "pointer-move",
-        x: sim.x,
-        y: sim.y,
-        buttons: e.buttons,
-        modifiers: extractModifiers(e),
-      }).catch(() => {});
+      // proxyEvent: during drag/pan (buttons held), send immediately
+      // for minimal latency. Hover-only moves (no buttons) are throttled
+      // to rAF to avoid redundant hit-tests.
+      const isDragging = (e.buttons & 1) !== 0;
+      if (isDragging) {
+        handlers.proxyEvent({
+          type: "pointer-move",
+          x: sim.x,
+          y: sim.y,
+          buttons: e.buttons,
+          modifiers: extractModifiers(e),
+        }).catch(() => {});
+      } else {
+        pendingPointerMove = {
+          type: "pointer-move",
+          x: sim.x,
+          y: sim.y,
+          buttons: e.buttons,
+          modifiers: extractModifiers(e),
+        };
+        if (pointerMoveRafId === null) {
+          pointerMoveRafId = requestAnimationFrame(() => {
+            pointerMoveRafId = null;
+            if (pendingPointerMove) {
+              handlers.proxyEvent(pendingPointerMove).catch(() => {});
+              pendingPointerMove = null;
+            }
+          });
+        }
+      }
     },
     { signal, passive: false },
   );
@@ -324,7 +355,10 @@ export function installDomEventProxy(
   );
 
   return {
-    dispose: () => ac.abort(),
+    dispose: () => {
+      ac.abort();
+      if (pointerMoveRafId !== null) cancelAnimationFrame(pointerMoveRafId);
+    },
     cancelPan,
   };
 }

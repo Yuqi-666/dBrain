@@ -219,7 +219,7 @@ export function diffToForcePayload(
   const nodeRemovals = diff.nodes.removed;
 
   const upsertedEdges = [...diff.edges.added, ...diff.edges.updated];
-  const linkUpserts = edgeDataToForceSeeds(upsertedEdges);
+  const linkUpserts = edgeDataToForceSeeds(upsertedEdges, options);
   const linkRemovals = diff.edges.removed;
 
   return { nodeUpserts, nodeRemovals, linkUpserts, linkRemovals };
