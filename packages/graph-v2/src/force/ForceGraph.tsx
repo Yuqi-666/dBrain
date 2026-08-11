@@ -186,8 +186,9 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
 
-      const ctx2d = canvas.getContext("2d");
-      if (!ctx2d) throw new Error("Canvas 2D context unavailable");
+      // After Phase 2 (direct OffscreenCanvas transfer), the main thread
+      // no longer holds a 2D context. All rendering is done by PixiJS in
+      // the worker, composited onto the page by the browser GPU.
 
       const worker = new Worker(
         new URL("./worker/force.worker.ts", import.meta.url),
@@ -217,6 +218,15 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         );
       });
 
+      // Phase 2: transfer OffscreenCanvas ownership to the worker so
+      // PixiJS renders directly into the page-visible canvas (zero-copy
+      // GPU compositing — no more ImageBitmap / drawImage copying).
+      const offscreenCanvas = canvas.transferControlToOffscreen();
+      worker.postMessage(
+        { type: "__SET_CANVAS__", canvas: offscreenCanvas, width, height, dpr },
+        [offscreenCanvas],
+      );
+
       // Persistent error handler — surface unexpected worker crashes
       worker.addEventListener("error", (ev) => {
         console.error("[ForceGraph] Worker error:", ev.message);
@@ -225,22 +235,13 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
       const api = Comlink.wrap<WorkerInbound>(worker);
 
-      const onFrame = (ev: MessageEvent) => {
+      const onWorkerMessage = (ev: MessageEvent) => {
         if (ev.data?.type === "__ERROR__") {
           console.error("[ForceGraph] Worker reported error:", ev.data.message);
           setError(new Error(ev.data.message));
-          return;
-        }
-        if (ev.data?.type === "__FRAME__" && ctx2d) {
-          const bitmap = ev.data.bitmap as ImageBitmap;
-          ctx2d.save();
-          ctx2d.setTransform(1, 0, 0, 1, 0, 0);
-          ctx2d.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          ctx2d.restore();
-          bitmap.close();
         }
       };
-      worker.addEventListener("message", onFrame);
+      worker.addEventListener("message", onWorkerMessage);
 
       workerRef.current = worker;
       apiRef.current = api;
@@ -605,15 +606,14 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           dprRef.current = dpr;
           const width = Math.max(1, Math.floor(entry.contentRect.width * dpr));
           const height = Math.max(1, Math.floor(entry.contentRect.height * dpr));
-          if (canvas.width !== width || canvas.height !== height) {
-            canvas.width = width;
-            canvas.height = height;
-            canvas.style.width = `${entry.contentRect.width}px`;
-            canvas.style.height = `${entry.contentRect.height}px`;
-            apiRef.current?.setDimensions(width, height).catch((err) => {
-              console.debug("[ForceGraph] setDimensions failed:", err);
-            });
-          }
+          // Phase 2: canvas.width/height are no longer writable after
+          // transferControlToOffscreen. Only CSS sizing remains on the
+          // placeholder element; the worker handles renderer resize.
+          canvas.style.width = `${entry.contentRect.width}px`;
+          canvas.style.height = `${entry.contentRect.height}px`;
+          apiRef.current?.setDimensions(width, height).catch((err) => {
+            console.debug("[ForceGraph] setDimensions failed:", err);
+          });
         }, 150);
       });
       ro.observe(container);

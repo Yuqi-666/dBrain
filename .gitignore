@@ -38,3 +38,6 @@ yarn-error.log*
 *.pem
 
 pb/pb_data
+.agents/
+.omo/
+.codegraph/

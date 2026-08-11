@@ -20,6 +20,7 @@
 
 import * as Comlink from "comlink";
 import { api } from "./api";
+import { createCanvasFromMain } from "./canvas";
 
 // -----------------------------------------------------------------------
 // Global error traps — surface worker crashes to the main thread so it
@@ -54,6 +55,22 @@ ctx.addEventListener("message", (ev: MessageEvent) => {
   switch (data.type) {
     case "__PING__": {
       ctx.postMessage({ type: "__PONG__" });
+      break;
+    }
+    case "__SET_CANVAS__": {
+      try {
+        createCanvasFromMain(
+          data.canvas as OffscreenCanvas,
+          data.width as number,
+          data.height as number,
+          (data.dpr as number) ?? 1,
+        );
+      } catch (err) {
+        self.postMessage({
+          type: "__ERROR__",
+          message: `Canvas init from main failed: ${String(err)}`,
+        });
+      }
       break;
     }
     default:

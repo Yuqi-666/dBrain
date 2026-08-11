@@ -202,3 +202,13 @@ export const DEFAULT_FORCE_CONFIG = {
   alphaDecay: 0.0228,
   velocityDecay: 0.4,
 } as const satisfies Partial<ForceConfig>;
+
+// -----------------------------------------------------------------------
+// Label rendering budget (Phase 3)
+// -----------------------------------------------------------------------
+
+/** Max visible labels per frame. Surfaces the highest-priority nodes only. */
+export const LABEL_BUDGET = 100;
+
+/** Viewport scale below which all labels are hidden (LOD gate). */
+export const TRANSFORM_THRESHOLD = 1;

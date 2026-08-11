@@ -27,7 +27,7 @@ These are not style preferences. Breaking them will silently desync the UI.
 
 2. **`force/*` and `flow/*` are siblings.** They MUST NOT import from each other. Cross-cutting types live in `src/types.ts`. The one exception: `src/eventHandler.ts` may import `WorkerEvent` from `force/types` because `handleWorkerEvent` is force-specific.
 
-3. **`types.ts` is the canonical home** for `Modifiers`, `Theme`, `GraphSnapshot`, `SourceDiff`, `DiffCallback`. Do not re-define these. (`UiState` is force-only — see below.)
+3. **`types.ts` is the canonical home** for `Modifiers`, `Theme`, `GraphSnapshot`, `SourceDiff`, `DiffCallback`. Do not re-define these. (`RenderState` is force-only — see below.)
 
 4. **Re-exports follow ownership.** A type is re-exported from the module that DEFINES it, never from a module that merely uses it. See `src/index.ts:15-16`.
 
@@ -53,13 +53,19 @@ src/
 │   ├── ForceGraph.tsx          Main-thread orchestrator (forwardRef)
 │   ├── types.ts                WorkerEvent, WorkerInbound, ProxiedDomEvent, …
 │   ├── transform.ts            NodeData/EdgeData → ForceNodeSeed/ForceLinkSeed
-│   ├── styleConfig.ts          LIGHT_THEME, DARK_THEME, NODE_STATE_STYLES, DEFAULT_FORCE_CONFIG
+│   ├── styleConfig.ts          NODE_RENDER_RULES, EDGE_RENDER_RULES, NODE_DEFAULTS, EDGE_DEFAULTS, DEFAULT_FORCE_CONFIG
 │   ├── eventListener.ts        DOM → ProxiedDomEvent (AbortController cleanup)
 │   └── worker/
 │       ├── force.worker.ts     Worker entry (Comlink.expose + raw msg channel)
 │       ├── api.ts              WorkerInbound implementation (signature contract)
 │       ├── simulation.ts       d3-force, hit-test, internal SimNode/SimLink state
-│       └── canvas.ts           OffscreenCanvas 2D rendering
+│       ├── canvas.ts           PixiJS WebGL facade (delegates to ./pixi/*)
+│       └── pixi/               PixiJS rendering layers
+│           ├── app.ts          Application lifecycle + stage hierarchy
+│           ├── nodes.ts        Pooled Sprite rendering
+│           ├── edges.ts        Style-bucketed edge + outline Graphics
+│           ├── labels.ts       Budgeted Text pool with LOD
+│           └── grid.ts         Viewport-anchored grid
 └── flow/                 PRIVATE — FlowGraph + @xyflow/react
     ├── FlowGraph.tsx          Main-thread orchestrator (wraps in <ReactFlowProvider>)
     ├── transform.ts           Source ↔ RenderableNode/RenderableEdge, position persistence
@@ -92,19 +98,18 @@ src/
 
 ## WORKER PROTOCOL (4 raw channels + Comlink)
 
-`force.worker.ts` exposes `WorkerInbound` via `Comlink.expose(api)`. Three non-Comlink message types ride the raw `postMessage` channel:
+`force.worker.ts` exposes `WorkerInbound` via `Comlink.expose(api)`. Two non-Comlink message types ride the raw `postMessage` channel:
 
 | Channel | Direction | Trigger | Why raw (not Comlink) |
 | --- | --- | --- | --- |
-| `__READY__` | worker → main | Worker boot (`force.worker.ts:70`) | Main awaits this with 5s timeout before wrapping |
+| `__READY__` | worker → main | Worker boot | Main awaits this with 5s timeout before wrapping |
 | `__SET_CANVAS__` | main → worker | After `transferControlToOffscreen()` | Comlink v4 cannot transfer `OffscreenCanvas` |
-| `__FRAME__` | worker → main | Every d3 tick (coalesced via `queueMicrotask`) | `ImageBitmap` is not a default Comlink Transferable |
 | `__PING__` / `__PONG__` | both | Health check (currently unused) | — |
 | Comlink RPC | both | `initData`, `applyDiff`, `updateConfig`, `updateStyle`, `setNodeFixed`, `setNodePosition`, `reheat`, `stop`, `resume`, `setViewport`, `setDimensions`, `setEventHandler`, `proxyEvent` | Default Comlink path |
 
 **Frame coalescing** uses `queueMicrotask`, NOT `requestAnimationFrame` — see `api.ts:80-82`. rAF is unreliable inside workers.
 
-**Main thread MUST call `bitmap.close()`** after `drawImage` to release GPU memory — see `ForceGraph.tsx:208`.
+**Phase 2**: The OffscreenCanvas is transferred from the main thread via `transferControlToOffscreen()`. PixiJS renders directly into the page-visible canvas — zero-copy GPU compositing. No `ImageBitmap` copy, no `__FRAME__` channel, no `bitmap.close()`.
 
 ## d3-force DEFAULTS (`styleConfig.ts:175-182`)
 
@@ -136,18 +141,17 @@ Schema: `NodeData.stateData.position: Array<{ viewId, x, y }>` (an **array**, no
 
 **Force mode** does NOT persist viewport, but READS `stateData.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching back from flow).
 
-## 7-STATE `UiState` ENUM (FORCE-ONLY)
+## 6-VALUE `RenderState` UNION (FORCE-ONLY)
 
-**`UiState` is force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all**. Flow has no equivalent concept; node/edge selection visual is ReactFlow's built-in `selected` prop (the `rf-selected` class on the host container).
+**`RenderState` is force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all**. Flow has no equivalent concept; node/edge selection visual is ReactFlow's built-in `selected` prop (the `rf-selected` class on the host container).
 
-Values: `default | hover | selected | active | neighborActive | inactive | disabled`. Order is significant — `styleConfig.ts` keys the `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records off it.
+Values: `default | hover | selected | active | neighbor | inactive`. The `NODE_RENDER_RULES` and `EDGE_RENDER_RULES` records in `styleConfig.ts` map each state to stroke/color/shadow adjustments.
 
 | File | How it's used |
 | --- | --- |
-| `force/types.ts` | Defines `UiState` (force-only) |
-| `force/styleConfig.ts` | `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records (byte-identical) |
-| `force/transform.ts` | `defaultState?: UiState` option for seed generation |
-| `force/worker/simulation.ts` | Worker-internal `SimNode.ui` / `SimLink.ui` field; `recomputeUiStates()` mirrors the active selection / hover into per-node state on every tick |
+| `force/types.ts` | Defines `RenderState` (force-only) |
+| `force/styleConfig.ts` | `NODE_RENDER_RULES` and `EDGE_RENDER_RULES` records + `getRenderAdjustment()` |
+| `force/worker/simulation.ts` | Worker-internal `SimNode.renderState` / `SimLink.renderState` field; `recomputeWorkerState()` mirrors the active selection / hover into per-node state on every tick |
 
 ## NODE & EDGE REGISTRIES
 

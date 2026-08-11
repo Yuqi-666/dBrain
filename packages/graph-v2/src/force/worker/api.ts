@@ -38,9 +38,10 @@ import {
   updateDims,
 } from "./simulation";
 import {
+  clearStyleKeyCaches,
   createCanvas,
   getContext,
-  renderAndTransfer,
+  renderFrame,
   resizeCanvas,
   setStyle,
   setViewport as setCanvasViewport,
@@ -58,19 +59,12 @@ let canvasViewport = { x: 0, y: 0, scale: 1 };
 // -----------------------------------------------------------------------
 
 /**
- * Push a single ImageBitmap to the main thread via the raw `postMessage`
- * channel. ImageBitmap is not a default Comlink Transferable, so we
- * cannot route it through the Comlink proxy callback — we must use
- * `self.postMessage` directly.
+ * Request a single render frame. Phase 2: the OffscreenCanvas is
+ * transferred from the main thread and composited by the browser
+ * GPU — no ImageBitmap copy is needed.
  */
 function pushFrame(): void {
-  const bitmap = renderAndTransfer();
-  if (!bitmap) return;
-  // `self` is the DedicatedWorkerGlobalScope in module workers.
-  (self as unknown as Worker).postMessage(
-    { type: "__FRAME__", bitmap },
-    [bitmap],
-  );
+  renderFrame();
 }
 
 // Throttle frame pushes to at most one per animation frame to avoid
@@ -210,6 +204,7 @@ export const api: WorkerInbound = {
     // Interaction may change selection/hover state without restarting
     // the d3 simulation. Always push a frame so the canvas stays in
     // sync with the worker's internal UI state.
+    clearStyleKeyCaches();
     isDirty = true;
     scheduleFrame();
   },

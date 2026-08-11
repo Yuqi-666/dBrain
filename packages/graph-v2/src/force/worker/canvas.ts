@@ -1,89 +1,172 @@
 /**
- * OffscreenCanvas renderer (runs inside the WebWorker).
+ * PixiJS WebGL renderer facade (runs inside the WebWorker, migration complete).
  *
- * Owns:
- *   - The `OffscreenCanvas` (created internally via `createCanvas`).
- *   - The 2D rendering context (2d, with webgl fallback per
- *     worker/design.md §5.1).
- *   - The current `ForceStyle` and viewport.
+ * Delegates actual rendering to the PixiJS layers in `./pixi/*`. The
+ * `api.ts` and `force.worker.ts` callers remain unchanged.
  *
- * Renders one frame into the OffscreenCanvas, then hands the bitmap back
- * to the caller (`force.worker.ts` posts it via raw `postMessage` since
- * ImageBitmap is not a Comlink Transferable).
- *
- * Spec: worker/design.md §5 (rendering).
+ * Responsibilities:
+ *   - Own the worker-created (Phase 1) or main-thread-transferred (Phase 2)
+ *     OffscreenCanvas (WebGL for Pixi) plus a hidden 1×1 2D canvas used
+ *     ONLY for `measureText` label truncation (contract preserved for
+ *     `api.ts` computeLabels / `simulation.ts` populateNodeLabels).
+ *   - Gate rendering on async Pixi App readiness — frames pushed before
+ *     init resolves are skipped (api.ts's isDirty/scheduleFrame loop keeps
+ *     retrying while the simulation is active).
+ *   - Own the current `ForceStyle` / viewport, applying the viewport
+ *     transform to the Pixi world container and background color to the
+ *     renderer.
+ *   - Phase 2: the OffscreenCanvas is transferred from the main thread
+ *     via `createCanvasFromMain()`. PixiJS renders directly into the
+ *     page-visible canvas — zero-copy GPU compositing.
  */
 
 import type { ForceStyle, ViewportState } from "../types";
 import {
-  EDGE_RENDER_RULES,
-  NODE_RENDER_RULES,
-  getRenderAdjustment,
-} from "../styleConfig";
-import {
-  readSimulationState,
-  type SimLink,
-  type SimNode,
-} from "./simulation";
+  createPixiApp,
+  destroyApp,
+  getApp,
+  resizeApp,
+  setBackgroundColor,
+  setWorldTransform,
+} from "./pixi/app";
+import { syncEdgeGraphics, syncNodeOutlines, clearStyleKeyCaches } from "./pixi/edges";
+
+// Re-exported for api.ts — must clear after selection/hover state changes
+export { clearStyleKeyCaches };
+import { syncGrid } from "./pixi/grid";
+import { syncLabels } from "./pixi/labels";
+import { syncNodeSprites } from "./pixi/nodes";
+import { readSimulationState } from "./simulation";
 
 // -----------------------------------------------------------------------
 // State
 // -----------------------------------------------------------------------
 
 let offscreen: OffscreenCanvas | null = null;
-let ctx: OffscreenCanvasRenderingContext2D | null = null;
+/** Hidden 2D context used only for measureText (label truncation). */
+let measureCtx: OffscreenCanvasRenderingContext2D | null = null;
 
 let currentStyle: ForceStyle | null = null;
 let viewport: ViewportState = { x: 0, y: 0, scale: 1 };
-
-// Avoid per-node per-frame string allocation for font.
-const fontCache = { labelSize: -1, font: "" };
+let dims = { width: 800, height: 600 };
+let appReady = false;
+let lastBackground: string | null = null;
 
 // -----------------------------------------------------------------------
 // Init
 // -----------------------------------------------------------------------
 
 /**
- * Create a detached OffscreenCanvas and select a 2D context. Per
- * worker/design.md §5.1, this must be called exactly once.
+ * Create the worker-owned OffscreenCanvas (WebGL for Pixi) and a hidden
+ * 1×1 2D measuring canvas. Pixi init is async — rendering is gated on it
+ * (see `appReady`); init failures surface via the `__ERROR__` channel.
  */
-export function createCanvas(
-  width: number,
-  height: number,
-): void {
-  offscreen = new OffscreenCanvas(width, height);
+export function createCanvas(width: number, height: number): void {
+  if (offscreen) return; // Already initialized (from main thread or prior call).
+  dims = { width, height };
 
-  ctx = offscreen.getContext("2d") as OffscreenCanvasRenderingContext2D | null;
-  if (!ctx) {
-    // Some environments lack 2D in workers; try webgl as a last resort.
-    const gl = offscreen.getContext("webgl");
-    if (gl) {
-      throw new Error(
-        "[canvas] 2D context unavailable and WebGL is not implemented in this renderer",
-      );
-    }
+  offscreen = new OffscreenCanvas(width, height);
+  // Sanity check: a WebGL context must be obtainable in this worker.
+  const gl = offscreen.getContext("webgl");
+  if (!gl) {
     throw new Error(
-      "[canvas] No 2D or WebGL context available on OffscreenCanvas",
+      "[canvas] WebGL context unavailable on OffscreenCanvas in worker",
     );
   }
+
+  // Hidden 2D canvas for measureText (truncateLabel contract).
+  const measure = new OffscreenCanvas(1, 1);
+  measureCtx = measure.getContext("2d");
+  if (!measureCtx) {
+    throw new Error("[canvas] 2D context unavailable on measurement canvas");
+  }
+
+  appReady = false;
+  lastBackground = null;
+  clearStyleKeyCaches();
+  createPixiApp(offscreen, dims, 1)
+    .then(() => {
+      appReady = true;
+      // A resize may have arrived while init was in flight.
+      if (
+        offscreen &&
+        (offscreen.width !== dims.width || offscreen.height !== dims.height)
+      ) {
+        resizeApp(dims);
+      }
+      if (currentStyle) setBackgroundColor(currentStyle.backgroundColor);
+      if (viewport) setWorldTransform(viewport.x, viewport.y, viewport.scale);
+      // Trigger initial render now that PixiJS is ready. If the
+      // simulation has already cooled (alpha < alphaMin), no tick
+      // will fire to schedule a frame — without this call the canvas
+      // stays blank permanently.
+      renderFrame();
+    })
+    .catch((err: unknown) => {
+      postError(`Pixi init failed: ${String(err)}`);
+    });
+}
+
+export function createCanvasFromMain(
+  canvas: OffscreenCanvas,
+  width: number,
+  height: number,
+  dpr = 1,
+): void {
+  dims = { width, height };
+  offscreen = canvas;
+
+  const measure = new OffscreenCanvas(1, 1);
+  measureCtx = measure.getContext("2d");
+  if (!measureCtx) {
+    throw new Error("[canvas] 2D context unavailable on measurement canvas");
+  }
+
+  appReady = false;
+  lastBackground = null;
+  clearStyleKeyCaches();
+  createPixiApp(offscreen, dims, dpr)
+    .then(() => {
+      appReady = true;
+      if (
+        offscreen &&
+        (offscreen.width !== dims.width || offscreen.height !== dims.height)
+      ) {
+        resizeApp(dims);
+      }
+      if (currentStyle) setBackgroundColor(currentStyle.backgroundColor);
+      if (viewport) setWorldTransform(viewport.x, viewport.y, viewport.scale);
+      renderFrame();
+    })
+    .catch((err: unknown) => {
+      postError(`Pixi init failed: ${String(err)}`);
+    });
 }
 
 export function setStyle(style: ForceStyle): void {
   currentStyle = style;
+  if (appReady && style) setBackgroundColor(style.backgroundColor);
 }
 
 export function setViewport(v: ViewportState): void {
   viewport = v;
+  if (appReady) setWorldTransform(v.x, v.y, v.scale);
 }
 
 export function getContext(): OffscreenCanvasRenderingContext2D | null {
-  return ctx;
+  return measureCtx;
 }
 
-export function resizeCanvas(dims: { width: number; height: number }): void {
+export function resizeCanvas(d: { width: number; height: number }): void {
+  dims = d;
   if (!offscreen) return;
-  offscreen.width = dims.width;
-  offscreen.height = dims.height;
+  if (appReady) {
+    resizeApp(dims);
+  } else {
+    // Pixi not ready yet — createCanvas's .then() picks up the latest dims.
+    offscreen.width = d.width;
+    offscreen.height = d.height;
+  }
 }
 
 // -----------------------------------------------------------------------
@@ -91,152 +174,37 @@ export function resizeCanvas(dims: { width: number; height: number }): void {
 // -----------------------------------------------------------------------
 
 /**
- * Render a single frame. After this returns, the caller should call
- * `transferToImageBitmap()` and post it to the main thread.
+ * Render a single frame. All layers are synced to current simulation state
+ * then `app.render()` flushes the WebGL pipeline. Phase 2 renders directly
+ * into the main-thread-transferred OffscreenCanvas (zero-copy compositing).
  */
 export function renderFrame(): void {
-  if (!offscreen || !ctx || !currentStyle) return;
-  const { width, height } = offscreen;
-  const c = ctx;
+  if (!offscreen || !appReady || !currentStyle) return;
+  const app = getApp();
+  if (!app) return;
 
-  // 1. Clear
-  c.save();
-  c.setTransform(1, 0, 0, 1, 0, 0);
-  c.fillStyle = currentStyle.backgroundColor;
-  c.fillRect(0, 0, width, height);
-  c.restore();
-
-  // 2. Grid (only when zoomed in enough)
-  if (viewport.scale > 0.5 && currentStyle.gridColor) {
-    c.save();
-    c.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.x, viewport.y);
-    c.strokeStyle = currentStyle.gridColor;
-    c.lineWidth = 0.5 / viewport.scale;
-    c.beginPath();
-    const step = 50;
-    // Draw grid within visible area
-    const invScale = 1 / viewport.scale;
-    const startX = Math.floor(-viewport.x * invScale / step) * step;
-    const startY = Math.floor(-viewport.y * invScale / step) * step;
-    const endX = startX + (width * invScale) + step;
-    const endY = startY + (height * invScale) + step;
-    for (let gx = startX; gx <= endX; gx += step) {
-      c.moveTo(gx, startY);
-      c.lineTo(gx, endY);
-    }
-    for (let gy = startY; gy <= endY; gy += step) {
-      c.moveTo(startX, gy);
-      c.lineTo(endX, gy);
-    }
-    c.stroke();
-    c.restore();
+  if (currentStyle.backgroundColor !== lastBackground) {
+    lastBackground = currentStyle.backgroundColor;
+    setBackgroundColor(lastBackground);
   }
 
-  // 3. Apply viewport transform
-  c.save();
-  c.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.x, viewport.y);
+  const { nodes, links } = readSimulationState();
 
-  // 4. Draw edges first (under nodes).
-  // Frustum culling: compute visible bounds in simulation coords with
-  // a generous padding margin (50px) to account for node radii + labels.
-  const invScale = 1 / viewport.scale;
-  const PAD = 50;
-  const vpLeft = -viewport.x * invScale - PAD;
-  const vpRight = (-viewport.x + width) * invScale + PAD;
-  const vpTop = -viewport.y * invScale - PAD;
-  const vpBottom = (-viewport.y + height) * invScale + PAD;
+  syncGrid(viewport, dims, currentStyle);
+  syncEdgeGraphics(links, viewport, dims);
+  syncNodeOutlines(nodes, viewport, dims);
+  syncNodeSprites(nodes, viewport, dims);
+  syncLabels(nodes, links, viewport, dims);
 
-  // Helper: check if a node is visible (center point within padded viewport).
-  const isNodeVisible = (nx: number | undefined, ny: number | undefined): boolean => {
-    if (nx === undefined || ny === undefined) return false;
-    return nx >= vpLeft && nx <= vpRight && ny >= vpTop && ny <= vpBottom;
-  };
-
-  const state = readSimulationState();
-  const { links, nodes: simNodes } = state;
-
-  for (const link of links) {
-    const srcVisible = isNodeVisible(link.source.x, link.source.y);
-    const tgtVisible = isNodeVisible(link.target.x, link.target.y);
-    // Skip edge only when BOTH endpoints are outside the viewport.
-    if (!srcVisible && !tgtVisible) continue;
-    drawEdge(c, link, currentStyle);
-  }
-
-  // 5. Draw nodes.
-  for (const node of simNodes) {
-    if (!isNodeVisible(node.x, node.y)) continue;
-    drawNode(c, node, currentStyle);
-  }
-
-  c.restore();
-}
-
-/**
- * Render and immediately return the `ImageBitmap`. The caller is
- * responsible for posting it via `self.postMessage` (raw) and
- * transferring ownership.
- */
-export function renderAndTransfer(): ImageBitmap | null {
-  if (!offscreen) return null;
-  renderFrame();
-  return offscreen.transferToImageBitmap();
+  app.render();
 }
 
 // -----------------------------------------------------------------------
-// Node drawing
+// Label truncation (unchanged contract — used by api.ts computeLabels)
 // -----------------------------------------------------------------------
 
-function drawNode(
-  c: OffscreenCanvasRenderingContext2D,
-  node: SimNode,
-  style: ForceStyle,
-): void {
-  const x = node.x ?? 0;
-  const y = node.y ?? 0;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  const r = node.radius;
-  const adj = getRenderAdjustment(node.renderState, NODE_RENDER_RULES);
-
-  // 1. Fill.
-  c.beginPath();
-  c.arc(x, y, r, 0, Math.PI * 2);
-  c.fillStyle = node.fillColor;
-  c.fill();
-
-  // 2. Stroke + shadow.
-  c.beginPath();
-  c.arc(x, y, r, 0, Math.PI * 2);
-  c.strokeStyle = adj?.strokeColorOverride ?? node.strokeColor;
-  c.lineWidth = adj?.strokeWidthMultiplier
-    ? node.strokeWidth * adj.strokeWidthMultiplier
-    : node.strokeWidth;
-  if (adj?.shadow) {
-    c.shadowColor = adj.shadow.color;
-    c.shadowBlur = adj.shadow.blur;
-  } else {
-    c.shadowBlur = 0;
-  }
-  c.stroke();
-  c.shadowBlur = 0;
-
-  // 3. Label.
-  if (node.label) {
-    if (fontCache.labelSize !== node.labelSize) {
-      fontCache.labelSize = node.labelSize;
-      fontCache.font = `${node.labelSize}px sans-serif`;
-    }
-    c.font = fontCache.font;
-    c.fillStyle = node.labelColor;
-    c.textAlign = "center";
-    c.textBaseline = "top";
-    const label = node.__label ?? truncateLabel(node.label, 100, c);
-    c.fillText(label, x, y + r + 4);
-  }
-}
-
 /**
- * Rough character-based truncation to keep the label within ~100px.
+ * Rough character-based truncation to keep the label within ~maxWidth.
  * Uses the canvas measureText to estimate width. Exported for label
  * pre-computation during data ingestion (see api.ts initData).
  */
@@ -262,133 +230,27 @@ export function truncateLabel(
 }
 
 // -----------------------------------------------------------------------
-// Edge drawing
+// Teardown (future worker-reuse path; not currently called)
 // -----------------------------------------------------------------------
 
-function drawEdge(
-  c: OffscreenCanvasRenderingContext2D,
-  link: SimLink,
-  _style: ForceStyle,
-): void {
-  const sx = link.source.x ?? 0;
-  const sy = link.source.y ?? 0;
-  const tx = link.target.x ?? 0;
-  const ty = link.target.y ?? 0;
-  if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) return;
-  const adj = getRenderAdjustment(link.renderState, EDGE_RENDER_RULES);
-
-  if (link.source === link.target) {
-    drawSelfLoop(c, link, sx, sy, link.source.radius);
-    return;
-  }
-
-  c.beginPath();
-  c.strokeStyle = adj?.strokeColorOverride ?? link.strokeColor;
-  c.lineWidth = adj?.strokeWidthMultiplier
-    ? link.strokeWidth * adj.strokeWidthMultiplier
-    : link.strokeWidth;
-  if (adj?.shadow) {
-    c.shadowColor = adj.shadow.color;
-    c.shadowBlur = adj.shadow.blur;
-  } else {
-    c.shadowBlur = 0;
-  }
-
-  const isBidirectional = link.direction === "bidirectional";
-  const useCubic = isBidirectional || link.shape === "s-curve";
-  const useQuadratic = !useCubic && link.shape === "curve";
-
-  if (useCubic) {
-    const cx1 = sx + (tx - sx) * 0.4;
-    const cy1 = sy;
-    const cx2 = tx - (tx - sx) * 0.4;
-    const cy2 = ty;
-    c.moveTo(sx, sy);
-    c.bezierCurveTo(cx1, cy1, cx2, cy2, tx, ty);
-  } else if (useQuadratic) {
-    const mx = (sx + tx) / 2;
-    const my = (sy + ty) / 2 - 40;
-    c.moveTo(sx, sy);
-    c.quadraticCurveTo(mx, my, tx, ty);
-  } else {
-    c.moveTo(sx, sy);
-    c.lineTo(tx, ty);
-  }
-
-  if (link.strokeType === "dashed") {
-    c.setLineDash([6, 4]);
-  } else if (link.strokeType === "dotted") {
-    c.setLineDash([2, 4]);
-  } else {
-    c.setLineDash([]);
-  }
-  c.stroke();
-  c.setLineDash([]);
-  c.shadowBlur = 0;
-
-  drawArrow(c, link, sx, sy, tx, ty);
+export function teardownRenderer(): void {
+  appReady = false;
+  clearStyleKeyCaches();
+  destroyApp();
+  offscreen = null;
+  measureCtx = null;
+  currentStyle = null;
+  lastBackground = null;
 }
 
-function drawArrow(
-  c: OffscreenCanvasRenderingContext2D,
-  link: SimLink,
-  sx: number,
-  sy: number,
-  tx: number,
-  ty: number,
-): void {
-  const ARROW_SIZE = 8;
-  const DEFAULT_RADIUS = 8;
-  const targetR = (link.target.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
-  const sourceR = (link.source.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
-  const dx = tx - sx;
-  const dy = ty - sy;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 0.001) return; // self-loop handled separately
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const angle = Math.atan2(dy, dx);
+// -----------------------------------------------------------------------
+// Error reporting
+// -----------------------------------------------------------------------
 
-  if (link.direction === "forward" || link.direction === "bidirectional") {
-    drawArrowHead(c, tx - ux * targetR, ty - uy * targetR, angle, ARROW_SIZE);
+function postError(msg: string): void {
+  try {
+    self.postMessage({ type: "__ERROR__", message: msg });
+  } catch {
+    // The message channel may already be gone (worker is shutting down).
   }
-  if (link.direction === "reverse" || link.direction === "bidirectional") {
-    drawArrowHead(c, sx + ux * sourceR, sy + uy * sourceR, angle + Math.PI, ARROW_SIZE);
-  }
-}
-
-function drawArrowHead(
-  c: OffscreenCanvasRenderingContext2D,
-  x: number,
-  y: number,
-  angle: number,
-  size: number,
-): void {
-  const half = size / 2;
-  c.save();
-  c.translate(x, y);
-  c.rotate(angle);
-  c.beginPath();
-  c.moveTo(0, 0);
-  c.lineTo(-size, -half);
-  c.lineTo(-size, half);
-  c.closePath();
-  c.fillStyle = c.strokeStyle as string;
-  c.fill();
-  c.restore();
-}
-
-function drawSelfLoop(
-  c: OffscreenCanvasRenderingContext2D,
-  _link: SimLink,
-  x: number,
-  y: number,
-  r: number,
-): void {
-  const loopR = r + 12;
-  c.beginPath();
-  c.arc(x, y - loopR, 8, -Math.PI * 0.8, Math.PI * 0.8);
-  c.stroke();
-  // arrow at arc top
-  drawArrowHead(c, x + 8, y - loopR - 8, -Math.PI / 2, 6);
 }

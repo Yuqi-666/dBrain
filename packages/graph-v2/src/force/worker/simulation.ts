@@ -567,6 +567,8 @@ export function setSelectedNodes(ids: NodeId[]): void {
 export function setSelectedEdges(ids: EdgeId[]): void {
   selectedEdgeIds = new Set(ids);
   selectedNodeIds = new Set();
+  recomputeNeighbors();
+  recomputeWorkerState();
 }
 
 export function setHoveredNode(id: NodeId | null): void {
@@ -873,7 +875,6 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target && target.id === lastClickNode && now - lastClickTime < 300) {
         clearSelection();
         setSelectedNodes([target.id]);
-        recomputeWorkerState();
         emit({ type: "node:dblclick", nodeId: target.id });
         lastClickTime = 0;
         lastClickNode = null;
@@ -916,11 +917,9 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         if (edgeTarget) {
           clearSelection();
           setSelectedEdges([edgeTarget.link.id]);
-          recomputeWorkerState();
           emit({ type: "edge:click", edgeId: edgeTarget.link.id, modifiers: evt.modifiers });
         } else {
           clearSelection();
-          recomputeWorkerState();
           emit({ type: "canvas:pointer-down", x: evt.x, y: evt.y, modifiers: evt.modifiers });
         }
       }
@@ -1013,18 +1012,15 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target) {
         clearSelection();
         setSelectedNodes([target.id]);
-        recomputeWorkerState();
         emit({ type: "context-menu:node", nodeId: target.id, clientX: evt.clientX, clientY: evt.clientY });
       } else {
         const edgeHit = hitTestEdge(evt.x, evt.y, 10);
         if (edgeHit) {
           clearSelection();
           setSelectedEdges([edgeHit.link.id]);
-          recomputeWorkerState();
           emit({ type: "context-menu:edge", edgeId: edgeHit.link.id, clientX: evt.clientX, clientY: evt.clientY });
         } else {
           clearSelection();
-          recomputeWorkerState();
           emit({ type: "context-menu:canvas", clientX: evt.clientX, clientY: evt.clientY });
         }
       }

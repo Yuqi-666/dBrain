@@ -2,7 +2,7 @@
 
 ### 一、双线程架构
 
-Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 Comlink RPC + 4 条原始 `postMessage` 通道通信。Worker 拥有 d3-force 物理模拟 + OffscreenCanvas 2D 渲染，主线程负责数据供给、DOM 事件捕获和 Zustand Store 桥接。
+Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 Comlink RPC + 原始 `postMessage` 通道通信。Worker 拥有 d3-force 物理模拟 + PixiJS WebGL 渲染（通过 `./pixi/*` 层），主线程负责数据供给、DOM 事件捕获和 Zustand Store 桥接。
 
 ```
 ┌─ 主线程 ──────────────────────────────────────────────────────┐
@@ -12,13 +12,13 @@ Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 
 │    ├─ styleConfig.ts      四层样式管线（defaults/business/client/render）│
 │    └─ eventHandler.ts     WorkerEvent → useUIStore 写入        │
 ├────────────────────────────────────────────────────────────────┤
-│  Comlink RPC + 原始 postMessage (ImageBitmap / __READY__)      │
+│  Comlink RPC + 原始 postMessage (__SET_CANVAS__ / __READY__)
 ├────────────────────────────────────────────────────────────────┤
 │  Worker 线程                                                    │
 │    ├─ force.worker.ts  Comlink.expose(api) + 启动握手          │
 │    ├─ api.ts           WorkerInbound → sim/canvas 路由 + 帧循环 │
 │    ├─ simulation.ts    d3-force + hit-test + 事件状态机         │
-│    └─ canvas.ts        OffscreenCanvas 2D → transferToImageBitmap│
+│    └─ canvas.ts        PixiJS WebGL facade → delegates to ./pixi/*
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -33,7 +33,7 @@ Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 
 | `transform.ts`                | 184  | 源数据→Worker 种子转换 + 四层 merge + diff 提取 | `nodeDataToForceSeeds`、`edgeDataToForceSeeds`、`diffToForcePayload`    |
 | `types.ts`                    | 391  | Force 私有类型系统 + Comlink RPC 契约            | `ProxiedDomEvent`、`RenderState`、`WorkerInbound`、`WorkerEvent`            |
 | `worker/api.ts`               | 240  | WorkerInbound 实现 + 帧循环调度 + 静态帧跳过      | `api`                                                                   |
-| `worker/canvas.ts`            | 405  | OffscreenCanvas 2D 渲染 + 视锥裁剪 + 标签缓存     | `renderAndTransfer`、`renderFrame`、`truncateLabel`、`getContext`       |
+| `worker/canvas.ts`            | 250  | PixiJS WebGL facade — 委托到 `./pixi/*` 层   | `createCanvas`、`createCanvasFromMain`、`renderFrame`、`truncateLabel`、`getContext`       |
 | `worker/force.worker.ts`      | 69   | Worker 入口：Comlink.expose + 启动信号           | （无——入口文件）                                                        |
 | `worker/simulation.ts`        | 1020 | d3-force 核心 + 性能优化（节点Map索引/α去重等）   | `createOrUpdate`、`applyDiff`、`hitTest`、`handleProxiedEvent`、`populateNodeLabels` |
 
@@ -49,7 +49,7 @@ ForceGraph.tsx (mount effect)
   │ 2. new Worker("./worker/force.worker.ts", {type:"module"})
   │ 3. 等待 __READY__ 消息（5 秒超时）
   │ 4. Comlink.wrap<WorkerInbound>(worker) → apiRef
-  │ 5. 注册 __FRAME__ 监听器（ImageBitmap → ctx.drawImage → bitmap.close()）
+  │ 5. `canvas.transferControlToOffscreen()` → postMessage `__SET_CANVAS__`
   │
   ├─ api.setEventHandler(Comlink.proxy(onWorkerEvent))
   │
@@ -89,30 +89,20 @@ api.ts: onTickListener → scheduleFrame()
   │  queueMicrotask 合并（非 rAF——Worker 中 rAF 不可靠）
   │  isDirty 守卫：仅 alpha > 0.001 或 RPC 方法触发时执行渲染
   ▼
-pushFrame() → renderAndTransfer()
+pushFrame() → renderFrame()
   │
   ▼
 canvas.ts renderFrame():
-  1. 清空 + 填充背景色
-  2. 网格线（50px 步长，仅当 viewport.scale > 0.5）
-  3. setTransform(scale, 0, 0, scale, vp.x, vp.y)
-  4. 计算可见区域（invScale 反变换 + 50px 边距），绘制边（跳过两端均不可见者）：
-      - straight → 直线，curve → 二次贝塞尔 (mx, my-40)，s-curve → 三次贝塞尔
-      - bidirectional 强制 s-curve
-      - 自环：节点上方弧线
-      - 箭头：按 link.direction 绘制 forward/reverse/bidirectional
-      - strokeType: solid / dotted / dashed
-      - 交互态：getRenderAdjustment(link.renderState, EDGE_RENDER_RULES) → strokeColor/strokeWidth 微调
-  5. 绘制节点（仅可见区域内）：
-      - 圆形填充（node.fillColor — seed 已确定，渲染时不改）
-      - 圆形描边 + 阴影（node.strokeColor × getRenderAdjustment(node.renderState, NODE_RENDER_RULES)）
-      - 标签（{ node.label, node.labelColor, node.labelSize }，优先读 __label 缓存，fallback truncateLabel）
+  1. readSimulationState() → { nodes, links }
+  2. syncGrid(viewport, dims, style)
+  3. syncEdgeGraphics(links, viewport, dims) — 按样式签名分桶批量 stroke
+  4. syncNodeOutlines(nodes, viewport, dims) — 节点描边+阴影
+  5. syncNodeSprites(nodes, viewport, dims) — 池化 Sprite + tint
+  6. syncLabels(nodes, links, viewport, dims) — 预算内 Text + LOD
+  7. app.render()
   │
   ▼
-transferToImageBitmap() → 原始 postMessage({type:"__FRAME__", bitmap}, [bitmap])
-  │
-  ▼
-主线程: ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close()
+Phase 2: 直接渲染到主线程传输的 OffscreenCanvas —— GPU 零拷贝合成
 ```
 
 ### 五、事件管线（DOM → Worker → Store）
@@ -348,20 +338,20 @@ Semantic 颜色同步（独立路径，不经过 NodeData diff）：
 
 **仿真重启规则**：仅增删节点或增删边时触发 `alphaTarget(0.1).restart()`。属性更新（`stateData.client`、`stateData.server`、`semantic.color` 变更）只更新 Worker 内存中的值，位置不动。
 
-### 八、消息协议（4 条原始通道 + Comlink RPC）
+### 八、消息协议（原始通道 + Comlink RPC）
 
 | 通道                  | 方向      | 类型                                      | 说明                                                                    |
 | --------------------- | --------- | ----------------------------------------- | ----------------------------------------------------------------------- |
 | `__READY__`           | worker→主 | `{type:"__READY__"}`                      | 启动信号，主线程 5 秒超时等待                                           |
-| `__FRAME__`           | worker→主 | `{type:"__FRAME__", bitmap: ImageBitmap}` | 原始 postMessage + transfer list（ImageBitmap 非 Comlink Transferable） |
+| `__SET_CANVAS__`      | 主→worker | `{type:"__SET_CANVAS__", canvas, width, height}` | Phase 2——`transferControlToOffscreen()` → worker 接收 OffscreenCanvas（Comlink v4 无法传输） |
 | `__PING__`/`__PONG__` | 双向      | 健康检查                                  | 挂在 self 上                                                            |
-| `__ERROR__`           | worker→主 | `{type:"__ERROR__", message}`             | Canvas 异常、未捕获异常                                                 |
+| `__ERROR__`           | worker→主 | `{type:"__ERROR__", message}`             | Canvas/Pixi 异常、未捕获异常                                            |
 | Comlink RPC           | 双向      | 其他一切                                  | initData、applyDiff、proxyEvent、setViewport、setEventHandler 等        |
 
 ### 九、关键设计决策
 
 1. **Worker 零 DOM 访问** — 所有手势通过 Comlink 序列化为 `ProxiedDomEvent`
-2. **OffscreenCanvas 在 Worker 内部创建**（非传递）—— Comlink v4 限制，通过 RPC 传尺寸参数创建
+2. **OffscreenCanvas 从主线程传输**（Phase 2）—— `transferControlToOffscreen()` → `__SET_CANVAS__` 原始通道 → PixiJS 直接渲染到页面可见画布（GPU 零拷贝合成）。备选：Phase 1 路径是由 Worker 内部创建（`createCanvas` 用于 `initData`）
 3. **帧合并用 `queueMicrotask`** 而非 `requestAnimationFrame` — Worker 中 rAF 不可靠
 4. **四叉树阈值 2000 节点** — 低于此值用暴力遍历 hit-test，高于此值用 d3-quadtree
 5. **Force 模式只读位置** — 读取 `stateData.position[viewId]` 作为初始布局，永不回写。不持久化 fx/fy
@@ -403,7 +393,7 @@ Semantic 颜色同步（独立路径，不经过 NodeData diff）：
 1. `canvas.ts` 导出 `truncateLabel` 和 `getContext()`
 2. `api.ts` `computeLabels()` 在 `initData` / `applyDiff` 之后调用，传入 canvas 上下文
 3. `simulation.ts` `populateNodeLabels(getLabel)` 遍历全部节点填入 `__label`
-4. `canvas.ts` `drawNode()` 优先读 `node.__label`，fallback `truncateLabel(...)`
+4. `worker/pixi/labels.ts` 优先读 `node.__label`，fallback `node.label`
 
 **失效规则**：`applyDiff` 中 upsert 已有节点时，必须将 `existing.__label = undefined`，让下一次 `computeLabels()` 重新计算。
 
@@ -433,7 +423,15 @@ Semantic 颜色同步（独立路径，不经过 NodeData diff）：
 
 **搜索半径 `100px`** = linkDistance(80) + threshold(10) + margin(10)，足以覆盖一条边跨越的最大距离。
 
-#### 10.8 反模式（禁止回退）
+#### 10.8 标签预算 + LOD（`styleConfig.ts` + `worker/pixi/labels.ts`，Phase 3）
+
+`LABEL_BUDGET = 100` 和 `TRANSFORM_THRESHOLD = 1`（`styleConfig.ts`）。`syncLabels()` 按优先级排序节点(active > selected > hovered > root > degree > others)，仅渲染前 N 个标签。当 `viewport.scale < TRANSFORM_THRESHOLD` 时隐藏所有标签（LOD 门控）。
+
+#### 10.9 样式键缓存（`worker/pixi/edges.ts`，Phase 3）
+
+`styleKeyCache` / `outlineKeyCache` Maps（按 nodeId/edgeId 索引）。`edgeStyleKey()` 和 `nodeOutlineStyleKey()` 在首次未命中时计算并缓存样式签名字符串，在后续帧间持久化，避免每帧重新进行 `getRenderAdjustment().find()`。通过 `clearStyleKeyCaches()` 在 initData/teardown 上失效。
+
+#### 10.10 反模式（禁止回退）
 
 - **禁止**在拖拽循环内直接调用 `setNodePosition`（每节点一次 `alpha().restart()`）→ 用 `setNodePositionRaw` + 循环外单次 restart
 - **禁止**在 `createOrUpdate` 内声明局部 `const nodeMap` —— 会遮蔽模块级 `let nodeMap`，导致 `nodeMap = new Map(...)` 对 const 赋值报错
