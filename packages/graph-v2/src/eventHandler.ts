@@ -178,13 +178,16 @@ export function useGraphEventHandler(): GraphEventHandler {
             });
             return;
           case "node:pointer-enter":
-            set((s) =>
-              s.setPreviewBlock({
-                nodeId: event.nodeId,
-                visible: true,
-                isFocus: false,
-              }),
-            );
+            // Don't replace a focused preview with a mere hover.
+            set((s) => {
+              if (!s.previewBlock.isFocus) {
+                s.setPreviewBlock({
+                  nodeId: event.nodeId,
+                  visible: true,
+                  isFocus: false,
+                });
+              }
+            });
             return;
           case "node:pointer-leave":
             set((s) => {
@@ -195,7 +198,10 @@ export function useGraphEventHandler(): GraphEventHandler {
             set((s) => s.closePreviewBlock());
             return;
           case "edge:click":
-            set((s) => s.setSelectedEdgeIds(new Set([event.edgeId])));
+            set((s) => {
+              s.setSelectedEdgeIds(new Set([event.edgeId]));
+              s.closePreviewBlock();
+            });
             return;
           // Context-menu results (selection only — menu is opened
           // by ForceGraph's onWorkerEvent from the same event).
@@ -223,6 +229,31 @@ export function useGraphEventHandler(): GraphEventHandler {
             set((s) => {
               s.setSelectedNodeIds(new Set(event.selectedNodeIds));
               s.setSelectedEdgeIds(new Set(event.selectedEdgeIds));
+              // Single node selected → focus preview on that node.
+              // Selection cleared → unfocus preview (but keep visible if
+              // mouse still hovers — hover will re-set it via pointer-enter).
+              if (
+                event.selectedNodeIds.length === 1 &&
+                event.selectedEdgeIds.length === 0
+              ) {
+                s.setPreviewBlock({
+                  nodeId: event.selectedNodeIds[0] ?? null,
+                  visible: true,
+                  isFocus: true,
+                });
+              } else if (
+                event.selectedNodeIds.length === 0 &&
+                event.selectedEdgeIds.length === 0
+              ) {
+                // Close focused preview outright — unfocusing would
+                // cause it to jump to the mouse position before the
+                // subsequent canvas:click closes it.
+                // If the mouse is still hovering a node, the next
+                // pointer-move will re-open it via node:pointer-enter.
+                if (s.previewBlock.visible && s.previewBlock.isFocus) {
+                  s.closePreviewBlock();
+                }
+              }
             });
             return;
           // Pure noise / informational events — nothing to do.
@@ -248,7 +279,10 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onSelectEdge(edgeId) {
-        set((s) => s.setSelectedEdgeIds(new Set([edgeId])));
+        set((s) => {
+          s.setSelectedEdgeIds(new Set([edgeId]));
+          s.closePreviewBlock();
+        });
       },
 
       onSelectMany({ nodes, edges }) {
@@ -273,13 +307,16 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onNodePointerEnter(nodeId) {
-        set((s) =>
-          s.setPreviewBlock({
-            nodeId,
-            visible: true,
-            isFocus: false,
-          }),
-        );
+        // Don't replace a focused preview with a mere hover.
+        set((s) => {
+          if (!s.previewBlock.isFocus) {
+            s.setPreviewBlock({
+              nodeId,
+              visible: true,
+              isFocus: false,
+            });
+          }
+        });
       },
 
       onNodePointerLeave() {

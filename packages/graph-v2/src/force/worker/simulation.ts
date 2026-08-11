@@ -97,6 +97,12 @@ let neighborNodeIds: Set<NodeId> = new Set();
 /** Multi-select drag offsets (FIX 1.2). */
 const dragOffsets = new Map<NodeId, { ox: number; oy: number }>();
 
+/** Click-vs-drag distinction: drag only starts after 3 sim-px movement. */
+let dragMoved = false;
+let dragStarted = false;
+let dragStartX = 0;
+let dragStartY = 0;
+
 /** Double-click detection (FIX 1.4). */
 let lastClickTime = 0;
 let lastClickNode: NodeId | null = null;
@@ -539,12 +545,14 @@ export function setNodePosition(
 
 export function setSelectedNodes(ids: NodeId[]): void {
   selectedNodeIds = new Set(ids);
+  selectedEdgeIds = new Set();
   recomputeNeighbors();
   recomputeWorkerState();
 }
 
 export function setSelectedEdges(ids: EdgeId[]): void {
   selectedEdgeIds = new Set(ids);
+  selectedNodeIds = new Set();
 }
 
 export function setHoveredNode(id: NodeId | null): void {
@@ -771,10 +779,11 @@ export function hitTestEdge(
     const candidateIds = new Set<NodeId>();
     qt.visit((node, x1, y1, x2, y2) => {
       if (node) {
-        const ndx = (node.x ?? 0) - x;
-        const ndy = (node.y ?? 0) - y;
+        const simNode = node as unknown as SimNode;
+        const ndx = (simNode.x ?? 0) - x;
+        const ndy = (simNode.y ?? 0) - y;
         if (Math.sqrt(ndx * ndx + ndy * ndy) <= searchRadius) {
-          candidateIds.add(node.id);
+          candidateIds.add(simNode.id);
         }
         return true;
       }
@@ -858,6 +867,11 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target) {
         lastClickTime = now;
         lastClickNode = target.id;
+        // Track drag origin so click-vs-drag can be distinguished.
+        dragMoved = false;
+        dragStarted = false;
+        dragStartX = evt.x;
+        dragStartY = evt.y;
       }
       if (target) {
         if (evt.modifiers.alt) return;
@@ -881,8 +895,6 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
           if (n) dragOffsets.set(id, { ox: (n.x ?? 0) - evt.x, oy: (n.y ?? 0) - evt.y });
         }
         emit({ type: "selection:changed", selectedNodeIds: [target.id], selectedEdgeIds: [] });
-        setNodeFixed(target.id, true, target.x, target.y);
-        emit({ type: "node:drag-start", nodeId: target.id, x: target.x ?? 0, y: target.y ?? 0 });
       } else {
         // No node hit — try edge hit-test before falling back to canvas.
         const edgeTarget = hitTestEdge(evt.x, evt.y, 10);
@@ -909,18 +921,36 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         !evt.modifiers.alt &&
         !evt.modifiers.ctrl
       ) {
-        for (const id of selectedNodeIds) {
-          const n = nodeMap.get(id);
-          if (!n) continue;
-          const offset = dragOffsets.get(id) ?? { ox: 0, oy: 0 };
-          setNodePositionRaw(id, evt.x + offset.ox, evt.y + offset.oy);
-          emit({ type: "node:drag", nodeId: id, x: evt.x + offset.ox, y: evt.y + offset.oy });
+        // Distance threshold (3 simulation-px): ignore hardware noise
+        // and distinguish click from drag. Match eventListener.ts pan
+        // threshold of 6 device-px scaled down for sim space.
+        const dx = evt.x - dragStartX;
+        const dy = evt.y - dragStartY;
+        if (Math.sqrt(dx * dx + dy * dy) > 3) {
+          if (!dragStarted) {
+            dragStarted = true;
+            const primaryId = [...selectedNodeIds][0]!;
+            const primary = nodeMap.get(primaryId);
+            setNodeFixed(primaryId, true, primary?.x, primary?.y);
+            emit({ type: "node:drag-start", nodeId: primaryId, x: primary?.x ?? 0, y: primary?.y ?? 0 });
+          }
+          dragMoved = true;
+          for (const id of selectedNodeIds) {
+            const n = nodeMap.get(id);
+            if (!n) continue;
+            const offset = dragOffsets.get(id) ?? { ox: 0, oy: 0 };
+            setNodePositionRaw(id, evt.x + offset.ox, evt.y + offset.oy);
+            emit({ type: "node:drag", nodeId: id, x: evt.x + offset.ox, y: evt.y + offset.oy });
+          }
+          sim?.alpha(0.3).restart();
         }
-        // Restart once after all selected nodes have been moved.
-        sim?.alpha(0.3).restart();
       }
-      const target = hitTest(evt.x, evt.y);
-      setHoveredNode(target?.id ?? null);
+      // Suppress hover while dragging so the preview doesn't flicker
+      // between nodes mid-gesture.
+      if (!dragMoved) {
+        const target = hitTest(evt.x, evt.y);
+        setHoveredNode(target?.id ?? null);
+      }
       emit({ type: "canvas:pointer-move", x: evt.x, y: evt.y });
       break;
     }
@@ -930,7 +960,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       // context menu and close it immediately.
       if (evt.button === 2) break;
 
-      const wasDragging = selectedNodeIds.size > 0;
+      const wasDragging = dragMoved;
       const keepFixed = evt.modifiers.ctrl;
       for (const id of selectedNodeIds) {
         setNodeFixed(id, keepFixed);
@@ -953,6 +983,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         if (upEdge) break;
         emit({ type: "canvas:click", x: evt.x, y: evt.y });
       }
+      dragMoved = false;
       break;
     }
     case "wheel": {

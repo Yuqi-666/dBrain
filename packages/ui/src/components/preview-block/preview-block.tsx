@@ -167,6 +167,7 @@ export function PreviewBlock({
         maxHeight: previewSize.height || PREVIEW_MAX_HEIGHT,
         zIndex: 9999,
       }}
+      data-preview-block
       className="overflow-hidden rounded-xl border bg-background shadow-xl "
     >
       <PreviewHeader node={node} />

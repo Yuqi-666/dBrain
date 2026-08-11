@@ -599,6 +599,23 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       return () => ro.disconnect();
     }, []);
 
+    // ---- Dismiss focused preview on outside click --------------------
+    // When previewBlock is focused (clicked on a node), clicking
+    // anywhere outside the canvas container and the preview itself
+    // should dismiss it. Clicks on the canvas are handled by the worker
+    // (canvas:click → closePreviewBlock).
+    useEffect(() => {
+      if (!previewBlock.isFocus) return;
+      const handlePointerDown = (e: PointerEvent) => {
+        const target = e.target as HTMLElement;
+        if (containerRef.current?.contains(target)) return;
+        if (target.closest("[data-preview-block]")) return;
+        closePreviewBlock();
+      };
+      document.addEventListener("pointerdown", handlePointerDown);
+      return () => document.removeEventListener("pointerdown", handlePointerDown);
+    }, [previewBlock.isFocus, closePreviewBlock]);
+
     // ---- Render ------------------------------------------------------
     return (
       <div
