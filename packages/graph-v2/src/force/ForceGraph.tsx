@@ -162,11 +162,25 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       (GraphContextMenuProps & { setContextMenu?: (m: unknown) => void }) | null
     >(null);
 
-    // We still read the context menu setter here so the in-canvas
-    // `GraphContextMenu` overlay can drive the store on close. This is
-    // a *display concern* (the menu component reads the setter) — the
-    // actual *opening* of the menu is done via `eventHandler.onContextMenu`.
-    const setContextMenu = useUIStore((s) => s.setContextMenu);
+    const setContextMenu = useCallback(
+      (menu: {
+        x: number;
+        y: number;
+        type: GraphContextMenuProps["type"];
+        context: GraphContextMenuProps["context"];
+      }) => {
+        useUIStore.getState().closePreviewBlock();
+        setContextMenuState({
+          x: menu.x,
+          y: menu.y,
+          visible: true,
+          type: menu.type,
+          context: menu.context,
+          onClose: () => setContextMenuState(null),
+        } as GraphContextMenuProps);
+      },
+      [],
+    );
     const previewBlock = useUIStore((s) => s.previewBlock);
     const closePreviewBlock = useUIStore((s) => s.closePreviewBlock);
 
@@ -504,6 +518,34 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           case "simulation:stopped":
             persistPositions(event.positions);
             break;
+          case "alt-drag:end": {
+            closePreviewBlock();
+            if (event.targetId === null) {
+              setContextMenuState({
+                x: event.clientX,
+                y: event.clientY,
+                visible: true,
+                type: "add-edge",
+                context: { sourceIds: event.sourceIds, targetId: null },
+                onClose: () => setContextMenuState(null),
+              });
+            } else {
+              eventHandler.onAltDragEnd(event).then((edgeId) => {
+                closePreviewBlock();
+                if (edgeId) {
+                  setContextMenuState({
+                    x: event.clientX,
+                    y: event.clientY,
+                    visible: true,
+                    type: "edge",
+                    context: { edgeId },
+                    onClose: () => setContextMenuState(null),
+                  });
+                }
+              });
+            }
+            break;
+          }
         }
 
         eventHandler.handleWorkerEvent(event);

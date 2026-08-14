@@ -29,14 +29,14 @@ import {
   setBackgroundColor,
   setWorldTransform,
 } from "./pixi/app";
-import { syncEdgeGraphics, syncNodeOutlines, clearStyleKeyCaches } from "./pixi/edges";
+import { syncEdgeGraphics, syncNodeOutlines, syncAssistEdges, clearStyleKeyCaches } from "./pixi/edges";
 
 // Re-exported for api.ts — must clear after selection/hover state changes
 export { clearStyleKeyCaches };
 import { syncGrid } from "./pixi/grid";
 import { syncLabels } from "./pixi/labels";
 import { syncNodeSprites } from "./pixi/nodes";
-import { readSimulationState } from "./simulation";
+import { readSimulationState, readAltDragState } from "./simulation";
 
 // -----------------------------------------------------------------------
 // State
@@ -189,9 +189,11 @@ export function renderFrame(): void {
   }
 
   const { nodes, links } = readSimulationState();
+  const assist = readAltDragState();
 
   syncGrid(viewport, dims, currentStyle);
   syncEdgeGraphics(links, viewport, dims);
+  syncAssistEdges(assist);
   syncNodeOutlines(nodes, viewport, dims);
   syncNodeSprites(nodes, viewport, dims);
   syncLabels(nodes, links, viewport, dims);

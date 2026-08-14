@@ -88,7 +88,9 @@ export function GraphContextMenuEdge({
                   {currentSemantic.name}
                 </span>
               </>
-            ) : null}
+            ) : (
+              <span className="text-xs text-muted-foreground">请选择类型</span>
+            )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <EdgeSemanticList onSelect={handleSemanticSelect} />

@@ -109,6 +109,20 @@ let dragStartY = 0;
 let lastClickTime = 0;
 let lastClickNode: NodeId | null = null;
 
+/** Alt-drag edge-creation state (drives the assist-edge render + event emission). */
+interface AltDragAssistState {
+  active: boolean;
+  sourceIds: NodeId[];
+  targetId: NodeId | null;
+  assistPoint: { x: number; y: number };
+}
+let altDragAssist: AltDragAssistState = {
+  active: false,
+  sourceIds: [],
+  targetId: null,
+  assistPoint: { x: 0, y: 0 },
+};
+
 /** Listeners that get fired on every `tick`. */
 let tickListeners: Array<(alpha: number) => void> = [];
 
@@ -884,6 +898,26 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (evt.button === 2) return;
       const target = hitTest(evt.x, evt.y, 10);
 
+      // Alt-drag: enter edge-creation mode instead of selecting / dragging.
+      if (evt.modifiers.alt) {
+        const srcIds = target
+          ? selectedNodeIds.has(target.id)
+            ? [...selectedNodeIds]
+            : [target.id]
+          : selectedNodeIds.size > 0
+            ? [...selectedNodeIds]
+            : null;
+        if (srcIds && srcIds.length > 0) {
+          altDragAssist = {
+            active: true,
+            sourceIds: srcIds,
+            targetId: null,
+            assistPoint: { x: evt.x, y: evt.y },
+          };
+        }
+        return;
+      }
+
       // Double-click detection (FIX 1.4)
       const now = Date.now();
       if (target && target.id === lastClickNode && now - lastClickTime < 300) {
@@ -904,7 +938,6 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         dragStartY = evt.y;
       }
       if (target) {
-        if (evt.modifiers.alt) return;
         if (evt.modifiers.ctrl) return;
         if (evt.modifiers.shift) {
           const next = new Set(selectedNodeIds);
@@ -940,6 +973,17 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       break;
     }
     case "pointer-move": {
+      if (altDragAssist.active) {
+        altDragAssist.assistPoint = { x: evt.x, y: evt.y };
+        const target = hitTest(evt.x, evt.y);
+        altDragAssist.targetId = target?.id ?? null;
+        emit({
+          type: "alt-drag:update",
+          sourceIds: altDragAssist.sourceIds,
+          targetId: altDragAssist.targetId,
+        });
+        return;
+      }
       // Only drag when the primary button is held — without this check,
       // clicking a node (press+release) then moving the mouse would
       // continue to drag the selected node.
@@ -987,6 +1031,24 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       // If we emit canvas:click here, it would race with the deferred
       // context menu and close it immediately.
       if (evt.button === 2) break;
+
+      if (altDragAssist.active) {
+        const upTarget = hitTest(evt.x, evt.y);
+        emit({
+          type: "alt-drag:end",
+          sourceIds: altDragAssist.sourceIds,
+          targetId: upTarget?.id ?? null,
+          clientX: evt.clientX,
+          clientY: evt.clientY,
+        });
+        altDragAssist = {
+          active: false,
+          sourceIds: [],
+          targetId: null,
+          assistPoint: { x: 0, y: 0 },
+        };
+        return;
+      }
 
       const wasDragging = dragMoved;
       const keepFixed = evt.modifiers.ctrl;
@@ -1088,6 +1150,42 @@ export function readSimulationState() {
     nodes: nodes as ReadonlyArray<SimNode>,
     links: links as ReadonlyArray<SimLink>,
   };
+}
+
+// -----------------------------------------------------------------------
+// Alt-drag assist-edge state (read by the canvas renderer)
+// -----------------------------------------------------------------------
+
+export interface AltDragAssistRender {
+  active: boolean;
+  sourcePoints: Array<{ x: number; y: number }>;
+  targetPoint: { x: number; y: number };
+}
+
+/**
+ * Resolve the Alt-drag assist-edge geometry (source node centers + the
+ * cursor / hover-target endpoint) for the canvas renderer. Returns an
+ * inactive render when no Alt-drag is in progress.
+ */
+export function readAltDragState(): AltDragAssistRender {
+  if (!altDragAssist.active) {
+    return { active: false, sourcePoints: [], targetPoint: { x: 0, y: 0 } };
+  }
+  const sourcePoints: Array<{ x: number; y: number }> = [];
+  for (const id of altDragAssist.sourceIds) {
+    const n = nodeMap.get(id);
+    if (!n) continue;
+    const x = n.x ?? 0;
+    const y = n.y ?? 0;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    sourcePoints.push({ x, y });
+  }
+  let targetPoint = altDragAssist.assistPoint;
+  if (altDragAssist.targetId) {
+    const n = nodeMap.get(altDragAssist.targetId);
+    if (n) targetPoint = { x: n.x ?? 0, y: n.y ?? 0 };
+  }
+  return { active: true, sourcePoints, targetPoint };
 }
 
 // -----------------------------------------------------------------------

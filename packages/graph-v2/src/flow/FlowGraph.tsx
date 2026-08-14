@@ -136,9 +136,6 @@ function FlowGraphImpl(props: FlowGraphProps) {
     (GraphContextMenuProps & { setContextMenu?: (m: unknown) => void }) | null
   >(null);
 
-  // The context menu setter is read here so the `<GraphContextMenu>`
-  // overlay can mirror store state on close. The *opening* of the menu
-  // is done through `eventHandler.onContextMenu`.
   const setContextMenu = useUIStore((s) => s.setContextMenu);
   const edgeSemantics = useDataStore((s) => s.edgeSemantics);
 
@@ -367,14 +364,6 @@ function FlowGraphImpl(props: FlowGraphProps) {
   const onNodeContextMenu = useCallback(
     (e: React.MouseEvent, node: RenderableNode) => {
       e.preventDefault();
-      eventHandler.onContextMenu({
-        kind: "node",
-        nodeId: node.id as NodeId,
-        clientX: e.clientX,
-        clientY: e.clientY,
-      });
-      // Also keep the local `contextMenuState` in sync so the
-      // `<GraphContextMenu>` overlay can render.
       setContextMenuState({
         x: e.clientX,
         y: e.clientY,
@@ -384,18 +373,12 @@ function FlowGraphImpl(props: FlowGraphProps) {
         onClose: () => setContextMenuState(null),
       } as GraphContextMenuProps);
     },
-    [eventHandler],
+    [],
   );
 
   const onEdgeContextMenu = useCallback(
     (e: React.MouseEvent, edge: RenderableEdge) => {
       e.preventDefault();
-      eventHandler.onContextMenu({
-        kind: "edge",
-        edgeId: edge.id as EdgeId,
-        clientX: e.clientX,
-        clientY: e.clientY,
-      });
       setContextMenuState({
         x: e.clientX,
         y: e.clientY,
@@ -405,7 +388,7 @@ function FlowGraphImpl(props: FlowGraphProps) {
         onClose: () => setContextMenuState(null),
       } as GraphContextMenuProps);
     },
-    [eventHandler],
+    [],
   );
 
   const onPaneClick = useCallback(() => {

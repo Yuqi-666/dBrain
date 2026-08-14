@@ -22,7 +22,7 @@
  */
 
 import { Graphics } from "pixi.js";
-import type { SimLink, SimNode } from "../simulation";
+import type { AltDragAssistRender, SimLink, SimNode } from "../simulation";
 import type { ViewportState } from "../../types";
 import {
   EDGE_RENDER_RULES,
@@ -400,6 +400,55 @@ export function syncNodeOutlines(
       });
     }
   }
+}
+
+// -----------------------------------------------------------------------
+// Alt-drag assist edges (temporary dashed lines following the cursor)
+// -----------------------------------------------------------------------
+
+const ASSIST_STROKE = "#1890ff";
+const ASSIST_WIDTH = 2;
+const ASSIST_DASH_LEN = 4;
+const ASSIST_DASH_GAP = 4;
+
+let assistGraphics: Graphics | null = null;
+
+export function syncAssistEdges(assist: AltDragAssistRender): void {
+  const layers = getLayers();
+  if (!layers) return;
+
+  if (!assist.active || assist.sourcePoints.length === 0) {
+    if (assistGraphics) {
+      layers.assist.removeChild(assistGraphics);
+      assistGraphics.destroy();
+      assistGraphics = null;
+    }
+    return;
+  }
+
+  if (!assistGraphics) {
+    assistGraphics = new Graphics();
+    layers.assist.addChild(assistGraphics);
+  }
+  assistGraphics.clear();
+
+  for (const src of assist.sourcePoints) {
+    drawDashedLine(
+      assistGraphics,
+      src.x,
+      src.y,
+      assist.targetPoint.x,
+      assist.targetPoint.y,
+      ASSIST_DASH_LEN,
+      ASSIST_DASH_GAP,
+    );
+  }
+  assistGraphics.stroke({
+    width: ASSIST_WIDTH,
+    color: ASSIST_STROKE,
+    cap: "round",
+    join: "round",
+  });
 }
 
 // -----------------------------------------------------------------------

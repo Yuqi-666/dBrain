@@ -35,7 +35,7 @@ export class EdgeMapper {
       to: record.to,
       direction: EdgeMapper.mapDirectionToDomain(record.direction),
       semanticId: record.semanticId,
-      stateData: record.stateData,
+      stateData: record.stateData ?? undefined,
       createdAt: record.created,
       updatedAt: record.updated,
     });

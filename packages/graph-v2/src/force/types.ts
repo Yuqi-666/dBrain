@@ -39,6 +39,8 @@ export type ProxiedDomEvent =
       x: number;
       y: number;
       button: number;
+      clientX: number;
+      clientY: number;
       modifiers: Modifiers;
     }
   | {
@@ -46,6 +48,8 @@ export type ProxiedDomEvent =
       x: number;
       y: number;
       buttons: number;
+      clientX: number;
+      clientY: number;
       modifiers: Modifiers;
     }
   | {
@@ -53,6 +57,8 @@ export type ProxiedDomEvent =
       x: number;
       y: number;
       button: number;
+      clientX: number;
+      clientY: number;
       modifiers: Modifiers;
     }
   | {
@@ -234,7 +240,9 @@ export type WorkerEvent =
   | { type: "simulation:stopped"; positions: { id: NodeId; x: number; y: number }[] }
   | { type: "context-menu:node"; nodeId: NodeId; clientX: number; clientY: number }
   | { type: "context-menu:edge"; edgeId: EdgeId; clientX: number; clientY: number }
-  | { type: "context-menu:canvas"; clientX: number; clientY: number };
+  | { type: "context-menu:canvas"; clientX: number; clientY: number }
+  | { type: "alt-drag:update"; sourceIds: NodeId[]; targetId: NodeId | null }
+  | { type: "alt-drag:end"; sourceIds: NodeId[]; targetId: NodeId | null; clientX: number; clientY: number };
 
 // -----------------------------------------------------------------------
 // WorkerInbound (Comlink.expose surface — main → worker)

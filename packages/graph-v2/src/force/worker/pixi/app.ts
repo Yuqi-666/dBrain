@@ -36,6 +36,7 @@ import {
 export interface ForceLayers {
   grid: Graphics;
   edges: Container;
+  assist: Container;
   outlines: Container;
   nodes: Container;
   labels: Container;
@@ -102,6 +103,7 @@ export async function createPixiApp(
   layers = {
     grid: new Graphics(),
     edges: new Container(),
+    assist: new Container(),
     outlines: new Container(),
     nodes: new Container(),
     labels: new Container(),
@@ -109,6 +111,7 @@ export async function createPixiApp(
   world.addChild(
     layers.grid,
     layers.edges,
+    layers.assist,
     layers.outlines,
     layers.nodes,
     layers.labels,

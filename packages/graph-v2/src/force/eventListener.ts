@@ -175,6 +175,8 @@ export function installDomEventProxy(
         x: sim.x,
         y: sim.y,
         button: e.button,
+        clientX: e.clientX,
+        clientY: e.clientY,
         modifiers: mods,
       }).catch(() => {});
     },
@@ -222,6 +224,8 @@ export function installDomEventProxy(
           x: sim.x,
           y: sim.y,
           buttons: e.buttons,
+          clientX: e.clientX,
+          clientY: e.clientY,
           modifiers: extractModifiers(e),
         }).catch(() => {});
       } else {
@@ -230,6 +234,8 @@ export function installDomEventProxy(
           x: sim.x,
           y: sim.y,
           buttons: e.buttons,
+          clientX: e.clientX,
+          clientY: e.clientY,
           modifiers: extractModifiers(e),
         };
         if (pointerMoveRafId === null) {
@@ -260,6 +266,8 @@ export function installDomEventProxy(
         x: sim.x,
         y: sim.y,
         button: e.button,
+        clientX: e.clientX,
+        clientY: e.clientY,
         modifiers: extractModifiers(e),
       }).catch(() => {});
     },

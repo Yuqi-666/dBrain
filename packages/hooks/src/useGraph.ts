@@ -183,7 +183,7 @@ export function useGraph() {
   );
 
   const onCreateEdge = useCallback(
-    async (sourceIds: string[], targetId: string | null, x: number, y: number, setContextMenu: (menu: any) => any) => {
+    async (sourceIds: string[], targetId: string | null, x: number, y: number, setContextMenu: (menu: any) => any): Promise<EdgeId | null> => {
       if (targetId === null) {
         setContextMenu({
           x,
@@ -192,7 +192,7 @@ export function useGraph() {
           context: { sourceIds, targetId },
           visible: true,
         })
-        return;
+        return null;
       };
 
       const now = new Date().toISOString();
@@ -222,6 +222,7 @@ export function useGraph() {
       }
 
       setContextMenu({ x, y, type: "edge", context: { edgeId: firstEdgeId }, visible: true })
+      return firstEdgeId;
     },
     [],
   );

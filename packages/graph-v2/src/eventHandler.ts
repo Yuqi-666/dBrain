@@ -31,34 +31,6 @@ import { useGraph } from "@workspace/hooks";
 // Public types
 // -----------------------------------------------------------------------
 
-/** Context menu target. */
-export type ContextMenuKind = "node" | "edge" | "canvas";
-
-export interface NodeContextMenuArgs {
-  kind: "node";
-  nodeId: NodeId;
-  clientX: number;
-  clientY: number;
-}
-
-export interface EdgeContextMenuArgs {
-  kind: "edge";
-  edgeId: EdgeId;
-  clientX: number;
-  clientY: number;
-}
-
-export interface CanvasContextMenuArgs {
-  kind: "canvas";
-  clientX: number;
-  clientY: number;
-}
-
-export type ContextMenuArgs =
-  | NodeContextMenuArgs
-  | EdgeContextMenuArgs
-  | CanvasContextMenuArgs;
-
 /**
  * The single callback surface that every orchestrator (ForceGraph,
  * FlowGraph) receives. Each method corresponds to one user gesture and
@@ -111,10 +83,6 @@ export interface GraphEventHandler {
   /** ReactFlow `onPaneClick`. Same as `onCanvasClick`. */
   onPaneClick(): void;
 
-  // ---- Context menu (all surface to the same UIStore) ----------------
-
-  onContextMenu(args: ContextMenuArgs): void;
-
   // ---- Alt-drag edge creation (force mode only) ----------------------
 
   /**
@@ -136,7 +104,7 @@ export interface GraphEventHandler {
     targetId: NodeId | null;
     clientX: number;
     clientY: number;
-  }): void;
+  }): Promise<EdgeId | null>;
 }
 
 // -----------------------------------------------------------------------
@@ -167,6 +135,37 @@ export function useGraphEventHandler(): GraphEventHandler {
   return useMemo<GraphEventHandler>(() => {
     const set = (mutator: (s: ReturnType<typeof useUIStore.getState>) => void) =>
       mutator(useUIStore.getState());
+
+    const handleAltDragUpdate = (args: {
+      sourceIds: NodeId[];
+      targetId: NodeId | null;
+    }): void => {
+      const targetId = args.targetId;
+      set((s) => {
+        s.closePreviewBlock();
+        if (targetId !== null) {
+          s.setSelectedNodeIds(new Set([targetId]));
+        } else {
+          s.setSelectedNodeIds(new Set(args.sourceIds));
+        }
+      });
+    };
+
+    const handleAltDragEnd = async (args: {
+      sourceIds: NodeId[];
+      targetId: NodeId | null;
+      clientX: number;
+      clientY: number;
+    }): Promise<EdgeId | null> => {
+      if (args.targetId === null) return null;
+      return graphRef.current.onCreateEdge(
+        args.sourceIds,
+        args.targetId,
+        args.clientX,
+        args.clientY,
+        () => {},
+      );
+    };
 
     return {
       handleWorkerEvent(event) {
@@ -228,7 +227,6 @@ export function useGraphEventHandler(): GraphEventHandler {
               s.setSelectedNodeIds(new Set());
               s.setSelectedEdgeIds(new Set());
               s.closePreviewBlock();
-              s.closeContextMenu();
             });
             return;
           case "selection:changed":
@@ -273,6 +271,11 @@ export function useGraphEventHandler(): GraphEventHandler {
           case "canvas:wheel":
           case "node:drag":
           case "node:drag-end":
+            return;
+          case "alt-drag:update":
+            handleAltDragUpdate(event);
+            return;
+          case "alt-drag:end":
             return;
           default: {
             const _exhaustive: never = event;
@@ -341,7 +344,6 @@ export function useGraphEventHandler(): GraphEventHandler {
           s.setSelectedNodeIds(new Set());
           s.setSelectedEdgeIds(new Set());
           s.closePreviewBlock();
-          s.closeContextMenu();
         });
       },
 
@@ -351,79 +353,19 @@ export function useGraphEventHandler(): GraphEventHandler {
         set((s) => {
           s.setSelectedNodeIds(new Set());
           s.setSelectedEdgeIds(new Set());
-          s.closeContextMenu();
           s.closePreviewBlock();
         });
       },
 
-      onContextMenu(args) {
-        set((s) => {
-          // Always close transient overlays first.
-          s.closePreviewBlock();
-          if (args.kind === "canvas") {
-            s.setContextMenu({
-              x: args.clientX,
-              y: args.clientY,
-              visible: true,
-              type: "canvas",
-              context: {} as Record<string, never>,
-            });
-            return;
-          }
-          if (args.kind === "node") {
-            s.setContextMenu({
-              x: args.clientX,
-              y: args.clientY,
-              visible: true,
-              type: "node",
-              context: { nodeId: args.nodeId },
-            });
-            return;
-          }
-          s.setContextMenu({
-            x: args.clientX,
-            y: args.clientY,
-            visible: true,
-            type: "edge",
-            context: { edgeId: args.edgeId },
-          });
+      onAltDragUpdate(args) {
+        handleAltDragUpdate({
+          sourceIds: args.sourceIds,
+          targetId: args.targetId,
         });
       },
 
-      onAltDragUpdate({ sourceIds, targetId, clientX, clientY }) {
-        // The main UI mirror of the drag itself is the worker (which
-        // moves nodes via `setNodePosition`); the event handler's role
-        // here is only to keep the selection consistent.
-        if (targetId !== null) {
-          set((s) => s.setSelectedNodeIds(new Set([targetId])));
-        } else {
-          set((s) => s.setSelectedNodeIds(new Set(sourceIds)));
-        }
-        // No preview/menu changes mid-drag (per main design L80).
-        void clientX;
-        void clientY;
-      },
-
-      onAltDragEnd({ sourceIds, targetId, clientX, clientY }) {
-        // Delegate to useGraph().onCreateEdge — it implements the
-        // "create edges on target" / "open add-edge menu on canvas"
-        // split (useGraph.ts L168-211). `onCreateEdge` expects a
-        // 5th `setContextMenu` callback we provide by binding the
-        // store setter.
-        const setContextMenu = (menu: Parameters<typeof useUIStore.getState> extends infer S
-          ? S extends { setContextMenu: (m: infer M) => void }
-            ? M
-            : never
-          : never) => {
-          useUIStore.getState().setContextMenu(menu);
-        };
-        graphRef.current.onCreateEdge(
-          sourceIds as string[],
-          targetId as string | null,
-          clientX,
-          clientY,
-          setContextMenu as (m: unknown) => unknown,
-        );
+      onAltDragEnd(args) {
+        return handleAltDragEnd(args);
       },
     };
   }, []);

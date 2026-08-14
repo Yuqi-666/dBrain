@@ -110,11 +110,4 @@ export type { DefaultForceConfig } from "./force/styleConfig";
 // Shared event handler (the single callback surface injected into
 // ForceGraph / FlowGraph).
 export { useGraphEventHandler } from "./eventHandler";
-export type {
-  GraphEventHandler,
-  ContextMenuArgs,
-  ContextMenuKind,
-  NodeContextMenuArgs,
-  EdgeContextMenuArgs,
-  CanvasContextMenuArgs,
-} from "./eventHandler";
+export type { GraphEventHandler } from "./eventHandler";
