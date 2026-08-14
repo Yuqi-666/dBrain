@@ -29,10 +29,14 @@ import {
   NODE_RENDER_RULES,
   getRenderAdjustment,
 } from "../../styleConfig";
+import {
+  ARROW_SIZE,
+  DEFAULT_NODE_RADIUS,
+  resolveEdgeGeometry,
+  sampleBezier,
+  sampleQuadratic,
+} from "../edgeGeometry";
 import { computeFrustum, getLayers, isInFrustum, type Frustum } from "./app";
-
-const ARROW_SIZE = 8;
-const DEFAULT_RADIUS = 8;
 
 // -----------------------------------------------------------------------
 // Style bucketing
@@ -175,22 +179,29 @@ function buildEdgePath(g: Graphics, link: SimLink): void {
     return;
   }
 
-  const sx = link.source.x ?? 0;
-  const sy = link.source.y ?? 0;
-  const tx = link.target.x ?? 0;
-  const ty = link.target.y ?? 0;
+  const geom = resolveEdgeGeometry(
+    {
+      x: link.source.x ?? 0,
+      y: link.source.y ?? 0,
+      radius: link.source.radius ?? DEFAULT_NODE_RADIUS,
+    },
+    {
+      x: link.target.x ?? 0,
+      y: link.target.y ?? 0,
+      radius: link.target.radius ?? DEFAULT_NODE_RADIUS,
+    },
+    link.shape,
+    link.direction,
+  );
   if (
-    !Number.isFinite(sx) ||
-    !Number.isFinite(sy) ||
-    !Number.isFinite(tx) ||
-    !Number.isFinite(ty)
+    !Number.isFinite(geom.sx) ||
+    !Number.isFinite(geom.sy) ||
+    !Number.isFinite(geom.tx) ||
+    !Number.isFinite(geom.ty)
   ) {
     return;
   }
 
-  const useCubic =
-    link.direction === "bidirectional" || link.shape === "s-curve";
-  const useQuadratic = !useCubic && link.shape === "curve";
   const dash =
     link.strokeType === "dashed"
       ? { len: 6, gap: 4 }
@@ -199,54 +210,51 @@ function buildEdgePath(g: Graphics, link: SimLink): void {
         : null;
 
   if (dash) {
-    if (useCubic) {
-      const cx1 = sx + (tx - sx) * 0.4;
-      const cy1 = sy;
-      const cx2 = tx - (tx - sx) * 0.4;
-      const cy2 = ty;
+    if (geom.kind === "cubic") {
       drawDashedPolyline(
         g,
-        sampleBezier(sx, sy, cx1, cy1, cx2, cy2, tx, ty),
+        sampleBezier(
+          geom.sx,
+          geom.sy,
+          geom.c1x,
+          geom.c1y,
+          geom.c2x,
+          geom.c2y,
+          geom.tx,
+          geom.ty,
+        ),
         dash.len,
         dash.gap,
       );
-    } else if (useQuadratic) {
-      const mx = (sx + tx) / 2;
-      const my = (sy + ty) / 2 - 40;
+    } else if (geom.kind === "quadratic") {
       drawDashedPolyline(
         g,
-        sampleQuadratic(sx, sy, mx, my, tx, ty),
+        sampleQuadratic(geom.sx, geom.sy, geom.c1x, geom.c1y, geom.tx, geom.ty),
         dash.len,
         dash.gap,
       );
     } else {
-      drawDashedLine(g, sx, sy, tx, ty, dash.len, dash.gap);
+      drawDashedLine(g, geom.sx, geom.sy, geom.tx, geom.ty, dash.len, dash.gap);
     }
     return;
   }
 
-  if (useCubic) {
-    const cx1 = sx + (tx - sx) * 0.4;
-    const cy1 = sy;
-    const cx2 = tx - (tx - sx) * 0.4;
-    const cy2 = ty;
-    g.moveTo(sx, sy);
-    g.bezierCurveTo(cx1, cy1, cx2, cy2, tx, ty);
-  } else if (useQuadratic) {
-    const mx = (sx + tx) / 2;
-    const my = (sy + ty) / 2 - 40;
-    g.moveTo(sx, sy);
-    g.quadraticCurveTo(mx, my, tx, ty);
+  if (geom.kind === "cubic") {
+    g.moveTo(geom.sx, geom.sy);
+    g.bezierCurveTo(geom.c1x, geom.c1y, geom.c2x, geom.c2y, geom.tx, geom.ty);
+  } else if (geom.kind === "quadratic") {
+    g.moveTo(geom.sx, geom.sy);
+    g.quadraticCurveTo(geom.c1x, geom.c1y, geom.tx, geom.ty);
   } else {
-    g.moveTo(sx, sy);
-    g.lineTo(tx, ty);
+    g.moveTo(geom.sx, geom.sy);
+    g.lineTo(geom.tx, geom.ty);
   }
 }
 
 function buildSelfLoop(g: Graphics, link: SimLink): void {
   const x = link.source.x ?? 0;
   const y = link.source.y ?? 0;
-  const r = link.source.radius ?? DEFAULT_RADIUS;
+  const r = link.source.radius ?? DEFAULT_NODE_RADIUS;
   const loopR = r + 12;
   g.arc(x, y - loopR, 8, -Math.PI * 0.8, Math.PI * 0.8);
 }
@@ -260,38 +268,42 @@ function drawArrows(g: Graphics, link: SimLink): void {
     drawSelfLoopArrow(g, link);
     return;
   }
-  const sx = link.source.x ?? 0;
-  const sy = link.source.y ?? 0;
-  const tx = link.target.x ?? 0;
-  const ty = link.target.y ?? 0;
-  const dx = tx - sx;
-  const dy = ty - sy;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 0.001) return; // self-loop handled separately
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const angle = Math.atan2(dy, dx);
-  const targetR = (link.target.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
-  const sourceR = (link.source.radius ?? DEFAULT_RADIUS) + ARROW_SIZE;
+
+  const geom = resolveEdgeGeometry(
+    {
+      x: link.source.x ?? 0,
+      y: link.source.y ?? 0,
+      radius: link.source.radius ?? DEFAULT_NODE_RADIUS,
+    },
+    {
+      x: link.target.x ?? 0,
+      y: link.target.y ?? 0,
+      radius: link.target.radius ?? DEFAULT_NODE_RADIUS,
+    },
+    link.shape,
+    link.direction,
+  );
+  if (
+    !Number.isFinite(geom.sx) ||
+    !Number.isFinite(geom.sy) ||
+    !Number.isFinite(geom.tx) ||
+    !Number.isFinite(geom.ty)
+  ) {
+    return;
+  }
 
   if (link.direction === "forward" || link.direction === "bidirectional") {
-    drawArrowHead(g, tx - ux * targetR, ty - uy * targetR, angle, ARROW_SIZE);
+    drawArrowHead(g, geom.tx, geom.ty, geom.endAngle, ARROW_SIZE);
   }
   if (link.direction === "reverse" || link.direction === "bidirectional") {
-    drawArrowHead(
-      g,
-      sx + ux * sourceR,
-      sy + uy * sourceR,
-      angle + Math.PI,
-      ARROW_SIZE,
-    );
+    drawArrowHead(g, geom.sx, geom.sy, geom.startAngle, ARROW_SIZE);
   }
 }
 
 function drawSelfLoopArrow(g: Graphics, link: SimLink): void {
   const x = link.source.x ?? 0;
   const y = link.source.y ?? 0;
-  const r = link.source.radius ?? DEFAULT_RADIUS;
+  const r = link.source.radius ?? DEFAULT_NODE_RADIUS;
   const loopR = r + 12;
   drawArrowHead(g, x + 8, y - loopR - 8, -Math.PI / 2, 6);
 }
@@ -516,54 +528,4 @@ function drawDashedPolyline(
     }
     total += segLen;
   }
-}
-
-function sampleQuadratic(
-  x0: number,
-  y0: number,
-  cx: number,
-  cy: number,
-  x1: number,
-  y1: number,
-  n = 24,
-): Array<[number, number]> {
-  const pts: Array<[number, number]> = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const u = 1 - t;
-    pts.push([
-      u * u * x0 + 2 * u * t * cx + t * t * x1,
-      u * u * y0 + 2 * u * t * cy + t * t * y1,
-    ]);
-  }
-  return pts;
-}
-
-function sampleBezier(
-  x0: number,
-  y0: number,
-  cx1: number,
-  cy1: number,
-  cx2: number,
-  cy2: number,
-  x1: number,
-  y1: number,
-  n = 32,
-): Array<[number, number]> {
-  const pts: Array<[number, number]> = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const u = 1 - t;
-    pts.push([
-      u * u * u * x0 +
-        3 * u * u * t * cx1 +
-        3 * u * t * t * cx2 +
-        t * t * t * x1,
-      u * u * u * y0 +
-        3 * u * u * t * cy1 +
-        3 * u * t * t * cy2 +
-        t * t * t * y1,
-    ]);
-  }
-  return pts;
 }

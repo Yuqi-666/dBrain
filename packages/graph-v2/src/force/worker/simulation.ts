@@ -36,6 +36,13 @@ import type {
 } from "../types";
 import type { RenderState } from "../types";
 import { DEFAULT_FORCE_CONFIG } from "../styleConfig";
+import {
+  DEFAULT_NODE_RADIUS,
+  pointToCubicCurve,
+  pointToQuadraticCurve,
+  pointToSegment,
+  resolveEdgeGeometry,
+} from "./edgeGeometry";
 
 // -----------------------------------------------------------------------
 // Internal mutable types (d3 mutates these in-place)
@@ -727,80 +734,12 @@ export function hitTest(
 // -----------------------------------------------------------------------
 
 /**
- * Point-to-line-segment distance. Used for straight edges (hierarchy /
- * association).
- */
-function pointToSegment(
-  px: number, py: number,
-  ax: number, ay: number,
-  bx: number, by: number,
-): number {
-  const abx = bx - ax;
-  const aby = by - ay;
-  const len2 = abx * abx + aby * aby;
-  if (len2 === 0) return Math.hypot(px - ax, py - ay);
-  let t = ((px - ax) * abx + (py - ay) * aby) / len2;
-  t = Math.max(0, Math.min(1, t));
-  const cx = ax + t * abx;
-  const cy = ay + t * aby;
-  return Math.hypot(px - cx, py - cy);
-}
-
-/**
- * Sample a cubic bezier at parameter `t` (0..1).
- */
-function sampleCubic(
-  t: number,
-  sx: number, sy: number,
-  cx1: number, cy1: number,
-  cx2: number, cy2: number,
-  tx: number, ty: number,
-): { x: number; y: number } {
-  const u = 1 - t;
-  return {
-    x: u * u * u * sx + 3 * u * u * t * cx1 + 3 * u * t * t * cx2 + t * t * t * tx,
-    y: u * u * u * sy + 3 * u * u * t * cy1 + 3 * u * t * t * cy2 + t * t * t * ty,
-  };
-}
-
-/** Minimum distance from point to a quadratic bezier (sampled). */
-function pointToQuadratic(
-  px: number, py: number,
-  sx: number, sy: number,
-  mx: number, my: number,
-  tx: number, ty: number,
-): number {
-  let min = Infinity;
-  for (let i = 0; i <= 10; i++) {
-    const t = i / 10;
-    const u = 1 - t;
-    const x = u * u * sx + 2 * u * t * mx + t * t * tx;
-    const y = u * u * sy + 2 * u * t * my + t * t * ty;
-    min = Math.min(min, Math.hypot(px - x, py - y));
-  }
-  return min;
-}
-
-/** Minimum distance from point to a cubic bezier (sampled). */
-function pointToCubic(
-  px: number, py: number,
-  sx: number, sy: number,
-  cx1: number, cy1: number,
-  cx2: number, cy2: number,
-  tx: number, ty: number,
-): number {
-  let min = Infinity;
-  for (let i = 0; i <= 10; i++) {
-    const t = i / 10;
-    const p = sampleCubic(t, sx, sy, cx1, cy1, cx2, cy2, tx, ty);
-    min = Math.min(min, Math.hypot(px - p.x, py - p.y));
-  }
-  return min;
-}
-
-/**
  * Hit-test all edges. Returns the closest edge within `threshold`
  * device pixels, or null.
+ *
+ * The curve geometry is resolved through `resolveEdgeGeometry` — the same
+ * shared math the Pixi renderer uses — so a visible curve is always
+ * hit-testable at the same coordinates it is drawn.
  *
  * When the d3-quadtree is available (n ≥ 2000), we pre-filter edges by
  * finding candidate nodes near the hit point first, then only checking
@@ -845,30 +784,47 @@ export function hitTestEdge(
       continue;
     }
 
-    const sx = link.source.x ?? 0;
-    const sy = link.source.y ?? 0;
-    const tx = link.target.x ?? 0;
-    const ty = link.target.y ?? 0;
-    if (!Number.isFinite(sx) || !Number.isFinite(sy) ||
-        !Number.isFinite(tx) || !Number.isFinite(ty)) continue;
+    const geom = resolveEdgeGeometry(
+      {
+        x: link.source.x ?? 0,
+        y: link.source.y ?? 0,
+        radius: link.source.radius ?? DEFAULT_NODE_RADIUS,
+      },
+      {
+        x: link.target.x ?? 0,
+        y: link.target.y ?? 0,
+        radius: link.target.radius ?? DEFAULT_NODE_RADIUS,
+      },
+      link.shape,
+      link.direction,
+    );
+    if (
+      !Number.isFinite(geom.sx) ||
+      !Number.isFinite(geom.sy) ||
+      !Number.isFinite(geom.tx) ||
+      !Number.isFinite(geom.ty)
+    ) {
+      continue;
+    }
 
     let dist: number;
-    const isBidirectional = link.direction === "bidirectional";
-    const useCubic = isBidirectional || link.shape === "s-curve";
-    const useQuadratic = !useCubic && link.shape === "curve";
-
-    if (useCubic) {
-      const cx1 = sx + (tx - sx) * 0.4;
-      const cy1 = sy;
-      const cx2 = tx - (tx - sx) * 0.4;
-      const cy2 = ty;
-      dist = pointToCubic(x, y, sx, sy, cx1, cy1, cx2, cy2, tx, ty);
-    } else if (useQuadratic) {
-      const mx = (sx + tx) / 2;
-      const my = (sy + ty) / 2 - 40;
-      dist = pointToQuadratic(x, y, sx, sy, mx, my, tx, ty);
+    if (geom.kind === "cubic") {
+      dist = pointToCubicCurve(
+        x, y,
+        geom.sx, geom.sy,
+        geom.c1x, geom.c1y,
+        geom.c2x, geom.c2y,
+        geom.tx, geom.ty,
+      );
+    } else if (geom.kind === "quadratic") {
+      dist = pointToQuadraticCurve(
+        x, y,
+        geom.sx, geom.sy,
+        geom.c1x, geom.c1y,
+        geom.tx, geom.ty,
+      );
     } else {
-      dist = pointToSegment(x, y, sx, sy, tx, ty);
+      dist = pointToSegment(x, y, geom.sx, geom.sy, geom.tx, geom.ty);
     }
 
     if (dist < minDist && dist <= threshold) {

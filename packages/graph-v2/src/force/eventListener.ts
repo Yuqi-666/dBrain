@@ -289,7 +289,9 @@ export function installDomEventProxy(
         // --- Zoom around cursor (trackpad pinch / Ctrl+wheel) ----------
         const mouseX = (e.clientX - rect.left) * dpr;
         const mouseY = (e.clientY - rect.top) * dpr;
-        const zoom = 1 + (-e.deltaY) / 100;
+        // Exponential keeps zoom-in/out symmetric (±100 → ×2 / ×0.5); the
+        // naive `1 + (-deltaY) / 100` collapses to 0 when zooming out.
+        const zoom = Math.pow(2, -e.deltaY / 100);
         const newScale = Math.max(
           0.1,
           Math.min(5, viewportRef.current.scale * zoom),
