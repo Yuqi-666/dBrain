@@ -9,7 +9,8 @@ import type {
 } from "@workspace/interfaces";
 
 import { treeToGraphData } from "@antv/g6";
-import { filterByViewFilterConfig } from "@workspace/utils";
+import { filterByViewFilterConfig, resolveEdgeCategory } from "@workspace/utils";
+import { useDataStore } from "@workspace/store";
 import type {
   GraphData,
   NodeData as G6NodeData,
@@ -39,6 +40,7 @@ export function adaptNodesToG6(nodes: Map<NodeId, NodeData>): G6NodeData[] {
 
 export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
   const g6Edges: G6EdgeData[] = [];
+  const edgeSemantics = useDataStore.getState().edgeSemantics;
 
   edges.forEach((edge) => {
     g6Edges.push({
@@ -51,7 +53,7 @@ export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
         weight: edge.stateData?.server?.weight,
         stateData: edge.stateData,
       },
-      edgeType: edge.edgeType,
+      edgeType: resolveEdgeCategory(edge, edgeSemantics),
       weight: edge.stateData?.server?.weight,
       stateData: edge.stateData,
     });
@@ -68,12 +70,13 @@ export function adaptNodesToTree(
   // 1. Build adjacency map (parent -> children)
   const parentToChildren = new Map<NodeId, NodeId[]>();
   const childToParent = new Map<NodeId, NodeId>();
+  const edgeSemantics = useDataStore.getState().edgeSemantics;
 
   edges.forEach((edge) => {
     // Use edgeSemanticId if specified, otherwise use category === 'hierarchy'
     const isHierarchyEdge = edgeSemanticId
       ? edge.semanticId === edgeSemanticId
-      : edge.edgeType === "hierarchy";
+      : resolveEdgeCategory(edge, edgeSemantics) === "hierarchy";
 
     if (isHierarchyEdge) {
       const parent = edge.from;

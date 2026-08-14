@@ -6,7 +6,6 @@ export interface EdgeDTO {
   to: string;
   direction: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId: string;
-  edgeType: "hierarchy" | "flow" | "association" | "interaction";
   stateData?: EdgeStateData;
   createdAt: string;
   updatedAt: string;

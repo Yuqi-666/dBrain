@@ -20,6 +20,8 @@
 
 import type {
   EdgeData,
+  EdgeSemantic,
+  EdgeSemanticId,
   NodeData,
   NodeDataType,
   NodeId,
@@ -28,6 +30,7 @@ import type {
   PositionMode,
   ViewId,
 } from "@workspace/interfaces";
+import { resolveEdgeCategory } from "@workspace/utils";
 import type {
   Connection,
   Edge,
@@ -162,10 +165,12 @@ export function sourceToRenderableNodes(
  */
 export function sourceToRenderableEdges(
   edges: ReadonlyArray<EdgeData>,
+  edgeSemantics?: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
 ): RenderableEdge[] {
+  const semantics = edgeSemantics ?? new Map<EdgeSemanticId, EdgeSemantic>();
   return edges.map((edge) => ({
     id: edge.id,
-    type: edge.edgeType,
+    type: resolveEdgeCategory(edge, semantics),
     source: edge.from,
     target: edge.to,
     data: {

@@ -47,6 +47,7 @@ import {
 import type {
   EdgeData,
   EdgeId,
+  EdgeType,
   NodeData,
   NodeId,
   View,
@@ -261,10 +262,12 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         if (sem.color) semanticColorMap.set(id, sem.color);
       }
       const edgeSemanticColorMap = new Map<string, string>();
+      const edgeSemanticCategoryMap = new Map<string, EdgeType>();
       for (const [id, sem] of storeState.edgeSemantics) {
         if (sem.color) edgeSemanticColorMap.set(id, sem.color);
+        if (sem.category) edgeSemanticCategoryMap.set(id, sem.category);
       }
-      return { semanticColorMap, edgeSemanticColorMap };
+      return { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
     }, []);
 
     const performFullSync = useCallback(async () => {
@@ -274,8 +277,8 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       const currentView = viewRef.current;
       const filtered = filter(raw.nodes, raw.edges, currentView);
 
-      const { semanticColorMap, edgeSemanticColorMap } = buildSemanticColorMaps();
-      const opts = { viewId, semanticColorMap, edgeSemanticColorMap };
+      const { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap } = buildSemanticColorMaps();
+      const opts = { viewId, semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
 
       const seeds = nodeDataToForceSeeds(filtered.nodes, opts);
       const linkSeeds = edgeDataToForceSeeds(filtered.edges, opts);
@@ -401,8 +404,8 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         );
         if (affectedNodes.length === 0 && affectedEdges.length === 0) return;
 
-        const { semanticColorMap, edgeSemanticColorMap } = buildSemanticColorMaps();
-        const opts = { viewId, semanticColorMap, edgeSemanticColorMap };
+        const { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap } = buildSemanticColorMaps();
+        const opts = { viewId, semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
         const nodeUpserts = nodeDataToForceSeeds(affectedNodes, opts);
         const linkUpserts = edgeDataToForceSeeds(affectedEdges, opts);
 

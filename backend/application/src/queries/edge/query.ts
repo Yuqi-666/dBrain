@@ -7,7 +7,6 @@ export interface ListEdgesQuery {
   to?: string;
   semanticId?: string;
   direction?: "forward" | "reverse" | "bidirectional" | "undirected";
-  edgeType?: string;
 }
 
 export interface GetEdgesByNodeQuery {

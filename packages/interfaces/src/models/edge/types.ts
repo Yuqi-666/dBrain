@@ -47,7 +47,6 @@ export interface EdgeBase {
   to: NodeId;
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
-  edgeType: EdgeType;
   stateData?: EdgeStateData;
   createdAt: string;
   updatedAt: string;

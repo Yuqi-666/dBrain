@@ -426,6 +426,8 @@ function RelationshipsTabContent({
   edges: any[];
   currentNodeId: string;
 }) {
+  const edgeSemantics = useDataStore((state) => state.edgeSemantics);
+
   if (edges.length === 0) {
     return (
       <div className="text-sm text-muted-foreground text-center py-4">
@@ -439,6 +441,9 @@ function RelationshipsTabContent({
       {edges.map((edge) => {
         const isSource = edge.from === currentNodeId;
         const otherNodeId = isSource ? edge.to : edge.from;
+        const semantic = edge.semanticId
+          ? edgeSemantics.get(edge.semanticId)
+          : undefined;
         return (
           <div
             key={edge.id}
@@ -452,7 +457,7 @@ function RelationshipsTabContent({
               {otherNodeId.slice(0, 8)}...
             </span>
             <span className="text-xs text-muted-foreground">
-              {edge.edgeType || "关联"}
+              {semantic?.category || semantic?.name || "关联"}
             </span>
           </div>
         );

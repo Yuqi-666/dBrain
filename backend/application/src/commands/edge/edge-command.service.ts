@@ -7,7 +7,6 @@ import { Edge } from "@workspace/domain/models/edge/entities";
 import {
   EdgeId,
   EdgeDirection,
-  EdgeType,
 } from "@workspace/domain/models/edge/value-objects";
 
 function toEdgeDTO(edge: Edge): EdgeDTO {
@@ -17,7 +16,6 @@ function toEdgeDTO(edge: Edge): EdgeDTO {
     to: edge.to.toString(),
     direction: edge.direction.getValue(),
     semanticId: edge.semanticId,
-    edgeType: edge.edgeType.getValue(),
     stateData: edge.stateData,
     createdAt: edge.createdAt,
     updatedAt: edge.updatedAt,
@@ -39,16 +37,6 @@ function parseEdgeDirection(dir: string): EdgeDirection {
   }
 }
 
-function mapEdgeType(edgeType: string): EdgeType {
-  const edgeTypeMap: Record<string, () => EdgeType> = {
-    hierarchy: EdgeType.hierarchy,
-    flow: EdgeType.flow,
-    association: EdgeType.association,
-    interaction: EdgeType.interaction,
-  };
-  return (edgeTypeMap[edgeType] ?? EdgeType.association)();
-}
-
 export class EdgeCommandService {
   constructor(
     private readonly edgeRepository: IEdgeRepository,
@@ -63,7 +51,6 @@ export class EdgeCommandService {
         to: cmd.to,
         direction: parseEdgeDirection(cmd.direction),
         semanticId: cmd.semanticId,
-        edgeType: mapEdgeType(cmd.edgeType),
         stateData: cmd.stateData,
       });
 
@@ -111,11 +98,8 @@ export class EdgeCommandService {
       updated = updated.updateStateData(cmd.stateData);
     }
 
-    if (cmd.semanticId !== undefined || cmd.edgeType !== undefined) {
-      updated = updated.updateSemantic(
-        cmd.semanticId ?? updated.semanticId,
-        cmd.edgeType ? mapEdgeType(cmd.edgeType) : updated.edgeType,
-      );
+    if (cmd.semanticId !== undefined) {
+      updated = updated.updateSemantic(cmd.semanticId);
     }
 
     const saved = await this.edgeRepository.save(updated);

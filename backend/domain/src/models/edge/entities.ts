@@ -1,6 +1,6 @@
 import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
 import type { NodeId } from "@workspace/interfaces/models/node/base";
-import { EdgeId, EdgeDirection, EdgeType } from "./value-objects";
+import { EdgeId, EdgeDirection } from "./value-objects";
 import type { EdgeSemanticId } from "./value-objects";
 
 /**
@@ -12,7 +12,6 @@ export interface EdgeProps {
   to: NodeId;
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
-  edgeType: EdgeType;
   stateData?: EdgeStateData;
   createdAt?: string;
   updatedAt?: string;
@@ -33,7 +32,6 @@ export class Edge {
   readonly to: NodeId;
   readonly direction: EdgeDirection;
   readonly semanticId: EdgeSemanticId;
-  readonly edgeType: EdgeType;
   readonly stateData?: EdgeStateData;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -44,7 +42,6 @@ export class Edge {
     this.to = props.to;
     this.direction = props.direction;
     this.semanticId = props.semanticId;
-    this.edgeType = props.edgeType;
     this.stateData = props.stateData;
     this.createdAt = props.createdAt ?? new Date().toISOString();
     this.updatedAt = props.updatedAt ?? new Date().toISOString();
@@ -97,11 +94,10 @@ export class Edge {
   /**
    * Creates a new edge with updated semantic information.
    */
-  updateSemantic(semanticId: EdgeSemanticId, edgeType: EdgeType): Edge {
+  updateSemantic(semanticId: EdgeSemanticId): Edge {
     return new Edge({
       ...this,
       semanticId,
-      edgeType,
       updatedAt: new Date().toISOString(),
     });
   }

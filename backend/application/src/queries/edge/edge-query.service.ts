@@ -7,7 +7,7 @@ import type {
   GetEdgesByIdsQuery,
 } from "./query";
 import type { EdgeDTO } from "../../dto/edge.dto";
-import { EdgeId, EdgeDirection, EdgeType } from "@workspace/domain/models/edge/value-objects";
+import { EdgeId, EdgeDirection } from "@workspace/domain/models/edge/value-objects";
 
 function toEdgeDTO(edge: Edge): EdgeDTO {
   return {
@@ -16,7 +16,6 @@ function toEdgeDTO(edge: Edge): EdgeDTO {
     to: edge.to.toString(),
     direction: edge.direction.getValue(),
     semanticId: edge.semanticId,
-    edgeType: edge.edgeType.getValue(),
     stateData: edge.stateData,
     createdAt: edge.createdAt,
     updatedAt: edge.updatedAt,
@@ -37,25 +36,12 @@ function toEdgeDirection(dir: string): EdgeDirection {
   }
 }
 
-function toEdgeType(type: string): EdgeType {
-  const map: Record<string, () => EdgeType> = {
-    hierarchy: EdgeType.hierarchy,
-    flow: EdgeType.flow,
-    association: EdgeType.association,
-    interaction: EdgeType.interaction,
-  };
-  const fn = map[type];
-  if (!fn) throw new Error(`Invalid edge type: ${type}`);
-  return fn();
-}
-
 function toEdgeQuery(q: ListEdgesQuery): EdgeQuery {
   return {
     from: q.from as any,
     to: q.to as any,
     semanticId: q.semanticId,
     direction: q.direction ? toEdgeDirection(q.direction) : undefined,
-    edgeType: q.edgeType ? (q.edgeType as "hierarchy" | "flow" | "association" | "interaction") : undefined,
   }
 }
 export class EdgeQueryService {

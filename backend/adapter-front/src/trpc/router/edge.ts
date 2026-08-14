@@ -17,7 +17,6 @@ const addSchema = z.object({
   to: z.string(),
   direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]),
   semanticId: z.string(),
-  edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]),
   stateData: edgeStateDataSchema,
 });
 
@@ -26,7 +25,6 @@ const updateSchema = z.object({
   updates: z.object({
     direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]).optional(),
     semanticId: z.string().optional(),
-    edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
     stateData: edgeStateDataSchema,
   }),
 });
@@ -47,7 +45,6 @@ export const edgeRouter = router({
         to: input.to,
         direction: input.direction,
         semanticId: input.semanticId,
-        edgeType: input.edgeType,
         stateData,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
@@ -72,7 +69,6 @@ export const edgeRouter = router({
       id: input.id,
       direction: input.updates.direction,
       semanticId: input.updates.semanticId,
-      edgeType: input.updates.edgeType,
       stateData,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
@@ -90,7 +86,6 @@ export const edgeRouter = router({
       from: z.string().optional(),
       to: z.string().optional(),
       semanticId: z.string().optional(),
-      edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
     }))
     .query(async ({ input }) => {
       return container().edgeQueryService.list(input);

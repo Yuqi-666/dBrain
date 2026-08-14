@@ -103,6 +103,8 @@ export interface TransformOptions {
   semanticColorMap?: Map<NodeSemanticId, string>;
   /** External joined data: EdgeSemantic.id → color. Applied at business layer. */
   edgeSemanticColorMap?: Map<EdgeSemanticId, string>;
+  /** External joined data: EdgeSemantic.id → category. Drives shape/strokeType. */
+  edgeSemanticCategoryMap?: Map<EdgeSemanticId, EdgeType>;
 }
 
 // -----------------------------------------------------------------------
@@ -171,7 +173,7 @@ export function nodeDataToForceSeeds(
  * Convert `EdgeData[]` → `ForceLinkSeed[]`.
  *
  * Per-edge merge pipeline (later wins):
- *   1. EDGE_DEFAULTS + edgeType → shape/strokeType
+ *   1. EDGE_DEFAULTS + category → shape/strokeType
  *   2. stateData.server → resolveBusinessStyle() via EDGE_BUSINESS_RULES
  *   3. edgeSemanticColorMap[semanticId] → strokeColor (external joined data)
  *   4. stateData.client.style → spread overrides (explicit display)
@@ -181,14 +183,18 @@ export function edgeDataToForceSeeds(
   options?: TransformOptions,
 ): ForceLinkSeed[] {
   return edges.map((edge) => {
-    // Layer 1: defaults + edgeType-driven shape/strokeType
+    const category: EdgeType = edge.semanticId
+      ? (options?.edgeSemanticCategoryMap?.get(edge.semanticId) ?? "association")
+      : "association";
+
+    // Layer 1: defaults + category-driven shape/strokeType
     let resolved: EdgeResolvedStyle = resolveBusinessStyle(
       edge.stateData?.server,
       EDGE_BUSINESS_RULES,
       {
         ...EDGE_DEFAULTS,
-        shape: EDGE_TYPE_TO_SHAPE[edge.edgeType],
-        strokeType: EDGE_TYPE_TO_STROKE_TYPE[edge.edgeType],
+        shape: EDGE_TYPE_TO_SHAPE[category],
+        strokeType: EDGE_TYPE_TO_STROKE_TYPE[category],
       },
     );
 

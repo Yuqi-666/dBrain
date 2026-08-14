@@ -131,7 +131,6 @@ migrate((app) => {
       { name: "to", type: "text", required: true },
       { name: "direction", type: "select", required: true, values: ["forward", "reverse", "bidirectional", "unidirectional"] },
       { name: "semanticId", type: "text" },
-      { name: "edgeType", type: "text", required: true },
       { name: "stateData", type: "json" },
     ],
   });

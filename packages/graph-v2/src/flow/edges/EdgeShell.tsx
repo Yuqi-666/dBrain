@@ -5,8 +5,8 @@
  *
  * Responsibilities:
  *   - Resolve the right path utility (`getStraightPath`, `getBezierPath`,
- *     `getSimpleBezierPath`) based on `edgeType`, with a `bidirectional`
- *     override that forces cubic.
+ *     `getSimpleBezierPath`) based on the semantic `category`, with a
+ *     `bidirectional` override that forces cubic.
  *   - Resolve markerStart / markerEnd based on `direction`.
  *   - Apply the `edge--selected` / `edge--default` className (consumed
  *     by the host app's global stylesheet) plus ReactFlow's built-in
@@ -28,6 +28,7 @@ import {
   type Position,
 } from "@xyflow/react";
 import type { EdgeDirection, EdgeType } from "@workspace/interfaces";
+import { useDataStore } from "@workspace/store";
 import type { RenderableEdge, RenderableEdgeData } from "../transform";
 
 export type CustomEdgeProps = EdgeProps<RenderableEdge>;
@@ -172,9 +173,13 @@ export const EdgeShell = memo(function EdgeShell(props: EdgeShellProps) {
   } = props;
 
   const source = (data as RenderableEdgeData).source;
+  const edgeSemantics = useDataStore((s) => s.edgeSemantics);
+  const category: EdgeType = source.semanticId
+    ? (edgeSemantics.get(source.semanticId)?.category ?? "association")
+    : "association";
 
   const pathType = resolvePathType(
-    source.edgeType,
+    category,
     source.direction,
     pathTypeOverride,
   );

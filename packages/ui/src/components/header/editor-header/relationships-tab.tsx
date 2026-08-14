@@ -1,6 +1,7 @@
 "use client";
 
 import { LinkIcon } from "lucide-react";
+import { useDataStore } from "@workspace/store";
 
 interface RelationshipsTabProps {
   edges: any[];
@@ -11,6 +12,8 @@ export function RelationshipsTab({
   edges,
   currentNodeId,
 }: RelationshipsTabProps) {
+  const edgeSemantics = useDataStore((state) => state.edgeSemantics);
+
   if (edges.length === 0) {
     return (
       <div className="text-sm text-muted-foreground text-center py-4">
@@ -24,6 +27,9 @@ export function RelationshipsTab({
       {edges.map((edge) => {
         const isSource = edge.source === currentNodeId;
         const otherNodeId = isSource ? edge.target : edge.source;
+        const semantic = edge.semanticId
+          ? edgeSemantics.get(edge.semanticId)
+          : undefined;
         return (
           <div
             key={edge.id}
@@ -37,7 +43,7 @@ export function RelationshipsTab({
               {otherNodeId.slice(0, 8)}...
             </span>
             <span className="text-xs text-muted-foreground">
-              {edge.edgeType || "关联"}
+              {semantic?.category || semantic?.name || "关联"}
             </span>
           </div>
         );

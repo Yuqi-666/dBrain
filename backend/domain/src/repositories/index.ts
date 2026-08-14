@@ -79,7 +79,6 @@ export interface EdgeQuery {
   to?: NodeId;
   semanticId?: EdgeSemanticId;
   direction?: EdgeDirection;
-  edgeType?: EdgeType["value"];
 }
 
 /**

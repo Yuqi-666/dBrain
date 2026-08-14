@@ -140,6 +140,7 @@ function FlowGraphImpl(props: FlowGraphProps) {
   // overlay can mirror store state on close. The *opening* of the menu
   // is done through `eventHandler.onContextMenu`.
   const setContextMenu = useUIStore((s) => s.setContextMenu);
+  const edgeSemantics = useDataStore((s) => s.edgeSemantics);
 
   const reactFlow = useReactFlow();
 
@@ -148,8 +149,8 @@ function FlowGraphImpl(props: FlowGraphProps) {
     const raw = getDataSnapshot();
     const filtered = filter(raw.nodes, raw.edges, view);
     setRenderableNodes(sourceToRenderableNodes(filtered.nodes, viewId));
-    setRenderableEdges(sourceToRenderableEdges(filtered.edges));
-  }, [getDataSnapshot, filter, view, viewId]);
+    setRenderableEdges(sourceToRenderableEdges(filtered.edges, edgeSemantics));
+  }, [getDataSnapshot, filter, view, viewId, edgeSemantics]);
 
   // ---- Incremental diff sync ---------------------------------------
   // Apply one SourceDiff against the currently-rendered node/edge sets
@@ -202,10 +203,10 @@ function FlowGraphImpl(props: FlowGraphProps) {
         if (touchedEdgeIds.has(e.id)) continue;
         nextEdges.push(e);
       }
-      for (const r of sourceToRenderableEdges([
-        ...addedEdges,
-        ...updatedEdges,
-      ])) {
+      for (const r of sourceToRenderableEdges(
+        [...addedEdges, ...updatedEdges],
+        edgeSemantics,
+      )) {
         nextEdges.push(r);
       }
       setRenderableEdges(nextEdges);
@@ -216,6 +217,7 @@ function FlowGraphImpl(props: FlowGraphProps) {
       viewId,
       renderableNodes,
       renderableEdges,
+      edgeSemantics,
     ],
   );
 
@@ -326,7 +328,6 @@ function FlowGraphImpl(props: FlowGraphProps) {
       from: add.source,
       to: add.target,
       direction: "forward",
-      edgeType: "association",
       semanticId: "",
       createdAt: now,
       updatedAt: now,

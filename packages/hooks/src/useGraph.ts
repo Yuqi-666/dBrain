@@ -206,7 +206,6 @@ export function useGraph() {
           from: sourceId as NodeId,
           to: targetId as NodeId,
           direction: "forward",
-          edgeType: "association",
           semanticId: "",
           createdAt: now,
           updatedAt: now,

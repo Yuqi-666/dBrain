@@ -27,12 +27,6 @@ export class EdgeDao implements IEdgeRepository {
     );
   }
 
-  async findByEdgeType(
-    edgeType: "hierarchy" | "flow" | "association" | "interaction"
-  ): Promise<Edge[]> {
-    return this.repository.findAll({ edgeType });
-  }
-
   async findPaginated(
     query?: EdgeQuery,
   ): Promise<{ items: Edge[]; total: number }> {

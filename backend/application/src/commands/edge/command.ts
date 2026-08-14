@@ -6,7 +6,6 @@ export interface CreateEdgeCommand {
   to: string;
   direction: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId: string;
-  edgeType: string;
   stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;
@@ -16,7 +15,6 @@ export interface UpdateEdgeCommand {
   id: string;
   direction?: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId?: string;
-  edgeType?: string;
   stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;

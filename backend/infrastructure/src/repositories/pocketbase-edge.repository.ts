@@ -146,10 +146,6 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
       conditions.push(`direction = "${query.direction}"`);
     }
 
-    if (query.edgeType) {
-      conditions.push(`edgeType = "${query.edgeType}"`);
-    }
-
     if (conditions.length === 0) {
       return undefined;
     }

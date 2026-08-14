@@ -4,7 +4,6 @@ import { Edge } from "@workspace/domain/models/edge/entities";
 import {
   EdgeId,
   EdgeDirection,
-  EdgeType,
 } from "@workspace/domain/models/edge/value-objects";
 
 /**
@@ -17,7 +16,6 @@ export interface EdgeRecord extends RecordModel {
   to: string;
   direction: string;
   semanticId: string;
-  edgeType: string;
   stateData?: EdgeStateData;
   created: string;
   updated: string;
@@ -37,7 +35,6 @@ export class EdgeMapper {
       to: record.to,
       direction: EdgeMapper.mapDirectionToDomain(record.direction),
       semanticId: record.semanticId,
-      edgeType: EdgeMapper.mapEdgeTypeToDomain(record.edgeType),
       stateData: record.stateData,
       createdAt: record.created,
       updatedAt: record.updated,
@@ -54,7 +51,6 @@ export class EdgeMapper {
       to: edge.to,
       direction: edge.direction.getValue(),
       semanticId: edge.semanticId,
-      edgeType: edge.edgeType.getValue(),
       stateData: edge.stateData,
     };
   }
@@ -73,21 +69,6 @@ export class EdgeMapper {
         return EdgeDirection.undirected();
       default:
         return EdgeDirection.forward();
-    }
-  }
-
-  private static mapEdgeTypeToDomain(edgeType: string): EdgeType {
-    switch (edgeType) {
-      case "hierarchy":
-        return EdgeType.hierarchy();
-      case "flow":
-        return EdgeType.flow();
-      case "association":
-        return EdgeType.association();
-      case "interaction":
-        return EdgeType.interaction();
-      default:
-        return EdgeType.association();
     }
   }
 }
