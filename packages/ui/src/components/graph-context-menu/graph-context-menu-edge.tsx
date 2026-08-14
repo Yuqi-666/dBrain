@@ -48,8 +48,10 @@ export function GraphContextMenuEdge({
   onClose,
 }: GraphContextMenuEdgeProps) {
   const edge = useDataStore((state) => state.edges.get(edgeId));
+  const edgeSemantics = useDataStore((state) => state.edgeSemantics);
   const currentDirection = edge?.direction ?? "forward";
   const [showFromTo, showToFrom] = directionToFlags(currentDirection);
+  const currentSemantic = edge?.semanticId ? edgeSemantics.get(edge.semanticId) : undefined;
 
   const toggleFromTo = () => {
     const newDirection = flagsToDirection(!showFromTo, showToFrom);
@@ -74,7 +76,19 @@ export function GraphContextMenuEdge({
             className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
             onClick={(e) => e.preventDefault()}
           >
-            <span className="text-sm">Semantic</span>
+            {currentSemantic ? (
+              <>
+                {currentSemantic.color && (
+                  <span
+                    className="size-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: currentSemantic.color }}
+                  />
+                )}
+                <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                  {currentSemantic.name}
+                </span>
+              </>
+            ) : null}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <EdgeSemanticList onSelect={handleSemanticSelect} />
@@ -85,7 +99,7 @@ export function GraphContextMenuEdge({
             onSelect={(e) => e.preventDefault()}
             onClick={toggleToFrom}
             className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${showToFrom
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
               : "hover:bg-accent hover:text-accent-foreground"
               }`}
             title="Toggle to ← from arrow"
@@ -96,7 +110,7 @@ export function GraphContextMenuEdge({
             onSelect={(e) => e.preventDefault()}
             onClick={toggleFromTo}
             className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${showFromTo
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
               : "hover:bg-accent hover:text-accent-foreground"
               }`}
             title="Toggle from → to arrow"

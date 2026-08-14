@@ -206,10 +206,16 @@ export function useGraphEventHandler(): GraphEventHandler {
           // Context-menu results (selection only — menu is opened
           // by ForceGraph's onWorkerEvent from the same event).
           case "context-menu:node":
-            set((s) => s.setSelectedNodeIds(new Set([event.nodeId])));
+            set((s) => {
+              s.setSelectedNodeIds(new Set([event.nodeId]));
+              s.closePreviewBlock();
+            });
             return;
           case "context-menu:edge":
-            set((s) => s.setSelectedEdgeIds(new Set([event.edgeId])));
+            set((s) => {
+              s.setSelectedEdgeIds(new Set([event.edgeId]));
+              s.closePreviewBlock();
+            });
             return;
           case "context-menu:canvas":
             set((s) => {
@@ -260,6 +266,7 @@ export function useGraphEventHandler(): GraphEventHandler {
           case "frame":
           case "tick":
           case "status":
+          case "simulation:stopped":
           case "canvas:pointer-down":
           case "canvas:pointer-move":
           case "canvas:pointer-up":

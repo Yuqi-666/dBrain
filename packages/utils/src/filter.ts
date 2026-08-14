@@ -54,7 +54,7 @@ function getEdgeFieldValue(edge: EdgeData, field: string): unknown {
     case "category":
       return edge.edgeType;
     case "weight":
-      return edge.weight;
+      return edge.stateData?.server?.weight;
     case "createdAt":
       return edge.createdAt;
     case "updatedAt":

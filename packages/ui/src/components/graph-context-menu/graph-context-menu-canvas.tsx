@@ -11,12 +11,18 @@ import { DataTypeList } from "../list/node/dataType-list";
 import { SemanticList } from "../list/node/semantic-list";
 
 export interface GraphContextMenuCanvasProps {
-  onAddNode?: (nodeType: NodeDataType, semanticId: string) => void;
+  onAddNode?: (nodeType: NodeDataType, semanticId: string, simX?: number, simY?: number, viewId?: string) => void;
+  simX?: number;
+  simY?: number;
+  viewId?: string;
   onClose: () => void;
 }
 
 export function GraphContextMenuCanvas({
   onAddNode,
+  simX,
+  simY,
+  viewId,
   onClose,
 }: GraphContextMenuCanvasProps) {
   return (
@@ -30,7 +36,7 @@ export function GraphContextMenuCanvas({
           <DropdownMenuSubContent>
             <SemanticList
               onSelect={(semanticId) => {
-                onAddNode?.(nodeType, semanticId);
+                onAddNode?.(nodeType, semanticId, simX, simY, viewId);
                 onClose();
               }}
             />

@@ -1,3 +1,5 @@
+import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
+
 export interface CreateEdgeCommand {
   id: string;
   from: string;
@@ -5,7 +7,7 @@ export interface CreateEdgeCommand {
   direction: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId: string;
   edgeType: string;
-  weight?: { value: number };
+  stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;
 }
@@ -15,7 +17,7 @@ export interface UpdateEdgeCommand {
   direction?: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId?: string;
   edgeType?: string;
-  weight?: { value: number };
+  stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;
 }

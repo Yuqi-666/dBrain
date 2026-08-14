@@ -73,7 +73,7 @@ ForceGraph.tsx (mount effect)
 1. `createCanvas(width, height)` — 内部创建 OffscreenCanvas + 2D 上下文
 2. `createOrUpdate(seeds, links, dims)`：
    - 原位合并节点（当 `fx===null` 且已有坐标时保留运行中的 x/y）
-   - 从 `stateData.position[viewId]` 回填位置（仅首次加载）
+   - 从 `stateData.client.position[viewId]` 回填位置（仅首次加载）
    - 强制 `seed.fx ?? null`（d3 期望 `number|null` 而非 `undefined`）
     - 创建/重建 `forceSimulation`：`forceLink`(距离 80)、`forceManyBody`(-300)、`forceCollide`(d.radius+4)、`forceCenter`(dims/2)
    - `alphaMin`: 0.001, `alphaDecay`: 0.0228, `velocityDecay`: 0.4
@@ -161,7 +161,7 @@ Force 模式的样式系统采用四层管线（**优先级从低到高**），L
 │  semanticColorMap[semanticId] → fillColor（外部 joined 的 semantic.color）│
 ├─────────────────────────────────────────────────────────────────────┤
 │  Layer 3: Client（用户显式指定）                                     │
-│  stateData.client → { fillColor, strokeColor, strokeWidth, ... }    │
+│  stateData.client.style → { fillColor, strokeColor, strokeWidth, ... }│
 │  覆盖 business 和 defaults 的所有视觉属性                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Layer 4: Worker Render（canvas.ts 渲染时 — 不在 seed 上）           │
@@ -270,7 +270,7 @@ ForceGraph.tsx performFullSync()
            NODE_DEFAULTS                                      // Layer 1
              → resolveBusinessStyle(server, NODE_BUSINESS_RULES)  // Layer 2a
              → (if semanticColor) set fillColor                  // Layer 2b
-             → { ...result, ...stateData.client }                // Layer 3
+             → { ...result, ...stateData.client.style }            // Layer 3
          │
          ▼ ForceNodeSeed { fillColor, strokeColor, ... }
          │ Comlink RPC: api.initData / api.applyDiff
@@ -354,7 +354,7 @@ Semantic 颜色同步（独立路径，不经过 NodeData diff）：
 2. **OffscreenCanvas 从主线程传输**（Phase 2）—— `transferControlToOffscreen()` → `__SET_CANVAS__` 原始通道 → PixiJS 直接渲染到页面可见画布（GPU 零拷贝合成）。备选：Phase 1 路径是由 Worker 内部创建（`createCanvas` 用于 `initData`）
 3. **帧合并用 `queueMicrotask`** 而非 `requestAnimationFrame` — Worker 中 rAF 不可靠
 4. **四叉树阈值 2000 节点** — 低于此值用暴力遍历 hit-test，高于此值用 d3-quadtree
-5. **Force 模式只读位置** — 读取 `stateData.position[viewId]` 作为初始布局，永不回写。不持久化 fx/fy
+5. **Force 模式只读位置** — 读取 `stateData.client.position[viewId]` 作为初始布局，永不回写。不持久化 fx/fy
 6. **Force 模式不持久化 viewport**（与 flow 模式不同）
 7. **单一事件处理出口** — ForceGraph 绝不直接调用 `useUIStore` setter 或 `useGraph()` 回调
 8. **修饰键隔离**：Alt=创建边、Ctrl=套索选择、Shift=追加选择 — 主线程处理视觉效果，Worker 抑制节点拖拽

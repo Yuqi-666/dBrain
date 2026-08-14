@@ -4,7 +4,7 @@
  * Four-layer style pipeline (lower → higher priority):
  *   1. Defaults — baseline visual properties.
  *   2. Business layer — stateData.server (runtime business state) + semantic.color (external joined data).
- *   3. Client layer — stateData.client (explicit display overrides from user).
+ *   3. Client layer — stateData.client.style (explicit display overrides from user).
  *   4. Render layer — worker interaction state (hover/select/active) applied at paint time.
  *
  * Merge order: defaults → business → client → worker
@@ -19,23 +19,41 @@ import type { ForceConfig, RenderState } from "./types";
 // 1. Defaults
 // -----------------------------------------------------------------------
 
-export const NODE_DEFAULTS = {
+export interface NodeResolvedStyle {
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  labelColor: string;
+  labelSize: number;
+  radius: number;
+}
+
+export interface EdgeResolvedStyle {
+  strokeColor: string;
+  strokeWidth: number;
+  labelColor: string;
+  labelSize: number;
+  shape: "straight" | "curve" | "s-curve";
+  strokeType: "solid" | "dotted" | "dashed";
+}
+
+export const NODE_DEFAULTS: NodeResolvedStyle = {
   fillColor: "#165DFF",
   strokeColor: "#165DFF",
   strokeWidth: 2,
   labelColor: "#1f2937",
   labelSize: 14,
   radius: 8,
-} as const;
+};
 
-export const EDGE_DEFAULTS = {
+export const EDGE_DEFAULTS: EdgeResolvedStyle = {
   strokeColor: "#91caff",
   strokeWidth: 2,
   labelColor: "#9ca3af",
   labelSize: 12,
-  shape: "straight" as const,
-  strokeType: "solid" as const,
-} as const;
+  shape: "straight",
+  strokeType: "solid",
+};
 
 // -----------------------------------------------------------------------
 // 2. Business layer (stateData.server + external joined data)
@@ -43,39 +61,25 @@ export const EDGE_DEFAULTS = {
 
 export interface BusinessStyleRule {
   field: string;
-  mapping: Record<string, Partial<{
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    labelColor: string;
-    labelSize: number;
-    radius: number;
-  }>>;
+  mapping: Record<string, Partial<NodeResolvedStyle>>;
 }
 
 export const NODE_BUSINESS_RULES: BusinessStyleRule[] = [];
 
 export interface EdgeBusinessStyleRule {
   field: string;
-  mapping: Record<string, Partial<{
-    strokeColor: string;
-    strokeWidth: number;
-    labelColor: string;
-    labelSize: number;
-    shape: "straight" | "curve" | "s-curve";
-    strokeType: "solid" | "dotted" | "dashed";
-  }>>;
+  mapping: Record<string, Partial<EdgeResolvedStyle>>;
 }
 
 export const EDGE_BUSINESS_RULES: EdgeBusinessStyleRule[] = [];
 
-export function resolveBusinessStyle<T extends Record<string, unknown>>(
+export function resolveBusinessStyle<T extends object>(
   stateData: Record<string, unknown> | undefined,
   rules: ReadonlyArray<{ field: string; mapping: Record<string, Partial<T>> }>,
   defaults: T,
 ): T {
   if (!stateData) return defaults;
-  let result = { ...defaults };
+  let result: T = { ...defaults };
   for (const rule of rules) {
     const value = stateData[rule.field];
     if (value === undefined || value === null) continue;

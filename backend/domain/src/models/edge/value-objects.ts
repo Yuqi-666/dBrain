@@ -1,5 +1,3 @@
-import type { NodeId } from "@workspace/interfaces/models/node/base";
-
 /**
  * Value object representing a unique Edge identifier.
  * Wraps a string with UUID format validation.
@@ -197,59 +195,6 @@ export class EdgeType {
   }
 
   equals(other: EdgeType): boolean {
-    return this.value === other.value;
-  }
-}
-
-/**
- * Value object representing the weight/strength of an edge.
- * Range: 1-5, where smaller values indicate closer relationships.
- */
-export class EdgeWeight {
-  private readonly value: 1 | 2 | 3 | 4 | 5;
-
-  private constructor(value: 1 | 2 | 3 | 4 | 5) {
-    this.value = value;
-  }
-
-  /**
-   * Creates an EdgeWeight value object.
-   * @param value - Weight value between 1 and 5
-   * @throws Error if value is not in valid range
-   */
-  static create(value: number): EdgeWeight {
-    if (!Number.isInteger(value) || value < 1 || value > 5) {
-      throw new Error(
-        `EdgeWeight must be an integer between 1 and 5, got: ${value}`,
-      );
-    }
-    return new EdgeWeight(value as 1 | 2 | 3 | 4 | 5);
-  }
-
-  /**
-   * Gets the underlying weight value.
-   */
-  getValue(): 1 | 2 | 3 | 4 | 5 {
-    return this.value;
-  }
-
-  /**
-   * Checks if this edge is closer than another.
-   * Smaller values = closer relationship.
-   */
-  isCloserThan(other: EdgeWeight): boolean {
-    return this.value < other.value;
-  }
-
-  /**
-   * Checks if this edge is farther than another.
-   * Larger values = farther relationship.
-   */
-  isFartherThan(other: EdgeWeight): boolean {
-    return this.value > other.value;
-  }
-
-  equals(other: EdgeWeight): boolean {
     return this.value === other.value;
   }
 }

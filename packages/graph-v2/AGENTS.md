@@ -127,11 +127,11 @@ src/
 
 ## POSITION PERSISTENCE (flow mode)
 
-Schema: `NodeData.stateData.position: Array<{ viewId, x, y }>` (an **array**, not a record).
+Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y }>` (an **array**, not a record).
 
 **Resolution priority** in `sourceToRenderableNodes` (`flow/transform.ts:130-143`):
-1. `stateData.position[viewId]` — persisted flow-mode coord.
-2. First entry of `stateData.position` — cross-view backfill.
+1. `stateData.client.position[viewId]` — persisted flow-mode coord.
+2. First entry of `stateData.client.position` — cross-view backfill.
 3. `{x: 0, y: 0}` — dagre fallback (stub; real dagre is a future PR).
 
 **Write path** has TWO debounces in series (200ms each):
@@ -139,7 +139,7 @@ Schema: `NodeData.stateData.position: Array<{ viewId, x, y }>` (an **array**, no
 
 **Viewport writes**: 1000ms debounced, writes directly to `useDataStore.getState().upsertView(next)` (bypasses service layer).
 
-**Force mode** does NOT persist viewport, but READS `stateData.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching back from flow).
+**Force mode** does NOT persist viewport, but READS `stateData.client.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching back from flow).
 
 ## 6-VALUE `RenderState` UNION (FORCE-ONLY)
 

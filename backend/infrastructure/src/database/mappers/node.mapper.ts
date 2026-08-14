@@ -1,5 +1,7 @@
 import type { RecordModel } from "pocketbase";
 
+import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+
 import {
   NodeId,
   Permission,
@@ -27,15 +29,14 @@ import {
   RichTextNode,
 } from "@workspace/domain/models/node/entities";
 
-interface BaseNodeRecord {
-  id: string;
+export interface BaseNodeRecord extends RecordModel {
   title: string;
   abstract?: string;
   permission: "private" | "public" | "restricted";
   semanticId: string;
   tags: string[];
   isPinned: boolean;
-  stateData?: Record<string, unknown>;
+  stateData?: NodeStateData;
   created: string;
   updated: string;
   nodeType: string;
@@ -141,7 +142,7 @@ export class NodeMapper {
       semanticId: record.semanticId as string,
       tags: (record.tags as string[]) || [],
       isPinned: record.isPinned as boolean,
-      stateData: record.stateData as Record<string, unknown> | undefined,
+      stateData: record.stateData as NodeStateData | undefined,
       createdAt: record.created as string,
       updatedAt: record.updated as string,
     };
@@ -178,7 +179,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): TextNode {
@@ -196,7 +197,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): ImageNode {
@@ -219,7 +220,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): PdfNode {
@@ -239,7 +240,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): VideoNode {
@@ -263,7 +264,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): AudioNode {
@@ -283,7 +284,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): WebpageNode {
@@ -305,7 +306,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): WebsiteNode {
@@ -323,7 +324,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): CollectionNode {
@@ -341,7 +342,7 @@ export class NodeMapper {
     semanticId: string;
     tags: string[];
     isPinned: boolean;
-    stateData?: Record<string, unknown>;
+    stateData?: NodeStateData;
     createdAt: string;
     updatedAt: string;
   }): RichTextNode {

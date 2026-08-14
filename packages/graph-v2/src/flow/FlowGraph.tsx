@@ -13,7 +13,7 @@
  *        handles it).
  *      - Convert to `RenderableNode[]` / `RenderableEdge[]` and hand off
  *        to `<ReactFlow>`.
- *   2. **Coordinate persistence** (§3): write `stateData.position[viewId]`
+ *   2. **Coordinate persistence** (§3): write `stateData.client.position[viewId]`
  *      on drag-stop (200ms debounce via `NodeService.upsert` with
  *      `debounce: 200`).
  *   3. **Viewport persistence** (§5.4): 1000ms debounce.

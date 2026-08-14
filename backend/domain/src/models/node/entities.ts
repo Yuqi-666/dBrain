@@ -1,11 +1,9 @@
 import type {
   NodeTagId,
   NodeSemanticId,
+  NodeStateData,
 } from "@workspace/interfaces/models/node/base";
-import type { RuleGroupType } from "@workspace/utils";
 import type {
-  SingleNodeDataType,
-  ComplexNodeDataType,
   NodeDataType,
 } from "@workspace/interfaces/models/node/types";
 
@@ -33,7 +31,7 @@ export interface NodeBaseProps {
   semanticId: NodeSemanticId;
   tags: NodeTagId[];
   isPinned: boolean;
-  stateData?: Record<string, any>;
+  stateData?: NodeStateData;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +44,7 @@ export abstract class Node {
   protected readonly _semanticId: NodeSemanticId;
   protected readonly _tags: NodeTagId[];
   protected readonly _isPinned: boolean;
-  protected readonly _stateData: Record<string, any> | undefined;
+  protected readonly _stateData: NodeStateData | undefined;
   protected readonly _createdAt: string;
   protected readonly _updatedAt: string;
   protected readonly _nodeType: NodeType;
@@ -95,7 +93,7 @@ export abstract class Node {
     return this._isPinned;
   }
 
-  get stateData(): Record<string, any> | undefined {
+  get stateData(): NodeStateData | undefined {
     return this._stateData ? { ...this._stateData } : undefined;
   }
 
@@ -165,7 +163,7 @@ export abstract class Node {
     });
   }
 
-  updateStateData(stateData: Record<string, any>): Node {
+  updateNodeStateData(stateData: NodeStateData): Node {
     return this.cloneWith({
       stateData,
       updatedAt: new Date().toISOString(),
@@ -195,7 +193,7 @@ export class TextNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     content: TextContent;
     createdAt?: string;
     updatedAt?: string;
@@ -314,7 +312,7 @@ export class ImageNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     width: number;
     height: number;
     fileSize: number;
@@ -431,7 +429,7 @@ export class PdfNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     pageCount: number;
     fileSize: number;
     content: PdfContent;
@@ -565,7 +563,7 @@ export class VideoNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     duration: number;
     source: "local" | "online";
     sourceUrl?: string;
@@ -686,7 +684,7 @@ export class AudioNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     duration: number;
     fileSize: number;
     content: AudioContent;
@@ -768,7 +766,7 @@ export class WebpageNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     content: WebpageContent;
     createdAt?: string;
     updatedAt?: string;
@@ -842,7 +840,7 @@ export class WebsiteNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     content: WebsiteContent;
     createdAt?: string;
     updatedAt?: string;
@@ -916,7 +914,7 @@ export class CollectionNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     content: CollectionContent;
     createdAt?: string;
     updatedAt?: string;
@@ -1008,7 +1006,7 @@ export class RichTextNode extends Node {
     semanticId: NodeSemanticId;
     tags?: NodeTagId[];
     isPinned?: boolean;
-    stateData?: Record<string, any>;
+    stateData?: NodeStateData;
     content: RichTextContent;
     createdAt?: string;
     updatedAt?: string;

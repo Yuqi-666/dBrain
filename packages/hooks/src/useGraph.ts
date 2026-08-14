@@ -19,6 +19,7 @@ import type {
   EdgeData,
   NodeTag,
   NodeTagId,
+  NodeStateData,
 } from "@workspace/interfaces";
 import { useUIStore, useDataStore } from "@workspace/store";
 import { NodeService, EdgeService, NodeTagService } from "@workspace/services";
@@ -45,18 +46,34 @@ export function useGraph() {
   }, []);
 
   const onAddNode = useCallback(
-    async (nodeType: NodeDataType, semanticId: string) => {
+    async (nodeType: NodeDataType, semanticId: string, simX?: number, simY?: number, viewId?: string) => {
       const now = new Date().toISOString();
 
-      const baseNode = {
-        id: "tmp_" as NodeId,
+      const baseNode: {
+        id: NodeId;
+        title: string;
+        nodeType: NodeDataType;
+        permission: "private";
+        semanticId: string;
+        createdAt: string;
+        updatedAt: string;
+        stateData?: NodeStateData;
+      } = {
+        id: "tmp_",
         title: "New Node",
         nodeType,
-        permission: "private" as const,
+        permission: "private",
         semanticId,
         createdAt: now,
         updatedAt: now,
       };
+
+      if (simX !== undefined && simY !== undefined && viewId) {
+        baseNode.stateData = {
+          client: { position: [{ viewId, x: simX, y: simY, mode: "force" }] },
+          server: {},
+        };
+      }
 
       let newNode: NodeData;
 
@@ -261,6 +278,21 @@ export function useGraph() {
     [],
   );
 
+  const onChangeNodeSemantic = useCallback(
+    async (nodeId: NodeId, semanticId: string) => {
+      try {
+        await NodeService.upsert(
+          nodeId,
+          { semanticId },
+          { debounce: true },
+        );
+      } catch (error) {
+        console.error("Failed to change node semantic:", error);
+      }
+    },
+    [],
+  );
+
   const onCreateTag = useCallback(async (tagName: string) => {
     const tagId = `tmp_${tagName.toLowerCase().replace(/\s+/g, "-")}`;
     const colors = [
@@ -317,6 +349,7 @@ export function useGraph() {
     getEdge,
     onChangeEdgeDirection,
     onChangeEdgeSemantic,
+    onChangeNodeSemantic,
     onCreateTag,
   };
 }

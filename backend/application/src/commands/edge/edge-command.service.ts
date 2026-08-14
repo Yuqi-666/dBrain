@@ -8,7 +8,6 @@ import {
   EdgeId,
   EdgeDirection,
   EdgeType,
-  EdgeWeight,
 } from "@workspace/domain/models/edge/value-objects";
 
 function toEdgeDTO(edge: Edge): EdgeDTO {
@@ -19,10 +18,9 @@ function toEdgeDTO(edge: Edge): EdgeDTO {
     direction: edge.direction.getValue(),
     semanticId: edge.semanticId,
     edgeType: edge.edgeType.getValue(),
-    weight: edge.weight.getValue() as 1 | 2 | 3 | 4 | 5,
-    stateData: undefined,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    stateData: edge.stateData,
+    createdAt: edge.createdAt,
+    updatedAt: edge.updatedAt,
   };
 }
 
@@ -41,6 +39,16 @@ function parseEdgeDirection(dir: string): EdgeDirection {
   }
 }
 
+function mapEdgeType(edgeType: string): EdgeType {
+  const edgeTypeMap: Record<string, () => EdgeType> = {
+    hierarchy: EdgeType.hierarchy,
+    flow: EdgeType.flow,
+    association: EdgeType.association,
+    interaction: EdgeType.interaction,
+  };
+  return (edgeTypeMap[edgeType] ?? EdgeType.association)();
+}
+
 export class EdgeCommandService {
   constructor(
     private readonly edgeRepository: IEdgeRepository,
@@ -55,8 +63,8 @@ export class EdgeCommandService {
         to: cmd.to,
         direction: parseEdgeDirection(cmd.direction),
         semanticId: cmd.semanticId,
-        edgeType: EdgeType.hierarchy(),
-        weight: EdgeWeight.create(cmd.weight?.value ?? 1),
+        edgeType: mapEdgeType(cmd.edgeType),
+        stateData: cmd.stateData,
       });
 
       const saved = await this.edgeRepository.save(edge);
@@ -99,21 +107,14 @@ export class EdgeCommandService {
       updated = updated.flip();
     }
 
-    if (cmd.weight !== undefined) {
-      updated = updated.updateWeight(EdgeWeight.create(cmd.weight.value));
+    if (cmd.stateData !== undefined) {
+      updated = updated.updateStateData(cmd.stateData);
     }
 
     if (cmd.semanticId !== undefined || cmd.edgeType !== undefined) {
-      const edgeTypeMap: Record<string, () => EdgeType> = {
-        hierarchy: EdgeType.hierarchy,
-        flow: EdgeType.flow,
-        association: EdgeType.association,
-        interaction: EdgeType.interaction,
-      };
-      const factoryFn = cmd.edgeType ? edgeTypeMap[cmd.edgeType] : null;
       updated = updated.updateSemantic(
         cmd.semanticId ?? updated.semanticId,
-        factoryFn ? factoryFn() : updated.edgeType,
+        cmd.edgeType ? mapEdgeType(cmd.edgeType) : updated.edgeType,
       );
     }
 

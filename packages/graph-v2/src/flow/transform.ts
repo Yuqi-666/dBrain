@@ -11,7 +11,7 @@
  *     can route to the correct node component via `nodeTypes[type]`.
  *   - `RenderableEdge = Edge<RenderableEdgeData, string>` (same idea for
  *     edges).
- *   - Position persistence lives in `NodeData.stateData.position[viewId]`
+ *   - Position persistence lives in `NodeData.stateData.client.position[viewId]`
  *     (main design L417-428).
  *   - Flow mode does NOT express UI state. The only selection visual is
  *     ReactFlow's built-in `selected` prop (the `rf-selected` class on
@@ -23,6 +23,9 @@ import type {
   NodeData,
   NodeDataType,
   NodeId,
+  NodeStateData,
+  PositionEntry,
+  PositionMode,
   ViewId,
 } from "@workspace/interfaces";
 import type {
@@ -38,49 +41,45 @@ import type {
 // Position persistence helpers
 // -----------------------------------------------------------------------
 
-export interface PositionEntry {
-  viewId: ViewId;
-  x: number;
-  y: number;
-}
-
+export type { PositionEntry };
 export type PositionMap = PositionEntry[];
 
 /**
- * Read the position entry for a given view from `NodeData.stateData.position`.
- * Returns `null` when no entry exists.
+ * Read the position entry for a given view + mode from
+ * `NodeData.stateData.client.position`. Returns `null` when no entry exists.
  */
-export function getPositionForView(
+export function getPosition(
   node: NodeData,
   viewId: ViewId,
+  mode: PositionMode,
 ): { x: number; y: number } | null {
-  const positionMap = node.stateData?.position;
-  if (!Array.isArray(positionMap)) return null;
-  const entry = positionMap.find((p) => p.viewId === viewId);
+  const entry = node.stateData?.client?.position?.find(
+    (p) => p.viewId === viewId && p.mode === mode,
+  );
   if (!entry) return null;
-  if (typeof entry.x !== "number" || typeof entry.y !== "number") {
-    return null;
-  }
   return { x: entry.x, y: entry.y };
 }
 
 /**
  * Immutable write: returns a new `NodeData` with the position entry for
- * `viewId` set to `{x, y}`. Preserves all other fields and any existing
- * entries for other views.
+ * `viewId` + `mode` set to `{x, y}`. Preserves all other fields and any
+ * existing entries for other views/modes.
  */
-export function setPositionForView(
+export function setPosition(
   node: NodeData,
   viewId: ViewId,
   x: number,
   y: number,
+  mode: PositionMode,
 ): NodeData {
-  const positionMap = Array.isArray(node.stateData?.position)
-    ? (node.stateData!.position as PositionMap)
-    : [];
-  const existingIndex = positionMap.findIndex((p) => p.viewId === viewId);
-  const newEntry: PositionEntry = { viewId, x, y };
-  const newPositionMap: PositionMap =
+  const client = node.stateData?.client ?? {};
+  const server = node.stateData?.server ?? {};
+  const positionMap = client.position ?? [];
+  const existingIndex = positionMap.findIndex(
+    (p) => p.viewId === viewId && p.mode === mode,
+  );
+  const newEntry: PositionEntry = { viewId, x, y, mode };
+  const newPositionMap =
     existingIndex >= 0
       ? positionMap.map((p, i) => (i === existingIndex ? newEntry : p))
       : [...positionMap, newEntry];
@@ -88,8 +87,8 @@ export function setPositionForView(
   return {
     ...node,
     stateData: {
-      ...(node.stateData ?? {}),
-      position: newPositionMap,
+      client: { ...client, position: newPositionMap },
+      server,
     },
   };
 }
@@ -101,7 +100,7 @@ export function setPositionForView(
 export interface RenderableNodeData extends Record<string, unknown> {
   /** Original `NodeData` from `@workspace/interfaces`. */
   source: NodeData;
-  /** Position derived from `stateData.position[viewId]`. */
+  /** Position derived from `stateData.client.position[viewId]`. */
   position: { x: number; y: number };
 }
 
@@ -121,9 +120,9 @@ export type RenderableEdge = Edge<RenderableEdgeData, string>;
  * Convert a list of `NodeData` to ReactFlow `RenderableNode[]`.
  *
  * Position resolution priority (per flow/design.md §3.3):
- *   1. `stateData.position[viewId]` — persisted flow-mode coord.
- *   2. First entry of `stateData.position` — cross-view backfill (avoid
- *      node stacking when switching views).
+ *   1. `stateData.client.position[viewId]` — persisted flow-mode coord.
+ *   2. First flow-mode entry of `stateData.client.position` — cross-view
+ *      backfill (avoid node stacking when switching views).
  *   3. `{ x: 0, y: 0 }` — dagre fallback (stub: caller may replace).
  */
 export function sourceToRenderableNodes(
@@ -131,14 +130,15 @@ export function sourceToRenderableNodes(
   viewId: ViewId,
 ): RenderableNode[] {
   return nodes.map((node) => {
-    const persisted = getPositionForView(node, viewId);
+    const persisted = getPosition(node, viewId, "flow");
     let position: XYPosition;
     if (persisted) {
       position = { x: persisted.x, y: persisted.y };
     } else {
-      const allPositions = node.stateData?.position;
-      if (Array.isArray(allPositions) && allPositions.length > 0) {
-        const fallback = allPositions[0];
+      const allPositions = node.stateData?.client?.position;
+      const flowPositions = allPositions?.filter((p) => p.mode === "flow");
+      if (flowPositions && flowPositions.length > 0) {
+        const fallback = flowPositions[0]!;
         position = { x: fallback.x, y: fallback.y };
       } else {
         position = { x: 0, y: 0 };
@@ -193,11 +193,16 @@ export interface PositionDelta {
 export function positionDeltaToSource(
   delta: PositionDelta,
   getNode: (id: NodeId) => NodeData | undefined,
-): { id: NodeId; patch: { stateData: Record<string, unknown> } } | null {
+): { id: NodeId; patch: { stateData: NodeStateData } } | null {
   const node = getNode(delta.id);
   if (!node) return null;
-  const updated = setPositionForView(node, delta.viewId, delta.x, delta.y);
-  return { id: delta.id, patch: { stateData: updated.stateData ?? {} } };
+  const updated = setPosition(node, delta.viewId, delta.x, delta.y, "flow");
+  return {
+    id: delta.id,
+    patch: {
+      stateData: updated.stateData ?? { client: {}, server: {} },
+    },
+  };
 }
 
 export interface EdgeAdd {

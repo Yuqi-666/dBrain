@@ -3,7 +3,7 @@ import type {
   EdgeQuery,
 } from "@workspace/domain/repositories";
 import type { Edge, EdgeSemanticId } from "@workspace/domain/models";
-import { EdgeId, EdgeWeight } from "@workspace/domain/models/edge/value-objects";
+import { EdgeId } from "@workspace/domain/models/edge/value-objects";
 import { NodeId } from "@workspace/domain/models/node/value-objects";
 
 export class EdgeDao implements IEdgeRepository {
@@ -11,14 +11,6 @@ export class EdgeDao implements IEdgeRepository {
 
   async findBySemanticId(semanticId: EdgeSemanticId): Promise<Edge[]> {
     return this.repository.findAll({ semanticId });
-  }
-
-  async findWithWeightRange(min: number, max: number): Promise<Edge[]> {
-    const allEdges = await this.repository.findAll({});
-    return allEdges.filter((edge) => {
-      const weight = edge.weight.getValue();
-      return weight >= min && weight <= max;
-    });
   }
 
   async findByNodeId(nodeId: NodeId): Promise<Edge[]> {
@@ -134,17 +126,5 @@ export class EdgeDao implements IEdgeRepository {
     }
 
     return Array.from(connected).map((id) => new NodeId(id));
-  }
-
-  async updateEdgeWeight(
-    edgeId: EdgeId,
-    weight: EdgeWeight
-  ): Promise<Edge | null> {
-    const edge = await this.repository.findById(edgeId);
-    if (!edge) {
-      return null;
-    }
-    const updated = edge.updateWeight(weight);
-    return this.repository.save(updated);
   }
 }

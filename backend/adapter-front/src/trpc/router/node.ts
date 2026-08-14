@@ -10,6 +10,7 @@ const baseNodeFields = {
   semanticId: z.string(),
   tags: z.array(z.string()).optional(),
   isPinned: z.boolean().optional(),
+  stateData: z.any().optional(),
 };
 
 const textContentSchema = z.object({
@@ -127,6 +128,7 @@ const updateSchema = z.object({
     semanticId: z.string().optional(),
     isPinned: z.boolean().optional(),
     content: z.any().optional(),
+    stateData: z.any().optional(),
   }),
 });
 
@@ -156,6 +158,7 @@ export const nodeRouter = router({
         semanticId: input.updates.semanticId,
         isPinned: input.updates.isPinned,
         content: input.updates.content,
+        stateData: input.updates.stateData,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
       });

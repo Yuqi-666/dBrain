@@ -48,11 +48,11 @@ export function adaptEdgesToG6(edges: Map<EdgeId, EdgeData>): G6EdgeData[] {
       semanticId: edge.semanticId,
       direction: edge.direction,
       data: {
-        weight: edge.weight,
+        weight: edge.stateData?.server?.weight,
         stateData: edge.stateData,
       },
       edgeType: edge.edgeType,
-      weight: edge.weight,
+      weight: edge.stateData?.server?.weight,
       stateData: edge.stateData,
     });
   });

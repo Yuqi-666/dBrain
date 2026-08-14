@@ -1,3 +1,5 @@
+import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
+
 export interface EdgeDTO {
   id: string;
   from: string;
@@ -5,8 +7,7 @@ export interface EdgeDTO {
   direction: "forward" | "reverse" | "bidirectional" | "undirected";
   semanticId: string;
   edgeType: "hierarchy" | "flow" | "association" | "interaction";
-  weight: 1 | 2 | 3 | 4 | 5;
-  stateData?: Record<string, any>;
+  stateData?: EdgeStateData;
   createdAt: string;
   updatedAt: string;
 }

@@ -73,11 +73,16 @@ export function SemanticList({ onSelect }: SemanticListProps) {
               onSelect={() => handleSelect(semantic.id)}
               className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md group"
             >
-              {semantic.icon && (
+              {semantic.color ? (
+                <span
+                  className="size-4 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: semantic.color }}
+                />
+              ) : semantic.icon ? (
                 <span className="size-4 flex items-center justify-center">
                   {semantic.icon}
                 </span>
-              )}
+              ) : null}
               <span className="flex-1 truncate">{semantic.name}</span>
               {semantic.description && (
                 <span className="text-xs text-muted-foreground truncate max-w-[80px]">

@@ -14,6 +14,8 @@ import type {
   EdgeType,
   NodeData,
   NodeSemanticId,
+  PositionEntry,
+  PositionMode,
   ViewId,
 } from "@workspace/interfaces";
 import type { SourceDiff } from "../types";
@@ -24,29 +26,53 @@ import {
   NODE_BUSINESS_RULES,
   EDGE_BUSINESS_RULES,
   resolveBusinessStyle,
+  type NodeResolvedStyle,
+  type EdgeResolvedStyle,
 } from "./styleConfig";
 
 // -----------------------------------------------------------------------
 // Position persistence helpers
 // -----------------------------------------------------------------------
 
-export interface PositionEntry {
-  viewId: ViewId;
-  x: number;
-  y: number;
-}
-
-export function getPositionForView(
+export function getPosition(
   node: NodeData,
   viewId: ViewId,
+  mode: PositionMode,
 ): { x: number; y: number } | null {
-  const positionMap = node.stateData?.position;
-  if (!Array.isArray(positionMap)) return null;
-  const entry = positionMap.find((p) => p.viewId === viewId);
+  const entry = node.stateData?.client?.position?.find(
+    (p) => p.viewId === viewId && p.mode === mode,
+  );
   if (!entry) return null;
   if (!Number.isFinite(entry.x) || !Number.isFinite(entry.y)) return null;
-  if (typeof entry.x !== "number" || typeof entry.y !== "number") return null;
   return { x: entry.x, y: entry.y };
+}
+
+export function setPosition(
+  node: NodeData,
+  viewId: ViewId,
+  x: number,
+  y: number,
+  mode: PositionMode,
+): NodeData {
+  const client = node.stateData?.client ?? {};
+  const server = node.stateData?.server ?? {};
+  const positionMap = client.position ?? [];
+  const existingIndex = positionMap.findIndex(
+    (p) => p.viewId === viewId && p.mode === mode,
+  );
+  const newEntry: PositionEntry = { viewId, x, y, mode };
+  const newPositionMap =
+    existingIndex >= 0
+      ? positionMap.map((p, i) => (i === existingIndex ? newEntry : p))
+      : [...positionMap, newEntry];
+
+  return {
+    ...node,
+    stateData: {
+      client: { ...client, position: newPositionMap },
+      server,
+    },
+  };
 }
 
 // -----------------------------------------------------------------------
@@ -90,7 +116,7 @@ export interface TransformOptions {
  *   1. NODE_DEFAULTS
  *   2. stateData.server → resolveBusinessStyle() via NODE_BUSINESS_RULES
  *   3. semanticColorMap[semanticId] → fillColor (external joined data)
- *   4. stateData.client → spread overrides (explicit display)
+ *   4. stateData.client.style → spread overrides (explicit display)
  */
 export function nodeDataToForceSeeds(
   nodes: ReadonlyArray<NodeData>,
@@ -98,34 +124,36 @@ export function nodeDataToForceSeeds(
 ): ForceNodeSeed[] {
   return nodes.map((node) => {
     // Layer 1: defaults
-    let resolved: Record<string, unknown> = { ...NODE_DEFAULTS };
+    let resolved: NodeResolvedStyle = resolveBusinessStyle(
+      node.stateData?.server,
+      NODE_BUSINESS_RULES,
+      { ...NODE_DEFAULTS },
+    );
 
-    // Layer 2: business — stateData.server rules + semantic color
-    const server = node.stateData?.server as Record<string, unknown> | undefined;
-    resolved = resolveBusinessStyle(server, NODE_BUSINESS_RULES, resolved);
+    // Layer 2: business — semantic.color (external joined data)
     if (node.semanticId && options.semanticColorMap) {
       const semanticColor = options.semanticColorMap.get(node.semanticId);
       if (semanticColor) resolved = { ...resolved, fillColor: semanticColor };
     }
 
-    // Layer 3: client — explicit display overrides (highest priority before worker)
-    const client = node.stateData?.client as Record<string, unknown> | undefined;
-    if (client) resolved = { ...resolved, ...client };
+    // Layer 3: client.style — explicit display overrides (highest priority before worker)
+    const clientStyle = node.stateData?.client?.style;
+    if (clientStyle) resolved = { ...resolved, ...clientStyle };
 
     const seed: ForceNodeSeed = {
       id: node.id,
-      fillColor: resolved.fillColor as string,
-      strokeColor: resolved.strokeColor as string,
-      strokeWidth: resolved.strokeWidth as number,
+      fillColor: resolved.fillColor,
+      strokeColor: resolved.strokeColor,
+      strokeWidth: resolved.strokeWidth,
       label: node.title,
-      labelColor: resolved.labelColor as string,
-      labelSize: resolved.labelSize as number,
-      radius: (node.stateData?.weight as number) ?? (resolved.radius as number),
+      labelColor: resolved.labelColor,
+      labelSize: resolved.labelSize,
+      radius: node.stateData?.server?.weight ?? resolved.radius,
       nodeType: node.nodeType,
       viewId: options.viewId,
     };
 
-    const persisted = getPositionForView(node, options.viewId);
+    const persisted = getPosition(node, options.viewId, "force");
     if (persisted) {
       seed.x = persisted.x;
       seed.y = persisted.y;
@@ -146,7 +174,7 @@ export function nodeDataToForceSeeds(
  *   1. EDGE_DEFAULTS + edgeType → shape/strokeType
  *   2. stateData.server → resolveBusinessStyle() via EDGE_BUSINESS_RULES
  *   3. edgeSemanticColorMap[semanticId] → strokeColor (external joined data)
- *   4. stateData.client → spread overrides (explicit display)
+ *   4. stateData.client.style → spread overrides (explicit display)
  */
 export function edgeDataToForceSeeds(
   edges: ReadonlyArray<EdgeData>,
@@ -154,37 +182,39 @@ export function edgeDataToForceSeeds(
 ): ForceLinkSeed[] {
   return edges.map((edge) => {
     // Layer 1: defaults + edgeType-driven shape/strokeType
-    let resolved: Record<string, unknown> = {
-      ...EDGE_DEFAULTS,
-      shape: EDGE_TYPE_TO_SHAPE[edge.edgeType],
-      strokeType: EDGE_TYPE_TO_STROKE_TYPE[edge.edgeType],
-    };
+    let resolved: EdgeResolvedStyle = resolveBusinessStyle(
+      edge.stateData?.server,
+      EDGE_BUSINESS_RULES,
+      {
+        ...EDGE_DEFAULTS,
+        shape: EDGE_TYPE_TO_SHAPE[edge.edgeType],
+        strokeType: EDGE_TYPE_TO_STROKE_TYPE[edge.edgeType],
+      },
+    );
 
-    // Layer 2: business — stateData.server rules + semantic color
-    const server = edge.stateData?.server as Record<string, unknown> | undefined;
-    resolved = resolveBusinessStyle(server, EDGE_BUSINESS_RULES, resolved);
+    // Layer 2: business — semantic.color (external joined data)
     if (edge.semanticId && options?.edgeSemanticColorMap) {
       const semanticColor = options.edgeSemanticColorMap.get(edge.semanticId);
       if (semanticColor) resolved = { ...resolved, strokeColor: semanticColor };
     }
 
-    // Layer 3: client — explicit display overrides
-    const client = edge.stateData?.client as Record<string, unknown> | undefined;
-    if (client) resolved = { ...resolved, ...client };
+    // Layer 3: client.style — explicit display overrides
+    const clientStyle = edge.stateData?.client?.style;
+    if (clientStyle) resolved = { ...resolved, ...clientStyle };
 
     return {
       id: edge.id,
       source: edge.from,
       target: edge.to,
-      label: (edge.stateData?.label as string) ?? "",
-      labelColor: resolved.labelColor as string,
-      labelSize: resolved.labelSize as number,
-      shape: resolved.shape as ForceLinkSeed["shape"],
-      strokeType: resolved.strokeType as ForceLinkSeed["strokeType"],
-      strokeColor: resolved.strokeColor as string,
-      strokeWidth: resolved.strokeWidth as number,
+      label: edge.stateData?.server?.label ?? "",
+      labelColor: resolved.labelColor,
+      labelSize: resolved.labelSize,
+      shape: resolved.shape,
+      strokeType: resolved.strokeType,
+      strokeColor: resolved.strokeColor,
+      strokeWidth: resolved.strokeWidth,
       direction: edge.direction,
-      weight: edge.weight,
+      weight: edge.stateData?.server?.weight,
     };
   });
 }

@@ -132,7 +132,7 @@ migrate((app) => {
       { name: "direction", type: "select", required: true, values: ["forward", "reverse", "bidirectional", "unidirectional"] },
       { name: "semanticId", type: "text" },
       { name: "edgeType", type: "text", required: true },
-      { name: "weight", type: "number" },
+      { name: "stateData", type: "json" },
     ],
   });
   app.save(edges);

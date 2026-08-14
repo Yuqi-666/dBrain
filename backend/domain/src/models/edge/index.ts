@@ -1,4 +1,4 @@
-export { EdgeId, EdgeDirection, EdgeType, EdgeWeight } from "./value-objects";
+export { EdgeId, EdgeDirection, EdgeType } from "./value-objects";
 export type { EdgeSemanticId } from "./value-objects";
 
 export { Edge } from "./entities";

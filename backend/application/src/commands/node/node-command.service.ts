@@ -25,6 +25,7 @@ import { NodeId, Permission, FilterConfig } from "@workspace/domain";
 import type { NodeDTO } from "../../dto/node.dto";
 import type { INodeRepository, IEdgeRepository, IEventBus } from "@workspace/domain";
 import type { NodeCreated, NodeDeleted, NodeUpdated, EdgeDeleted } from "@workspace/domain";
+import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 import type {
   CreateNodeCommand,
   UpdateNodeCommand,
@@ -40,6 +41,7 @@ function toNodeDTO(node: Node): NodeDTO {
     semanticId: node.semanticId,
     tags: node.tags,
     isPinned: node.isPinned,
+    stateData: node.stateData,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
   };
@@ -113,6 +115,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           content: new TextContent(cmd.content.docs),
         });
         break;
@@ -125,6 +128,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           width: cmd.width,
           height: cmd.height,
           fileSize: cmd.fileSize,
@@ -142,6 +146,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           pageCount: cmd.pageCount,
           fileSize: cmd.fileSize,
           content: new PdfContent(cmd.content.url, cmd.content.coverUrl),
@@ -156,6 +161,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           duration: cmd.duration,
           source: cmd.source,
           sourceUrl: cmd.sourceUrl,
@@ -174,6 +180,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           duration: cmd.duration,
           fileSize: cmd.fileSize,
           content: new AudioContent(cmd.content.url),
@@ -188,6 +195,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           content: new WebpageContent(
             cmd.content.html,
             cmd.content.url,
@@ -204,6 +212,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           content: new WebsiteContent(cmd.content.url, cmd.content.faviconUrl),
         });
         break;
@@ -216,6 +225,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           content: new CollectionContent(
             FilterConfig.create({
               selectedNodes: cmd.content.filterConfig?.selectedNodes?.map(nodeId => new NodeId(nodeId)) ?? [],
@@ -234,6 +244,7 @@ export class NodeCommandService {
           semanticId: cmd.semanticId,
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
           content: new RichTextContent(
             cmd.content.referencedNodes.map((n: string) => new NodeId(n)),
             cmd.content.docs,
@@ -294,6 +305,9 @@ export class NodeCommandService {
     }
     if (cmd.content !== undefined) {
       updatedNode = this.updateNodeContent(updatedNode, cmd.content);
+    }
+    if (cmd.stateData !== undefined) {
+      updatedNode = updatedNode.updateNodeStateData(cmd.stateData);
     }
 
     const savedNode = await this.nodeRepository.save(updatedNode);

@@ -1,5 +1,3 @@
-import type { RecordModel } from "pocketbase";
-
 import {
   Node,
   TextNode,
@@ -14,14 +12,13 @@ import {
 } from "@workspace/domain/models/node/entities";
 import type {
   NodeId,
-  NodeType,
 } from "@workspace/domain/models/node/value-objects";
 import type {
   INodeRepository,
   NodeQuery,
 } from "@workspace/domain/repositories";
 
-import { NodeMapper } from "../database/mappers/node.mapper";
+import { NodeMapper, type BaseNodeRecord } from "../database/mappers/node.mapper";
 import { PocketBaseClient } from "../database/pocketbase-client";
 
 type NodeTagId = string;
@@ -34,7 +31,7 @@ export class PocketBaseNodeRepository implements INodeRepository {
   constructor(private pb: PocketBaseClient) {}
 
   private collection() {
-    return this.pb.collection<NodeRecord>(COLLECTION_NAME);
+    return this.pb.collection<BaseNodeRecord>(COLLECTION_NAME);
   }
 
   async findById(id: NodeId): Promise<Node | null> {
@@ -302,18 +299,4 @@ export class PocketBaseNodeRepository implements INodeRepository {
 
     return conditions.join(" && ");
   }
-}
-
-interface NodeRecord extends RecordModel {
-  id: string;
-  title: string;
-  abstract?: string;
-  permission: "private" | "public" | "restricted";
-  semanticId: string;
-  tags: string[];
-  isPinned: boolean;
-  stateData?: Record<string, unknown>;
-  created: string;
-  updated: string;
-  nodeType: NodeType["value"];
 }

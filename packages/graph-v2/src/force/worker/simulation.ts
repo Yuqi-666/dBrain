@@ -339,7 +339,8 @@ export function createOrUpdate(
       ?.links(links);
   } else {
     sim = forceSimulation<SimNode>(nodes)
-      .on("tick", onTick);
+      .on("tick", onTick)
+      .on("end", onEnd);
   }
   applyConfig(currentConfig);
 
@@ -457,7 +458,7 @@ export function applyDiff(
     sim.nodes(nodes);
     (sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>> | null)
       ?.links(links);
-    sim.alphaTarget(0.1).restart();
+    sim.alpha(0.3).restart();
   } else {
     // Still need to tell d3 about the updated nodes array in case
     // radius changed (affects forceCollide). But no simulation injection.
@@ -646,6 +647,19 @@ function onTick(): void {
   if (qt && ++tickCount % 5 === 0) {
     rebuildQuadtree();
   }
+}
+
+/** d3 `end` event — fires when the simulation naturally settles; snapshot
+ *  node positions so the main thread can persist the layout. */
+function onEnd(): void {
+  emit({
+    type: "simulation:stopped",
+    positions: nodes.map((n) => ({
+      id: n.id,
+      x: n.x ?? 0,
+      y: n.y ?? 0,
+    })),
+  });
 }
 
 export function onTickListener(cb: (alpha: number) => void): () => void {

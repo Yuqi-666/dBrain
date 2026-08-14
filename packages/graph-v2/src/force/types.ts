@@ -112,7 +112,7 @@ export type RenderState =
  * lookup or style-config join happens inside the worker.
  *
  * - `x` / `y` are initial coordinates read from
- *   `stateData.position[currentViewId]` (cross-mode position backfill).
+ *   `stateData.client.position[currentViewId]` (cross-mode position backfill).
  *   When absent, d3-force uses phyllotaxis fallback.
  * - `fx` / `fy` are *pin coordinates* — set only when actively dragging.
  * - `radius` is the visual radius, also reused for forceCollide.
@@ -231,6 +231,7 @@ export type WorkerEvent =
   | { type: "frame"; bitmap: ImageBitmap }
   | { type: "tick"; alpha: number }
   | { type: "status"; status: "idle" | "running" | "stopped" }
+  | { type: "simulation:stopped"; positions: { id: NodeId; x: number; y: number }[] }
   | { type: "context-menu:node"; nodeId: NodeId; clientX: number; clientY: number }
   | { type: "context-menu:edge"; edgeId: EdgeId; clientX: number; clientY: number }
   | { type: "context-menu:canvas"; clientX: number; clientY: number };

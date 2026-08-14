@@ -1,13 +1,27 @@
 import type { RecordModel } from "pocketbase";
-import type { NodeId } from "@workspace/interfaces/models/node/base";
+import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
 import { Edge } from "@workspace/domain/models/edge/entities";
 import {
   EdgeId,
   EdgeDirection,
   EdgeType,
-  EdgeWeight,
-  type EdgeSemanticId,
 } from "@workspace/domain/models/edge/value-objects";
+
+/**
+ * PocketBase `edges` collection record. Flat, homogeneous structure — a
+ * single interface covers all edges (unlike the 9-variant `NodeRecord` set).
+ */
+export interface EdgeRecord extends RecordModel {
+  id: string;
+  from: string;
+  to: string;
+  direction: string;
+  semanticId: string;
+  edgeType: string;
+  stateData?: EdgeStateData;
+  created: string;
+  updated: string;
+}
 
 /**
  * Maps between PocketBase RecordModel and domain Edge entity.
@@ -16,22 +30,24 @@ export class EdgeMapper {
   /**
    * Converts a PocketBase record to a domain Edge entity.
    */
-  static toDomain(record: RecordModel): Edge {
+  static toDomain(record: EdgeRecord): Edge {
     return Edge.create({
       id: EdgeId.create(record.id),
-      from: record.from as NodeId,
-      to: record.to as NodeId,
+      from: record.from,
+      to: record.to,
       direction: EdgeMapper.mapDirectionToDomain(record.direction),
-      semanticId: record.semanticId as EdgeSemanticId,
+      semanticId: record.semanticId,
       edgeType: EdgeMapper.mapEdgeTypeToDomain(record.edgeType),
-      weight: EdgeWeight.create(record.weight),
+      stateData: record.stateData,
+      createdAt: record.created,
+      updatedAt: record.updated,
     });
   }
 
   /**
    * Converts a domain Edge entity to a Partial PocketBase RecordModel.
    */
-  static toRecord(edge: Edge): Partial<RecordModel> {
+  static toRecord(edge: Edge): Partial<EdgeRecord> {
     return {
       id: edge.id.getValue(),
       from: edge.from,
@@ -39,7 +55,7 @@ export class EdgeMapper {
       direction: edge.direction.getValue(),
       semanticId: edge.semanticId,
       edgeType: edge.edgeType.getValue(),
-      weight: edge.weight.getValue(),
+      stateData: edge.stateData,
     };
   }
 

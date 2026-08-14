@@ -1,5 +1,3 @@
-import type { RecordModel } from "pocketbase";
-
 import type {
   IEdgeRepository,
   EdgeQuery,
@@ -7,14 +5,14 @@ import type {
 import { Edge } from "@workspace/domain/models/edge/entities";
 import type { EdgeId } from "@workspace/domain/models/edge/value-objects";
 import type { NodeId } from "@workspace/domain/models/node/value-objects";
-import { EdgeMapper } from "../database/mappers/edge.mapper";
+import { EdgeMapper, type EdgeRecord } from "../database/mappers/edge.mapper";
 import { getPocketBaseClient } from "../database/pocketbase-client";
 
 const COLLECTION_NAME = "edges";
 
 export class PocketBaseEdgeRepository implements IEdgeRepository {
   private get collection() {
-    return getPocketBaseClient().collection<RecordModel>(COLLECTION_NAME);
+    return getPocketBaseClient().collection<EdgeRecord>(COLLECTION_NAME);
   }
 
   async findById(id: EdgeId): Promise<Edge | null> {
@@ -76,7 +74,7 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
 
     return ids
       .map((id) => recordMap.get(id.getValue()))
-      .filter((record): record is RecordModel => record !== undefined)
+      .filter((record): record is EdgeRecord => record !== undefined)
       .map((record) => EdgeMapper.toDomain(record));
   }
 
@@ -112,7 +110,7 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
     });
 
     const result = await this.collection.create(records);
-    return result.map((record: RecordModel) => EdgeMapper.toDomain(record));
+    return result.map((record: EdgeRecord) => EdgeMapper.toDomain(record));
   }
 
   async deleteMany(ids: EdgeId[]): Promise<void> {

@@ -116,12 +116,21 @@ export function PreviewBlock({
   }, [visible]);
 
   React.useEffect(() => {
-    if (isFocus && !frozenPosition) {
+    if (isFocus) {
+      // Freeze (or re-freeze when switching nodes) at the current mouse
+      // position — which is the click position at the moment `isFocus`
+      // becomes true or `nodeId` changes.
       setFrozenPosition({ x: latestMousePosition.x, y: latestMousePosition.y });
-    } else if (!isFocus) {
+    } else {
       setFrozenPosition(null);
     }
-  }, [isFocus, frozenPosition]);
+  }, [isFocus, nodeId]);
+
+  // Reset to defaults when the node changes so the preview isn't
+  // positioned with stale dimensions from the previous node.
+  React.useEffect(() => {
+    setPreviewSize({ width: PREVIEW_WIDTH, height: PREVIEW_MAX_HEIGHT });
+  }, [nodeId]);
 
   React.useEffect(() => {
     if (!previewRef.current) return;
@@ -135,7 +144,7 @@ export function PreviewBlock({
     const observer = new ResizeObserver(updateSize);
     observer.observe(previewRef.current);
     return () => observer.disconnect();
-  }, [visible, node]);
+  }, [visible]);
 
   const pos = calculatePosition(
     isFocus && frozenPosition ? frozenPosition.x : latestMousePosition.x,

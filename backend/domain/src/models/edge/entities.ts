@@ -1,5 +1,6 @@
+import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
 import type { NodeId } from "@workspace/interfaces/models/node/base";
-import { EdgeId, EdgeDirection, EdgeType, EdgeWeight } from "./value-objects";
+import { EdgeId, EdgeDirection, EdgeType } from "./value-objects";
 import type { EdgeSemanticId } from "./value-objects";
 
 /**
@@ -12,7 +13,9 @@ export interface EdgeProps {
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
   edgeType: EdgeType;
-  weight: EdgeWeight;
+  stateData?: EdgeStateData;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -31,7 +34,9 @@ export class Edge {
   readonly direction: EdgeDirection;
   readonly semanticId: EdgeSemanticId;
   readonly edgeType: EdgeType;
-  readonly weight: EdgeWeight;
+  readonly stateData?: EdgeStateData;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 
   private constructor(props: EdgeProps) {
     this.id = props.id;
@@ -40,7 +45,9 @@ export class Edge {
     this.direction = props.direction;
     this.semanticId = props.semanticId;
     this.edgeType = props.edgeType;
-    this.weight = props.weight;
+    this.stateData = props.stateData;
+    this.createdAt = props.createdAt ?? new Date().toISOString();
+    this.updatedAt = props.updatedAt ?? new Date().toISOString();
   }
 
   /**
@@ -83,16 +90,7 @@ export class Edge {
     return new Edge({
       ...this,
       direction: flippedDirection,
-    });
-  }
-
-  /**
-   * Creates a new edge with updated weight.
-   */
-  updateWeight(weight: EdgeWeight): Edge {
-    return new Edge({
-      ...this,
-      weight,
+      updatedAt: new Date().toISOString(),
     });
   }
 
@@ -104,6 +102,18 @@ export class Edge {
       ...this,
       semanticId,
       edgeType,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Creates a new edge with updated stateData.
+   */
+  updateStateData(stateData: EdgeStateData): Edge {
+    return new Edge({
+      ...this,
+      stateData,
+      updatedAt: new Date().toISOString(),
     });
   }
 

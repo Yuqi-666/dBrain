@@ -37,7 +37,8 @@ yarn-error.log*
 .DS_Store
 *.pem
 
-pb/pb_data
+pb/pb_data/
+pb/pocketbase
 .agents/
 .omo/
 .codegraph/

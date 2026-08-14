@@ -206,7 +206,7 @@ src/
 
 **Alpha control**: `createOrUpdate` calls `alpha(1).restart()`; `applyDiff` calls `alphaTarget(0.1).restart()`; `updateConfig` calls `alpha(0.3).restart()`; `setNodeFixed(true)` sets `alphaTarget(0.3)`.
 
-**Position backfill** on first load: reads `stateData.position[currentViewId]` from the store. If absent, leaves x/y undefined so d3-force falls back to its phyllotaxis initializer. The persisted x/y override the running position only when `existing.fx === null` (don't snap a node mid-drag).
+**Position backfill** on first load: reads `stateData.client.position[currentViewId]` from the store. If absent, leaves x/y undefined so d3-force falls back to its phyllotaxis initializer. The persisted x/y override the running position only when `existing.fx === null` (don't snap a node mid-drag).
 
 ### Modifier-key policy (per `eventListener.ts:8-15`)
 
@@ -216,11 +216,11 @@ src/
 
 ### Position persistence (flow mode)
 
-Schema: `NodeData.stateData.position: Array<{ viewId, x, y }>` (an array, not a record).
+Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y }>` (an array, not a record).
 
 **Resolution priority** in `sourceToRenderableNodes`:
-1. `stateData.position[viewId]` — persisted flow-mode coord for this view.
-2. First entry of `stateData.position` — cross-view backfill (avoid stacking when switching views).
+1. `stateData.client.position[viewId]` — persisted flow-mode coord for this view.
+2. First entry of `stateData.client.position` — cross-view backfill (avoid stacking when switching views).
 3. `{ x: 0, y: 0 }` — dagre fallback (stub; real dagre is a future PR).
 
 **Write path** has TWO debounces in series (200ms each):
@@ -228,7 +228,7 @@ Schema: `NodeData.stateData.position: Array<{ viewId, x, y }>` (an array, not a 
 
 **Viewport writes** are debounced 1000ms and write directly to `useDataStore.getState().upsertView(next)`, bypassing the service layer.
 
-**Force mode does NOT persist viewport** (per design.md §5.1/§6.1.1) and does not write positions back — but reads `stateData.position[viewId]` as x/y seeds on first load.
+**Force mode does NOT persist viewport** (per design.md §5.1/§6.1.1) and does not write positions back — but reads `stateData.client.position[viewId]` as x/y seeds on first load.
 
 ### 7-state UI enum (`UiState`, force-only)
 

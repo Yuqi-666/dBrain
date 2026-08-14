@@ -87,7 +87,8 @@ export {
   singleNodeToForceSeed,
   singleEdgeToForceSeed,
   diffToForcePayload,
-  getPositionForView as getPositionForViewForForce,
+  getPosition as getPositionForForce,
+  setPosition as setPositionForForce,
 } from "./force/transform";
 
 // Flow transforms.
@@ -96,8 +97,8 @@ export {
   sourceToRenderableEdges,
   positionDeltaToSource,
   connectionToEdgeAdd,
-  setPositionForView,
-  getPositionForView,
+  setPosition,
+  getPosition,
 } from "./flow/transform";
 
 // Force sim defaults.

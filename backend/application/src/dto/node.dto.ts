@@ -1,4 +1,5 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
+import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 
 export interface BaseNodeDTO {
   id: string;
@@ -8,7 +9,7 @@ export interface BaseNodeDTO {
   semanticId: string;
   tags: string[];
   isPinned: boolean;
-  stateData?: Record<string, any>;
+  stateData?: NodeStateData;
   createdAt: string;
   updatedAt: string;
 }

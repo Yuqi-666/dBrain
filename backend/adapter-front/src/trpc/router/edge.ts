@@ -2,6 +2,14 @@ import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
+
+const edgeStateDataSchema = z
+  .object({
+    client: z.record(z.any()).optional(),
+    server: z.record(z.any()).optional(),
+  })
+  .optional();
 
 const addSchema = z.object({
   id: z.string(),
@@ -10,7 +18,7 @@ const addSchema = z.object({
   direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]),
   semanticId: z.string(),
   edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]),
-  weight: z.number().min(1).max(5).optional(),
+  stateData: edgeStateDataSchema,
 });
 
 const updateSchema = z.object({
@@ -19,7 +27,7 @@ const updateSchema = z.object({
     direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]).optional(),
     semanticId: z.string().optional(),
     edgeType: z.enum(["hierarchy", "flow", "association", "interaction"]).optional(),
-    weight: z.number().min(1).max(5).optional(),
+    stateData: edgeStateDataSchema,
   }),
 });
 
@@ -30,6 +38,9 @@ const deleteSchema = z.object({
 export const edgeRouter = router({
   add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
     try {
+      const stateData: EdgeStateData | undefined = input.stateData
+        ? { client: input.stateData.client ?? {}, server: input.stateData.server ?? {} }
+        : undefined;
       const result = await container().edgeCommandService.createEdge({
         id: input.id,
         from: input.from,
@@ -37,7 +48,7 @@ export const edgeRouter = router({
         direction: input.direction,
         semanticId: input.semanticId,
         edgeType: input.edgeType,
-        weight: input.weight !== undefined ? { value: input.weight } : undefined,
+        stateData,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
       });
@@ -54,12 +65,15 @@ export const edgeRouter = router({
   }),
 
   update: protectedProcedure.input(updateSchema).mutation(async ({ ctx, input }) => {
+    const stateData: EdgeStateData | undefined = input.updates.stateData
+      ? { client: input.updates.stateData.client ?? {}, server: input.updates.stateData.server ?? {} }
+      : undefined;
     const result = await container().edgeCommandService.updateEdge({
       id: input.id,
       direction: input.updates.direction,
       semanticId: input.updates.semanticId,
       edgeType: input.updates.edgeType,
-      weight: input.updates.weight !== undefined ? { value: input.updates.weight } : undefined,
+      stateData,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
     });

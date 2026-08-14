@@ -16,6 +16,31 @@ export interface EdgeSemantic {
   description?: string;
 }
 
+export interface EdgeClientStyle {
+  strokeColor?: string;
+  strokeWidth?: number;
+  labelColor?: string;
+  labelSize?: number;
+  shape?: "straight" | "curve" | "s-curve";
+  strokeType?: "solid" | "dotted" | "dashed";
+}
+
+export interface EdgeClientState {
+  style?: EdgeClientStyle;
+  [key: string]: unknown;
+}
+
+export interface EdgeServerState {
+  label?: string;
+  weight?: EdgeWeight;
+  [key: string]: unknown;
+}
+
+export interface EdgeStateData {
+  client: EdgeClientState;
+  server: EdgeServerState;
+}
+
 export interface EdgeBase {
   id: EdgeId;
   from: NodeId;
@@ -23,8 +48,7 @@ export interface EdgeBase {
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
   edgeType: EdgeType;
-  weight?: EdgeWeight;
-  stateData?: Record<string, any>;
+  stateData?: EdgeStateData;
   createdAt: string;
   updatedAt: string;
 }

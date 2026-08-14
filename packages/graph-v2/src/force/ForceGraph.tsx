@@ -40,6 +40,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -61,10 +62,13 @@ import {
   diffToForcePayload,
   edgeDataToForceSeeds,
   nodeDataToForceSeeds,
+  setPosition,
 } from "./transform";
-import { installDomEventProxy } from "./eventListener";
+import { installDomEventProxy, screenToSimulation } from "./eventListener";
 import { useUIStore } from "@workspace/store";
 import { useDataStore } from "@workspace/store";
+import { NodeService } from "@workspace/services";
+import { debounce } from "@workspace/utils";
 import {
   GraphContextMenu,
   type GraphContextMenuProps,
@@ -408,6 +412,31 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       },
       [getDataSnapshot, viewId, buildSemanticColorMaps],
     );
+
+    // ---- Position persistence (sim settled → 3s debounce) ----------
+    const persistPositions = useMemo(
+      () =>
+        debounce(
+          (positions: { id: NodeId; x: number; y: number }[]) => {
+            const snapshot = getDataSnapshot();
+            for (const pos of positions) {
+              const node = snapshot.nodes.find((n) => n.id === pos.id);
+              if (!node) continue;
+              const updated = setPosition(node, viewId, pos.x, pos.y, "force");
+              NodeService.upsert(
+                pos.id,
+                { stateData: updated.stateData ?? { client: {}, server: {} } },
+                { debounce: 200 },
+              ).catch((err: unknown) => {
+                console.error("[ForceGraph] position persist failed:", err);
+              });
+            }
+          },
+          3000,
+        ),
+      [getDataSnapshot, viewId],
+    );
+
     // Per main design L229-232 / L365-367, worker events are forwarded
     // straight to the shared event handler, which owns the routing to
     // useUIStore / useGraph().
@@ -448,21 +477,35 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               onClose: () => setContextMenuState(null),
             });
             break;
-          case "context-menu:canvas":
+          case "context-menu:canvas": {
+            const rect = canvasRectRef.current;
+            const vp = viewportRef.current;
+            const dpr = dprRef.current;
+            const sim = rect
+              ? screenToSimulation(event.clientX, event.clientY, rect, vp, dpr)
+              : { x: event.clientX, y: event.clientY };
             setContextMenuState({
               x: event.clientX,
               y: event.clientY,
               visible: true,
               type: "canvas",
-              context: {} as Record<string, never>,
+              context: {
+                simX: sim.x,
+                simY: sim.y,
+                viewId: currentViewIdRef.current,
+              },
               onClose: () => setContextMenuState(null),
             });
+            break;
+          }
+          case "simulation:stopped":
+            persistPositions(event.positions);
             break;
         }
 
         eventHandler.handleWorkerEvent(event);
       },
-      [eventHandler],
+      [eventHandler, persistPositions],
     );
 
     // ---- Effect: Worker lifecycle (mount/unmount only) -----------------

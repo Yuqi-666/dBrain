@@ -17,10 +17,9 @@ function toEdgeDTO(edge: Edge): EdgeDTO {
     direction: edge.direction.getValue(),
     semanticId: edge.semanticId,
     edgeType: edge.edgeType.getValue(),
-    weight: edge.weight.getValue() as 1 | 2 | 3 | 4 | 5,
-    stateData: undefined,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    stateData: edge.stateData,
+    createdAt: edge.createdAt,
+    updatedAt: edge.updatedAt,
   };
 }
 function toEdgeDirection(dir: string): EdgeDirection {

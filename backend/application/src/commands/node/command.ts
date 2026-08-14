@@ -1,4 +1,4 @@
-import type { FilterConfig } from "@workspace/interfaces";
+import type { FilterConfig, NodeStateData } from "@workspace/interfaces";
 
 export interface CreateTextNodeCommand {
   nodeType: "text";
@@ -9,6 +9,7 @@ export interface CreateTextNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   content: { docs: Record<string, any> };
   userId: string;
   sourceId?: string;
@@ -23,6 +24,7 @@ export interface CreateImageNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   width: number;
   height: number;
   fileSize: number;
@@ -42,6 +44,7 @@ export interface CreatePdfNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   pageCount: number;
   fileSize: number;
   content: { url: string; coverUrl: string };
@@ -58,6 +61,7 @@ export interface CreateVideoNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   duration: number;
   source: "local" | "online";
   sourceUrl?: string;
@@ -78,6 +82,7 @@ export interface CreateAudioNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   duration: number;
   fileSize: number;
   content: { url: string };
@@ -94,6 +99,7 @@ export interface CreateWebpageNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   content: { html: string; url: string; screenshotUrl?: string };
   userId: string;
   sourceId?: string;
@@ -108,6 +114,7 @@ export interface CreateWebsiteNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   content: { url: string; faviconUrl?: string };
   userId: string;
   sourceId?: string;
@@ -122,6 +129,7 @@ export interface CreateCollectionNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   content: {
     filterConfig?: FilterConfig
   };
@@ -138,6 +146,7 @@ export interface CreateRichTextNodeCommand {
   semanticId: string;
   tags?: string[];
   isPinned?: boolean;
+  stateData?: NodeStateData;
   content: { referencedNodes: string[]; docs: Record<string, any> };
   userId: string;
   sourceId?: string;
@@ -163,6 +172,7 @@ export interface UpdateNodeCommand {
   semanticId?: string;
   isPinned?: boolean;
   content?: any;
+  stateData?: NodeStateData;
   userId: string;
   sourceId?: string;
 }
