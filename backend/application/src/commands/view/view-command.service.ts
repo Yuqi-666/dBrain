@@ -94,8 +94,13 @@ export class ViewCommandService {
     }
 
     if (cmd.visualConfig !== undefined) {
+      // Merge the partial patch over the existing config — creating a
+      // fresh config from only the patch fields would reset every
+      // untouched visual setting (backgroundStyle, gridColor, ...) to
+      // its default.
       const newVisualConfig = VisualConfig.create({
-        backgroundColor: cmd.visualConfig.backgroundColor,
+        ...updated.visualConfig,
+        ...cmd.visualConfig,
       });
       updated = updated.updateVisualConfig(newVisualConfig);
     }

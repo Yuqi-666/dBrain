@@ -18,7 +18,7 @@ export function GraphHeader({ className }: GraphHeaderProps) {
       className={`absolute top-0 left-0 right-0 border-none z-10 flex items-center justify-between py-4 px-6 pointer-events-none bg-transparent ${className || ""}`}
     >
       <div
-        className={`flex items-center gap-0 px-0.5 transition-all rounded-lg border bg-fd-muted text-fd-muted-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
+        className={`flex items-center gap-0 px-0.5 transition-all rounded-lg border bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
       >
         <ToggleSidebarButton />
         <ToggleSearchCommandButton />

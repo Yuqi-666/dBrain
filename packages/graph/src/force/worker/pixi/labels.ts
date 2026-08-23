@@ -15,8 +15,13 @@
 
 import { Text } from "pixi.js";
 import type { SimLink, SimNode } from "../simulation";
-import type { ViewportState } from "../../types";
-import { LABEL_BUDGET, TRANSFORM_THRESHOLD } from "../../styleConfig";
+import type { ForceStyle, ViewportState } from "../../types";
+import {
+  DEFAULT_LABEL_COLOR,
+  LABEL_BUDGET,
+  TRANSFORM_THRESHOLD,
+  resolveDefaultLabelColor,
+} from "../../styleConfig";
 import {
   computeFrustum,
   getApp,
@@ -59,6 +64,7 @@ export function syncLabels(
   links: ReadonlyArray<SimLink>,
   viewport: ViewportState,
   dims: { width: number; height: number },
+  style?: ForceStyle,
 ): void {
   const app = getApp();
   const layers = getLayers();
@@ -70,6 +76,12 @@ export function syncLabels(
 
   // LOD gate: hide all labels below the zoom threshold.
   const showAny = viewport.scale >= TRANSFORM_THRESHOLD;
+
+  // Resolved once per frame — the background only changes on updateStyle,
+  // so the dark/light judgment is independent of how many labels render.
+  const bgLabelColor = style
+    ? resolveDefaultLabelColor(style.backgroundColor ?? "#ffffff")
+    : DEFAULT_LABEL_COLOR;
 
   // Sort visible label candidates by priority, cap at LABEL_BUDGET.
   const ranked = nodes
@@ -95,6 +107,10 @@ export function syncLabels(
     const label = node.__label ?? node.label;
     const x = node.x ?? 0;
     const y = node.y ?? 0;
+    // Default-color labels adapt to the background; explicit per-node
+    // overrides (business/client layers) pass through untouched.
+    const fill =
+      node.labelColor === DEFAULT_LABEL_COLOR ? bgLabelColor : node.labelColor;
 
     let t = labelPool.get(id);
     if (!t) {
@@ -103,7 +119,7 @@ export function syncLabels(
         style: {
           fontFamily: "sans-serif",
           fontSize: node.labelSize,
-          fill: node.labelColor,
+          fill,
         },
         resolution,
       });
@@ -114,7 +130,7 @@ export function syncLabels(
       if (t.text !== label) t.text = label;
       if (t.style.fontSize !== node.labelSize)
         t.style.fontSize = node.labelSize;
-      if (t.style.fill !== node.labelColor) t.style.fill = node.labelColor;
+      if (t.style.fill !== fill) t.style.fill = fill;
     }
 
     t.visible = showAny && budgetSet.has(id);

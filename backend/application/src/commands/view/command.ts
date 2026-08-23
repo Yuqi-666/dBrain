@@ -21,8 +21,11 @@ export interface UpdateViewCommand {
   viewType?: string;
   visualConfig?: {
     backgroundColor?: string;
-    showLabels?: boolean;
-    labelField?: string;
+    backgroundStyle?: "solid" | "grid" | "dots" | "none";
+    gridSpacing?: number;
+    gridColor?: string;
+    snapToGrid?: boolean;
+    showMinimap?: boolean;
   };
   filterConfig?: {
     selectedNodes?: string[];

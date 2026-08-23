@@ -33,7 +33,7 @@ import { syncEdgeGraphics, syncNodeOutlines, syncAssistEdges, clearStyleKeyCache
 
 // Re-exported for api.ts — must clear after selection/hover state changes
 export { clearStyleKeyCaches };
-import { syncGrid } from "./pixi/grid";
+import { syncGrid, clearGridCache } from "./pixi/grid";
 import { syncLabels } from "./pixi/labels";
 import { syncNodeSprites } from "./pixi/nodes";
 import { readSimulationState, readAltDragState } from "./simulation";
@@ -84,6 +84,7 @@ export function createCanvas(width: number, height: number): void {
   appReady = false;
   lastBackground = null;
   clearStyleKeyCaches();
+  clearGridCache();
   createPixiApp(offscreen, dims, 1)
     .then(() => {
       appReady = true;
@@ -196,7 +197,7 @@ export function renderFrame(): void {
   syncAssistEdges(assist);
   syncNodeOutlines(nodes, viewport, dims);
   syncNodeSprites(nodes, viewport, dims);
-  syncLabels(nodes, links, viewport, dims);
+  syncLabels(nodes, links, viewport, dims, currentStyle);
 
   app.render();
 }
@@ -238,6 +239,7 @@ export function truncateLabel(
 export function teardownRenderer(): void {
   appReady = false;
   clearStyleKeyCaches();
+  clearGridCache();
   destroyApp();
   offscreen = null;
   measureCtx = null;

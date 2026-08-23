@@ -192,10 +192,16 @@ export interface ForceConfig {
  * Global canvas style. Only contains properties that are NOT per-element
  * (background and grid). Per-node/per-edge visuals are embedded in the
  * seed data directly.
+ *
+ * `backgroundStyle` controls how the grid layer is rendered:
+ * - `"grid"`: evenly spaced grid lines
+ * - `"dots"`: dots at grid intersections
+ * - `"none"` / `undefined`: grid layer hidden
  */
 export interface ForceStyle {
   backgroundColor: string;
   gridColor?: string;
+  backgroundStyle?: "grid" | "dots" | "none";
 }
 
 /**
@@ -232,17 +238,45 @@ export type WorkerEvent =
   | { type: "canvas:pointer-down"; x: number; y: number; modifiers: Modifiers }
   | { type: "canvas:pointer-move"; x: number; y: number }
   | { type: "canvas:pointer-up"; x: number; y: number }
-  | { type: "canvas:wheel"; deltaX: number; deltaY: number; modifiers: Modifiers }
-  | { type: "selection:changed"; selectedNodeIds: NodeId[]; selectedEdgeIds: EdgeId[] }
+  | {
+      type: "canvas:wheel";
+      deltaX: number;
+      deltaY: number;
+      modifiers: Modifiers;
+    }
+  | {
+      type: "selection:changed";
+      selectedNodeIds: NodeId[];
+      selectedEdgeIds: EdgeId[];
+    }
   | { type: "frame"; bitmap: ImageBitmap }
   | { type: "tick"; alpha: number }
   | { type: "status"; status: "idle" | "running" | "stopped" }
-  | { type: "simulation:stopped"; positions: { id: NodeId; x: number; y: number }[] }
-  | { type: "context-menu:node"; nodeId: NodeId; clientX: number; clientY: number }
-  | { type: "context-menu:edge"; edgeId: EdgeId; clientX: number; clientY: number }
+  | {
+      type: "simulation:stopped";
+      positions: { id: NodeId; x: number; y: number }[];
+    }
+  | {
+      type: "context-menu:node";
+      nodeId: NodeId;
+      clientX: number;
+      clientY: number;
+    }
+  | {
+      type: "context-menu:edge";
+      edgeId: EdgeId;
+      clientX: number;
+      clientY: number;
+    }
   | { type: "context-menu:canvas"; clientX: number; clientY: number }
   | { type: "alt-drag:update"; sourceIds: NodeId[]; targetId: NodeId | null }
-  | { type: "alt-drag:end"; sourceIds: NodeId[]; targetId: NodeId | null; clientX: number; clientY: number };
+  | {
+      type: "alt-drag:end";
+      sourceIds: NodeId[];
+      targetId: NodeId | null;
+      clientX: number;
+      clientY: number;
+    };
 
 // -----------------------------------------------------------------------
 // WorkerInbound (Comlink.expose surface — main → worker)

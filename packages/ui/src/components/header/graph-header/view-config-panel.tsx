@@ -13,15 +13,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { Button } from "@workspace/ui/components/ui/button";
 import { ViewConfigButton } from "./view-config-button";
-import {
-  CheckIcon,
-  PaletteIcon,
-  Grid3X3Icon,
-  MapIcon,
-  LayoutIcon,
-} from "lucide-react";
+import { CheckIcon, PaletteIcon, Grid3X3Icon, LayoutIcon } from "lucide-react";
 import type { VisualConfig, ViewType } from "@workspace/interfaces";
 
 const BACKGROUND_COLORS = [
@@ -152,27 +145,6 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-
-        <DropdownMenuItem
-          onClick={() =>
-            handleUpdateVisualConfig({ showMinimap: !visualConfig.showMinimap })
-          }
-        >
-          <MapIcon className="size-4 mr-2" />
-          <span>显示小地图</span>
-          {visualConfig.showMinimap && <CheckIcon className="size-3 ml-auto" />}
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() =>
-            handleUpdateVisualConfig({ snapToGrid: !visualConfig.snapToGrid })
-          }
-        >
-          <span>吸附到网格</span>
-          {visualConfig.snapToGrid && <CheckIcon className="size-3 ml-auto" />}
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

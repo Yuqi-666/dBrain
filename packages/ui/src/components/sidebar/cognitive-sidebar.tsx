@@ -1,8 +1,15 @@
 "use client";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { NodeService, ViewService } from "@workspace/services";
+import {
+  NodeService,
+  NodeSemanticService,
+  EdgeSemanticService,
+  ViewService,
+} from "@workspace/services";
 import type {
+  EdgeSemantic,
   NodeDataType,
+  NodeSemantic,
 } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -33,9 +40,11 @@ import {
   Link2,
   MoreHorizontal,
   PanelLeftIcon,
+  Pencil,
   Pin,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import LogoIcon from "../../img/icon/logo.svg";
@@ -54,7 +63,10 @@ export function CognitiveSidebar() {
   );
   const recentViews = Array.from(views.values()).slice(0, 5);
   const recentNodes = Array.from(nodes.values())
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
     .slice(0, 5);
 
   const handleToggleSidebar = () => {
@@ -67,7 +79,7 @@ export function CognitiveSidebar() {
     }
   };
 
-  const { onAddNode } = useGraph()
+  const { onAddNode } = useGraph();
 
   return (
     <aside
@@ -252,9 +264,13 @@ function Section({
 function ViewItem({
   view,
   onTogglePin,
+  onEdit,
+  onDelete,
 }: {
   view: { id: string; name: string; isPinned?: boolean };
   onTogglePin: (id: string, isPinned: boolean) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
@@ -274,7 +290,10 @@ function ViewItem({
               ? "opacity-100"
               : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150",
           )}
-          onClick={() => onTogglePin(view.id, !view.isPinned)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin(view.id, !view.isPinned);
+          }}
         >
           <Pin
             className={cn(
@@ -283,13 +302,39 @@ function ViewItem({
             )}
           />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
-        >
-          <MoreHorizontal className="size-3" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="size-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="right"
+            sideOffset={12}
+            className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
+          >
+            <DropdownMenuItem
+              onClick={() => onEdit(view.id)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Pencil className="mr-2 size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(view.id)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -314,6 +359,20 @@ function ViewsList({
 }) {
   const handleTogglePin = async (id: string, isPinned: boolean) => {
     await ViewService.upsert(id, { isPinned });
+  };
+
+  const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
+
+  const handleEditView = (id: string) => {
+    setCurrentViewId(id);
+  };
+
+  const handleDeleteView = async (id: string) => {
+    try {
+      await ViewService.delete(id);
+    } catch (err) {
+      console.error("[CognitiveSidebar] delete view failed:", err);
+    }
   };
 
   const nonPinnedRecentViews = recentViews.filter(
@@ -342,6 +401,8 @@ function ViewsList({
               key={view.id}
               view={view}
               onTogglePin={handleTogglePin}
+              onEdit={handleEditView}
+              onDelete={handleDeleteView}
             />
           ))
         ) : (
@@ -359,19 +420,19 @@ function NodeItem({
   onTogglePin,
   isSelected,
   onSelect,
+  onDelete,
 }: {
   node: { id: string; title: string; semanticId?: string; isPinned?: boolean };
   onTogglePin: (id: string, isPinned: boolean) => void;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div
       className={cn(
         "group flex items-center justify-between rounded-lg px-2.5 py-2 transition-colors duration-150 cursor-pointer",
-        isSelected
-          ? "bg-sidebar-accent/70"
-          : "hover:bg-sidebar-accent",
+        isSelected ? "bg-sidebar-accent/70" : "hover:bg-sidebar-accent",
       )}
       onClick={() => onSelect?.(node.id)}
     >
@@ -391,7 +452,10 @@ function NodeItem({
               ? "opacity-100"
               : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150",
           )}
-          onClick={() => onTogglePin(node.id, !node.isPinned)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin(node.id, !node.isPinned);
+          }}
         >
           <Pin
             className={cn(
@@ -400,13 +464,39 @@ function NodeItem({
             )}
           />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
-        >
-          <MoreHorizontal className="size-3" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="size-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="right"
+            sideOffset={12}
+            className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
+          >
+            <DropdownMenuItem
+              onClick={() => onSelect?.(node.id)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Pencil className="mr-2 size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(node.id)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -437,6 +527,14 @@ function NodesList({
 
   const handleSelectNode = (id: string) => {
     setCurrentEditingNodeId(id);
+  };
+
+  const handleDeleteNode = async (id: string) => {
+    try {
+      await NodeService.delete(id);
+    } catch (err) {
+      console.error("[CognitiveSidebar] delete node failed:", err);
+    }
   };
 
   const sortedNodes = [...nodes].sort((a, b) => {
@@ -490,6 +588,7 @@ function NodesList({
               onTogglePin={handleTogglePin}
               isSelected={currentEditingNodeId === node.id}
               onSelect={handleSelectNode}
+              onDelete={handleDeleteNode}
             />
           ))
         ) : (
@@ -505,15 +604,14 @@ function NodesList({
 function NodeSemanticItem({
   semantic,
   onEdit,
+  onDelete,
 }: {
-  semantic: { id: string; name: string; color?: string };
-  onEdit?: (semantic: typeof semantic) => void;
+  semantic: NodeSemantic;
+  onEdit: (semantic: NodeSemantic) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
-    <div
-      className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150 cursor-pointer"
-      onClick={() => onEdit?.(semantic)}
-    >
+    <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
       <div className="flex items-center gap-2.5 min-w-0">
         <CircleDot
           className="size-3.5 shrink-0"
@@ -524,17 +622,38 @@ function NodeSemanticItem({
         </span>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit?.(semantic);
-          }}
-        >
-          <MoreHorizontal className="size-3" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
+            >
+              <MoreHorizontal className="size-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="right"
+            sideOffset={12}
+            className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
+          >
+            <DropdownMenuItem
+              onClick={() => onEdit(semantic)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Pencil className="mr-2 size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(semantic.id)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -547,6 +666,14 @@ function NodeSemanticList() {
     [nodeSemanticsMap],
   );
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
+
+  const handleDeleteSemantic = async (id: string) => {
+    try {
+      await NodeSemanticService.delete(id);
+    } catch (err) {
+      console.error("[CognitiveSidebar] delete node semantic failed:", err);
+    }
+  };
 
   return (
     <Section
@@ -566,7 +693,12 @@ function NodeSemanticList() {
       <div className="flex flex-col gap-0.5">
         {nodeSemantics.length > 0 ? (
           nodeSemantics.map((semantic) => (
-            <NodeSemanticItem key={semantic.id} semantic={semantic} onEdit={openDialog} />
+            <NodeSemanticItem
+              key={semantic.id}
+              semantic={semantic}
+              onEdit={openDialog}
+              onDelete={handleDeleteSemantic}
+            />
           ))
         ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
@@ -582,10 +714,12 @@ function EdgeSemanticCategory({
   category,
   semantics,
   onEdit,
+  onDelete,
 }: {
   category: string;
-  semantics: Array<{ id: string; name: string; color?: string }>;
-  onEdit?: (semantic: typeof semantics[0]) => void;
+  semantics: EdgeSemantic[];
+  onEdit: (semantic: EdgeSemantic) => void;
+  onDelete: (id: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -613,8 +747,7 @@ function EdgeSemanticCategory({
           {semantics.map((semantic) => (
             <div
               key={semantic.id}
-              className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150 cursor-pointer"
-              onClick={() => onEdit?.(semantic)}
+              className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <Link2 className="size-3 text-sidebar-foreground/30 shrink-0" />
@@ -628,17 +761,38 @@ function EdgeSemanticCategory({
                   />
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-6 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.(semantic);
-                }}
-              >
-                <MoreHorizontal className="size-3" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150"
+                  >
+                    <MoreHorizontal className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  side="right"
+                  sideOffset={12}
+                  className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
+                >
+                  <DropdownMenuItem
+                    onClick={() => onEdit(semantic)}
+                    className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+                  >
+                    <Pencil className="mr-2 size-4" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onDelete(semantic.id)}
+                    className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ))}
         </div>
@@ -654,6 +808,14 @@ function EdgeSemanticList() {
     [edgeSemanticsMap],
   );
   const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
+
+  const handleDeleteSemantic = async (id: string) => {
+    try {
+      await EdgeSemanticService.delete(id);
+    } catch (err) {
+      console.error("[CognitiveSidebar] delete edge semantic failed:", err);
+    }
+  };
 
   const categories = [
     { key: "hierarchy", label: "层次关系" },
@@ -701,6 +863,7 @@ function EdgeSemanticList() {
             category={cat.label}
             semantics={groupedSemantics[cat.key] || []}
             onEdit={openDialog}
+            onDelete={handleDeleteSemantic}
           />
         ))}
       </div>

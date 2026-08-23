@@ -55,7 +55,7 @@ export function NodeEditor({ className }: NodeEditorProps) {
             autoFocus={false}
             className={cn(
               "sm:max-w-[80%] w-[1200px] h-[80vh] flex flex-col p-2 pt-0",
-              "rounded-2xl bg-popover/95 backdrop-blur-xl",
+              "rounded-2xl bg-popover",
               "ring-1 ring-foreground/5 shadow-2xl shadow-foreground/5",
               "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
               "data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",

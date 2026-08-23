@@ -37,11 +37,38 @@ export interface EdgeResolvedStyle {
   strokeType: "solid" | "dotted" | "dashed";
 }
 
+/** Default node label color on light backgrounds. */
+export const DEFAULT_LABEL_COLOR = "#1f2937";
+
+/** Default node label color on dark backgrounds. */
+export const DARK_BG_LABEL_COLOR = "#f3f4f6";
+
+/** WCAG-relative luminance threshold below which a background is "dark". */
+const LABEL_BG_LUMINANCE_THRESHOLD = 140;
+
+/** True when the hex color is dark enough that default text should flip light. */
+export function isDarkBackgroundColor(hex: string): boolean {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  const rgb = match?.[1];
+  if (!rgb) return false;
+  const r = parseInt(rgb.slice(0, 2), 16);
+  const g = parseInt(rgb.slice(2, 4), 16);
+  const b = parseInt(rgb.slice(4, 6), 16);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < LABEL_BG_LUMINANCE_THRESHOLD;
+}
+
+/** Picks the legible default label color for a given background color. */
+export function resolveDefaultLabelColor(backgroundColor: string): string {
+  return isDarkBackgroundColor(backgroundColor)
+    ? DARK_BG_LABEL_COLOR
+    : DEFAULT_LABEL_COLOR;
+}
+
 export const NODE_DEFAULTS: NodeResolvedStyle = {
   fillColor: "#165DFF",
   strokeColor: "#165DFF",
   strokeWidth: 2,
-  labelColor: "#1f2937",
+  labelColor: DEFAULT_LABEL_COLOR,
   labelSize: 14,
   radius: 8,
 };

@@ -17,6 +17,16 @@ const updateSchema = z.object({
     description: z.string().optional(),
     viewType: z.enum(["Force", "Flow"]).optional(),
     filter: z.any().optional(),
+    visualConfig: z
+      .object({
+        backgroundColor: z.string().optional(),
+        backgroundStyle: z.enum(["solid", "grid", "dots", "none"]).optional(),
+        gridSpacing: z.number().optional(),
+        gridColor: z.string().optional(),
+        snapToGrid: z.boolean().optional(),
+        showMinimap: z.boolean().optional(),
+      })
+      .optional(),
   }),
 });
 

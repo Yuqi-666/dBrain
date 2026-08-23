@@ -56,6 +56,7 @@ import type {
 import { DEFAULT_FORCE_CONFIG } from "./styleConfig";
 import type {
   ForceConfig,
+  ForceStyle,
   WorkerEvent,
   WorkerInbound,
 } from "./types";
@@ -123,6 +124,30 @@ export interface ForceGraphHandle {
 }
 
 // -----------------------------------------------------------------------
+// Style mapping
+// -----------------------------------------------------------------------
+
+/**
+ * Maps the current view's `visualConfig` to the worker's global
+ * `ForceStyle`. `undefined` backgroundStyle keeps the legacy always-visible
+ * grid for views without an explicit style; "solid" is a plain colored
+ * background (no grid layer).
+ */
+function buildForceStyle(view: View): ForceStyle {
+  const vc = view.visualConfig ?? {};
+  return {
+    backgroundColor: vc.backgroundColor || "#ffffff",
+    gridColor: vc.gridColor || "#e5e7eb",
+    backgroundStyle:
+      vc.backgroundStyle === "grid" || vc.backgroundStyle === "dots"
+        ? vc.backgroundStyle
+        : vc.backgroundStyle === undefined
+          ? "grid"
+          : "none",
+  };
+}
+
+// -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
 
@@ -144,7 +169,9 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const workerRef = useRef<Worker | null>(null);
     const apiRef = useRef<WorkerInbound | null>(null);
-    const listenersRef = useRef<import("./eventListener").InstalledListeners | null>(null);
+    const listenersRef = useRef<
+      import("./eventListener").InstalledListeners | null
+    >(null);
     const canvasRectRef = useRef<DOMRect | null>(null);
     const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
     const dprRef = useRef(Math.max(1, globalThis.devicePixelRatio ?? 1));
@@ -281,7 +308,11 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         if (sem.color) edgeSemanticColorMap.set(id, sem.color);
         if (sem.category) edgeSemanticCategoryMap.set(id, sem.category);
       }
-      return { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
+      return {
+        semanticColorMap,
+        edgeSemanticColorMap,
+        edgeSemanticCategoryMap,
+      };
     }, []);
 
     const performFullSync = useCallback(async () => {
@@ -291,8 +322,17 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       const currentView = viewRef.current;
       const filtered = filter(raw.nodes, raw.edges, currentView);
 
-      const { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap } = buildSemanticColorMaps();
-      const opts = { viewId, semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
+      const {
+        semanticColorMap,
+        edgeSemanticColorMap,
+        edgeSemanticCategoryMap,
+      } = buildSemanticColorMaps();
+      const opts = {
+        viewId,
+        semanticColorMap,
+        edgeSemanticColorMap,
+        edgeSemanticCategoryMap,
+      };
 
       const seeds = nodeDataToForceSeeds(filtered.nodes, opts);
       const linkSeeds = edgeDataToForceSeeds(filtered.edges, opts);
@@ -304,7 +344,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
       await api.initData(seeds, linkSeeds, dims);
 
-      await api.updateStyle({ backgroundColor: "#ffffff", gridColor: "#e5e7eb" });
+      await api.updateStyle(buildForceStyle(view));
       const cfg: ForceConfig = {
         ...DEFAULT_FORCE_CONFIG,
         centerX: dims.width / 2,
@@ -332,7 +372,11 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           if (!api) return;
           const currentView = viewRef.current;
 
-          const filteredNodesAdded = filter(diff.nodes.added, [], currentView).nodes;
+          const filteredNodesAdded = filter(
+            diff.nodes.added,
+            [],
+            currentView,
+          ).nodes;
           const filteredNodesUpdated = filter(
             diff.nodes.updated,
             [],
@@ -387,7 +431,14 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           console.error("[ForceGraph] subscribeDiff callback failed:", err);
         }
       });
-    }, [subscribeDiff, getDataSnapshot, filter, view, viewId, buildSemanticColorMaps]);
+    }, [
+      subscribeDiff,
+      getDataSnapshot,
+      filter,
+      view,
+      viewId,
+      buildSemanticColorMaps,
+    ]);
 
     // ---- Semantic color change handler -------------------------------
     // NodeSemantic/EdgeSemantic color changes don't produce NodeData/EdgeData
@@ -402,12 +453,17 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         if (!api) return;
 
         const changedNodeSemIds = new Set(
-          sd.nodeSemantics.updated.filter((s) => s.color !== undefined).map((s) => s.id),
+          sd.nodeSemantics.updated
+            .filter((s) => s.color !== undefined)
+            .map((s) => s.id),
         );
         const changedEdgeSemIds = new Set(
-          sd.edgeSemantics.updated.filter((s) => s.color !== undefined).map((s) => s.id),
+          sd.edgeSemantics.updated
+            .filter((s) => s.color !== undefined)
+            .map((s) => s.id),
         );
-        if (changedNodeSemIds.size === 0 && changedEdgeSemIds.size === 0) return;
+        if (changedNodeSemIds.size === 0 && changedEdgeSemIds.size === 0)
+          return;
 
         const raw = getDataSnapshot();
         const affectedNodes = raw.nodes.filter(
@@ -418,8 +474,17 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         );
         if (affectedNodes.length === 0 && affectedEdges.length === 0) return;
 
-        const { semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap } = buildSemanticColorMaps();
-        const opts = { viewId, semanticColorMap, edgeSemanticColorMap, edgeSemanticCategoryMap };
+        const {
+          semanticColorMap,
+          edgeSemanticColorMap,
+          edgeSemanticCategoryMap,
+        } = buildSemanticColorMaps();
+        const opts = {
+          viewId,
+          semanticColorMap,
+          edgeSemanticColorMap,
+          edgeSemanticCategoryMap,
+        };
         const nodeUpserts = nodeDataToForceSeeds(affectedNodes, opts);
         const linkUpserts = edgeDataToForceSeeds(affectedEdges, opts);
 
@@ -433,24 +498,21 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     // ---- Position persistence (sim settled → 3s debounce) ----------
     const persistPositions = useMemo(
       () =>
-        debounce(
-          (positions: { id: NodeId; x: number; y: number }[]) => {
-            const snapshot = getDataSnapshot();
-            for (const pos of positions) {
-              const node = snapshot.nodes.find((n) => n.id === pos.id);
-              if (!node) continue;
-              const updated = setPosition(node, viewId, pos.x, pos.y, "force");
-              NodeService.upsert(
-                pos.id,
-                { stateData: updated.stateData ?? { client: {}, server: {} } },
-                { debounce: 200 },
-              ).catch((err: unknown) => {
-                console.error("[ForceGraph] position persist failed:", err);
-              });
-            }
-          },
-          3000,
-        ),
+        debounce((positions: { id: NodeId; x: number; y: number }[]) => {
+          const snapshot = getDataSnapshot();
+          for (const pos of positions) {
+            const node = snapshot.nodes.find((n) => n.id === pos.id);
+            if (!node) continue;
+            const updated = setPosition(node, viewId, pos.x, pos.y, "force");
+            NodeService.upsert(
+              pos.id,
+              { stateData: updated.stateData ?? { client: {}, server: {} } },
+              { debounce: 200 },
+            ).catch((err: unknown) => {
+              console.error("[ForceGraph] position persist failed:", err);
+            });
+          }
+        }, 3000),
       [getDataSnapshot, viewId],
     );
 
@@ -460,7 +522,10 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
     const onWorkerEvent = useCallback(
       (event: WorkerEvent) => {
         if (event.type === "selection:changed") {
-          if (event.selectedNodeIds.length > 0 || event.selectedEdgeIds.length > 0) {
+          if (
+            event.selectedNodeIds.length > 0 ||
+            event.selectedEdgeIds.length > 0
+          ) {
             listenersRef.current?.cancelPan();
           }
         } else if (
@@ -640,6 +705,19 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       // since the diff subscriber also reads via viewRef.current.
     }, [viewId, view, performFullSync]);
 
+    // ---- Effect: visualConfig change → push style to worker ----------
+    // Background / grid changes must reach the worker without a full
+    // re-init (which would restart the simulation and reset positions).
+    // `visualConfig` is a fresh object reference whenever the view is
+    // replaced by ViewService.upsert, so this fires exactly on edit.
+    useEffect(() => {
+      const api = apiRef.current;
+      if (!api) return;
+      api.updateStyle(buildForceStyle(viewRef.current)).catch((err) => {
+        console.error("[ForceGraph] updateStyle failed:", err);
+      });
+    }, [view?.visualConfig]);
+
     // ---- Imperative handle ------------------------------------------
     useImperativeHandle(
       ref,
@@ -692,7 +770,10 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           const dpr = Math.max(1, globalThis.devicePixelRatio ?? 1);
           dprRef.current = dpr;
           const width = Math.max(1, Math.floor(entry.contentRect.width * dpr));
-          const height = Math.max(1, Math.floor(entry.contentRect.height * dpr));
+          const height = Math.max(
+            1,
+            Math.floor(entry.contentRect.height * dpr),
+          );
           // Phase 2: canvas.width/height are no longer writable after
           // transferControlToOffscreen. Only CSS sizing remains on the
           // placeholder element; the worker handles renderer resize.
@@ -724,7 +805,8 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         closePreviewBlock();
       };
       document.addEventListener("pointerdown", handlePointerDown);
-      return () => document.removeEventListener("pointerdown", handlePointerDown);
+      return () =>
+        document.removeEventListener("pointerdown", handlePointerDown);
     }, [previewBlock.isFocus, closePreviewBlock]);
 
     // ---- Render ------------------------------------------------------
