@@ -30,17 +30,17 @@
       "@workspace/hooks": [
         "../hooks/src"
       ],
-      "@workspace/graph/*": [
-        "./src/*"
-      ],
-      "@workspace/graph": [
-        "./src"
-      ],
       "@workspace/api-client": [
         "../api-client/src"
       ],
       "@workspace/api-client/*": [
         "../api-client/src/*"
+      ],
+      "@workspace/services": [
+        "../services/src"
+      ],
+      "@workspace/services/*": [
+        "../services/src/*"
       ]
     }
   },

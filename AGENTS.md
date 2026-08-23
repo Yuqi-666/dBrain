@@ -17,8 +17,7 @@ dBrain/
 │   └── docs/        # Symlink to /mnt/f/dbrain (external)
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
-│   ├── graph/       # @antv/g6-based graph (v1, legacy)
-│   ├── graph-v2/    # d3-force graph (v2, current; flow mode is a placeholder shell)
+│   ├── graph/       # d3-force graph (worker); flow mode is a placeholder shell
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -46,8 +45,7 @@ dBrain/
 | Task                     | Location                                     | Notes                                |
 | ------------------------ | -------------------------------------------- | ------------------------------------ |
 | UI components            | packages/ui/src/components                   | shadcn/ui + custom                   |
-| Graph (v1, legacy)       | packages/graph/src                           | @antv/g6 — still consumed by apps/web |
-| **Graph (v2, current)**  | packages/graph-v2/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
+| Graph                  | packages/graph/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
 | Rich text editor         | packages/editor/                             | Tiptap Pro + Yjs, Notion-like editor |
 | Type definitions         | packages/interfaces/src                      | Models, nodes, API types             |
 | State management         | packages/store/src                           | Zustand v5                           |
@@ -91,7 +89,7 @@ dBrain/
 - Clean architecture applied to TypeScript backend layers
 - Tailwind CSS v4 with shadcn/ui
 - Zustand v5 for state, React 19, Next.js 16
-- Module workers via `new Worker(new URL(..., import.meta.url), { type: 'module' })` (used by graph-v2)
+- Module workers via `new Worker(new URL(..., import.meta.url), { type: 'module' })` (used by graph)
 
 ## COMMANDS
 
@@ -109,7 +107,7 @@ pnpm --filter=desktop dev  # Desktop app (port 3001)
 pnpm --filter=desktop tauri # Tauri CLI
 
 # Single package typecheck
-pnpm --filter=@workspace/graph-v2 typecheck
+pnpm --filter=@workspace/graph typecheck
 pnpm --filter=@workspace/editor typecheck
 
 # Backend layers (cd into package first)
@@ -123,13 +121,15 @@ cd backend/adapter-back && pnpm typecheck
 - Desktop app uses Tauri 2.x with Next.js frontend
 - PocketBase is the local backend (`pb/` directory contains the binary and dev data)
 - No actual Rust backend — backend is TypeScript DDD layers
-- `apps/web/app/(main)/graph/page.tsx` imports `@workspace/graph-v2` (v1 `@workspace/graph` is commented out). The demo page exercises the v2 `<Graph />` router.
+- `apps/web/app/(main)/graph/page.tsx` imports `<Graph />` from `@workspace/graph`. The demo page exercises the graph `<Graph />` router.
 
 ---
 
-## graph-v2 (current architecture)
+## graph (current architecture)
 
-`packages/graph-v2/` is the next-generation, in-progress graph visualization package that will replace `@workspace/graph` (v1, @antv/g6). It exposes a single `<Graph />` component that routes by `view.viewType` to one of two orchestrators:
+`packages/graph/` is the graph visualization package (succeeded the legacy
+`@antv/g6`-based v1 implementation, which was removed when this package took
+over the name). It exposes a single `<Graph />` component that routes by `view.viewType` to one of two orchestrators:
 
 - **`ForceGraph`** — d3-force simulation running in a dedicated `WebWorker` with an `OffscreenCanvas` 2D renderer; IPC via `comlink`.
 - **`FlowGraph`** — **placeholder shell only.** The ReactFlow-based implementation (9 node variants, 4 edge variants, transforms, position persistence) was deleted in the flow refactor. `FlowGraph.tsx` keeps the props contract so routing compiles, and renders a static placeholder. Rebuild starts from that file; see git history for the deleted implementation.
@@ -228,7 +228,7 @@ Used in:
 - `force/transform.ts` — `defaultState?: UiState` option for seed generation
 - `force/worker/simulation.ts` — worker-internal `SimNode.ui` / `SimLink.ui` field; `recomputeUiStates()` mirrors the active selection / hover into per-node state on every tick
 
-### Cross-package contract map (graph-v2 → workspace)
+### Cross-package contract map (graph → workspace)
 
 | Workspace package | Symbols used | Notes |
 |---|---|---|
@@ -241,18 +241,17 @@ Used in:
 
 ### Latent issues / gotchas
 
-- **`apps/web/tsconfig.json` has NO path alias for `@workspace/graph-v2`** — it only has `@workspace/graph` (v1). The v2 import resolves via pnpm symlink + `exports` field. Editor "find references" and `tsc --noEmit` may diverge.
 - **`tsconfig.lint.json` includes a `turbo` directory that doesn't exist** — harmless dead config.
 - **`tsconfig.json` has no `outDir` and `noEmit` is true** (inherited). The package has no `build` script. Consumers receive `.ts` source via `exports: { ".": "./src/index.ts" }`.
 - **`FlowGraph` is a placeholder shell** — renders a static message and ignores all data-feed props. Rebuild starts from `flow/FlowGraph.tsx`; see git history for the deleted ReactFlow implementation (which also removes the old `onConnect` hard-coding, `(0,0)` dagre fallback, and `Controls`/`MiniMap` overlap gotchas).
 - **40+ JSDoc references to design.md files that may not resolve in every environment** — the most-referenced path is `docs/07-agent/graph-v2/src/design.md` (the `docs/` symlink target is `/mnt/f/dbrain`, external). Many JSDoc lines also cite `main design L###` line numbers from an external spec doc with no path.
 
-### Commands (graph-v2 only)
+### Commands (graph only)
 
 ```bash
-pnpm --filter=@workspace/graph-v2 typecheck   # tsc --noemit
-pnpm --filter=@workspace/graph-v2 lint        # eslint
-pnpm --filter=@workspace/graph-v2 format      # prettier
+pnpm --filter=@workspace/graph typecheck   # tsc --noemit
+pnpm --filter=@workspace/graph lint        # eslint
+pnpm --filter=@workspace/graph format      # prettier
 ```
 
 No `build` / `dev` / `test` scripts exist.

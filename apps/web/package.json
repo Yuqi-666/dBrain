@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@workspace/graph": "workspace:*",
-    "@workspace/graph-v2": "workspace:*",
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",
     "@workspace/ui": "workspace:*",

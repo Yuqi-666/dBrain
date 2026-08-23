@@ -1,258 +1,191 @@
 "use client";
-import React, { useRef, useEffect } from "react";
-import { Graph as G6Graph } from "@antv/g6";
-import { useDataStore, useUIStore } from "@workspace/store";
-import type { View, ViewId, ViewType } from "@workspace/interfaces";
-import { GraphContextMenu } from "@workspace/ui/components/graph-context-menu/graph-context-menu";
-import { PreviewBlock } from "@workspace/ui/components/preview-block";
-import { transformToG6Data } from "./transform";
-import {
-  createLayoutOptions,
-  createNodeOptions,
-  createThemeOptions,
-} from "./options";
-import { useGraphInstance } from "./hooks/useGraphInstance";
-import { useGraphEventHandlers } from "./hooks/useGraphEventHandlers";
-import { useGraph } from "@workspace/hooks"
-import type { Diff } from "@workspace/store/dataStore";
 
-const VIEW_TYPE_TO_LAYOUT: Record<ViewType, "D3force" | "dagre"> = {
-  Force: "D3force",
-  Flow: "dagre",
-};
-// ----------------------------------------------------------------------
-// 1. 定义组件 Props
-// ----------------------------------------------------------------------
+/**
+ * Main `Graph` component for graph.
+ *
+ * Per main design L379-384 and L384 (the *only* callback the parent
+ * injects into its children is the `eventHandler`):
+ *
+ *   1. Resolves the current `View` (either by `viewId` lookup or via
+ *      the `view` prop).
+ *   2. Builds the data-feed props (`getDataSnapshot` / `subscribeDiff` /
+ *      `filter`) — Graph owns the access to `useDataStore`, the children
+ *      never see it.
+ *   3. Constructs the shared `eventHandler` via `useGraphEventHandler()`
+ *      and injects it as the *single* callback prop.
+ *   4. Routes to `ForceGraph` (when `view.viewType === "Force"`) or
+ *      `FlowGraph` (when `"Flow"`).
+ *
+ * The children (ForceGraph / FlowGraph) are intentionally given NO other
+ * callback prop — they push every user gesture through
+ * `props.eventHandler.xxx`, which internally routes to `useUIStore` and
+ * `useGraph()`.
+ *
+ * Cross-document contract: docs/07-agent/graph-v2/src/design.md §3.1,
+ * main design L384, L402, L365-367.
+ */
+
+import { useCallback, useMemo } from "react";
+import type {
+  EdgeData,
+  NodeData,
+  View,
+  ViewId,
+  ViewType,
+} from "@workspace/interfaces";
+import { useDataStore } from "@workspace/store";
+import { filterByViewFilterConfig } from "@workspace/utils";
+import { ForceGraph } from "./force/ForceGraph";
+import { ForceGraphErrorBoundary } from "./force/ForceGraphErrorBoundary";
+import { FlowGraph } from "./flow/FlowGraph";
+import type {
+  GraphSnapshot,
+  DiffCallback,
+  SourceDiff,
+} from "./types";
+import { useGraphEventHandler } from "./eventHandler";
+
+// -----------------------------------------------------------------------
+// Public types
+// -----------------------------------------------------------------------
+
 export interface GraphProps {
+  /** Resolve the view by id (mutually exclusive with `view`). */
   viewId?: ViewId;
+  /** Pass the view directly (mutually exclusive with `viewId`). */
   view?: View;
-  theme?: "light" | "dark";
-  enableMinimap?: boolean;
-  enableGrid?: boolean;
-  enableFisheye?: boolean;
-  enableNodeDragging?: boolean;
-  enableEdgeInteractions?: boolean;
   className?: string;
   style?: React.CSSProperties;
-  onLoad?: (graph: any) => void;
 }
 
-// ----------------------------------------------------------------------
-// 2. 主组件
-// ----------------------------------------------------------------------
-export function Graph({
-  viewId,
-  view,
-  theme = "light",
-  className,
-  style,
-  onLoad,
-}: GraphProps) {
-  // Refs
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const resolvedViewRef = useRef<View | undefined>(undefined);
-  const isMountedRef = useRef(false);
+// -----------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------
 
-  const ui = useUIStore();
-  const { onCreateEdge } = useGraph()
-  // 图实例 Hook
-  const graphRef = useGraphInstance({
-    containerRef,
-    theme,
-    handleNodeSelect: (ids) => ui.setSelectedNodeIds(new Set(ids)),
-    handleEdgeSelect: (ids) => ui.setSelectedEdgeIds(new Set(ids)),
-    fixPreviewOnFocus: (nodeId: string) =>
-      ui.setPreviewBlock({ nodeId, visible: true, isFocus: true }),
-    handleCreateEdge: async (
-      sourceNodeId: string[],
-      targetNodeId: string | null,
-      x: number,
-      y: number
-    ) => {
-      onCreateEdge(sourceNodeId, targetNodeId, x, y, ui.setContextMenu)
-    },
-  });
-  // 事件处理 Hook
-  useGraphEventHandlers({
-    graphRef,
-    containerRef,
-  });
+/**
+ * Map `ViewType` to a mode label. (Inlined here so the wrapper can
+ * branch without importing the orchestrators' internal types.)
+ */
+type Mode = "force" | "flow";
+const VIEW_TYPE_TO_MODE: Record<ViewType, Mode> = {
+  Force: "force",
+  Flow: "flow",
+};
 
-  // ----------------------------------------------------------------------
-  // 数据同步逻辑
-  // ----------------------------------------------------------------------
+export function Graph(props: GraphProps) {
+  const { viewId, view: viewProp, className, style } = props;
 
-  // 全量同步
-  const performFullSync = (graph: G6Graph) => {
-    const state = useDataStore.getState();
-    const { nodes, edges, views } = state;
-    // Stop any running layout before making changes
-    if (isMountedRef.current) {
-      graph.stopLayout();
-    }
+  // ---- Resolve the view ------------------------------------------
+  const views = useDataStore((s) => s.views);
+  const resolvedView: View | undefined = useMemo(() => {
+    if (viewProp) return viewProp;
+    if (viewId) return views.get(viewId);
+    return undefined;
+  }, [viewProp, viewId, views]);
 
-    // 解析当前 View
-    let currentView: View | undefined;
-    if (view) {
-      currentView = view;
-    } else if (viewId) {
-      currentView = views.get(viewId);
-    }
-    resolvedViewRef.current = currentView;
-
-    // 转换数据并同步
-    const g6Data = transformToG6Data(
-      nodes,
-      edges,
-      currentView,
-      currentView?.viewType ? VIEW_TYPE_TO_LAYOUT[currentView.viewType] : undefined,
-    );
-    graph.setData(g6Data);
-    graph.setLayout(createLayoutOptions({ viewType: currentView?.viewType }));
-    graph.setOptions({
-      node: createNodeOptions({ viewType: currentView?.viewType }),
-    });
-
-    if (isMountedRef.current) {
-      graph.render().then(() => {
-        if (currentView?.viewType !== "Force") {
-          graph.fitCenter();
-        }
-      });
-    }
-  };
-
-  // 增量同步
-  const processDiff = (graph: G6Graph, diff: Diff) => {
-    const currentView = resolvedViewRef.current;
-    const layoutKind = currentView?.viewType
-      ? VIEW_TYPE_TO_LAYOUT[currentView.viewType]
-      : undefined;
-
-    const upsertNodes = [...diff.nodes.added, ...diff.nodes.updated];
-    if (upsertNodes.length > 0) {
-      const nodeMap = new Map(upsertNodes.map((n) => [n.id, n]));
-      const adapted = transformToG6Data(nodeMap, new Map(), currentView, layoutKind);
-      const newNodes = adapted.nodes ?? [];
-      const existing = newNodes.filter((n) => graph.hasNode(n.id!));
-      const added = newNodes.filter((n) => !graph.hasNode(n.id!));
-
-      if (existing.length > 0) {
-        graph.updateNodeData(existing);
-        graph.draw();
-      }
-      if (added.length > 0) {
-        graph.stopLayout();
-        graph.addNodeData(added);
-        graph.render();
-      }
-    }
-
-    if (diff.nodes.removed.length > 0) {
-      graph.stopLayout();
-      graph.removeNodeData(diff.nodes.removed);
-      graph.render();
-    }
-
-    const upsertEdges = [...diff.edges.added, ...diff.edges.updated];
-    if (upsertEdges.length > 0) {
-      const edgeMap = new Map(upsertEdges.map((e) => [e.id, e]));
-      const adapted = transformToG6Data(new Map(), edgeMap, currentView, layoutKind);
-      const newEdges = adapted.edges ?? [];
-      const existing = newEdges.filter((e) => graph.hasEdge(e.id!));
-      const added = newEdges.filter((e) => !graph.hasEdge(e.id!));
-
-      if (existing.length > 0) {
-        graph.updateEdgeData(existing);
-        graph.draw();
-      }
-      if (added.length > 0) {
-        graph.stopLayout();
-        graph.addEdgeData(added);
-        graph.render();
-      }
-    }
-
-    if (diff.edges.removed.length > 0) {
-      graph.stopLayout();
-      graph.removeEdgeData(diff.edges.removed);
-      graph.render();
-    }
-
-    for (const updatedView of diff.views.updated) {
-      const currentViewId = resolvedViewRef.current?.id;
-      if (currentViewId && updatedView.id === currentViewId) {
-        performFullSync(graph);
-      }
-    }
-    // diff.views.added / removed: 当前实现与旧 Mutation 实现一致，不触发额外同步
-  };
-
-  // ----------------------------------------------------------------------
-  // Effects
-  // ----------------------------------------------------------------------
-
-  // 1. 订阅全局 Store 的增量更新
-  useEffect(() => {
-    const unsubscribe = useDataStore.subscribe((state) => {
-      if (!graphRef.current || state.isDiffEmpty()) return;
-      const diff = state.diff;
-      processDiff(graphRef.current, diff);
-      useDataStore.getState().clearDiff();
-    });
-    return () => {
-      unsubscribe();
+  // ---- Snapshot + diff wrappers -----------------------------------
+  const getDataSnapshot = useCallback((): GraphSnapshot => {
+    const s = useDataStore.getState();
+    return {
+      nodes: Array.from(s.nodes.values()),
+      edges: Array.from(s.edges.values()),
     };
   }, []);
 
-  // 2. View 变化触发全量重绘
-  useEffect(() => {
-    if (!graphRef.current) return;
-    if (!isMountedRef.current) {
-      graphRef.current.render().then(() => {
-        isMountedRef.current = true;
-        performFullSync(graphRef.current!);
-      });
-    } else {
-      performFullSync(graphRef.current);
-    }
-  }, [view, viewId, graphRef]);
+  const filter = useCallback(
+    (
+      nodes: NodeData[],
+      edges: EdgeData[],
+      view: View,
+    ): { nodes: NodeData[]; edges: EdgeData[] } => {
+      if (!view) return { nodes, edges };
+      const nodesMap = new Map(nodes.map((n) => [n.id, n]));
+      const edgesMap = new Map(edges.map((e) => [e.id, e]));
+      const { filteredNodes, filteredEdges } = filterByViewFilterConfig(
+        nodesMap,
+        edgesMap,
+        view,
+        useDataStore.getState().edgeSemantics,
+      );
+      return {
+        nodes: Array.from(filteredNodes.values()),
+        edges: Array.from(filteredEdges.values()),
+      };
+    },
+    [],
+  );
 
-  // 3. Theme 变化更新样式
-  useEffect(() => {
-    if (!graphRef.current) return;
-    graphRef.current.setOptions({
-      background: createThemeOptions({ theme: theme }).background,
+  const subscribeDiff = useCallback((cb: DiffCallback) => {
+    return useDataStore.subscribe((state) => {
+      if (state.isDiffEmpty()) return;
+      const d = state.diff;
+      const diff: SourceDiff = {
+        nodes: d.nodes,
+        edges: d.edges,
+        semanticDiffs: {
+          nodeSemantics: d.nodeSemantics,
+          edgeSemantics: d.edgeSemantics,
+        },
+      };
+      cb(diff);
+      state.clearDiff();
     });
-    graphRef.current?.render();
-  }, [theme, graphRef]);
+  }, []);
+
+  // ---- Single shared event handler (the only callback surface) ---
+  const eventHandler = useGraphEventHandler();
+
+  // ---- Route by viewType -----------------------------------------
+  if (!resolvedView) {
+    return (
+      <div
+        className={className}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          color: "#9ca3af",
+          fontSize: 14,
+          ...style,
+        }}
+      >
+        No view selected
+      </div>
+    );
+  }
+
+  const mode = VIEW_TYPE_TO_MODE[resolvedView.viewType];
+  const viewIdProp = resolvedView.id;
+
+  if (mode === "flow") {
+    return (
+      <FlowGraph
+        view={resolvedView}
+        viewId={viewIdProp}
+        getDataSnapshot={getDataSnapshot}
+        subscribeDiff={subscribeDiff}
+        filter={filter}
+        eventHandler={eventHandler}
+        className={className}
+        style={style}
+      />
+    );
+  }
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ position: "relative", width: "100%", height: "100%", ...style }}
-    >
-      {ui.contextMenu.visible && ui.contextMenu.type && ui.contextMenu.context && (
-        <GraphContextMenu
-          x={ui.contextMenu.x}
-          y={ui.contextMenu.y}
-          visible={ui.contextMenu.visible}
-          type={ui.contextMenu.type}
-          context={ui.contextMenu.context as never}
-          onClose={ui.closeContextMenu}
-          setContextMenu={ui.setContextMenu}
-        />
-      )}
-      {ui.previewBlock.visible && ui.previewBlock.nodeId && (
-        <PreviewBlock
-          nodeId={ui.previewBlock.nodeId}
-          containerRef={containerRef}
-          onClose={ui.closePreviewBlock}
-          visible={ui.previewBlock.visible}
-          isFocus={ui.previewBlock.isFocus}
-        />
-      )}
-    </div>
+    <ForceGraphErrorBoundary>
+      <ForceGraph
+        view={resolvedView}
+        viewId={viewIdProp}
+        getDataSnapshot={getDataSnapshot}
+        subscribeDiff={subscribeDiff}
+        filter={filter}
+        eventHandler={eventHandler}
+        className={className}
+        style={style}
+      />
+    </ForceGraphErrorBoundary>
   );
 }

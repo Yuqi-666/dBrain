@@ -24,12 +24,6 @@
       "@workspace/graph/*": [
         "../../packages/graph/src/*"
       ],
-      "@workspace/graph-v2": [
-        "../../packages/graph-v2/src"
-      ],
-      "@workspace/graph-v2/*": [
-        "../../packages/graph-v2/src/*"
-      ],
       "@workspace/interfaces": [
         "../../packages/interfaces/src"
       ],
