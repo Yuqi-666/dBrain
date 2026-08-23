@@ -4,7 +4,6 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useUIStore, useDataStore } from "@workspace/store";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
-import { RelationshipQuickBar } from "./quick-bar";
 import { EditorHeader } from "../header/editor-header/editor-header";
 import { AttributesSidebar } from "../header/editor-header/attributes-sidebar";
 import type { NodeData } from "@workspace/interfaces";
@@ -62,7 +61,7 @@ export function NodeEditor({ className }: NodeEditorProps) {
               className,
             )}
           >
-            <NodeEditorContent node={node} showQuickBar={true} />
+            <NodeEditorContent node={node} />
           </DialogContent>
         </Dialog>
       )}
@@ -75,7 +74,7 @@ export function NodeEditor({ className }: NodeEditorProps) {
             className,
           )}
         >
-          <NodeEditorContent node={node} showQuickBar={false} />
+          <NodeEditorContent node={node} />
         </div>
       )}
     </>
@@ -88,13 +87,11 @@ export function NodeEditor({ className }: NodeEditorProps) {
  */
 interface NodeEditorContentProps {
   node: NodeData;
-  showQuickBar: boolean;
   className?: string;
 }
 
 function NodeEditorContent({
   node,
-  showQuickBar,
   className,
 }: NodeEditorContentProps) {
   const attributesSidebarOpen = useUIStore(
@@ -114,7 +111,6 @@ function NodeEditorContent({
         )}
       </div>
 
-      {showQuickBar && <RelationshipQuickBar node={node} />}
     </div>
   );
 }

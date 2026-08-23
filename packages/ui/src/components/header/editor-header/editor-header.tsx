@@ -59,7 +59,7 @@ export function EditorHeader({ className }: EditorHeaderProps) {
       </div>
 
       <div
-        className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none bg-background text-foreground z-10 pointer-events-auto `}
+        className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none  z-10 pointer-events-auto `}
       >
         <PinButton />
         <Button
