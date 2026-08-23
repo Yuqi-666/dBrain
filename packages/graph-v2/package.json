@@ -25,7 +25,6 @@
     "@workspace/utils": "workspace:*",
     "@workspace/hooks": "workspace:*",
     "@workspace/services": "workspace:*",
-    "@xyflow/react": "^12.0.0",
     "comlink": "^4.4.2",
     "d3-force": "^3.0.0",
     "d3-quadtree": "^3.0.1",

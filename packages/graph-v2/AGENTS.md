@@ -2,7 +2,9 @@
 
 Next-generation graph visualization. Replaces `@workspace/graph` (v1, `@antv/g6`).
 A single `<Graph />` component routes by `view.viewType` to either `ForceGraph`
-(d3-force in a WebWorker, OffscreenCanvas) or `FlowGraph` (`@xyflow/react` v12).
+(d3-force in a WebWorker, OffscreenCanvas) or `FlowGraph` (currently a
+**placeholder shell** — the ReactFlow-based implementation was deleted in the
+flow refactor and is under reconstruction).
 
 **See root `AGENTS.md` for monorepo-wide context, conventions, and commands.**
 This file is the package-internal ramp-up doc.
@@ -10,19 +12,18 @@ This file is the package-internal ramp-up doc.
 ## ENTRY POINTS (read in this order)
 
 1. `src/index.ts` — the only sanctioned public export. Scan re-exports to know what is reachable.
-2. `src/graph.tsx` — the `<Graph />` router. ~177 lines. Builds `getDataSnapshot` / `subscribeDiff` / `filter` callbacks, then injects them + the shared `eventHandler` into either orchestrator.
+2. `src/graph.tsx` — the `<Graph />` router. ~191 lines. Builds `getDataSnapshot` / `subscribeDiff` / `filter` callbacks, then injects them + the shared `eventHandler` into either orchestrator.
 3. `src/eventHandler.ts` — `useGraphEventHandler()`. The ONLY callback surface ForceGraph / FlowGraph receive. ~373 lines. Read this before touching any orchestrator.
 4. `src/types.ts` — canonical home for cross-cutting types. Do not duplicate these elsewhere.
-5. `src/force/ForceGraph.tsx` and `src/flow/FlowGraph.tsx` — the two orchestrators.
+5. `src/force/ForceGraph.tsx` and `src/flow/FlowGraph.tsx` — the force orchestrator and the flow placeholder.
 
 ## ARCHITECTURE RULES (JSDoc-enforced)
 
 These are not style preferences. Breaking them will silently desync the UI.
 
 1. **Single event-handler surface.** `ForceGraph` and `FlowGraph` MUST NOT call `useUIStore.setXxx` or any `useGraph()` callback directly. Every gesture goes through `props.eventHandler.xxx(...)`.
-   - **Three documented exceptions** (display concerns, not event routing):
+   - **Two documented exceptions** (display concerns, not event routing):
      - `useUIStore.setContextMenu` is read in both orchestrators to pass to `<GraphContextMenu>` as a prop.
-     - `useUIStore.selectedNodeIds` is read in `FlowGraph` only to compute `neighborActive` (read-only).
      - `useUIStore.previewBlock` + `useUIStore.closePreviewBlock` are read in `ForceGraph` only to forward to the mounted `<PreviewBlock>` overlay. `PreviewBlock` is mounted **only by ForceGraph** (intentional asymmetry — `eventHandler` writes the store on hover/leave/dblclick from both modes, but only force mode renders the preview).
 
 2. **`force/*` and `flow/*` are siblings.** They MUST NOT import from each other. Cross-cutting types live in `src/types.ts`. The one exception: `src/eventHandler.ts` may import `WorkerEvent` from `force/types` because `handleWorkerEvent` is force-specific.
@@ -35,18 +36,16 @@ These are not style preferences. Breaking them will silently desync the UI.
 
 6. **Worker has zero DOM access.** All DOM events are captured on the main thread (`force/eventListener.ts`), serialized to `ProxiedDomEvent`, and forwarded via `api.proxyEvent()`.
 
-7. **Module-level registries.** `nodeTypes` (`flow/nodes/index.ts:49-58`) and `edgeTypes` (`flow/edges/index.ts:21-26`) MUST be `const`s, not `useMemo`. ReactFlow needs a stable reference.
+7. **`AbortController` for StrictMode cleanup** in `force/eventListener.ts` — every listener is attached with `{ signal }`; cleanup is a single `ac.abort()`.
 
-8. **`AbortController` for StrictMode cleanup** in `force/eventListener.ts` — every listener is attached with `{ signal }`; cleanup is a single `ac.abort()`.
-
-9. **Pin-coordinate coerce.** `ForceNodeSeed.fx/fy` is `number | undefined`, but d3's `SimulationNodeDatum` requires `number | null`. Coerce with `seed.fx ?? null` at the worker boundary. See `force/worker/simulation.ts:45-51`.
+8. **Pin-coordinate coerce.** `ForceNodeSeed.fx/fy` is `number | undefined`, but d3's `SimulationNodeDatum` requires `number | null`. Coerce with `seed.fx ?? null` at the worker boundary. See `force/worker/simulation.ts:45-51`.
 
 ## DIRECTORY MAP
 
 ```
 src/
 ├── index.ts              Public API only — single sanctioned entry point
-├── graph.tsx             <Graph> router (177 lines)
+├── graph.tsx             <Graph> router (191 lines)
 ├── types.ts              Cross-cutting types (canonical)
 ├── eventHandler.ts       useGraphEventHandler — the ONE callback surface
 ├── force/                PRIVATE — ForceGraph + d3-force worker
@@ -66,16 +65,18 @@ src/
 │           ├── edges.ts        Style-bucketed edge + outline Graphics
 │           ├── labels.ts       Budgeted Text pool with LOD
 │           └── grid.ts         Viewport-anchored grid
-└── flow/                 PRIVATE — FlowGraph + @xyflow/react
-    ├── FlowGraph.tsx          Main-thread orchestrator (wraps in <ReactFlowProvider>)
-    ├── transform.ts           Source ↔ RenderableNode/RenderableEdge, position persistence
-    ├── nodes/                 9 node variants + NodeShell + NodeErrorBoundary
-    └── edges/                 4 edge variants + EdgeShell + EdgeMarkers (SVG <defs>)
+└── flow/                 PRIVATE — placeholder shell (under reconstruction)
+    └── FlowGraph.tsx          Keeps the FlowGraphProps contract so graph.tsx
+                               routing + eventHandler surface compile unchanged.
+                               Renders a static placeholder; no data pipeline,
+                               no position/viewport persistence, no node/edge
+                               registries. See git history for the deleted
+                               ReactFlow implementation.
 ```
 
 ## CONVENTIONS (package-specific)
 
-- **"use client"** at the top of every interactive file. Non-interactive files (`force/transform.ts`, `flow/transform.ts`, all `force/*` types) do not need it.
+- **"use client"** at the top of every interactive file. Non-interactive files (`force/transform.ts`, all `force/*` types) do not need it.
 - **All type-only imports use `import type`** (`verbatimModuleSyntax: true` is inherited from `@workspace/typescript-config`).
 - **No build step.** `package.json` has only `lint`, `format`, `typecheck`. Consumers receive `.ts` source via `exports: { ".": "./src/index.ts" }`. Bundler-mode resolution required (Next.js / Webpack 5 / Turbopack / Vite).
 - **No test infrastructure.** No vitest, jest, playwright, or `*.test.*` files. Don't add any without checking the root `AGENTS.md` anti-pattern note first.
@@ -85,16 +86,13 @@ src/
 
 | Task | Start here | Pitfalls |
 | --- | --- | --- |
-| Add a new node variant | `flow/nodes/<name>.tsx` mirroring an existing variant; add to `flow/nodes/index.ts` registry | Registry MUST stay module-level `const`; new variant's data type comes from `@workspace/interfaces` |
-| Add a new edge variant | `flow/edges/<name>.tsx` + `EDGE_TYPE_TO_PATH` table in `EdgeShell.tsx` | Bidirectional ALWAYS overrides path to `simplebezier`; remember `<EdgeMarkers />` is mounted once at top of tree |
+| Rebuild flow mode | `src/flow/FlowGraph.tsx` (placeholder shell) | Preserve the `FlowGraphProps` contract — `graph.tsx` injects exactly these props; check git history for the original ReactFlow implementation |
 | Change a force | `force/styleConfig.ts` (`DEFAULT_FORCE_CONFIG`) or `force/ForceGraph.tsx` (initial `ForceConfig` from `buildForceStyle` / `DEFAULT_FORCE_CONFIG`) | Worker reads `updateConfig` calls — changing defaults is fine; live-tweaking needs the api call |
 | Change d3-force behavior | `force/worker/simulation.ts` | Worker file — no DOM access allowed |
-| Add a new gesture / keybind | `force/eventListener.ts` (force) or `flow/FlowGraph.tsx` (flow) → forward to `eventHandler.xxx` | Use `AbortController` for any new listener in `eventListener.ts` |
+| Add a new gesture / keybind (force) | `force/eventListener.ts` → forward to `eventHandler.xxx` | Use `AbortController` for any new listener in `eventListener.ts` |
 | Add a new cross-cutting type | `src/types.ts` | Do NOT re-export from the using module — only re-export from `index.ts` |
 | Wire a new event-handler method | `src/eventHandler.ts` | Match the flat-namespace imperative style (no `dispatch(event)` switch) |
-| Render position fallback logic | `flow/transform.ts` `sourceToRenderableNodes` | Three-tier priority — see "Position persistence" below |
-| Touch viewport logic | `flow/FlowGraph.tsx` `onMoveEnd` + `persistViewport` (1000ms debounced) | Force mode does NOT persist viewport |
-| Touch filter / diff path | `graph.tsx` `filter` + `ForceGraph.subscribeStore` + `FlowGraph.performDiffSync` | `filter` is a generic predicate that takes `{ nodes, edges, view }` — the same predicate is reused for full snapshots AND for each diff bucket (added/updated). `removed` is forwarded untouched (worker/ReactFlow own the source-of-truth view) |
+| Touch filter / diff path | `graph.tsx` `filter` + `ForceGraph.subscribeStore` | `filter` is a generic predicate that takes `{ nodes, edges, view }` — the same predicate is reused for full snapshots AND for each diff bucket (added/updated). `removed` is forwarded untouched (worker owns the source-of-truth view) |
 
 ## WORKER PROTOCOL (4 raw channels + Comlink)
 
@@ -125,25 +123,16 @@ src/
 
 **Alpha control**: `createOrUpdate` → `alpha(1).restart()` (full); `applyDiff` → `alphaTarget(0.1).restart()` (gentle); `updateConfig` → `alpha(0.3).restart()`; `setNodeFixed(true)` → `alphaTarget(0.3)`.
 
-## POSITION PERSISTENCE (flow mode)
+## POSITION PERSISTENCE (force mode reads, flow mode is placeholder)
 
-Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y }>` (an **array**, not a record).
+Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y, mode }>` (an **array**, not a record).
 
-**Resolution priority** in `sourceToRenderableNodes` (`flow/transform.ts:130-143`):
-1. `stateData.client.position[viewId]` — persisted flow-mode coord.
-2. First entry of `stateData.client.position` — cross-view backfill.
-3. `{x: 0, y: 0}` — dagre fallback (stub; real dagre is a future PR).
-
-**Write path** has TWO debounces in series (200ms each):
-- Main thread `onNodesChange` → `pendingPositions` ref → `schedulePositionFlush` (200ms `debounce` from `@workspace/utils`) → `NodeService.upsert(patch.id, patch.patch, { debounce: 200 })` (server-side debounce).
-
-**Viewport writes**: 1000ms debounced, writes directly to `useDataStore.getState().upsertView(next)` (bypasses service layer).
-
-**Force mode** does NOT persist viewport, but READS `stateData.client.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching back from flow).
+- **Force mode** does NOT persist positions or viewport, but READS `stateData.client.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching views). See `force/ForceGraph.tsx` seed handling.
+- **Flow mode** previously owned the full write path (drag-stop → `NodeService.upsert` with dual 200ms debounces; viewport writes 1000ms debounced). That implementation was deleted with the flow refactor — any future flow rebuild must restore it.
 
 ## 6-VALUE `RenderState` UNION (FORCE-ONLY)
 
-**`RenderState` is force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all**. Flow has no equivalent concept; node/edge selection visual is ReactFlow's built-in `selected` prop (the `rf-selected` class on the host container).
+**`RenderState` is force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all**. Flow has no equivalent concept; the flow placeholder doesn't render nodes.
 
 Values: `default | hover | selected | active | neighbor | inactive`. The `NODE_RENDER_RULES` and `EDGE_RENDER_RULES` records in `styleConfig.ts` map each state to stroke/color/shadow adjustments.
 
@@ -152,19 +141,6 @@ Values: `default | hover | selected | active | neighbor | inactive`. The `NODE_R
 | `force/types.ts` | Defines `RenderState` (force-only) |
 | `force/styleConfig.ts` | `NODE_RENDER_RULES` and `EDGE_RENDER_RULES` records + `getRenderAdjustment()` |
 | `force/worker/simulation.ts` | Worker-internal `SimNode.renderState` / `SimLink.renderState` field; `recomputeWorkerState()` mirrors the active selection / hover into per-node state on every tick |
-
-## NODE & EDGE REGISTRIES
-
-**9 node variants** (kebab-case keys in `flow/nodes/index.ts:49-58`):
-`text, image, pdf, video, audio, webpage, website, collection, rich-text`.
-- `rich-text` is the only one with a custom `handleLayout` (`target: Top, source: Bottom`).
-- `NodeShell` is the shared presentation shell; `NodeErrorBoundary` is exported but **NOT yet wrapped around any variant by default** — it is a hook for downstream consumers.
-
-**4 edge variants**:
-`hierarchy` (straight), `flow` (quadratic bezier), `association` (straight + dasharray `6 4`), `interaction` (simplebezier/cubic).
-- `EdgeShell` overrides to `simplebezier` + both markers when `direction === "bidirectional"`.
-
-**`<EdgeMarkers />`** MUST be mounted once at the top of the ReactFlow tree (`FlowGraph.tsx:438`) — provides `arrow-end` / `arrow-start` SVG markers. Not inlined into each edge.
 
 ## CROSS-PACKAGE BOUNDARIES
 
@@ -175,20 +151,16 @@ Values: `default | hover | selected | active | neighbor | inactive`. The `NODE_R
 | `@workspace/ui` | `GraphContextMenu`, `GraphContextMenuProps` from `@workspace/ui/components/graph-context-menu/graph-context-menu`; `PreviewBlock` from `@workspace/ui/components/preview-block/preview-block` (ForceGraph only) | `@workspace/ui` has no `.` export — use explicit subpath |
 | `@workspace/utils` | `filterByViewFilterConfig`, `debounce` | `filterByViewFilterConfig` returns NEW Map instances. `debounce` is trailing-edge only, no `cancel`/`flush`, loses `this` |
 | `@workspace/hooks` | `useGraph()` (only in `eventHandler.ts:28`) | Client-only. `onCreateEdge` requires caller-supplied `setContextMenu` (5th arg). All mutators swallow errors with `console.error` |
-| `@workspace/services` | `NodeService`, `EdgeService` (in `flow/FlowGraph.tsx:52`) | **Latent missing dependency** — NOT declared in this package's `package.json`. Resolves via pnpm hoisting. Add to dependencies if you refactor. |
+| `@workspace/services` | `NodeService` (in `force/ForceGraph.tsx:71`) | Declared in `package.json`. Used to be the flow-mode `EdgeService`/`NodeService` client too — that coupling is gone with the flow refactor |
 
 ## KNOWN GOTCHAS
 
-- **`@use-gesture/core` and `@use-gesture/react`** are declared in `package.json` but never imported. Dead weight; safe to remove.
-- **`onConnect` hard-codes `edgeType: "association"`** (`FlowGraph.tsx:311`) — no comment. May be a placeholder.
-- **Dagre fallback is `(0, 0)`** — a node at exactly `(0, 0)` counts as "no position" for `hasPersistedPosition` (`FlowGraph.tsx:426-430`), which can trigger an unwanted re-fit on viewId change.
-- **`<Controls>` and `<MiniMap>` both render at `position="bottom-left"`** (`FlowGraph.tsx:466, 469`) — they overlap unless `view.visualConfig.showMinimap === false`.
 - **`tsconfig.lint.json`** includes a `turbo` directory that doesn't exist. Harmless dead config.
 - **`apps/web/tsconfig.json` has NO `@workspace/graph-v2` path alias** — it only has `@workspace/graph` (v1). v2 resolves via pnpm symlink + `exports` field. Editor "find references" and `tsc --noEmit` may diverge.
 - **40+ JSDoc references to `docs/07-agent/graph-v2/src/design.md`** and `main design L###` line numbers — the `docs/` symlink target is `/mnt/f/dbrain` (external). These may not resolve in every environment.
 - **Worker `self as unknown as Worker`** cast (`force.worker.ts:38`, `api.ts:67`) — `self` in a module worker is `DedicatedWorkerGlobalScope`, not `Worker`.
-- **`useReactFlow()` is used exactly once** in `FlowGraph.tsx:138`, only to restore viewport on viewId change.
 - **Force-mode modifier semantics are duplicated** in `force/eventListener.ts` (JSDoc) and `force/worker/simulation.ts:596-605` (switch case). There is no shared source of truth.
+- **FlowGraph placeholder is inert** — it renders "Flow mode is under reconstruction" and ignores all data-feed props. Don't expect flow interactions until it's rebuilt.
 
 ## COMMANDS
 
@@ -213,6 +185,6 @@ Add a bullet when you discover:
 - A latent bug or missing dependency that future contributors should know about.
 
 Do NOT add:
-- Generic React 19 / d3 / ReactFlow usage advice (look it up).
+- Generic React 19 / d3 usage advice (look it up).
 - Re-statements of TypeScript / module syntax rules (the root `AGENTS.md` covers them).
 - File-tree listings of files you haven't read.

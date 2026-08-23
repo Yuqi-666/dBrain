@@ -45,41 +45,6 @@ export type {
   Dimensions,
 } from "./force/types";
 
-// Flow-mode types (defined in flow/*, re-exported from their own module).
-export type {
-  PositionEntry,
-  PositionMap,
-  RenderableNode,
-  RenderableNodeData,
-  RenderableEdge,
-  RenderableEdgeData,
-  PositionDelta,
-  EdgeAdd,
-} from "./flow/transform";
-
-// Flow nodes.
-export {
-  TextNode,
-  ImageNode,
-  PdfNode,
-  VideoNode,
-  AudioNode,
-  WebpageNode,
-  WebsiteNode,
-  CollectionNode,
-  RichTextNode,
-} from "./flow/nodes";
-export { nodeTypes } from "./flow/nodes";
-
-// Flow edges.
-export {
-  HierarchyEdge,
-  FlowEdge,
-  AssociationEdge,
-  InteractionEdge,
-} from "./flow/edges";
-export { edgeTypes } from "./flow/edges";
-
 // Force transforms.
 export {
   nodeDataToForceSeeds,
@@ -90,16 +55,6 @@ export {
   getPosition as getPositionForForce,
   setPosition as setPositionForForce,
 } from "./force/transform";
-
-// Flow transforms.
-export {
-  sourceToRenderableNodes,
-  sourceToRenderableEdges,
-  positionDeltaToSource,
-  connectionToEdgeAdd,
-  setPosition,
-  getPosition,
-} from "./flow/transform";
 
 // Force sim defaults.
 export {

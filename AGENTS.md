@@ -18,7 +18,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # @antv/g6-based graph (v1, legacy)
-│   ├── graph-v2/    # d3-force + @xyflow/react graph (v2, current)
+│   ├── graph-v2/    # d3-force graph (v2, current; flow mode is a placeholder shell)
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -47,7 +47,7 @@ dBrain/
 | ------------------------ | -------------------------------------------- | ------------------------------------ |
 | UI components            | packages/ui/src/components                   | shadcn/ui + custom                   |
 | Graph (v1, legacy)       | packages/graph/src                           | @antv/g6 — still consumed by apps/web |
-| **Graph (v2, current)**  | packages/graph-v2/src                        | d3-force (worker) + @xyflow/react — see dedicated section below |
+| **Graph (v2, current)**  | packages/graph-v2/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
 | Rich text editor         | packages/editor/                             | Tiptap Pro + Yjs, Notion-like editor |
 | Type definitions         | packages/interfaces/src                      | Models, nodes, API types             |
 | State management         | packages/store/src                           | Zustand v5                           |
@@ -123,7 +123,7 @@ cd backend/adapter-back && pnpm typecheck
 - Desktop app uses Tauri 2.x with Next.js frontend
 - PocketBase is the local backend (`pb/` directory contains the binary and dev data)
 - No actual Rust backend — backend is TypeScript DDD layers
-- `apps/web/app/(main)/graph/page.tsx` currently imports `@workspace/graph` (v1) but `apps/web/package.json` declares BOTH `graph` and `graph-v2`. The v2 path is wired but unused in the demo page as of this writing.
+- `apps/web/app/(main)/graph/page.tsx` imports `@workspace/graph-v2` (v1 `@workspace/graph` is commented out). The demo page exercises the v2 `<Graph />` router.
 
 ---
 
@@ -132,7 +132,7 @@ cd backend/adapter-back && pnpm typecheck
 `packages/graph-v2/` is the next-generation, in-progress graph visualization package that will replace `@workspace/graph` (v1, @antv/g6). It exposes a single `<Graph />` component that routes by `view.viewType` to one of two orchestrators:
 
 - **`ForceGraph`** — d3-force simulation running in a dedicated `WebWorker` with an `OffscreenCanvas` 2D renderer; IPC via `comlink`.
-- **`FlowGraph`** — `@xyflow/react` v12 wrapper with 9 custom node variants and 4 custom edge variants.
+- **`FlowGraph`** — **placeholder shell only.** The ReactFlow-based implementation (9 node variants, 4 edge variants, transforms, position persistence) was deleted in the flow refactor. `FlowGraph.tsx` keeps the props contract so routing compiles, and renders a static placeholder. Rebuild starts from that file; see git history for the deleted implementation.
 
 ### Top-level structure
 
@@ -153,16 +153,13 @@ src/
 │       ├── api.ts           # WorkerInbound implementation
 │       ├── simulation.ts    # d3-force setup, hit-test (n<2000 brute, n>=2000 quadtree)
 │       └── canvas.ts        # OffscreenCanvas 2D rendering
-└── flow/                 # Flow-mode PRIVATE (@xyflow/react)
-    ├── FlowGraph.tsx     # Main-thread orchestrator (wraps in <ReactFlowProvider>)
-    ├── transform.ts      # Source ↔ RenderableNode/RenderableEdge, position persistence
-    ├── nodes/            # 9 node variants + NodeShell + NodeErrorBoundary
-    └── edges/            # 4 edge variants + EdgeShell + EdgeMarkers (SVG defs)
+└── flow/                 # Flow-mode PRIVATE (placeholder shell)
+    └── FlowGraph.tsx     # Props-contract shell only — static placeholder, no data pipeline
 ```
 
 ### Architectural rules (codified in JSDoc — do not break)
 
-1. **Single event-handler surface** — children (ForceGraph / FlowGraph) MUST NOT touch `useUIStore` setters or call `useGraph()` callbacks directly. Every gesture routes through the imperative `eventHandler.xxx(...)` method bag that the parent `Graph` builds once via `useGraphEventHandler()`. The two documented exceptions are: (a) `useUIStore.setContextMenu` is read as a prop for `<GraphContextMenu>` (display concern, not event routing) and (b) `useUIStore.selectedNodeIds` is read in FlowGraph only to compute `neighborActive` (read-only).
+1. **Single event-handler surface** — children (ForceGraph / FlowGraph) MUST NOT touch `useUIStore` setters or call `useGraph()` callbacks directly. Every gesture routes through the imperative `eventHandler.xxx(...)` method bag that the parent `Graph` builds once via `useGraphEventHandler()`. The documented exception is: `useUIStore.setContextMenu` is read as a prop for `<GraphContextMenu>` (display concern, not event routing). (`FlowGraph` is currently a placeholder and routes no gestures.)
 
 2. **`force/*` and `flow/*` are siblings — they MUST NOT import from each other.** Anything both sides need lives in `src/types.ts`. The single exception is `eventHandler.ts`, which IS allowed to import `WorkerEvent` from `force/types` because `handleWorkerEvent` is force-specific by design.
 
@@ -174,11 +171,9 @@ src/
 
 6. **Worker has zero DOM access** — DOM events are captured on the main thread (`eventListener.ts`), serialized to `ProxiedDomEvent`, and forwarded via `api.proxyEvent()`.
 
-7. **The `nodeTypes` and `edgeTypes` registries MUST be module-level constants** (not `useMemo`) so ReactFlow sees a stable reference across renders. See `flow/nodes/design.md §1.3` and `flow/edges/design.md §1.3`.
+7. **`AbortController` for StrictMode cleanup** in `eventListener.ts` — single `abort()` removes every listener attached with `{ signal }`.
 
-8. **`AbortController` for StrictMode cleanup** in `eventListener.ts` — single `abort()` removes every listener attached with `{ signal }`.
-
-9. **Pin-coordinate coerce** at the worker boundary: `ForceNodeSeed.fx/fy` is `number | undefined` (callers may omit) but d3's `SimulationNodeDatum` requires `number | null`; coerce with `seed.fx ?? null` (see `worker/simulation.ts:45-51`).
+8. **Pin-coordinate coerce** at the worker boundary: `ForceNodeSeed.fx/fy` is `number | undefined` (callers may omit) but d3's `SimulationNodeDatum` requires `number | null`; coerce with `seed.fx ?? null` (see `worker/simulation.ts:45-51`).
 
 ### Worker boot / message protocol (4 raw channels + Comlink RPC)
 
@@ -214,25 +209,17 @@ src/
 - **Ctrl**: drag inhibited; main thread starts lasso-select.
 - **Shift**: reserved for additive selection in the main thread.
 
-### Position persistence (flow mode)
+### Position persistence
 
-Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y }>` (an array, not a record).
+Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y, mode }>` (an array, not a record).
 
-**Resolution priority** in `sourceToRenderableNodes`:
-1. `stateData.client.position[viewId]` — persisted flow-mode coord for this view.
-2. First entry of `stateData.client.position` — cross-view backfill (avoid stacking when switching views).
-3. `{ x: 0, y: 0 }` — dagre fallback (stub; real dagre is a future PR).
+**Force mode** does NOT persist viewport (per design.md §5.1/§6.1.1) and does not write positions back — but reads `stateData.client.position[viewId]` as x/y seeds on first load (so layout doesn't reset when switching views).
 
-**Write path** has TWO debounces in series (200ms each):
-- Main thread `onNodesChange` → `pendingPositions` ref → `schedulePositionFlush` (200ms `debounce` from `@workspace/utils`) → `NodeService.upsert(patch.id, patch.patch, { debounce: 200 })` (server-side debounce).
-
-**Viewport writes** are debounced 1000ms and write directly to `useDataStore.getState().upsertView(next)`, bypassing the service layer.
-
-**Force mode does NOT persist viewport** (per design.md §5.1/§6.1.1) and does not write positions back — but reads `stateData.client.position[viewId]` as x/y seeds on first load.
+**Flow mode** previously owned the full write path: drag-stop → `NodeService.upsert` with dual 200ms debounces, plus 1000ms-debounced viewport writes to `useDataStore.getState().upsertView(next)`. That implementation was deleted with the flow refactor — any future flow rebuild must restore it.
 
 ### 7-state UI enum (`UiState`, force-only)
 
-`UiState` is **force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all**. Flow has no equivalent concept; the only selection visual in flow is ReactFlow's built-in `selected` prop (the `rf-selected` class on the host container).
+`UiState` is **force-mode private** — defined in `force/types.ts`, not exported from `src/index.ts`, and **not used by flow mode at all** (flow is a placeholder shell with no UI-state concept).
 
 Values: `default | hover | selected | active | neighborActive | inactive | disabled`. Order is significant — `force/styleConfig.ts` keys the `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records off it.
 
@@ -240,17 +227,6 @@ Used in:
 - `force/styleConfig.ts` — `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records (both byte-identical)
 - `force/transform.ts` — `defaultState?: UiState` option for seed generation
 - `force/worker/simulation.ts` — worker-internal `SimNode.ui` / `SimLink.ui` field; `recomputeUiStates()` mirrors the active selection / hover into per-node state on every tick
-
-### Node and edge registries
-
-**9 node variants** (kebab-case keys in `flow/nodes/index.ts:49-58`):
-`text, image, pdf, video, audio, webpage, website, collection, rich-text`.
-- `rich-text` is the only one with a custom `handleLayout` (`target: Top, source: Bottom`).
-- `NodeShell` is the shared presentation shell; `NodeErrorBoundary` is exported but **not yet wrapped around any variant by default** — it is a hook for downstream consumers.
-
-**4 edge variants**: `hierarchy` (straight), `flow` (quadratic bezier), `association` (straight + dasharray `6 4`), `interaction` (simplebezier/cubic). `EdgeShell` overrides to `simplebezier` + both markers when `direction === "bidirectional"`.
-
-**`<EdgeMarkers />` MUST be mounted once at the top of the ReactFlow tree** (`FlowGraph.tsx:438`) — provides `arrow-end`/`arrow-start` SVG markers.
 
 ### Cross-package contract map (graph-v2 → workspace)
 
@@ -261,19 +237,14 @@ Used in:
 | `@workspace/ui` | `GraphContextMenu`, `GraphContextMenuProps` (only from `@workspace/ui/components/graph-context-menu/graph-context-menu`) | `@workspace/ui` has no `.` export — use explicit subpaths. Component is client-only. |
 | `@workspace/utils` | `filterByViewFilterConfig`, `debounce` | `filterByViewFilterConfig` returns NEW Map instances. `debounce` is trailing-edge only, no `cancel`/`flush`, loses `this`. |
 | `@workspace/hooks` | `useGraph()` (from `eventHandler.ts:28` only) | Client-only. `onCreateEdge` requires a caller-supplied `setContextMenu` (5th arg). All mutators swallow errors with `console.error`. |
-| `@workspace/services` | `NodeService`, `EdgeService` (used in `flow/FlowGraph.tsx:52`) | **Latent missing dependency** — imported in source but NOT declared in `packages/graph-v2/package.json`. Resolves transitively via pnpm hoisting. |
+| `@workspace/services` | `NodeService` (used in `force/ForceGraph.tsx:71`) | Declared in `package.json`. The flow-mode `NodeService`/`EdgeService` usage was removed with the flow refactor. |
 
 ### Latent issues / gotchas
 
-- **`@workspace/services` is not declared in `packages/graph-v2/package.json`** but is imported in `flow/FlowGraph.tsx`. Works via pnpm hoisting but should be added to dependencies.
-- **`@use-gesture/core` and `@use-gesture/react` are declared but never imported** anywhere in `src/`. Dead weight; can be removed.
 - **`apps/web/tsconfig.json` has NO path alias for `@workspace/graph-v2`** — it only has `@workspace/graph` (v1). The v2 import resolves via pnpm symlink + `exports` field. Editor "find references" and `tsc --noEmit` may diverge.
 - **`tsconfig.lint.json` includes a `turbo` directory that doesn't exist** — harmless dead config.
 - **`tsconfig.json` has no `outDir` and `noEmit` is true** (inherited). The package has no `build` script. Consumers receive `.ts` source via `exports: { ".": "./src/index.ts" }`.
-- **`onConnect` hard-codes `edgeType: "association"`** (`FlowGraph.tsx:311`) — no comment explains; may be a placeholder.
-- **Dagre fallback is `(0, 0)`** — a node at exactly `(0, 0)` counts as "no position" for `hasPersistedPosition` (`FlowGraph.tsx:426-430`), which can trigger an unwanted re-fit on viewId change.
-- **`<Controls>` and `<MiniMap>` both render at `position="bottom-left"`** (`FlowGraph.tsx:466, 469`) — they overlap visually unless `view.visualConfig.showMinimap === false`.
-- **`NodeErrorBoundary` is exported but not used by any internal node variant** — it is a hook for downstream consumers.
+- **`FlowGraph` is a placeholder shell** — renders a static message and ignores all data-feed props. Rebuild starts from `flow/FlowGraph.tsx`; see git history for the deleted ReactFlow implementation (which also removes the old `onConnect` hard-coding, `(0,0)` dagre fallback, and `Controls`/`MiniMap` overlap gotchas).
 - **40+ JSDoc references to design.md files that may not resolve in every environment** — the most-referenced path is `docs/07-agent/graph-v2/src/design.md` (the `docs/` symlink target is `/mnt/f/dbrain`, external). Many JSDoc lines also cite `main design L###` line numbers from an external spec doc with no path.
 
 ### Commands (graph-v2 only)
