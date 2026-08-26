@@ -8,7 +8,7 @@ import {
 } from "@workspace/services";
 import type {
   EdgeSemantic,
-  NodeDataType,
+  NodeData,
   NodeSemantic,
 } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -29,6 +29,12 @@ import {
 import { DataTypeList } from "../list/node/dataType-list";
 import { SemanticList } from "../list/node/semantic-list";
 import { Separator } from "@workspace/ui/components/ui/separator";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@workspace/ui/components/ui/tabs";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   ChevronDownIcon,
@@ -44,9 +50,10 @@ import {
   Pin,
   Plus,
   Search,
+  Shapes,
   Trash2,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import LogoIcon from "../../img/icon/logo.svg";
 import { useGraph } from "@workspace/hooks";
 
@@ -54,20 +61,42 @@ export function CognitiveSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
   const { views, nodes } = useDataStore();
-  const setCurrentEditingNodeId = useUIStore(
-    (state) => state.setCurrentEditingNodeId,
+  const openNodeSemanticDialog = useUIStore(
+    (state) => state.openNodeSemanticDialog,
   );
+  const openEdgeSemanticDialog = useUIStore(
+    (state) => state.openEdgeSemanticDialog,
+  );
+  const sidebarActiveTab = useUIStore((state) => state.sidebarActiveTab);
+  const setSidebarActiveTab = useUIStore(
+    (state) => state.setSidebarActiveTab,
+  );
+  const currentEditingNodeId = useUIStore((state) => state.currentEditingNodeId);
+  const pushRecentlyOpenedNode = useUIStore(
+    (state) => state.pushRecentlyOpenedNode,
+  );
+
+  // 由 sidebar 自动维护"最近打开"队列：任何入口打开节点（设置
+  // currentEditingNodeId）都会被捕获，入口无需感知队列的存在。
+  useEffect(() => {
+    if (currentEditingNodeId !== null) {
+      pushRecentlyOpenedNode(currentEditingNodeId);
+    }
+  }, [currentEditingNodeId, pushRecentlyOpenedNode]);
 
   const pinnedViews = Array.from(views.values()).filter(
     (view) => view.isPinned,
   );
   const recentViews = Array.from(views.values()).slice(0, 5);
-  const recentNodes = Array.from(nodes.values())
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    )
-    .slice(0, 5);
+  const pinnedNodes = Array.from(nodes.values()).filter((node) => node.isPinned);
+  const recentlyOpenedNodeIds = useUIStore(
+    (state) => state.recentlyOpenedNodeIds,
+  );
+  const recentNodes = recentlyOpenedNodeIds
+    .map((id) => nodes.get(id))
+    .filter(
+      (node): node is NodeData => node !== undefined && !node.isPinned,
+    );
 
   const handleToggleSidebar = () => {
     if (sidebarMode === "temp") {
@@ -100,14 +129,124 @@ export function CognitiveSidebar() {
 
       <div className="h-px bg-sidebar-border" />
 
-      <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide">
-        <div className="flex flex-col gap-5 px-3 py-4">
+      <Tabs
+        orientation="vertical"
+        value={sidebarActiveTab}
+        onValueChange={setSidebarActiveTab}
+        className="min-h-0 flex-1 flex-col gap-0"
+      >
+        <TabsList className="h-fit w-full shrink-0 flex-col items-stretch gap-1 border-b border-sidebar-border bg-transparent px-3 py-3">
+          <TabsTrigger asChild value="nodes">
+            <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
+              <CircleDot className="size-3.5 text-sidebar-foreground/40" />
+              <span>节点</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Plus className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent sideOffset={6} align="start">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
+                      <span className="text-[13px]">Add Node</span>
+                    </DropdownMenuSubTrigger>
+                    <DataTypeList>
+                      {(nodeType) => (
+                        <DropdownMenuSubContent>
+                          <SemanticList
+                            onSelect={(semanticId) => {
+                              onAddNode?.(nodeType, semanticId);
+                            }}
+                          />
+                        </DropdownMenuSubContent>
+                      )}
+                    </DataTypeList>
+                  </DropdownMenuSub>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger asChild value="views">
+            <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
+              <LayoutGrid className="size-3.5 text-sidebar-foreground/40" />
+              <span>视图</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger asChild value="node-types">
+            <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
+              <Shapes className="size-3.5 text-sidebar-foreground/40" />
+              <span>节点类型</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNodeSemanticDialog();
+                }}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger asChild value="edge-types">
+            <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
+              <Link2 className="size-3.5 text-sidebar-foreground/40" />
+              <span>边类型</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdgeSemanticDialog();
+                }}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent
+          value="nodes"
+          className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-4 pl-1 pr-3 scrollbar-hide"
+        >
+          <NodesList pinnedNodes={pinnedNodes} recentNodes={recentNodes} />
+        </TabsContent>
+        <TabsContent
+          value="views"
+          className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-4 pl-1 pr-3 scrollbar-hide"
+        >
           <ViewsList pinnedViews={pinnedViews} recentViews={recentViews} />
+        </TabsContent>
+        <TabsContent
+          value="node-types"
+          className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-4 pl-1 pr-3 scrollbar-hide"
+        >
           <NodeSemanticList />
+        </TabsContent>
+        <TabsContent
+          value="edge-types"
+          className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-4 pl-1 pr-3 scrollbar-hide"
+        >
           <EdgeSemanticList />
-          <NodesList nodes={recentNodes} onAddNode={onAddNode} />
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </aside>
   );
 }
@@ -213,51 +352,6 @@ function SearchButton() {
         ⌘K
       </kbd>
     </button>
-  );
-}
-
-interface SectionProps {
-  title: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  action?: React.ReactNode;
-}
-
-function Section({
-  title,
-  icon,
-  children,
-  defaultOpen = true,
-  action,
-}: SectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-      <div className="flex items-center justify-between mb-1">
-        <CollapsibleTrigger asChild>
-          <button className="flex items-center gap-2 py-1 hover:opacity-70 transition-opacity duration-200 cursor-pointer">
-            <span
-              className={cn(
-                "transition-transform duration-200",
-                isOpen ? "rotate-90" : "rotate-0",
-              )}
-            >
-              <ChevronRight className="size-3.5 text-sidebar-foreground/40" />
-            </span>
-            {icon}
-            <span className="text-[13px] font-semibold text-sidebar-foreground tracking-wide">
-              {title}
-            </span>
-          </button>
-        </CollapsibleTrigger>
-        {action}
-      </div>
-      <CollapsibleContent className="pt-1.5 pb-1">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
   );
 }
 
@@ -381,37 +475,23 @@ function ViewsList({
   const sortedViews = [...pinnedViews, ...nonPinnedRecentViews];
 
   return (
-    <Section
-      title="Views"
-      icon={<LayoutGrid className="size-3.5 text-sidebar-primary" />}
-      action={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-        >
-          <Plus className="size-3.5" />
-        </Button>
-      }
-    >
-      <div className="flex flex-col gap-0.5">
-        {sortedViews.length > 0 ? (
-          sortedViews.map((view) => (
-            <ViewItem
-              key={view.id}
-              view={view}
-              onTogglePin={handleTogglePin}
-              onEdit={handleEditView}
-              onDelete={handleDeleteView}
-            />
-          ))
-        ) : (
-          <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
-            No views yet
-          </p>
-        )}
-      </div>
-    </Section>
+    <div className="flex flex-col gap-0.5">
+      {sortedViews.length > 0 ? (
+        sortedViews.map((view) => (
+          <ViewItem
+            key={view.id}
+            view={view}
+            onTogglePin={handleTogglePin}
+            onEdit={handleEditView}
+            onDelete={handleDeleteView}
+          />
+        ))
+      ) : (
+        <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
+          No views yet
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -503,16 +583,11 @@ function NodeItem({
 }
 
 function NodesList({
-  nodes,
-  onAddNode,
+  pinnedNodes,
+  recentNodes,
 }: {
-  nodes: Array<{
-    id: string;
-    title: string;
-    semanticId?: string;
-    isPinned?: boolean;
-  }>;
-  onAddNode?: (nodeType: NodeDataType, semanticId: string) => void;
+  pinnedNodes: NodeData[];
+  recentNodes: NodeData[];
 }) {
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
@@ -537,51 +612,31 @@ function NodesList({
     }
   };
 
-  const sortedNodes = [...nodes].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return 0;
-  });
-
   return (
-    <Section
-      title="Nodes"
-      icon={<CircleDot className="size-3.5 text-sidebar-primary" />}
-      action={
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-            >
-              <Plus className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent sideOffset={6} align="start">
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
-                <span className="text-[13px]">Add Node</span>
-              </DropdownMenuSubTrigger>
-              <DataTypeList>
-                {(nodeType) => (
-                  <DropdownMenuSubContent>
-                    <SemanticList
-                      onSelect={(semanticId) => {
-                        onAddNode?.(nodeType, semanticId);
-                      }}
-                    />
-                  </DropdownMenuSubContent>
-                )}
-              </DataTypeList>
-            </DropdownMenuSub>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      }
-    >
+    <div className="flex flex-col gap-3">
+      {pinnedNodes.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <p className="px-2.5 pb-1 text-[11px] font-semibold text-sidebar-foreground/50 tracking-wide">
+            置顶
+          </p>
+          {pinnedNodes.map((node) => (
+            <NodeItem
+              key={node.id}
+              node={node}
+              onTogglePin={handleTogglePin}
+              isSelected={currentEditingNodeId === node.id}
+              onSelect={handleSelectNode}
+              onDelete={handleDeleteNode}
+            />
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-0.5">
-        {sortedNodes.length > 0 ? (
-          sortedNodes.map((node) => (
+        <p className="px-2.5 pb-1 text-[11px] font-semibold text-sidebar-foreground/50 tracking-wide">
+          最近打开
+        </p>
+        {recentNodes.length > 0 ? (
+          recentNodes.map((node) => (
             <NodeItem
               key={node.id}
               node={node}
@@ -597,7 +652,7 @@ function NodesList({
           </p>
         )}
       </div>
-    </Section>
+    </div>
   );
 }
 
@@ -676,20 +731,7 @@ function NodeSemanticList() {
   };
 
   return (
-    <Section
-      title="Node Types"
-      icon={<CircleDot className="size-3.5 text-sidebar-primary" />}
-      action={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-          onClick={() => openDialog()}
-        >
-          <Plus className="size-3.5" />
-        </Button>
-      }
-    >
+    <div className="flex flex-col">
       <div className="flex flex-col gap-0.5">
         {nodeSemantics.length > 0 ? (
           nodeSemantics.map((semantic) => (
@@ -706,7 +748,7 @@ function NodeSemanticList() {
           </p>
         )}
       </div>
-    </Section>
+    </div>
   );
 }
 
@@ -842,20 +884,7 @@ function EdgeSemanticList() {
   );
 
   return (
-    <Section
-      title="Edge Types"
-      icon={<Link2 className="size-3.5 text-sidebar-primary" />}
-      action={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors rounded-md"
-          onClick={() => openDialog()}
-        >
-          <Plus className="size-3.5" />
-        </Button>
-      }
-    >
+    <div className="flex flex-col">
       <div className="flex flex-col gap-2">
         {categories.map((cat) => (
           <EdgeSemanticCategory
@@ -867,6 +896,6 @@ function EdgeSemanticList() {
           />
         ))}
       </div>
-    </Section>
+    </div>
   );
 }

@@ -6,7 +6,6 @@ import {
   QueryBuilder,
   defaultCombinators,
   type RuleGroupType,
-  type ControlElementsProp,
 } from "@workspace/utils";
 import "../../styles/query-builder.css";
 
@@ -31,17 +30,10 @@ import {
   SelectItem,
 } from "@workspace/ui/components/ui/select";
 import { Input } from "@workspace/ui/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@workspace/ui/components/ui/dropdown-menu";
 import { Card, CardContent } from "@workspace/ui/components/ui/card";
 import { Filter, Plus, Trash2, ChevronDown, X } from "lucide-react";
 
 import { NODE_FILTER_FIELDS, EDGE_FILTER_FIELDS } from "@workspace/interfaces";
-import type { RuleGroupType as CustomRuleGroupType } from "@workspace/utils";
 import { cn } from "@workspace/ui/lib/utils";
 
 // Custom shadcn components for react-querybuilder

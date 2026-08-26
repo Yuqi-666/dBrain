@@ -77,7 +77,6 @@ export function CognitiveGraphLayout({
     };
   }, [sidebarMode, closeSidebar]);
 
-  const isSidebarVisible = sidebarMode !== "closed";
   const isFixedMode = sidebarMode === "fixed";
   const isTempMode = sidebarMode === "temp";
 
@@ -90,18 +89,17 @@ export function CognitiveGraphLayout({
         />
       )}
 
-      {isSidebarVisible && (
-        <div
-          ref={sidebarRef}
-          className={cn(
-            "h-full shrink-0 transition-all duration-200 ease-in-out",
-            isFixedMode && "w-64 relative z-30",
-            isTempMode && "fixed left-0 top-0 z-40 w-64 shadow-lg",
-          )}
-        >
-          {sidebar}
-        </div>
-      )}
+      <div
+        ref={sidebarRef}
+        className={cn(
+          "h-full shrink-0 transition-all duration-200 ease-in-out",
+          isFixedMode && "w-64 relative z-30",
+          isTempMode && "fixed left-0 top-0 z-40 w-64 shadow-lg",
+          sidebarMode === "closed" && "hidden",
+        )}
+      >
+        {sidebar}
+      </div>
 
       <main className="relative flex-1">{children}</main>
     </div>

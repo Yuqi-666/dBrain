@@ -82,6 +82,10 @@ export interface UIStore {
   currentEditingNodeId: NodeId | null;
   /** 设置当前正在编辑的节点 */
   setCurrentEditingNodeId: (nodeId: NodeId | null) => void;
+  /** 最近打开的节点ID队列（长度上限 10，队首为最新） */
+  recentlyOpenedNodeIds: NodeId[];
+  /** 将节点ID推入最近打开队列（去重置顶，超出 10 淘汰队尾） */
+  pushRecentlyOpenedNode: (nodeId: NodeId) => void;
 
   // ==================== Attributes Sidebar Section ====================
   /** 属性侧边栏是否展开 */
@@ -104,6 +108,10 @@ export interface UIStore {
   closeSidebar: () => void;
   /** 临时显示 sidebar（浮动面板） */
   showTempSidebar: () => void;
+  /** Sidebar 当前激活的 tab（认知侧边栏） */
+  sidebarActiveTab: string;
+  /** 设置 sidebar 激活的 tab */
+  setSidebarActiveTab: (tab: string) => void;
 
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
@@ -227,6 +235,14 @@ export const useUIStore = create<UIStore>()(
       // ==================== Node Editor ====================
       currentEditingNodeId: null,
       setCurrentEditingNodeId: (nodeId) => set({ currentEditingNodeId: nodeId }),
+      recentlyOpenedNodeIds: [],
+      pushRecentlyOpenedNode: (nodeId) =>
+        set((state) => ({
+          recentlyOpenedNodeIds: [
+            nodeId,
+            ...state.recentlyOpenedNodeIds.filter((id) => id !== nodeId),
+          ].slice(0, 10),
+        })),
 
       // ==================== Attributes Sidebar ====================
       attributesSidebarOpen: false,
@@ -244,6 +260,8 @@ export const useUIStore = create<UIStore>()(
       convertTempToFixed: () => set({ sidebarMode: "fixed" }),
       closeSidebar: () => set({ sidebarMode: "closed" }),
       showTempSidebar: () => set({ sidebarMode: "temp" }),
+      sidebarActiveTab: "nodes",
+      setSidebarActiveTab: (tab) => set({ sidebarActiveTab: tab }),
 
       // ==================== Main View ====================
       mainViewType: "graph",
