@@ -37,9 +37,9 @@ import { NODE_FILTER_FIELDS, EDGE_FILTER_FIELDS } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
 // Custom shadcn components for react-querybuilder
-const CombinatorSelector = ({ options, value, onChange }: any) => {
+const CombinatorSelector = ({ options, value, handleOnChange }: any) => {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[100px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -54,9 +54,9 @@ const CombinatorSelector = ({ options, value, onChange }: any) => {
   );
 };
 
-const FieldSelector = ({ options, value, onChange }: any) => {
+const FieldSelector = ({ options, value, handleOnChange }: any) => {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[180px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -71,9 +71,9 @@ const FieldSelector = ({ options, value, onChange }: any) => {
   );
 };
 
-const OperatorSelector = ({ options, value, onChange }: any) => {
+const OperatorSelector = ({ options, value, handleOnChange }: any) => {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[120px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -90,11 +90,11 @@ const OperatorSelector = ({ options, value, onChange }: any) => {
 
 const ValueEditor = ({
   value,
-  onChange,
+  handleOnChange,
   type,
 }: {
   value: unknown;
-  onChange: (value: unknown) => void;
+  handleOnChange: (value: unknown) => void;
   type?: string;
 }) => {
   return (
@@ -102,7 +102,7 @@ const ValueEditor = ({
       type={type || "text"}
       value={(value as string) || ""}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-        onChange(e.target.value)
+        handleOnChange(e.target.value)
       }
       className="h-8 text-xs"
       placeholder="Enter value..."
@@ -110,12 +110,12 @@ const ValueEditor = ({
   );
 };
 
-const AddRuleAction = ({ onClick }: any) => {
+const AddRuleAction = ({ handleOnClick }: any) => {
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={onClick}
+      onClick={handleOnClick}
       className="h-7 px-2 text-xs gap-1"
     >
       <Plus className="size-3" />
@@ -124,12 +124,12 @@ const AddRuleAction = ({ onClick }: any) => {
   );
 };
 
-const AddGroupAction = ({ onClick }: any) => {
+const AddGroupAction = ({ handleOnClick }: any) => {
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={onClick}
+      onClick={handleOnClick}
       className="h-7 px-2 text-xs gap-1"
     >
       <Plus className="size-3" />
@@ -138,12 +138,12 @@ const AddGroupAction = ({ onClick }: any) => {
   );
 };
 
-const RemoveGroupAction = ({ onClick }: any) => {
+const RemoveGroupAction = ({ handleOnClick }: any) => {
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={onClick}
+      onClick={handleOnClick}
       className="h-7 px-2 text-xs text-destructive gap-1"
     >
       <Trash2 className="size-3" />
@@ -152,12 +152,12 @@ const RemoveGroupAction = ({ onClick }: any) => {
   );
 };
 
-const RemoveRuleAction = ({ onClick }: any) => {
+const RemoveRuleAction = ({ handleOnClick }: any) => {
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={onClick}
+      onClick={handleOnClick}
       className="h-7 px-2 text-destructive"
     >
       <X className="size-3" />

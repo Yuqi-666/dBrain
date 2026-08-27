@@ -334,8 +334,10 @@ function SpaceSelector() {
 }
 
 function SearchButton() {
+  const openQuickPanel = useUIStore((state) => state.openQuickPanel);
   return (
     <button
+      onClick={() => openQuickPanel("search")}
       className={cn(
         "flex items-center justify-between px-2.5 h-9 rounded-lg",
         "text-[13px] text-sidebar-foreground/50",

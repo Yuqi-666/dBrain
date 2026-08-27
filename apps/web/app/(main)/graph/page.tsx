@@ -15,6 +15,7 @@ import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
 import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
 import { NodeEditor, NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/editor";
+import { QuickPanel } from "@workspace/ui/components/quick-panel/quick-panel";
 
 export default function GraphPage(): ReactNode {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -71,6 +72,7 @@ export default function GraphPage(): ReactNode {
         )}
         <NodeSemanticDialog />
         <EdgeSemanticDialog />
+        <QuickPanel />
       </div>
     </CognitiveGraphLayout>
   );

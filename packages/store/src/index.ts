@@ -8,6 +8,7 @@ export type {
   ContextMenuContext,
   MainViewType,
   SidebarMode,
+  QuickPanelMode,
 } from "./uiStore";
 
 export { useAuthStore } from "./authStore";

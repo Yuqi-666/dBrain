@@ -15,6 +15,9 @@ export type ContextMenuContext =
 
 export type MainViewType = "graph" | "editor";
 
+/** Quick Panel 模式：search（搜索）+ agent（智能体，占位） */
+export type QuickPanelMode = "search" | "agent";
+
 /**
  * Sidebar 显示模式
  * - "closed": 关闭状态
@@ -132,6 +135,21 @@ export interface UIStore {
   setCommandDialogOpen: (open: boolean) => void;
   /** 切换命令面板显示状态 */
   toggleCommandDialog: () => void;
+
+  // ==================== Quick Panel Section ====================
+  /** Quick Panel 状态：open + mode（mode 关闭时保留，ctr+k 复用） */
+  quickPanel: {
+    open: boolean;
+    mode: QuickPanelMode;
+  };
+  /** 以指定模式打开 Quick Panel（按钮入口用，强制 mode） */
+  openQuickPanel: (mode: QuickPanelMode) => void;
+  /** 只切换 Quick Panel 的 mode（面板内 tab 用，不影响 open） */
+  setQuickPanelMode: (mode: QuickPanelMode) => void;
+  /** ctrl/⌘+K 切换：已开则关，未开则以当前 quickPanel.mode 打开 */
+  toggleQuickPanelFromKeyboard: () => void;
+  /** 关闭 Quick Panel（保留 mode） */
+  closeQuickPanel: () => void;
 
   // ==================== Panel Visibility Section ====================
   /** 视图配置面板是否显示 */
@@ -277,6 +295,25 @@ export const useUIStore = create<UIStore>()(
       toggleCommandDialog: () =>
         set((state) => ({
           commandDialogOpen: !state.commandDialogOpen,
+        })),
+
+      // ==================== Quick Panel ====================
+      quickPanel: {
+        open: false,
+        mode: "search",
+      },
+      openQuickPanel: (mode) => set({ quickPanel: { open: true, mode } }),
+      setQuickPanelMode: (mode) =>
+        set((state) => ({
+          quickPanel: { ...state.quickPanel, mode },
+        })),
+      toggleQuickPanelFromKeyboard: () =>
+        set((state) => ({
+          quickPanel: { mode: state.quickPanel.mode, open: !state.quickPanel.open },
+        })),
+      closeQuickPanel: () =>
+        set((state) => ({
+          quickPanel: { mode: state.quickPanel.mode, open: false },
         })),
 
       // ==================== Panel Visibility ====================
