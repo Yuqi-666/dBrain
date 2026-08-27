@@ -3,6 +3,7 @@ import { container } from "../../di/container";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Email } from "@workspace/domain/models/user/value-objects";
+import { denylistToken, getTokenExp, refreshToken } from "@workspace/infrastructure";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -32,6 +33,7 @@ export const authRouter = router({
     return {
       user: result.user.toPublic(),
       token: result.token,
+      tokenExp: getTokenExp(result.token ?? ""),
     };
   }),
 
@@ -51,8 +53,13 @@ export const authRouter = router({
 
       const user = await container().userDao.createUser(emailVO, password, nickname);
 
+      // Verify the fresh credentials to obtain a PocketBase-issued JWT for the new user.
+      const auth = await container().userDao.verifyPassword(emailVO, password);
+
       return {
         user: user.toPublic(),
+        token: auth.token,
+        tokenExp: getTokenExp(auth.token ?? ""),
       };
     } catch (error) {
       if (error instanceof TRPCError) {
@@ -67,7 +74,11 @@ export const authRouter = router({
   }),
 
   me: protectedProcedure.query(async ({ ctx }) => {
-    const user = await container().userDao.findById(ctx.userId);
+    // `users.viewRule = id = @request.auth.id` denies an unauthenticated read,
+    // so resolve the identity through a per-request token-authenticated lookup.
+    const user = ctx.token
+      ? await container().userDao.findByIdWithToken(ctx.userId, ctx.token)
+      : await container().userDao.findById(ctx.userId);
 
     if (!user) {
       throw new TRPCError({
@@ -79,7 +90,35 @@ export const authRouter = router({
     return user.toPublic();
   }),
 
-  logout: protectedProcedure.mutation(async () => {
+  refresh: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.token) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "No token to refresh",
+      });
+    }
+    try {
+      const { token } = await refreshToken(ctx.token);
+      return {
+        token,
+        tokenExp: getTokenExp(token),
+      };
+    } catch {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Session expired",
+      });
+    }
+  }),
+
+  logout: protectedProcedure.mutation(async ({ ctx }) => {
+    // Denylist the raw token so the same JWT is rejected on any future connection.
+    if (ctx.token) {
+      const exp = getTokenExp(ctx.token);
+      if (exp !== null) {
+        denylistToken(ctx.token, exp);
+      }
+    }
     return { success: true };
   }),
 });

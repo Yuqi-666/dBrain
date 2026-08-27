@@ -6,9 +6,15 @@ export interface PocketBaseClientConfig {
 
 export class PocketBaseClient {
   private pb: PocketBase;
+  private base: string;
 
   constructor(config: PocketBaseClientConfig) {
+    this.base = config.url;
     this.pb = new PocketBase(config.url);
+  }
+
+  get baseUrl(): string {
+    return this.base;
   }
 
   get client(): PocketBase {

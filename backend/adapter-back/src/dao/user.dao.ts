@@ -9,6 +9,10 @@ export class UserDao {
     return this.repository.findById(id);
   }
 
+  async findByIdWithToken(id: string, token: string): Promise<User | null> {
+    return this.repository.findByIdWithToken(id, token);
+  }
+
   async findByEmail(email: Email): Promise<User | null> {
     return this.repository.findByEmail(email);
   }
@@ -20,7 +24,7 @@ export class UserDao {
   async verifyPassword(
     email: Email,
     password: string,
-  ): Promise<{ valid: boolean; user: User | null }> {
+  ): Promise<{ valid: boolean; user: User | null; token?: string }> {
     return this.repository.verifyPassword(email, password);
   }
 

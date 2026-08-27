@@ -1,25 +1,32 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { IDomainEvent } from "@workspace/domain/event-bus";
+import { verifyToken } from "@workspace/infrastructure";
 
 /**
- * tRPC Context - created for each request
- * Provides authentication context and data isolation
+ * tRPC Context - created for each request.
+ * `token` is the raw PocketBase JWT used for this connection; it is threaded to
+ * `logout` so that procedure can denylist it server-side. Identity is derived
+ * only from `userId` (server-verified), never from a client-claimed id.
  */
 export interface Context {
   userId: string;
+  token?: string;
   connectionId?: string;
   sourceId: string;
 }
 
 /**
- * Context creation function
- * Extracts user info from JWT/connectionParams and creates context
+ * Context creation function.
  *
- * For HTTP: expects { userId, connectionId }
- * For WS: receives { req, socket, server, info: { connectionParams } } - extracts userId from info.connectionParams
+ * Identity is derived ONLY from a server-verified PocketBase token carried in
+ * `connectionParams.token` (WS) or `ctx.userId` (HTTP debug path). The raw
+ * `connectionParams.userId` is never trusted as an identity anchor — clients
+ * could otherwise claim any userId.
+ *
+ * Async: verifies the token against PocketBase before building the context.
  */
-export function createContext(
+export async function createContext(
   ctx: {
     req?: unknown;
     socket?: unknown;
@@ -27,23 +34,30 @@ export function createContext(
     userId?: string;
     connectionId?: string;
     info?: {
-      connectionParams?: { userId?: string; sourceId?: string };
+      connectionParams?: { token?: string; sourceId?: string; userId?: string };
     };
   }
-): Context {
-  let userId = "dev-user";
+): Promise<Context> {
+  let userId = "";
   let sourceId = "";
+  let token: string | undefined;
 
-  const wsCtx = ctx as { info?: { connectionParams?: { userId?: string; sourceId?: string } } };
+  const wsCtx = ctx as { info?: { connectionParams?: { token?: string; sourceId?: string } } };
   const connectionParams = wsCtx.info?.connectionParams;
-  if (connectionParams) {
-    userId = connectionParams.userId ?? "dev-user";
+  const wsToken = connectionParams?.token;
+  if (wsToken) {
+    try {
+      userId = await verifyToken(wsToken);
+      token = wsToken;
+    } catch {
+      userId = "";
+    }
     sourceId = connectionParams.sourceId ?? "";
   } else if (ctx.userId) {
     userId = ctx.userId;
   }
 
-  return { userId, connectionId: ctx.connectionId, sourceId };
+  return { userId, token, connectionId: ctx.connectionId, sourceId };
 }
 
 export type createContextFn = typeof createContext;
@@ -65,7 +79,7 @@ const enforceUserId = t.middleware(({ ctx, next }) => {
       message: "Authentication required",
     });
   }
-  return next({ ctx: { userId: ctx.userId } });
+  return next({ ctx: { userId: ctx.userId, token: ctx.token } });
 });
 
 /**

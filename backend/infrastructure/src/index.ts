@@ -2,6 +2,12 @@
 
 // PocketBase client
 export * from "./database/pocketbase-client";
+export {
+  verifyToken,
+  refreshToken,
+  denylistToken,
+  getTokenExp,
+} from "./database/token-verifier";
 
 // Event bus
 export * from "./event-bus/in-memory-event-bus";

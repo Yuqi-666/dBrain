@@ -38,6 +38,24 @@ export class PocketBaseUserRepository implements IUserRepository {
     }
   }
 
+  async findByIdWithToken(id: string, token: string): Promise<User | null> {
+    // `users` is an auth collection whose viewRule is `id = @request.auth.id`.
+    // Query on a per-lookup temp instance authenticated with the JWT, mirroring
+    // the concurrency-safe pattern in token-verifier — never reuse the shared
+    // singleton, whose authStore is empty / owned by the wrong user.
+    const pb = new PocketBaseClient({ url: this.pb.baseUrl });
+    pb.authStore.save(token);
+    try {
+      const record = await pb.collection<UserRecord>("users").getOne(id);
+      return this.mapper.toDomain(record);
+    } catch (error) {
+      if (pb.isClientResponseError(error) && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async findByEmail(email: Email): Promise<User | null> {
     try {
       const records = await this.collection().getFirstListItem(

@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { trpc } from "@workspace/api-client";
+import {
+  trpc,
+  setAuthSession,
+  scheduleTokenRefresh,
+  reconnectTRPCClient,
+} from "@workspace/api-client";
 import { useAuthStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -25,7 +30,12 @@ export default function RegisterPage() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: (data) => {
-      setUser(data);
+      setUser(data.user);
+      if (data.token) {
+        setAuthSession(data.token);
+        reconnectTRPCClient();
+        scheduleTokenRefresh(data.token);
+      }
       router.push("/graph");
     },
     onError: (err) => {

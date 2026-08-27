@@ -14,8 +14,6 @@
       "ESNext"
     ],
     "noEmit": true,
-    "declaration": true,
-    "declarationMap": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "downlevelIteration": true,

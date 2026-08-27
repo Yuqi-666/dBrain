@@ -39,7 +39,7 @@ export function NodeSemanticDialog() {
       if (!formData.name.trim()) return;
 
       try {
-        const semanticData: Partial<NodeSemantic> = {
+        const semanticData = {
           name: formData.name.trim(),
           description: formData.description?.trim() || undefined,
           color: formData.color || undefined,
@@ -217,7 +217,7 @@ export function EdgeSemanticDialog() {
       if (!formData.name.trim()) return;
 
       try {
-        const semanticData: Partial<EdgeSemantic> = {
+        const semanticData = {
           name: formData.name.trim(),
           description: formData.description?.trim() || undefined,
           category: formData.category,

@@ -1,5 +1,10 @@
 "use client";
-import { useDataStore, useUIStore } from "@workspace/store";
+import { useAuthStore, useDataStore, useUIStore } from "@workspace/store";
+import {
+  clearAuthSession,
+  reconnectTRPCClient,
+  trpc,
+} from "@workspace/api-client";
 import {
   NodeService,
   NodeSemanticService,
@@ -21,6 +26,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -44,6 +51,7 @@ import {
   Globe,
   LayoutGrid,
   Link2,
+  LogOut,
   MoreHorizontal,
   PanelLeftIcon,
   Pencil,
@@ -247,6 +255,9 @@ export function CognitiveSidebar() {
           <EdgeSemanticList />
         </TabsContent>
       </Tabs>
+
+      <div className="h-px bg-sidebar-border" />
+      <SidebarUserMenu />
     </aside>
   );
 }
@@ -898,6 +909,65 @@ function EdgeSemanticList() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function SidebarUserMenu() {
+  const { user, clearAuth } = useAuthStore();
+  const logoutMutation = trpc.auth.logout.useMutation();
+
+  const handleLogout = () => {
+    // Server-side logout is best-effort; clear client state regardless.
+    logoutMutation.mutateAsync().catch(() => {
+      // ignore
+    });
+    clearAuthSession();
+    reconnectTRPCClient();
+    clearAuth();
+    // Shared package has no `next` dependency — use a hard redirect.
+    window.location.href = "/login";
+  };
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="px-3 py-3 border-t border-sidebar-border">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-150"
+          >
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/10 text-[13px] font-semibold text-sidebar-primary">
+              {user.nickname.charAt(0).toUpperCase()}
+            </div>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-sidebar-foreground">
+              {user.nickname}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          side="top"
+          sideOffset={8}
+          className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
+        >
+          <DropdownMenuLabel className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground">
+            {user.nickname}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="my-1.5 bg-sidebar-border" />
+          <DropdownMenuItem
+            onSelect={handleLogout}
+            className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+          >
+            <LogOut className="mr-2 size-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

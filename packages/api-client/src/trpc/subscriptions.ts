@@ -1,5 +1,4 @@
 import { trpc } from "./provider";
-import type { IDomainEvent } from "@workspace/interfaces";
 import {
   handleNodeAdded,
   handleNodeUpdated,
@@ -20,13 +19,13 @@ import {
   handleNodeTagUpdated,
   handleNodeTagDeleted,
 } from "../handler/graph-handler";
-import { useAuthStore, useSourceIdStore } from "@workspace/store";
+import { useSourceIdStore } from "@workspace/store";
 
 export function useGraphSubscriptions(): void {
   trpc.event.onEvent.useSubscription(undefined, {
-    onData: (event: IDomainEvent) => {
+    onData: (event) => {
       const mySourceId = useSourceIdStore.getState().getSourceId();
-      const eventSourceId = (event as any).metadata?.sourceId;
+      const eventSourceId = event.metadata?.sourceId;
       if (eventSourceId && eventSourceId === mySourceId) return;
 
       switch (event.eventType) {

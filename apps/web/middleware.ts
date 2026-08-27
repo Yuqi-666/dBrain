@@ -4,11 +4,32 @@ import type { NextRequest } from "next/server";
 const PROTECTED_PATHS = ["/graph", "/dashboard", "/settings"];
 const AUTH_PATHS = ["/login", "/register"];
 
+// Edge runtime: base64 decode via Web globals only (no Node / PocketBase SDK).
+function getTokenExp(token: string): number | null {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as {
+      exp?: unknown;
+    };
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenValid(token: string): boolean {
+  const exp = getTokenExp(token);
+  return exp !== null && exp * 1000 > Date.now();
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const token = request.cookies.get("pb_token")?.value;
-  const isAuthenticated = !!token;
+  const isAuthenticated = !!token && isTokenValid(token);
 
   const isProtectedPath = PROTECTED_PATHS.some((path) =>
     pathname.startsWith(path),

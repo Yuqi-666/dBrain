@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { trpc } from "@workspace/api-client";
+import {
+  trpc,
+  setAuthSession,
+  scheduleTokenRefresh,
+  reconnectTRPCClient,
+} from "@workspace/api-client";
 import { useAuthStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -27,8 +32,9 @@ export default function LoginPage() {
     onSuccess: (data) => {
       setUser(data.user);
       if (data.token) {
-        document.cookie = `pb_token=${data.token}; path=/; max-age=604800`;
-        document.cookie = `pb_userId=${data.user.id}; path=/; max-age=604800`;
+        setAuthSession(data.token);
+        reconnectTRPCClient();
+        scheduleTokenRefresh(data.token);
       }
       const redirect = searchParams.get("redirect");
       router.push(redirect ?? "/graph");

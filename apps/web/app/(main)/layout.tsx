@@ -11,10 +11,12 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, setUser, isAuthenticated } = useAuthStore();
+  const { setUser, isAuthenticated } = useAuthStore();
 
+  // Always verify the session against the server. `me` is protected → its
+  // context is server-verified from the WS token, so this is the source of
+  // truth even when zustand was rehydrated from localStorage.
   const { data: currentUser, isError } = trpc.auth.me.useQuery(undefined, {
-    enabled: !isAuthenticated,
     retry: false,
   });
 
@@ -25,14 +27,16 @@ export default function MainLayout({
   }, [currentUser, setUser]);
 
   useEffect(() => {
-    if (isError || !isAuthenticated) {
+    if (isError) {
+      // Server rejected the token (expired, revoked, or absent): clear client
+      // state and redirect to login.
+      useAuthStore.getState().clearAuth();
       router.push("/login");
     }
-  }, [isError, isAuthenticated, router]);
+  }, [isError, router]);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !currentUser) {
     return null;
   }
-
-  return <>{children}</>;
+  return children;
 }

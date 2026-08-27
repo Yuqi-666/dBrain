@@ -14,8 +14,7 @@
     "@workspace/interfaces": "workspace:*",
     "@workspace/api-client": "workspace:*",
     "@workspace/services": "workspace:*",
-    "@workspace/store": "workspace:*",
-    "@workspace/hooks": "workspace:*"
+    "@workspace/store": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

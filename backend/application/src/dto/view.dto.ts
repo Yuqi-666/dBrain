@@ -1,5 +1,4 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
-import type { ViewType } from "@workspace/domain";
 
 export interface VisualConfigDTO {
   backgroundColor?: string;
@@ -13,7 +12,7 @@ export interface VisualConfigDTO {
 export interface ViewDTO {
   id: string;
   name: string;
-  viewType: ViewType["value"];
+  viewType: "Force" | "Flow";
   visualConfig: VisualConfigDTO;
   filterConfig: FilterConfig;
   isPinned: boolean;

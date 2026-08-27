@@ -7,5 +7,5 @@ export interface CollectionNodeData extends NodeBase, NodeType<"collection"> {
 }
 
 export interface CollectionContent {
-  filterConfig: FilterConfig;
+  filterConfig?: FilterConfig;
 }

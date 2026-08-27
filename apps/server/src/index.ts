@@ -1,6 +1,6 @@
 import { AppContainer, createWSServer, createContext, appRouter } from "@workspace/adapter-front";
 
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 3001);
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
 
 async function main() {
