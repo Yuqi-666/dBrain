@@ -64,14 +64,13 @@ function getActiveView(): View | undefined {
 }
 
 function nodeMatchesFilter(nodeId: NodeId, view: View): boolean {
-  const { nodes, edges, edgeSemantics } = useDataStore.getState();
+  const { nodes, edges } = useDataStore.getState();
   const node = nodes.get(nodeId);
   if (!node || !view.filterConfig.ruleGroup) return false;
   const { filteredNodes } = filterByViewFilterConfig(
     new Map<NodeId, NodeData>([[nodeId, node]]),
     edges,
     view,
-    edgeSemantics,
   );
   return filteredNodes.has(nodeId);
 }

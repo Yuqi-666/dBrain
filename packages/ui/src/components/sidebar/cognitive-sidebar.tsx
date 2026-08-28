@@ -59,6 +59,7 @@ import {
   LayoutGrid,
   Link2,
   LogOut,
+  Moon,
   MoreHorizontal,
   PanelLeftIcon,
   Pencil,
@@ -66,9 +67,11 @@ import {
   Plus,
   Search,
   Shapes,
+  Sun,
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 import LogoIcon from "../../img/icon/logo.svg";
 import { useGraph } from "@workspace/hooks";
 
@@ -83,10 +86,10 @@ export function CognitiveSidebar() {
     (state) => state.openEdgeSemanticDialog,
   );
   const sidebarActiveTab = useUIStore((state) => state.sidebarActiveTab);
-  const setSidebarActiveTab = useUIStore(
-    (state) => state.setSidebarActiveTab,
+  const setSidebarActiveTab = useUIStore((state) => state.setSidebarActiveTab);
+  const currentEditingNodeId = useUIStore(
+    (state) => state.currentEditingNodeId,
   );
-  const currentEditingNodeId = useUIStore((state) => state.currentEditingNodeId);
   const pushRecentlyOpenedNode = useUIStore(
     (state) => state.pushRecentlyOpenedNode,
   );
@@ -103,15 +106,15 @@ export function CognitiveSidebar() {
     (view) => view.isPinned,
   );
   const recentViews = Array.from(views.values()).slice(0, 5);
-  const pinnedNodes = Array.from(nodes.values()).filter((node) => node.isPinned);
+  const pinnedNodes = Array.from(nodes.values()).filter(
+    (node) => node.isPinned,
+  );
   const recentlyOpenedNodeIds = useUIStore(
     (state) => state.recentlyOpenedNodeIds,
   );
   const recentNodes = recentlyOpenedNodeIds
     .map((id) => nodes.get(id))
-    .filter(
-      (node): node is NodeData => node !== undefined && !node.isPinned,
-    );
+    .filter((node): node is NodeData => node !== undefined && !node.isPinned);
 
   const handleToggleSidebar = () => {
     if (sidebarMode === "temp") {
@@ -270,6 +273,8 @@ export function CognitiveSidebar() {
 }
 
 function SidebarHeader({ onToggle }: { onToggle: () => void }) {
+  const { resolvedTheme, setTheme } = useTheme();
+
   return (
     <header className="flex items-center justify-between px-4 py-3.5">
       <div className="flex items-center gap-3">
@@ -281,14 +286,31 @@ function SidebarHeader({ onToggle }: { onToggle: () => void }) {
         </span>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggle}
-        className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-200 rounded-lg"
-      >
-        <PanelLeftIcon className="size-4" />
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-200 rounded-lg"
+          aria-label={
+            resolvedTheme === "dark" ? "切换到浅色模式" : "切换到深色模式"
+          }
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="size-4" />
+          ) : (
+            <Moon className="size-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggle}
+          className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-200 rounded-lg"
+        >
+          <PanelLeftIcon className="size-4" />
+        </Button>
+      </div>
     </header>
   );
 }

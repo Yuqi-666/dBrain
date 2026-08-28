@@ -157,6 +157,36 @@ export class WorkspaceCommandService {
     };
     this.eventBus.publish(event);
 
+    // Invariant: every workspace must have at least one global view
+    // (empty filterConfig → shows everything). Mirror the default-provision
+    // path so a workspace created via createWorkspace is immediately renderable.
+    const viewId = `tmp_${crypto.randomUUID()}`;
+    const view = View.create({
+      id: viewId,
+      name: "全部",
+      viewType: ViewType.force(),
+      visualConfig: VisualConfig.create({ showMinimap: true }),
+      filterConfig: FilterConfig.empty(),
+      isPinned: true,
+      workspaceId: saved.id.value,
+    });
+    await this.viewRepository.save(view);
+
+    const viewCreatedEvent: ViewCreated = {
+      eventType: "ViewCreated",
+      aggregateId: viewId,
+      metadata: {
+        occurredAt: new Date().toISOString(),
+        eventVersion: 1,
+        userId: cmd.userId,
+        sourceId: cmd.sourceId,
+      },
+      data: {
+        id: viewId,
+      },
+    };
+    this.eventBus.publish(viewCreatedEvent);
+
     return toWorkspaceDTO(saved);
   }
 

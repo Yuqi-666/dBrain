@@ -1,9 +1,6 @@
 import type {
   EdgeData,
   EdgeId,
-  EdgeSemantic,
-  EdgeSemanticId,
-  EdgeType,
   NodeData,
   NodeId,
   View,
@@ -17,25 +14,8 @@ interface FilterResult {
   filteredEdges: Map<EdgeId, EdgeData>;
 }
 
-/**
- * Resolve the effective edge category (EdgeType) for a single edge.
- *
- * `edgeType` was removed from `EdgeBase` — the category now lives solely on
- * `EdgeSemantic.category`. Edges without a `semanticId`, or whose semantic is
- * absent from the map, fall back to `"association"`.
- */
-export function resolveEdgeCategory(
-  edge: EdgeData,
-  edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
-): EdgeType {
-  if (!edge.semanticId) return "association";
-  return edgeSemantics.get(edge.semanticId)?.category ?? "association";
-}
-
 function getNodeFieldValue(node: NodeData, field: string): unknown {
   switch (field) {
-    case "id":
-      return node.id;
     case "title":
       return node.title;
     case "abstract":
@@ -57,33 +37,13 @@ function getNodeFieldValue(node: NodeData, field: string): unknown {
   }
 }
 
-function getEdgeFieldValue(
-  edge: EdgeData,
-  field: string,
-  edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
-): unknown {
-  switch (field) {
-    case "id":
-      return edge.id;
-    case "from":
-      return edge.from;
-    case "to":
-      return edge.to;
-    case "direction":
-      return edge.direction;
-    case "semanticId":
-      return edge.semanticId;
-    case "category":
-      return resolveEdgeCategory(edge, edgeSemantics);
-    case "weight":
-      return edge.stateData?.server?.weight;
-    case "createdAt":
-      return edge.createdAt;
-    case "updatedAt":
-      return edge.updatedAt;
-    default:
-      return undefined;
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
   }
+  return undefined;
 }
 
 function compareValues(
@@ -109,29 +69,24 @@ function compareValues(
     case "!=":
       return actual !== expected;
     case ">":
-      return (
-        typeof actual === "number" &&
-        typeof expected === "number" &&
-        actual > expected
-      );
     case ">=":
-      return (
-        typeof actual === "number" &&
-        typeof expected === "number" &&
-        actual >= expected
-      );
     case "<":
-      return (
-        typeof actual === "number" &&
-        typeof expected === "number" &&
-        actual < expected
-      );
-    case "<=":
-      return (
-        typeof actual === "number" &&
-        typeof expected === "number" &&
-        actual <= expected
-      );
+    case "<=": {
+      const a = toNumber(actual);
+      const b = toNumber(expected);
+      if (a === undefined || b === undefined) return false;
+      if (typeof actual === "string" && typeof expected === "string") {
+        // Date (ISO string) comparison — lexicographic order matches chronology.
+        if (operator === ">") return actual > expected;
+        if (operator === ">=") return actual >= expected;
+        if (operator === "<") return actual < expected;
+        return actual <= expected;
+      }
+      if (operator === ">") return a > b;
+      if (operator === ">=") return a >= b;
+      if (operator === "<") return a < b;
+      return a <= b;
+    }
     case "contains":
       if (typeof actual === "string" && typeof expected === "string") {
         return actual.toLowerCase().includes(expected.toLowerCase());
@@ -140,14 +95,14 @@ function compareValues(
         return actual.includes(expected);
       }
       return false;
-    case "notContains":
+    case "doesNotContain":
       if (typeof actual === "string" && typeof expected === "string") {
         return !actual.toLowerCase().includes(expected.toLowerCase());
       }
       if (Array.isArray(actual)) {
         return !actual.includes(expected);
       }
-      return true;
+      return false;
     case "beginsWith":
       if (typeof actual === "string" && typeof expected === "string") {
         return actual.toLowerCase().startsWith(expected.toLowerCase());
@@ -156,6 +111,16 @@ function compareValues(
     case "endsWith":
       if (typeof actual === "string" && typeof expected === "string") {
         return actual.toLowerCase().endsWith(expected.toLowerCase());
+      }
+      return false;
+    case "doesNotBeginWith":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return !actual.toLowerCase().startsWith(expected.toLowerCase());
+      }
+      return false;
+    case "doesNotEndWith":
+      if (typeof actual === "string" && typeof expected === "string") {
+        return !actual.toLowerCase().endsWith(expected.toLowerCase());
       }
       return false;
     case "in":
@@ -167,73 +132,45 @@ function compareValues(
       if (Array.isArray(expected)) {
         return !expected.includes(actual);
       }
-      return true;
+      return false;
     default:
       return false;
   }
 }
 
+const NODE_FILTER_FIELDS = [
+  "title",
+  "abstract",
+  "permission",
+  "semanticId",
+  "tags",
+  "nodeType",
+  "createdAt",
+  "updatedAt",
+] as const;
+
 function evaluateRule(
   rule: RuleObject,
   nodes: Map<NodeId, NodeData>,
-  edges: Map<EdgeId, EdgeData>,
-  edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
 ): boolean {
   const { field, operator, value } = rule;
 
-  const isNodeFilter =
-    field in {} ||
-    [
-      "id",
-      "title",
-      "abstract",
-      "permission",
-      "semanticId",
-      "tags",
-      "nodeType",
-      "createdAt",
-      "updatedAt",
-    ].includes(field);
-  const isEdgeFilter = [
-    "id",
-    "from",
-    "to",
-    "direction",
-    "semanticId",
-    "category",
-    "weight",
-    "createdAt",
-    "updatedAt",
-  ].includes(field);
-
-  if (isNodeFilter) {
-    for (const node of nodes.values()) {
-      const fieldValue = getNodeFieldValue(node, field);
-      if (compareValues(fieldValue, operator, value)) {
-        return true;
-      }
-    }
-    return false;
+  if (!(NODE_FILTER_FIELDS as readonly string[]).includes(field)) {
+    return true;
   }
 
-  if (isEdgeFilter) {
-    for (const edge of edges.values()) {
-      const fieldValue = getEdgeFieldValue(edge, field, edgeSemantics);
-      if (compareValues(fieldValue, operator, value)) {
-        return true;
-      }
+  for (const node of nodes.values()) {
+    const fieldValue = getNodeFieldValue(node, field);
+    if (compareValues(fieldValue, operator, value)) {
+      return true;
     }
-    return false;
   }
-
-  return true;
+  return false;
 }
 
 function evaluateRuleGroup(
   ruleGroup: RuleGroupType,
   nodes: Map<NodeId, NodeData>,
-  edges: Map<EdgeId, EdgeData>,
-  edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
 ): boolean {
   const { combinator, rules } = ruleGroup;
 
@@ -243,14 +180,9 @@ function evaluateRuleGroup(
 
   const results = rules.map((rule) => {
     if ("rules" in rule) {
-      return evaluateRuleGroup(
-        rule as RuleGroupType,
-        nodes,
-        edges,
-        edgeSemantics,
-      );
+      return evaluateRuleGroup(rule as RuleGroupType, nodes);
     }
-    return evaluateRule(rule as RuleObject, nodes, edges, edgeSemantics);
+    return evaluateRule(rule as RuleObject, nodes);
   });
 
   if (combinator === "and") {
@@ -264,21 +196,17 @@ function shouldIncludeNode(
   nodeId: NodeId,
   node: NodeData,
   ruleGroup: RuleGroupType,
-  edges: Map<EdgeId, EdgeData>,
-  edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
 ): boolean {
   const tempNodes = new Map<NodeId, NodeData>([[nodeId, node]]);
-  return evaluateRuleGroup(ruleGroup, tempNodes, edges, edgeSemantics);
+  return evaluateRuleGroup(ruleGroup, tempNodes);
 }
 
 export function filterByViewFilterConfig(
   nodes: Map<NodeId, NodeData>,
   edges: Map<EdgeId, EdgeData>,
   view?: View,
-  edgeSemantics?: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
 ): FilterResult {
   const filterConfig = view?.filterConfig;
-  const semantics = edgeSemantics ?? new Map<EdgeSemanticId, EdgeSemantic>();
 
   if (!filterConfig) {
     return { filteredNodes: new Map(nodes), filteredEdges: new Map(edges) };
@@ -301,7 +229,7 @@ export function filterByViewFilterConfig(
     }
     const inEnumeration = selectedSet ? selectedSet.has(nodeId) : false;
     const matchesRule = hasRule
-      ? shouldIncludeNode(nodeId, node, filterConfig.ruleGroup!, edges, semantics)
+      ? shouldIncludeNode(nodeId, node, filterConfig.ruleGroup!)
       : false;
     if (inEnumeration || matchesRule) {
       filteredNodes.set(nodeId, node);

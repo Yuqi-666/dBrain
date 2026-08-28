@@ -105,7 +105,6 @@ export function Graph(props: GraphProps) {
         nodesMap,
         edgesMap,
         view,
-        useDataStore.getState().edgeSemantics,
       );
       return {
         nodes: Array.from(filteredNodes.values()),

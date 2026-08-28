@@ -17,7 +17,7 @@ export const ViewConfigButton = forwardRef<
 >(({ className, ...props }, ref) => {
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="icon-lg"
       ref={ref}
       className={className}

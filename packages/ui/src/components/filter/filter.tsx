@@ -1,27 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
 import {
   QueryBuilder,
   defaultCombinators,
   type RuleGroupType,
+  type Field,
+  type CombinatorSelectorProps,
+  type FieldSelectorProps,
+  type OperatorSelectorProps,
+  type ValueEditorProps,
+  type ActionWithRulesProps,
 } from "@workspace/utils";
 import "../../styles/query-builder.css";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@workspace/ui/components/ui/sheet";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@workspace/ui/components/ui/tabs";
-import { Button } from "@workspace/ui/components/ui/button";
 import {
   Select,
   SelectTrigger,
@@ -30,59 +22,100 @@ import {
   SelectItem,
 } from "@workspace/ui/components/ui/select";
 import { Input } from "@workspace/ui/components/ui/input";
-import { Card, CardContent } from "@workspace/ui/components/ui/card";
-import { Filter, Plus, Trash2, ChevronDown, X } from "lucide-react";
+import { Button } from "@workspace/ui/components/ui/button";
+import { Plus, Trash2, X } from "lucide-react";
 
-import { NODE_FILTER_FIELDS, EDGE_FILTER_FIELDS } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
-// Custom shadcn components for react-querybuilder
-const CombinatorSelector = ({ options, value, handleOnChange }: any) => {
+interface FlatOption {
+  name: string;
+  label: string;
+}
+
+function renderOptions(options: readonly FlatOption[]) {
+  return options.map((option) => (
+    <SelectItem key={option.name} value={option.name}>
+      {option.label}
+    </SelectItem>
+  ));
+}
+
+function isOption(
+  option: FlatOption | { options: FlatOption[] },
+): option is FlatOption {
+  return "name" in option;
+}
+
+const CombinatorSelector = ({
+  options,
+  value,
+  handleOnChange,
+}: CombinatorSelectorProps) => {
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[100px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option: any) => (
-          <SelectItem key={option.name} value={option.name}>
-            {option.label}
-          </SelectItem>
-        ))}
+        {options.map((option) =>
+          isOption(option) ? (
+            <SelectItem key={option.name} value={option.name}>
+              {option.label}
+            </SelectItem>
+          ) : (
+            renderOptions(option.options)
+          ),
+        )}
       </SelectContent>
     </Select>
   );
 };
 
-const FieldSelector = ({ options, value, handleOnChange }: any) => {
+const FieldSelector = ({
+  options,
+  value,
+  handleOnChange,
+}: FieldSelectorProps) => {
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[180px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option: any) => (
-          <SelectItem key={option.name} value={option.name}>
-            {option.label}
-          </SelectItem>
-        ))}
+        {options.map((option) =>
+          isOption(option) ? (
+            <SelectItem key={option.name} value={option.name}>
+              {option.label}
+            </SelectItem>
+          ) : (
+            renderOptions(option.options)
+          ),
+        )}
       </SelectContent>
     </Select>
   );
 };
 
-const OperatorSelector = ({ options, value, handleOnChange }: any) => {
+const OperatorSelector = ({
+  options,
+  value,
+  handleOnChange,
+}: OperatorSelectorProps) => {
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[120px] h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option: any) => (
-          <SelectItem key={option.name} value={option.name}>
-            {option.label}
-          </SelectItem>
-        ))}
+        {options.map((option) =>
+          isOption(option) ? (
+            <SelectItem key={option.name} value={option.name}>
+              {option.label}
+            </SelectItem>
+          ) : (
+            renderOptions(option.options)
+          ),
+        )}
       </SelectContent>
     </Select>
   );
@@ -91,16 +124,36 @@ const OperatorSelector = ({ options, value, handleOnChange }: any) => {
 const ValueEditor = ({
   value,
   handleOnChange,
+  values,
+  inputType,
   type,
-}: {
-  value: unknown;
-  handleOnChange: (value: unknown) => void;
-  type?: string;
-}) => {
+}: ValueEditorProps) => {
+  const isSelect = type === "select" || (values && values.length > 0);
+
+  if (isSelect === true) {
+    return (
+      <Select
+        value={(value as string) ?? ""}
+        onValueChange={handleOnChange}
+      >
+        <SelectTrigger className="w-[140px] h-8 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {values?.map((option) => (
+            <SelectItem key={option.name} value={option.name}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
   return (
     <Input
-      type={type || "text"}
-      value={(value as string) || ""}
+      type={inputType || "text"}
+      value={(value as string) ?? ""}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
         handleOnChange(e.target.value)
       }
@@ -110,7 +163,7 @@ const ValueEditor = ({
   );
 };
 
-const AddRuleAction = ({ handleOnClick }: any) => {
+const AddRuleAction = ({ handleOnClick }: ActionWithRulesProps) => {
   return (
     <Button
       variant="ghost"
@@ -124,7 +177,7 @@ const AddRuleAction = ({ handleOnClick }: any) => {
   );
 };
 
-const AddGroupAction = ({ handleOnClick }: any) => {
+const AddGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
   return (
     <Button
       variant="ghost"
@@ -138,7 +191,7 @@ const AddGroupAction = ({ handleOnClick }: any) => {
   );
 };
 
-const RemoveGroupAction = ({ handleOnClick }: any) => {
+const RemoveGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
   return (
     <Button
       variant="ghost"
@@ -152,7 +205,7 @@ const RemoveGroupAction = ({ handleOnClick }: any) => {
   );
 };
 
-const RemoveRuleAction = ({ handleOnClick }: any) => {
+const RemoveRuleAction = ({ handleOnClick }: ActionWithRulesProps) => {
   return (
     <Button
       variant="ghost"
@@ -165,8 +218,7 @@ const RemoveRuleAction = ({ handleOnClick }: any) => {
   );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ShadcnFilterComponents: any = {
+export const ShadcnFilterComponents = {
   combinatorSelector: CombinatorSelector,
   fieldSelector: FieldSelector,
   operatorSelector: OperatorSelector,
@@ -179,7 +231,7 @@ export const ShadcnFilterComponents: any = {
 
 // Filter Query Builder Wrapper
 export interface FilterQueryBuilderProps {
-  fields: any[];
+  fields: Field[];
   query: RuleGroupType;
   onQueryChange: (query: RuleGroupType) => void;
   className?: string;
@@ -209,106 +261,3 @@ export const FilterQueryBuilder = ({
     </div>
   );
 };
-
-// Main Filter Panel Component
-export interface FilterPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialNodeQuery?: RuleGroupType;
-  initialEdgeQuery?: RuleGroupType;
-  onNodeFilterChange?: (query: RuleGroupType) => void;
-  onEdgeFilterChange?: (query: RuleGroupType) => void;
-}
-
-const FilterPanel = ({
-  open,
-  onOpenChange,
-  initialNodeQuery = {
-    combinator: "and",
-    rules: [],
-  },
-  initialEdgeQuery = {
-    combinator: "and",
-    rules: [],
-  },
-  onNodeFilterChange,
-  onEdgeFilterChange,
-}: FilterPanelProps) => {
-  const [activeTab, setActiveTab] = useState<"nodes" | "edges">("nodes");
-  const [nodeQuery, setNodeQuery] = useState<RuleGroupType>(initialNodeQuery);
-  const [edgeQuery, setEdgeQuery] = useState<RuleGroupType>(initialEdgeQuery);
-
-  const handleNodeQueryChange = (query: RuleGroupType) => {
-    setNodeQuery(query);
-    onNodeFilterChange?.(query);
-  };
-
-  const handleEdgeQueryChange = (query: RuleGroupType) => {
-    setEdgeQuery(query);
-    onEdgeFilterChange?.(query);
-  };
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[500px] sm:w-[600px] p-0">
-        <SheetHeader className="p-6 pb-2">
-          <SheetTitle className="flex items-center gap-2 text-xl">
-            <Filter className="size-5" />
-            Filter
-          </SheetTitle>
-        </SheetHeader>
-        <Tabs
-          defaultValue="nodes"
-          value={activeTab}
-          onValueChange={(v: string) => setActiveTab(v as "nodes" | "edges")}
-          className="w-full"
-        >
-          <div className="px-6">
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="nodes">Node Filters</TabsTrigger>
-              <TabsTrigger value="edges">Edge Filters</TabsTrigger>
-            </TabsList>
-          </div>
-          <div className="p-6 pt-4 h-[calc(100vh-140px)] overflow-y-auto">
-            <TabsContent value="nodes" className="mt-0">
-              <Card>
-                <CardContent className="p-4">
-                  <FilterQueryBuilder
-                    fields={NODE_FILTER_FIELDS}
-                    query={nodeQuery}
-                    onQueryChange={handleNodeQueryChange}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="edges" className="mt-0">
-              <Card>
-                <CardContent className="p-4">
-                  <FilterQueryBuilder
-                    fields={EDGE_FILTER_FIELDS}
-                    query={edgeQuery}
-                    onQueryChange={handleEdgeQueryChange}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </div>
-        </Tabs>
-        <div className="px-6 py-4 border-t flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              onOpenChange(false);
-            }}
-          >
-            Apply Filters
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
-
-export default FilterPanel;

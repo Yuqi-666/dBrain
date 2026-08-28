@@ -24,9 +24,9 @@ export function GraphHeader({ className }: GraphHeaderProps) {
         <ToggleSearchCommandButton />
       </div>
 
-      <ViewSelectDropdownMenu className="pointer-events-auto" />
+      <ViewSelectDropdownMenu className="pointer-events-auto rounded-lg border dark:bg-background dark:border-border dark:hover:bg-background dark:aria-expanded:bg-background" />
 
-      <div className="flex items-center gap-1 pointer-events-auto">
+      <div className="flex items-center gap-1 pointer-events-auto rounded-lg border bg-background px-0.5">
         <ViewConfigPanel />
       </div>
     </header>

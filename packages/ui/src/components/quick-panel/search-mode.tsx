@@ -6,8 +6,7 @@ import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
 import { filterByViewFilterConfig } from "@workspace/utils";
 import type { RuleGroupType } from "@workspace/utils";
 import {
-  NODE_FILTER_FIELDS,
-  EDGE_FILTER_FIELDS,
+  buildNodeFilterFields,
   type View,
 } from "@workspace/interfaces";
 import { Search, Filter } from "lucide-react";
@@ -62,14 +61,14 @@ export function SearchMode({ className }: SearchModeProps) {
     // Search mode passes only `ruleGroup` (no `selectedNodes`); with the
     // UNION semantics this is a pure ruleGroup match — unchanged behavior.
     const view = { filterConfig: { ruleGroup: filterQuery } } as View;
-    const { filteredNodes } = filterByViewFilterConfig(
-      nodes,
-      edges,
-      view,
-      edgeSemantics,
-    );
+    const { filteredNodes } = filterByViewFilterConfig(nodes, edges, view);
     return filteredNodes;
-  }, [nodes, edges, edgeSemantics, filterQuery]);
+  }, [nodes, edges, filterQuery]);
+
+  const filterFields = useMemo(
+    () => buildNodeFilterFields(nodeSemantics),
+    [nodeSemantics],
+  );
 
   const results = useMemo<QuickSearchMatch[]>(() => {
     const term = normalizeKeyword(stripSlashPrefix(query));
@@ -279,7 +278,7 @@ export function SearchMode({ className }: SearchModeProps) {
       {filterOpen && (
         <div className="border-b p-3">
           <FilterQueryBuilder
-            fields={[...NODE_FILTER_FIELDS, ...EDGE_FILTER_FIELDS]}
+            fields={filterFields}
             query={filterQuery}
             onQueryChange={setFilterQuery}
           />
