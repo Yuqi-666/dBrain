@@ -9,6 +9,7 @@ import { FilterConfig, NodeId } from "@workspace/domain";
 function toViewDTO(view: View): ViewDTO {
   return {
     id: view.id.toString(),
+    workspaceId: view.workspaceId,
     name: view.name,
     viewType: view.viewType.getValue() as ViewDTO["viewType"],
     visualConfig: {
@@ -53,6 +54,7 @@ export class ViewCommandService {
       visualConfig,
       filterConfig,
       isPinned: cmd.isPinned ?? false,
+      workspaceId: cmd.workspaceId,
     });
 
     const saved = await this.viewRepository.save(view);

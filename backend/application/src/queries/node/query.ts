@@ -13,6 +13,7 @@ export interface ListNodesQuery {
   updatedAfter?: string;
   updatedBefore?: string;
   permission?: 'private' | 'public' | 'restricted';
+  workspaceId?: string;
 }
 
 export interface GetNodesByIdsQuery {

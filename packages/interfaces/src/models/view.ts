@@ -18,4 +18,5 @@ export interface View {
   visualConfig: VisualConfig;
   filterConfig: FilterConfig;
   isPinned?: boolean;
+  workspaceId?: string;
 }

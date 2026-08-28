@@ -14,6 +14,7 @@ export interface EdgeSemantic {
   category: EdgeType;
   color?: string;
   description?: string;
+  workspaceId?: string;
 }
 
 export interface EdgeClientStyle {
@@ -48,6 +49,7 @@ export interface EdgeBase {
   direction: EdgeDirection;
   semanticId: EdgeSemanticId;
   stateData?: EdgeStateData;
+  workspaceId?: string;
   createdAt: string;
   updatedAt: string;
 }

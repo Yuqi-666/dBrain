@@ -133,6 +133,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@workspace/dev':
+        specifier: workspace:*
+        version: link:../../packages/dev
       '@workspace/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -597,9 +600,6 @@ importers:
       '@workspace/api-client':
         specifier: workspace:*
         version: link:../api-client
-      '@workspace/hooks':
-        specifier: workspace:*
-        version: 'link:'
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces
@@ -641,6 +641,9 @@ importers:
       '@workspace/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@workspace/dev':
+        specifier: workspace:*
+        version: link:../dev
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces

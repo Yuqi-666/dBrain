@@ -126,6 +126,10 @@ export class PocketBaseViewRepository implements IViewRepository {
       filters.push(`viewType = "${query.viewType}"`);
     }
 
+    if (query?.workspaceId) {
+      filters.push(`workspaceId = "${query.workspaceId}"`);
+    }
+
     if (filters.length === 0) {
       return undefined;
     }

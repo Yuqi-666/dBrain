@@ -21,6 +21,7 @@ migrate((app) => {
       { name: "description", type: "text" },
       { name: "color", type: "text" },
       { name: "icon", type: "text" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(nodeSemantics);
@@ -39,6 +40,7 @@ migrate((app) => {
       { name: "category", type: "select", required: true, values: ["hierarchy", "flow", "association", "interaction"] },
       { name: "color", type: "text" },
       { name: "description", type: "text" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(edgeSemantics);
@@ -55,11 +57,45 @@ migrate((app) => {
     fields: [
       { name: "name", type: "text" },
       { name: "color", type: "text" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(nodeTags);
 
-  // 5. 创建 views 表
+  // 5. 创建 workspaces 表（数据隔离的工作区容器）
+  const workspaces = new Collection({
+    name: "workspaces",
+    type: "base",
+    listRule: "",
+    viewRule: "",
+    createRule: "",
+    updateRule: "",
+    deleteRule: "",
+    fields: [
+      { name: "name", type: "text", required: true },
+      { name: "ownerId", type: "text", required: true },
+    ],
+  });
+  app.save(workspaces);
+
+  // 6. 创建 workspace_members 表（user↔workspace 多对多协作）
+  const workspaceMembers = new Collection({
+    name: "workspace_members",
+    type: "base",
+    listRule: "",
+    viewRule: "",
+    createRule: "",
+    updateRule: "",
+    deleteRule: "",
+    fields: [
+      { name: "workspaceId", type: "text", required: true },
+      { name: "userId", type: "text", required: true },
+      { name: "role", type: "select", required: true, values: ["owner", "editor", "viewer"] },
+    ],
+  });
+  app.save(workspaceMembers);
+
+  // 7. 创建 views 表
   const views = new Collection({
     name: "views",
     type: "base",
@@ -74,6 +110,7 @@ migrate((app) => {
       { name: "visualConfig", type: "json" },
       { name: "filterConfig", type: "json" },
       { name: "isPinned", type: "bool" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(views);
@@ -113,6 +150,7 @@ migrate((app) => {
       { name: "filterConfig", type: "json" },
       { name: "referencedNodes", type: "json" },
       { name: "docs", type: "json" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(nodes);
@@ -132,6 +170,7 @@ migrate((app) => {
       { name: "direction", type: "select", required: true, values: ["forward", "reverse", "bidirectional", "unidirectional"] },
       { name: "semanticId", type: "text" },
       { name: "stateData", type: "json" },
+      { name: "workspaceId", type: "text" },
     ],
   });
   app.save(edges);
@@ -140,6 +179,8 @@ migrate((app) => {
   app.delete(app.findCollectionByNameOrId("edges"));
   app.delete(app.findCollectionByNameOrId("nodes"));
   app.delete(app.findCollectionByNameOrId("views"));
+  app.delete(app.findCollectionByNameOrId("workspace_members"));
+  app.delete(app.findCollectionByNameOrId("workspaces"));
   app.delete(app.findCollectionByNameOrId("node_tags"));
   app.delete(app.findCollectionByNameOrId("edge_semantics"));
   app.delete(app.findCollectionByNameOrId("node_semantics"));

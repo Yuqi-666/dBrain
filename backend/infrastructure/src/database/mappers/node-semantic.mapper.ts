@@ -10,6 +10,7 @@ export class NodeSemanticMapper {
       description: record.description as string | undefined,
       color: record.color as string | undefined,
       icon: record.icon as string | undefined,
+      workspaceId: record.workspaceId as string | undefined,
     });
   }
 
@@ -20,6 +21,7 @@ export class NodeSemanticMapper {
       description: entity.description,
       color: entity.color,
       icon: entity.icon,
+      workspaceId: entity.workspaceId,
     };
   }
 }

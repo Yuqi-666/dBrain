@@ -59,6 +59,8 @@ export function SearchMode({ className }: SearchModeProps) {
     const hasRules = (filterQuery.rules?.length ?? 0) > 0;
     if (!hasRules) return nodes;
 
+    // Search mode passes only `ruleGroup` (no `selectedNodes`); with the
+    // UNION semantics this is a pure ruleGroup match — unchanged behavior.
     const view = { filterConfig: { ruleGroup: filterQuery } } as View;
     const { filteredNodes } = filterByViewFilterConfig(
       nodes,

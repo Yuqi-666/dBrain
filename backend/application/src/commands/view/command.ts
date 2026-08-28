@@ -13,6 +13,7 @@ export interface CreateViewCommand {
   isPinned?: boolean;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface UpdateViewCommand {
@@ -35,6 +36,7 @@ export interface UpdateViewCommand {
   isPinned?: boolean;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface DeleteViewCommand {

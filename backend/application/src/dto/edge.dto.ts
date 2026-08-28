@@ -2,6 +2,7 @@ import type { EdgeStateData } from "@workspace/interfaces/models/edge/types";
 
 export interface EdgeDTO {
   id: string;
+  workspaceId?: string;
   from: string;
   to: string;
   direction: "forward" | "reverse" | "bidirectional" | "undirected";

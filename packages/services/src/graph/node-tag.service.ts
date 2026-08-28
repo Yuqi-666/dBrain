@@ -1,9 +1,10 @@
 import type {
   NodeTag,
   NodeTagId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
@@ -77,7 +78,10 @@ export const NodeTagService = {
     }
 
     const tag = idOrTag;
-    const result = await trpcClient.nodeTag.add.mutate(tag);
+    const workspaceId =
+      tag.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedTag = workspaceId ? { ...tag, workspaceId } : tag;
+    const result = await trpcClient.nodeTag.add.mutate(scopedTag);
     store.upsertNodeTag(result);
     return result;
   },
@@ -106,6 +110,16 @@ export const NodeTagService = {
       const results = await trpcClient.nodeTag.list.query();
       store.upsertNodeTags(results);
     }
+  },
+
+  /**
+   * Load all node tags scoped to a workspace into the data store.
+   * Tags are now workspace-isolated, so each workspace loads its own set.
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.nodeTag.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ nodeTags: results });
   },
 
   flushPendingUpdate(id: NodeTagId): Promise<void> | null {

@@ -18,6 +18,7 @@ export class NodeSemantic {
   readonly description?: string;
   readonly color?: string;
   readonly icon?: string;
+  readonly workspaceId?: string;
 
   private constructor(props: {
     id: SemanticId;
@@ -25,6 +26,7 @@ export class NodeSemantic {
     description?: string;
     color?: string;
     icon?: string;
+    workspaceId?: string;
   }) {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error("NodeSemantic: name cannot be empty or blank");
@@ -34,6 +36,7 @@ export class NodeSemantic {
     this.description = props.description?.trim();
     this.color = props.color?.trim();
     this.icon = props.icon?.trim();
+    this.workspaceId = props.workspaceId;
   }
 
   /**
@@ -47,6 +50,7 @@ export class NodeSemantic {
     description?: string;
     color?: string;
     icon?: string;
+    workspaceId?: string;
   }): NodeSemantic {
     return new NodeSemantic(props);
   }
@@ -78,6 +82,7 @@ export class NodeSemantic {
         props.description !== undefined ? props.description : this.description,
       color: props.color !== undefined ? props.color : this.color,
       icon: props.icon !== undefined ? props.icon : this.icon,
+      workspaceId: this.workspaceId,
     });
   }
 
@@ -119,6 +124,7 @@ export class EdgeSemantic {
   readonly category: EdgeType;
   readonly color?: string;
   readonly description?: string;
+  readonly workspaceId?: string;
 
   private constructor(props: {
     id: SemanticId;
@@ -126,6 +132,7 @@ export class EdgeSemantic {
     category: EdgeType;
     color?: string;
     description?: string;
+    workspaceId?: string;
   }) {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error("EdgeSemantic: name cannot be empty or blank");
@@ -138,6 +145,7 @@ export class EdgeSemantic {
     this.category = props.category;
     this.color = props.color?.trim();
     this.description = props.description?.trim();
+    this.workspaceId = props.workspaceId;
   }
 
   /**
@@ -151,6 +159,7 @@ export class EdgeSemantic {
     category: EdgeType;
     color?: string;
     description?: string;
+    workspaceId?: string;
   }): EdgeSemantic {
     return new EdgeSemantic(props);
   }
@@ -182,6 +191,7 @@ export class EdgeSemantic {
       color: props.color !== undefined ? props.color : this.color,
       description:
         props.description !== undefined ? props.description : this.description,
+      workspaceId: this.workspaceId,
     });
   }
 
@@ -213,14 +223,16 @@ export class NodeTag {
   readonly id: TagId;
   readonly name: string;
   readonly color?: string;
+  readonly workspaceId?: string;
 
-  private constructor(props: { id: TagId; name: string; color?: string }) {
+  private constructor(props: { id: TagId; name: string; color?: string; workspaceId?: string }) {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error("NodeTag: name cannot be empty or blank");
     }
     this.id = props.id;
     this.name = props.name.trim();
     this.color = props.color?.trim();
+    this.workspaceId = props.workspaceId;
   }
 
   /**
@@ -228,7 +240,7 @@ export class NodeTag {
    * @param props - The properties for the node tag
    * @returns A new NodeTag instance
    */
-  static create(props: { id: TagId; name: string; color?: string }): NodeTag {
+  static create(props: { id: TagId; name: string; color?: string; workspaceId?: string }): NodeTag {
     return new NodeTag(props);
   }
 
@@ -251,6 +263,7 @@ export class NodeTag {
       id: this.id,
       name: props.name ?? this.name,
       color: props.color !== undefined ? props.color : this.color,
+      workspaceId: this.workspaceId,
     });
   }
 

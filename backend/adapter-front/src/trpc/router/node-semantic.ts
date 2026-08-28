@@ -10,6 +10,7 @@ const addSchema = z.object({
   description: z.string().optional(),
   color: z.string().optional(),
   icon: z.string().optional(),
+  workspaceId: z.string().optional(),
 });
 
 const updateSchema = z.object({
@@ -52,9 +53,16 @@ export const nodeSemanticRouter = router({
     });
     return { success: true, id: input.id };
   }),
-  list: protectedProcedure.query(async () => {
-    return getContainer().semanticQueryService.listNodeSemantics({});
-  }),
+  list: protectedProcedure
+    .input(z.object({ workspaceId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.listNodeSemantics({ workspaceId: input?.workspaceId });
+    }),
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.listNodeSemantics({ workspaceId: input.workspaceId });
+    }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {

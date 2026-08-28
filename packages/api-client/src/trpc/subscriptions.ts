@@ -18,6 +18,11 @@ import {
   handleNodeTagAdded,
   handleNodeTagUpdated,
   handleNodeTagDeleted,
+  handleWorkspaceAdded,
+  handleWorkspaceUpdated,
+  handleWorkspaceDeleted,
+  handleWorkspaceMemberAdded,
+  handleWorkspaceMemberRemoved,
 } from "../handler/graph-handler";
 import { useSourceIdStore } from "@workspace/store";
 
@@ -47,6 +52,11 @@ export function useGraphSubscriptions(): void {
         case "NodeTagCreated": handleNodeTagAdded(event); break;
         case "NodeTagUpdated": handleNodeTagUpdated(event); break;
         case "NodeTagDeleted": handleNodeTagDeleted(event); break;
+        case "WorkspaceCreated": handleWorkspaceAdded(event); break;
+        case "WorkspaceUpdated": handleWorkspaceUpdated(event); break;
+        case "WorkspaceDeleted": handleWorkspaceDeleted(event); break;
+        case "WorkspaceMemberAdded": handleWorkspaceMemberAdded(event); break;
+        case "WorkspaceMemberRemoved": handleWorkspaceMemberRemoved(event); break;
       }
     },
   });

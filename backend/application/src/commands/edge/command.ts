@@ -9,6 +9,7 @@ export interface CreateEdgeCommand {
   stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface UpdateEdgeCommand {
@@ -18,6 +19,7 @@ export interface UpdateEdgeCommand {
   stateData?: EdgeStateData;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface DeleteEdgeCommand {

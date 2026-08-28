@@ -14,5 +14,8 @@ export type {
 export { useAuthStore } from "./authStore";
 export type { AuthStore } from "./authStore";
 
+export { useWorkspaceStore } from "./workspaceStore";
+export type { WorkspaceStore } from "./workspaceStore";
+
 export { useSourceIdStore } from "./sourceIdStore";
 export type { SourceIdStore } from "./sourceIdStore";

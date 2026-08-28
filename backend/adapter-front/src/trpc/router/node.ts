@@ -11,6 +11,7 @@ const baseNodeFields = {
   tags: z.array(z.string()).optional(),
   isPinned: z.boolean().optional(),
   stateData: z.any().optional(),
+  workspaceId: z.string().optional(),
 };
 
 const textContentSchema = z.object({
@@ -129,6 +130,7 @@ const updateSchema = z.object({
     isPinned: z.boolean().optional(),
     content: z.any().optional(),
     stateData: z.any().optional(),
+    workspaceId: z.string().optional(),
   }),
 });
 
@@ -159,6 +161,7 @@ export const nodeRouter = router({
         isPinned: input.updates.isPinned,
         content: input.updates.content,
         stateData: input.updates.stateData,
+        workspaceId: input.updates.workspaceId,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
       });
@@ -184,6 +187,12 @@ export const nodeRouter = router({
         nodeType: input.nodeType,
         semanticId: input.semanticId,
       });
+    }),
+
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return container().nodeQueryService.listByWorkspace(input.workspaceId);
     }),
 
   getById: protectedProcedure

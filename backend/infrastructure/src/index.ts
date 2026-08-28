@@ -20,6 +20,8 @@ export * from "./database/mappers/node-semantic.mapper";
 export * from "./database/mappers/edge-semantic.mapper";
 export * from "./database/mappers/node-tag.mapper";
 export * from "./database/mappers/user.mapper";
+export * from "./database/mappers/workspace.mapper";
+export * from "./database/mappers/workspace-member.mapper";
 
 // Repositories
 export * from "./repositories/pocketbase-node.repository";
@@ -29,3 +31,5 @@ export * from "./repositories/pocketbase-node-semantic.repository";
 export * from "./repositories/pocketbase-edge-semantic.repository";
 export * from "./repositories/pocketbase-node-tag.repository";
 export * from "./repositories/pocketbase-user.repository";
+export * from "./repositories/pocketbase-workspace.repository";
+export * from "./repositories/pocketbase-workspace-member.repository";

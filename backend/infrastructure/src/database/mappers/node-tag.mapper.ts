@@ -8,6 +8,7 @@ export class NodeTagMapper {
       id: TagId.create(record.id),
       name: record.name as string,
       color: record.color as string | undefined,
+      workspaceId: record.workspaceId as string | undefined,
     });
   }
 
@@ -16,6 +17,7 @@ export class NodeTagMapper {
       id: entity.id.getValue(),
       name: entity.name,
       color: entity.color,
+      workspaceId: entity.workspaceId,
     };
   }
 }

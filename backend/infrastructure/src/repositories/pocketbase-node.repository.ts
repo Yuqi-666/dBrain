@@ -293,6 +293,10 @@ export class PocketBaseNodeRepository implements INodeRepository {
       conditions.push(`updated < "${query.updatedBefore}"`);
     }
 
+    if (query.workspaceId) {
+      conditions.push(`workspaceId = "${query.workspaceId}"`);
+    }
+
     if (conditions.length === 0) {
       return undefined;
     }

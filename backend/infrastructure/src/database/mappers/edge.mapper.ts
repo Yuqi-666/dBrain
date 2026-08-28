@@ -19,6 +19,7 @@ export interface EdgeRecord extends RecordModel {
   stateData?: EdgeStateData;
   created: string;
   updated: string;
+  workspaceId?: string;
 }
 
 /**
@@ -38,6 +39,7 @@ export class EdgeMapper {
       stateData: record.stateData ?? undefined,
       createdAt: record.created,
       updatedAt: record.updated,
+      workspaceId: record.workspaceId as string | undefined,
     });
   }
 
@@ -52,6 +54,7 @@ export class EdgeMapper {
       direction: edge.direction.getValue(),
       semanticId: edge.semanticId,
       stateData: edge.stateData,
+      workspaceId: edge.workspaceId,
     };
   }
 

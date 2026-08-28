@@ -34,6 +34,14 @@ export interface NodeTagUpdatedData {
   id: string;
 }
 
+export interface NodeSemanticDeletedData {
+  id: string;
+}
+
+export interface EdgeSemanticDeletedData {
+  id: string;
+}
+
 export interface NodeTagDeletedData {
   id: string;
 }
@@ -44,6 +52,14 @@ export type NodeSemanticUpdated = IDomainEvent<NodeSemanticUpdatedData> & {
 
 export type EdgeSemanticUpdated = IDomainEvent<EdgeSemanticUpdatedData> & {
   eventType: "EdgeSemanticUpdated";
+};
+
+export type NodeSemanticDeleted = IDomainEvent<NodeSemanticDeletedData> & {
+  eventType: "NodeSemanticDeleted";
+};
+
+export type EdgeSemanticDeleted = IDomainEvent<EdgeSemanticDeletedData> & {
+  eventType: "EdgeSemanticDeleted";
 };
 
 export type NodeTagUpdated = IDomainEvent<NodeTagUpdatedData> & {

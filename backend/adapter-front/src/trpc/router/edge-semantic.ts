@@ -9,6 +9,7 @@ const addSchema = z.object({
   category: z.string() as z.ZodType<EdgeType>,
   description: z.string().optional(),
   color: z.string().optional(),
+  workspaceId: z.string().optional(),
 });
 
 const updateSchema = z.object({
@@ -28,11 +29,7 @@ const deleteSchema = z.object({
 export const edgeSemanticRouter = router({
   add: protectedProcedure.input(addSchema).mutation(async ({ ctx, input }) => {
     const result = await container().semanticCommandService.createEdgeSemantic({
-      id: input.id,
-      name: input.name,
-      category: input.category,
-      description: input.description,
-      color: input.color,
+      ...input,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
     });
@@ -41,10 +38,7 @@ export const edgeSemanticRouter = router({
   update: protectedProcedure.input(updateSchema).mutation(async ({ ctx, input }) => {
     const result = await container().semanticCommandService.updateEdgeSemantic({
       id: input.id,
-      name: input.updates.name,
-      category: input.updates.category,
-      description: input.updates.description,
-      color: input.updates.color,
+      ...input.updates,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
     });
@@ -58,9 +52,16 @@ export const edgeSemanticRouter = router({
     });
     return { success: true, id: input.id };
   }),
-  list: protectedProcedure.query(async () => {
-    return container().semanticQueryService.listEdgeSemantics({});
-  }),
+  list: protectedProcedure
+    .input(z.object({ workspaceId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      return container().semanticQueryService.listEdgeSemantics({ workspaceId: input?.workspaceId });
+    }),
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return container().semanticQueryService.listEdgeSemantics({ workspaceId: input.workspaceId });
+    }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {

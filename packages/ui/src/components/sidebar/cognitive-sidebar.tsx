@@ -1,5 +1,10 @@
 "use client";
-import { useAuthStore, useDataStore, useUIStore } from "@workspace/store";
+import {
+  useAuthStore,
+  useDataStore,
+  useUIStore,
+  useWorkspaceStore,
+} from "@workspace/store";
 import {
   clearAuthSession,
   reconnectTRPCClient,
@@ -10,11 +15,13 @@ import {
   NodeSemanticService,
   EdgeSemanticService,
   ViewService,
+  WorkspaceService,
 } from "@workspace/services";
 import type {
   EdgeSemantic,
   NodeData,
   NodeSemantic,
+  Workspace,
 } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -287,7 +294,26 @@ function SidebarHeader({ onToggle }: { onToggle: () => void }) {
 }
 
 function SpaceSelector() {
-  const [currentSpace, setCurrentSpace] = useState("Personal Space");
+  const workspaces = useWorkspaceStore((state) => state.workspaces);
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId,
+  );
+  const workspaceList = useMemo(
+    () => Array.from(workspaces.values()),
+    [workspaces],
+  );
+  const currentWorkspace = workspaceList.find(
+    (w) => w.id === currentWorkspaceId,
+  );
+
+  const handleSelect = async (workspace: Workspace) => {
+    if (workspace.id === currentWorkspaceId) return;
+    try {
+      await WorkspaceService.open(workspace.id);
+    } catch (err) {
+      console.error("[CognitiveSidebar] switch workspace failed:", err);
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -296,10 +322,10 @@ function SpaceSelector() {
           variant="ghost"
           className="w-full justify-between px-2.5 h-10 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 group"
         >
-          <div className="flex items-center gap-2.5">
-            <Globe className="size-4 text-sidebar-primary" />
-            <span className="text-[13px] font-medium text-sidebar-foreground">
-              {currentSpace}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Globe className="size-4 text-sidebar-primary shrink-0" />
+            <span className="text-[13px] font-medium text-sidebar-foreground truncate">
+              {currentWorkspace?.name ?? "Select workspace"}
             </span>
           </div>
           <div className="flex items-center text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60 transition-colors">
@@ -316,28 +342,28 @@ function SpaceSelector() {
         sideOffset={12}
         className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
       >
-        <DropdownMenuItem
-          onClick={() => setCurrentSpace("Personal Space")}
-          className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-        >
-          Personal Space
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setCurrentSpace("Work Space")}
-          className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-        >
-          Work Space
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setCurrentSpace("Project Space")}
-          className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-        >
-          Project Space
-        </DropdownMenuItem>
+        {workspaceList.length > 0 ? (
+          workspaceList.map((workspace) => (
+            <DropdownMenuItem
+              key={workspace.id}
+              onClick={() => handleSelect(workspace)}
+              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            >
+              {workspace.name}
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <DropdownMenuItem
+            disabled
+            className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground/50 cursor-default"
+          >
+            No workspaces
+          </DropdownMenuItem>
+        )}
         <Separator className="my-1.5 bg-sidebar-border" />
         <DropdownMenuItem className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
           <Plus className="mr-2 size-4" />
-          Create new space
+          Create new workspace
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -370,17 +396,27 @@ function SearchButton() {
 
 function ViewItem({
   view,
+  isSelected,
+  onSelect,
   onTogglePin,
   onEdit,
   onDelete,
 }: {
   view: { id: string; name: string; isPinned?: boolean };
+  isSelected?: boolean;
+  onSelect: (id: string) => void;
   onTogglePin: (id: string, isPinned: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
+    <div
+      className={cn(
+        "group flex items-center justify-between rounded-lg px-2.5 py-2 transition-colors duration-150 cursor-pointer",
+        isSelected ? "bg-sidebar-accent/70" : "hover:bg-sidebar-accent",
+      )}
+      onClick={() => onSelect(view.id)}
+    >
       <div className="flex items-center gap-2.5 min-w-0">
         <LayoutGrid className="size-3.5 text-sidebar-foreground/30 shrink-0" />
         <span className="text-[13px] text-sidebar-foreground truncate">
@@ -469,6 +505,11 @@ function ViewsList({
   };
 
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
+  const currentViewId = useUIStore((state) => state.currentViewId);
+
+  const handleSelectView = (id: string) => {
+    setCurrentViewId(id);
+  };
 
   const handleEditView = (id: string) => {
     setCurrentViewId(id);
@@ -494,6 +535,8 @@ function ViewsList({
           <ViewItem
             key={view.id}
             view={view}
+            isSelected={currentViewId === view.id}
+            onSelect={handleSelectView}
             onTogglePin={handleTogglePin}
             onEdit={handleEditView}
             onDelete={handleDeleteView}

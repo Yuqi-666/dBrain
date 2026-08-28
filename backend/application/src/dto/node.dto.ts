@@ -3,6 +3,7 @@ import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 
 export interface BaseNodeDTO {
   id: string;
+  workspaceId?: string;
   title: string;
   abstract?: string;
   permission: "private" | "public" | "restricted";

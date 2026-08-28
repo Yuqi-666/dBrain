@@ -1,7 +1,7 @@
 import type { RecordModel } from "pocketbase";
 import { NodeTag } from "@workspace/domain/models/semantic/entities";
 import type { TagId } from "@workspace/domain/models/semantic/value-objects";
-import type { INodeTagRepository } from "@workspace/domain/repositories";
+import type { INodeTagRepository, NodeTagQuery } from "@workspace/domain/repositories";
 import { NodeTagMapper } from "../database/mappers/node-tag.mapper";
 import { getPocketBaseClient } from "../database/pocketbase-client";
 
@@ -52,8 +52,11 @@ export class PocketBaseNodeTagRepository implements INodeTagRepository {
     await this.collection.delete(id.getValue());
   }
 
-  async findAll(): Promise<NodeTag[]> {
-    const records = await this.collection.getFullList();
+  async findAll(query?: NodeTagQuery): Promise<NodeTag[]> {
+    const filter = query?.workspaceId
+      ? `workspaceId = "${query.workspaceId}"`
+      : undefined;
+    const records = await this.collection.getFullList({ filter });
     return records.map((record) => this.mapper.toDomain(record));
   }
 

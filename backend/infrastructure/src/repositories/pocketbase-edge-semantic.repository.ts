@@ -1,7 +1,7 @@
 import type { RecordModel } from "pocketbase";
 import { EdgeSemantic } from "@workspace/domain/models/semantic/entities";
 import type { SemanticId } from "@workspace/domain/models/semantic/value-objects";
-import type { IEdgeSemanticRepository } from "@workspace/domain/repositories";
+import type { IEdgeSemanticRepository, EdgeSemanticQuery } from "@workspace/domain/repositories";
 import { EdgeType } from "@workspace/domain/models/edge/value-objects";
 import { EdgeSemanticMapper } from "../database/mappers/edge-semantic.mapper";
 import { getPocketBaseClient } from "../database/pocketbase-client";
@@ -53,8 +53,11 @@ export class PocketBaseEdgeSemanticRepository implements IEdgeSemanticRepository
     await this.collection.delete(id.getValue());
   }
 
-  async findAll(): Promise<EdgeSemantic[]> {
-    const records = await this.collection.getFullList();
+  async findAll(query?: EdgeSemanticQuery): Promise<EdgeSemantic[]> {
+    const filter = query?.workspaceId
+      ? `workspaceId = "${query.workspaceId}"`
+      : undefined;
+    const records = await this.collection.getFullList({ filter });
     return records.map((record) => this.mapper.toDomain(record));
   }
 

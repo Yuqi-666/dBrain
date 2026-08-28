@@ -1,14 +1,19 @@
 import type {
   NodeData,
   NodeId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
   shouldDebounce,
 } from "@workspace/utils";
+import {
+  syncViewEnumerationOnCreate,
+  syncViewEnumerationOnDelete,
+} from "./view-enum-sync";
 
 const DEFAULT_NODE_UPDATE_DEBOUNCE_MS = 500;
 const nodeUpdateScheduler = new DebounceScheduler<NodeData, void>(
@@ -84,9 +89,15 @@ export const NodeService = {
     }
 
     // Create flow — never debounced (we need the backend-generated id).
+    // Stamp the current workspace id so every created node is scoped to the
+    // active workspace, regardless of which UI code triggered the create.
     const node = idOrNode;
-    const result = await trpcClient.node.add.mutate(node);
+    const workspaceId =
+      node.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedNode = workspaceId ? { ...node, workspaceId } : node;
+    const result = await trpcClient.node.add.mutate(scopedNode);
     store.upsertNode(result);
+    syncViewEnumerationOnCreate(result.id);
     return result;
   },
 
@@ -95,6 +106,7 @@ export const NodeService = {
     const oldNode = store.nodes.get(id);
     if (!oldNode) throw new Error("Node not found");
     store.deleteNode(id);
+    syncViewEnumerationOnDelete(id);
     try {
       await trpcClient.node.delete.mutate({ id });
     } catch (error) {
@@ -114,6 +126,16 @@ export const NodeService = {
       const results = await trpcClient.node.list.query({});
       store.upsertNodes(results);
     }
+  },
+
+  /**
+   * Load all nodes scoped to a workspace into the data store.
+   * Relies on the `node.listByWorkspace` tRPC procedure (backend B3 pending).
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.node.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ nodes: results });
   },
 
   /**

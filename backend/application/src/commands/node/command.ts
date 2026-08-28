@@ -13,6 +13,7 @@ export interface CreateTextNodeCommand {
   content: { docs: Record<string, any> };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateImageNodeCommand {
@@ -33,6 +34,7 @@ export interface CreateImageNodeCommand {
   content: { url: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreatePdfNodeCommand {
@@ -50,6 +52,7 @@ export interface CreatePdfNodeCommand {
   content: { url: string; coverUrl: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateVideoNodeCommand {
@@ -71,6 +74,7 @@ export interface CreateVideoNodeCommand {
   content: { url: string; coverUrl: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateAudioNodeCommand {
@@ -88,6 +92,7 @@ export interface CreateAudioNodeCommand {
   content: { url: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateWebpageNodeCommand {
@@ -103,6 +108,7 @@ export interface CreateWebpageNodeCommand {
   content: { html: string; url: string; screenshotUrl?: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateWebsiteNodeCommand {
@@ -118,6 +124,7 @@ export interface CreateWebsiteNodeCommand {
   content: { url: string; faviconUrl?: string };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateCollectionNodeCommand {
@@ -135,6 +142,7 @@ export interface CreateCollectionNodeCommand {
   };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface CreateRichTextNodeCommand {
@@ -150,6 +158,7 @@ export interface CreateRichTextNodeCommand {
   content: { referencedNodes: string[]; docs: Record<string, any> };
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export type CreateNodeCommand =
@@ -175,6 +184,7 @@ export interface UpdateNodeCommand {
   stateData?: NodeStateData;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }
 
 export interface DeleteNodeCommand {

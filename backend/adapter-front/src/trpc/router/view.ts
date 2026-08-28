@@ -8,6 +8,7 @@ const addSchema = z.object({
   description: z.string().optional(),
   viewType: z.enum(["Force", "Flow"]),
   filter: z.any().optional(),
+  workspaceId: z.string().optional(),
 });
 
 const updateSchema = z.object({
@@ -27,6 +28,7 @@ const updateSchema = z.object({
         showMinimap: z.boolean().optional(),
       })
       .optional(),
+    workspaceId: z.string().optional(),
   }),
 });
 
@@ -42,6 +44,7 @@ export const viewRouter = router({
       viewType: input.viewType,
       filterConfig: input.filter,
       isPinned: false,
+      workspaceId: input.workspaceId,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
     });
@@ -70,6 +73,12 @@ export const viewRouter = router({
     }))
     .query(async ({ input }) => {
       return container().viewQueryService.list(input);
+    }),
+
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return container().viewQueryService.listByWorkspace(input.workspaceId);
     }),
 
   getById: protectedProcedure

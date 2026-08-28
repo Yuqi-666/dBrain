@@ -1,9 +1,10 @@
 import type {
   EdgeSemantic,
   EdgeSemanticId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
@@ -77,7 +78,10 @@ export const EdgeSemanticService = {
     }
 
     const semantic = idOrSemantic;
-    const result = await trpcClient.edgeSemantic.add.mutate(semantic);
+    const workspaceId =
+      semantic.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedSemantic = workspaceId ? { ...semantic, workspaceId } : semantic;
+    const result = await trpcClient.edgeSemantic.add.mutate(scopedSemantic);
     store.upsertEdgeSemantic(result);
     return result;
   },
@@ -108,6 +112,16 @@ export const EdgeSemanticService = {
       const results = await trpcClient.edgeSemantic.list.query();
       store.upsertEdgeSemantics(results);
     }
+  },
+
+  /**
+   * Load all edge semantics scoped to a workspace into the data store.
+   * Semantics are now workspace-isolated, so each workspace loads its own set.
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.edgeSemantic.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ edgeSemantics: results });
   },
 
   flushPendingUpdate(id: EdgeSemanticId): Promise<void> | null {

@@ -35,6 +35,7 @@ import type {
 function toNodeDTO(node: Node): NodeDTO {
   const base = {
     id: node.id.value,
+    workspaceId: node.workspaceId,
     title: node.title,
     abstract: node.abstract,
     permission: node.permission.value as "private" | "public" | "restricted",
@@ -117,6 +118,7 @@ export class NodeCommandService {
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
           content: new TextContent(cmd.content.docs),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "image":
@@ -135,6 +137,7 @@ export class NodeCommandService {
           location: cmd.location,
           shootingTime: cmd.shootingTime,
           content: new ImageContent(cmd.content.url),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "pdf":
@@ -150,6 +153,7 @@ export class NodeCommandService {
           pageCount: cmd.pageCount,
           fileSize: cmd.fileSize,
           content: new PdfContent(cmd.content.url, cmd.content.coverUrl),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "video":
@@ -169,6 +173,7 @@ export class NodeCommandService {
           location: cmd.location,
           shootingTime: cmd.shootingTime,
           content: new VideoContent(cmd.content.url, cmd.content.coverUrl),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "audio":
@@ -184,6 +189,7 @@ export class NodeCommandService {
           duration: cmd.duration,
           fileSize: cmd.fileSize,
           content: new AudioContent(cmd.content.url),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "webpage":
@@ -201,6 +207,7 @@ export class NodeCommandService {
             cmd.content.url,
             cmd.content.screenshotUrl,
           ),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "website":
@@ -214,6 +221,7 @@ export class NodeCommandService {
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
           content: new WebsiteContent(cmd.content.url, cmd.content.faviconUrl),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "collection":
@@ -233,6 +241,7 @@ export class NodeCommandService {
               collectionType: cmd.content.filterConfig?.collectionType,
             })
           ),
+          workspaceId: cmd.workspaceId,
         });
         break;
       case "rich-text":
@@ -249,6 +258,7 @@ export class NodeCommandService {
             cmd.content.referencedNodes.map((n: string) => new NodeId(n)),
             cmd.content.docs,
           ),
+          workspaceId: cmd.workspaceId,
         });
         break;
       default:

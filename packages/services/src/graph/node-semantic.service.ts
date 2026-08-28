@@ -1,9 +1,10 @@
 import type {
   NodeSemantic,
   NodeSemanticId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
@@ -77,7 +78,10 @@ export const NodeSemanticService = {
     }
 
     const semantic = idOrSemantic;
-    const result = await trpcClient.nodeSemantic.add.mutate(semantic);
+    const workspaceId =
+      semantic.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedSemantic = workspaceId ? { ...semantic, workspaceId } : semantic;
+    const result = await trpcClient.nodeSemantic.add.mutate(scopedSemantic);
     store.upsertNodeSemantic(result);
     return result;
   },
@@ -108,6 +112,16 @@ export const NodeSemanticService = {
       const results = await trpcClient.nodeSemantic.list.query();
       store.upsertNodeSemantics(results);
     }
+  },
+
+  /**
+   * Load all node semantics scoped to a workspace into the data store.
+   * Semantics are now workspace-isolated, so each workspace loads its own set.
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.nodeSemantic.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ nodeSemantics: results });
   },
 
   flushPendingUpdate(id: NodeSemanticId): Promise<void> | null {

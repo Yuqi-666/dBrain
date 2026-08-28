@@ -6,6 +6,7 @@ export interface NodeSemanticDTO {
   description?: string;
   color?: string;
   icon?: string;
+  workspaceId?: string;
 }
 
 export interface EdgeSemanticDTO {
@@ -14,10 +15,12 @@ export interface EdgeSemanticDTO {
   category: EdgeType;
   color?: string;
   description?: string;
+  workspaceId?: string;
 }
 
 export interface NodeTagDTO {
   id: string;
   name: string;
   color?: string;
+  workspaceId?: string;
 }

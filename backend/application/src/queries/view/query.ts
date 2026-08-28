@@ -5,6 +5,7 @@ export interface GetViewByIdQuery {
 export interface ListViewsQuery {
   isPinned?: boolean;
   viewType?: string;
+  workspaceId?: string;
 }
 
 export interface GetViewsByNodeQuery {

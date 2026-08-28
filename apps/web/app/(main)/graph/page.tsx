@@ -2,15 +2,10 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { Graph } from "@workspace/graph";
-import { useUIStore, useDataStore } from "@workspace/store";
-import {
-  NodeService,
-  EdgeService,
-  ViewService,
-  NodeSemanticService,
-  EdgeSemanticService,
-  NodeTagService,
-} from "@workspace/services";
+import { useUIStore, useDataStore, useWorkspaceStore } from "@workspace/store";
+import { WorkspaceService } from "@workspace/services";
+import { seedDemoIntoCurrentWorkspace } from "./demo-seed";
+import type { ViewId } from "@workspace/interfaces";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
 import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
@@ -24,26 +19,36 @@ export default function GraphPage(): ReactNode {
   const mainView = useUIStore((state) => state.mainViewType);
   const currentViewId = ui_store.currentViewId ?? undefined;
 
-  // Service sync — required for graph (Graph reads from store,
-  // services populate the store)
+  // Workspace-first load — after login, sync the user's workspaces, open the
+  // first one (loads its scoped data), then activate the first view.
   useEffect(() => {
     const initGraph = async () => {
+      await WorkspaceService.sync();
 
-      await Promise.all([
-        ViewService.sync(),
-        NodeSemanticService.sync(),
-        EdgeSemanticService.sync(),
-        NodeService.sync(),
-        EdgeService.sync(),
-        NodeTagService.sync(),
-      ]);
+      const wsStore = useWorkspaceStore.getState();
+      const firstWorkspace = Array.from(wsStore.workspaces.values())[0];
+
+      if (!firstWorkspace) {
+        useDataStore.getState().clearDiff();
+        setIsInitialized(true);
+        return;
+      }
+
+      const firstWorkspaceId = firstWorkspace.id;
+      await WorkspaceService.open(firstWorkspaceId);
+
+      // In dev, seed demo data into the freshly-provisioned empty workspace.
+      if (process.env.NODE_ENV !== "production") {
+        await seedDemoIntoCurrentWorkspace();
+      }
 
       const views = useDataStore.getState().views;
-      const firstViewId = views.keys().next().value;
+      const firstViewId = views.keys().next().value as ViewId | undefined;
       if (firstViewId) {
         ui_store.setCurrentViewId(firstViewId);
       }
-      useDataStore.getState().clearDiff()
+
+      useDataStore.getState().clearDiff();
       setIsInitialized(true);
     };
 

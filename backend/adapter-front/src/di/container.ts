@@ -27,6 +27,8 @@ import {
   createNodeSemanticDao,
   createEdgeSemanticDao,
   createNodeTagDao,
+  createWorkspaceRepository,
+  createWorkspaceMemberRepository,
 } from "@workspace/adapter-back/factory";
 import {
   NodeCommandService,
@@ -37,7 +39,10 @@ import {
   ViewQueryService,
   SemanticCommandService,
   SemanticQueryService,
+  WorkspaceCommandService,
+  WorkspaceQueryService,
 } from "@workspace/application";
+import type { IWorkspaceMemberRepository } from "@workspace/domain";
 import { initializeEventBridge } from "./event-bridge";
 
 export class AppContainer {
@@ -63,12 +68,17 @@ export class AppContainer {
   readonly edgeCommandService: EdgeCommandService;
   readonly viewCommandService: ViewCommandService;
   readonly semanticCommandService: SemanticCommandService;
+  readonly workspaceCommandService: WorkspaceCommandService;
 
   // Application Query Services (require repository only)
   readonly nodeQueryService: NodeQueryService;
   readonly edgeQueryService: EdgeQueryService;
   readonly viewQueryService: ViewQueryService;
   readonly semanticQueryService: SemanticQueryService;
+  readonly workspaceQueryService: WorkspaceQueryService;
+
+  // Workspace repositories (singletons via adapter-back factory)
+  readonly workspaceMemberRepository: IWorkspaceMemberRepository;
 
   private constructor() {
     this.eventBus = new InMemoryEventBus();
@@ -101,6 +111,20 @@ export class AppContainer {
       this.edgeSemanticDao,
       this.nodeTagDao,
     );
+
+    this.workspaceCommandService = new WorkspaceCommandService(
+      createWorkspaceRepository(),
+      createWorkspaceMemberRepository(),
+      this.nodeDao,
+      this.edgeDao,
+      this.viewDao,
+      this.eventBus,
+    );
+    this.workspaceQueryService = new WorkspaceQueryService(
+      createWorkspaceRepository(),
+      createWorkspaceMemberRepository(),
+    );
+    this.workspaceMemberRepository = createWorkspaceMemberRepository();
   }
 
   /**

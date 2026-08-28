@@ -11,6 +11,7 @@ export interface VisualConfigDTO {
 
 export interface ViewDTO {
   id: string;
+  workspaceId?: string;
   name: string;
   viewType: "Force" | "Flow";
   visualConfig: VisualConfigDTO;

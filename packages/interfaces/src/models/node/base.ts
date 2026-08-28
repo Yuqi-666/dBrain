@@ -7,6 +7,7 @@ export interface NodeSemantic {
   description?: string;
   color?: string;
   icon?: string;
+  workspaceId?: string;
 }
 
 export type NodeTagId = string;
@@ -14,6 +15,7 @@ export interface NodeTag {
   id: NodeTagId;
   name: string;
   color?: string;
+  workspaceId?: string;
 }
 
 export type NodeId = string;
@@ -60,6 +62,7 @@ export interface NodeBase {
   semanticId: NodeSemanticId;
   tags?: NodeTagId[];
   isPinned?: boolean;
+  workspaceId?: string;
   stateData?: NodeStateData;
   createdAt: string;
   updatedAt: string;

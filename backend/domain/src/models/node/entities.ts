@@ -34,6 +34,7 @@ export interface NodeBaseProps {
   stateData?: NodeStateData;
   createdAt: string;
   updatedAt: string;
+  workspaceId?: string;
 }
 
 export abstract class Node {
@@ -48,6 +49,7 @@ export abstract class Node {
   protected readonly _createdAt: string;
   protected readonly _updatedAt: string;
   protected readonly _nodeType: NodeType;
+  protected readonly _workspaceId: string | undefined;
 
   protected constructor(
     props: NodeBaseProps & { nodeType: NodeType<NodeDataType> },
@@ -63,6 +65,7 @@ export abstract class Node {
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
     this._nodeType = props.nodeType;
+    this._workspaceId = props.workspaceId;
   }
 
   get id(): NodeId {
@@ -107,6 +110,10 @@ export abstract class Node {
 
   get nodeType(): NodeType {
     return this._nodeType;
+  }
+
+  get workspaceId(): string | undefined {
+    return this._workspaceId;
   }
 
   sameIdentityAs(other: Node): boolean {
@@ -197,6 +204,7 @@ export class TextNode extends Node {
     content: TextContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): TextNode {
     const now = new Date().toISOString();
     return new TextNode({
@@ -211,6 +219,7 @@ export class TextNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -227,6 +236,7 @@ export class TextNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -243,6 +253,7 @@ export class TextNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -321,6 +332,7 @@ export class ImageNode extends Node {
     content: ImageContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): ImageNode {
     const now = new Date().toISOString();
     return new ImageNode({
@@ -340,6 +352,7 @@ export class ImageNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -361,6 +374,7 @@ export class ImageNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -382,6 +396,7 @@ export class ImageNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -435,6 +450,7 @@ export class PdfNode extends Node {
     content: PdfContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): PdfNode {
     const now = new Date().toISOString();
     return new PdfNode({
@@ -451,6 +467,7 @@ export class PdfNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -469,6 +486,7 @@ export class PdfNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -487,6 +505,7 @@ export class PdfNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -573,6 +592,7 @@ export class VideoNode extends Node {
     content: VideoContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): VideoNode {
     const now = new Date().toISOString();
     return new VideoNode({
@@ -593,6 +613,7 @@ export class VideoNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -615,6 +636,7 @@ export class VideoNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -637,6 +659,7 @@ export class VideoNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -690,6 +713,7 @@ export class AudioNode extends Node {
     content: AudioContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): AudioNode {
     const now = new Date().toISOString();
     return new AudioNode({
@@ -706,6 +730,7 @@ export class AudioNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -724,6 +749,7 @@ export class AudioNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -742,6 +768,7 @@ export class AudioNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -770,6 +797,7 @@ export class WebpageNode extends Node {
     content: WebpageContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): WebpageNode {
     const now = new Date().toISOString();
     return new WebpageNode({
@@ -784,6 +812,7 @@ export class WebpageNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -800,6 +829,7 @@ export class WebpageNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -816,6 +846,7 @@ export class WebpageNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -844,6 +875,7 @@ export class WebsiteNode extends Node {
     content: WebsiteContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): WebsiteNode {
     const now = new Date().toISOString();
     return new WebsiteNode({
@@ -858,6 +890,7 @@ export class WebsiteNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -874,6 +907,7 @@ export class WebsiteNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -890,6 +924,7 @@ export class WebsiteNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -918,6 +953,7 @@ export class CollectionNode extends Node {
     content: CollectionContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): CollectionNode {
     const now = new Date().toISOString();
     return new CollectionNode({
@@ -932,6 +968,7 @@ export class CollectionNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -950,6 +987,7 @@ export class CollectionNode extends Node {
       content: new CollectionContent(FilterConfig.create(filterConfig)),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -966,6 +1004,7 @@ export class CollectionNode extends Node {
       content: new CollectionContent(FilterConfig.empty()),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -982,6 +1021,7 @@ export class CollectionNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -1010,6 +1050,7 @@ export class RichTextNode extends Node {
     content: RichTextContent;
     createdAt?: string;
     updatedAt?: string;
+    workspaceId?: string;
   }): RichTextNode {
     const now = new Date().toISOString();
     return new RichTextNode({
@@ -1024,6 +1065,7 @@ export class RichTextNode extends Node {
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
     });
   }
 
@@ -1045,6 +1087,7 @@ export class RichTextNode extends Node {
       content: new RichTextContent(newRefs, this._content.docs),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -1067,6 +1110,7 @@ export class RichTextNode extends Node {
       content: new RichTextContent(newRefs, this._content.docs),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -1083,6 +1127,7 @@ export class RichTextNode extends Node {
       content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
     });
   }
 
@@ -1099,6 +1144,7 @@ export class RichTextNode extends Node {
       content: this._content,
       createdAt: this._createdAt,
       updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }

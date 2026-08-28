@@ -260,47 +260,15 @@ function evaluateRuleGroup(
   }
 }
 
-function filterByRuleGroup(
-  nodes: Map<NodeId, NodeData>,
+function shouldIncludeNode(
+  nodeId: NodeId,
+  node: NodeData,
+  ruleGroup: RuleGroupType,
   edges: Map<EdgeId, EdgeData>,
   edgeSemantics: ReadonlyMap<EdgeSemanticId, EdgeSemantic>,
-  ruleGroup?: RuleGroupType,
-): FilterResult {
-  if (!ruleGroup) {
-    return {
-      filteredNodes: new Map(nodes),
-      filteredEdges: new Map(edges),
-    };
-  }
-
-  const shouldIncludeNode = (nodeId: NodeId, node: NodeData): boolean => {
-    const tempNodes = new Map<NodeId, NodeData>([[nodeId, node]]);
-    return evaluateRuleGroup(ruleGroup, tempNodes, edges, edgeSemantics);
-  };
-
-  const shouldIncludeEdge = (edgeId: EdgeId, edge: EdgeData): boolean => {
-    const tempEdges = new Map<EdgeId, EdgeData>([[edgeId, edge]]);
-    return evaluateRuleGroup(ruleGroup, nodes, tempEdges, edgeSemantics);
-  };
-
-  const filteredNodes = new Map<NodeId, NodeData>();
-  const filteredEdges = new Map<EdgeId, EdgeData>();
-
-  nodes.forEach((node, nodeId) => {
-    if (shouldIncludeNode(nodeId, node)) {
-      filteredNodes.set(nodeId, node);
-    }
-  });
-
-  edges.forEach((edge, edgeId) => {
-    const sourceInNodes = filteredNodes.has(edge.from);
-    const targetInNodes = filteredNodes.has(edge.to);
-    if (sourceInNodes && targetInNodes && shouldIncludeEdge(edgeId, edge)) {
-      filteredEdges.set(edgeId, edge);
-    }
-  });
-
-  return { filteredNodes, filteredEdges };
+): boolean {
+  const tempNodes = new Map<NodeId, NodeData>([[nodeId, node]]);
+  return evaluateRuleGroup(ruleGroup, tempNodes, edges, edgeSemantics);
 }
 
 export function filterByViewFilterConfig(
@@ -313,46 +281,41 @@ export function filterByViewFilterConfig(
   const semantics = edgeSemantics ?? new Map<EdgeSemanticId, EdgeSemantic>();
 
   if (!filterConfig) {
-    return {
-      filteredNodes: new Map(nodes),
-      filteredEdges: new Map(edges),
-    };
+    return { filteredNodes: new Map(nodes), filteredEdges: new Map(edges) };
   }
 
-  let result: FilterResult = { filteredNodes: nodes, filteredEdges: edges };
+  const selectedSet =
+    filterConfig.selectedNodes && filterConfig.selectedNodes.length > 0
+      ? new Set(filterConfig.selectedNodes)
+      : null;
+  const hasRule = filterConfig.ruleGroup !== undefined;
 
-  if (filterConfig.selectedNodes && filterConfig.selectedNodes.length > 0) {
-    const selectedSet = new Set(filterConfig.selectedNodes);
-    const selectedNodesMap = new Map<NodeId, NodeData>();
-    const selectedEdgesMap = new Map<EdgeId, EdgeData>();
+  // Global view (no enumeration AND no filter) => everything.
+  const isGlobal = !selectedSet && !hasRule;
 
-    result.filteredNodes.forEach((node, nodeId) => {
-      if (selectedSet.has(nodeId)) {
-        selectedNodesMap.set(nodeId, node);
-      }
-    });
+  const filteredNodes = new Map<NodeId, NodeData>();
+  nodes.forEach((node, nodeId) => {
+    if (isGlobal) {
+      filteredNodes.set(nodeId, node);
+      return;
+    }
+    const inEnumeration = selectedSet ? selectedSet.has(nodeId) : false;
+    const matchesRule = hasRule
+      ? shouldIncludeNode(nodeId, node, filterConfig.ruleGroup!, edges, semantics)
+      : false;
+    if (inEnumeration || matchesRule) {
+      filteredNodes.set(nodeId, node);
+    }
+  });
 
-    result.filteredEdges.forEach((edge, edgeId) => {
-      if (selectedSet.has(edge.from) && selectedSet.has(edge.to)) {
-        selectedEdgesMap.set(edgeId, edge);
-      }
-    });
+  const filteredEdges = new Map<EdgeId, EdgeData>();
+  edges.forEach((edge, edgeId) => {
+    const sourceIn = filteredNodes.has(edge.from);
+    const targetIn = filteredNodes.has(edge.to);
+    if (sourceIn && targetIn) {
+      filteredEdges.set(edgeId, edge);
+    }
+  });
 
-    result = {
-      filteredNodes: selectedNodesMap,
-      filteredEdges: selectedEdgesMap,
-    };
-  }
-
-  if (filterConfig.ruleGroup) {
-    const byRuleGroup = filterByRuleGroup(
-      result.filteredNodes,
-      result.filteredEdges,
-      semantics,
-      filterConfig.ruleGroup,
-    );
-    result = byRuleGroup;
-  }
-
-  return result;
+  return { filteredNodes, filteredEdges };
 }

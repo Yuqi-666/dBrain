@@ -54,6 +54,17 @@ export interface DataStore {
   diff: Diff;
   clearDiff: () => void;
 
+  // ==================== Lifecycle / bulk load ====================
+  reset: () => void;
+  loadWorkspaceData: (data: {
+    nodes?: NodeData[];
+    edges?: EdgeData[];
+    views?: View[];
+    nodeSemantics?: NodeSemantic[];
+    nodeTags?: NodeTag[];
+    edgeSemantics?: EdgeSemantic[];
+  }) => void;
+
   // ==================== CRUD Actions (upsert/delete only) ====================
   // -- Node Semantic --
   upsertNodeSemantic: (semantic: NodeSemantic) => void;
@@ -114,6 +125,51 @@ export const useDataStore = create<DataStore>()(
 
       // 清空 Diff 的方法
       clearDiff: () => { set({ diff: createEmptyDiff() }) },
+
+      // ==================== Lifecycle / bulk load ====================
+      reset: () =>
+        set({
+          nodeSemantics: new Map(),
+          nodeTags: new Map(),
+          edgeSemantics: new Map(),
+          nodes: new Map(),
+          edges: new Map(),
+          views: new Map(),
+          diff: createEmptyDiff(),
+        }),
+
+      loadWorkspaceData: (data) =>
+        set((state) => {
+          const { nodes = [], edges = [], views = [], nodeSemantics = [], nodeTags = [], edgeSemantics = [] } = data;
+
+          const newNodes = new Map(state.nodes);
+          for (const n of nodes) newNodes.set(n.id, n);
+
+          const newEdges = new Map(state.edges);
+          for (const e of edges) newEdges.set(e.id, e);
+
+          const newViews = new Map(state.views);
+          for (const v of views) newViews.set(v.id, v);
+
+          const newNodeSemantics = new Map(state.nodeSemantics);
+          for (const s of nodeSemantics) newNodeSemantics.set(s.id, s);
+
+          const newNodeTags = new Map(state.nodeTags);
+          for (const t of nodeTags) newNodeTags.set(t.id, t);
+
+          const newEdgeSemantics = new Map(state.edgeSemantics);
+          for (const s of edgeSemantics) newEdgeSemantics.set(s.id, s);
+
+          return {
+            nodes: newNodes,
+            edges: newEdges,
+            views: newViews,
+            nodeSemantics: newNodeSemantics,
+            nodeTags: newNodeTags,
+            edgeSemantics: newEdgeSemantics,
+            diff: createEmptyDiff(),
+          };
+        }),
 
       // ==================== Node Semantic Actions ====================
       upsertNodeSemantic: (semantic) => {

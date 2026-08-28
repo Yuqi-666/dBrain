@@ -1,4 +1,4 @@
-import type { IEdgeSemanticRepository } from "@workspace/domain/repositories";
+import type { IEdgeSemanticRepository, EdgeSemanticQuery } from "@workspace/domain/repositories";
 import type { EdgeSemantic, SemanticId } from "@workspace/domain/models";
 import type { EdgeType } from "@workspace/domain/models/edge/value-objects";
 
@@ -17,8 +17,8 @@ export class EdgeSemanticDao implements IEdgeSemanticRepository {
     return this.repository.delete(id);
   }
 
-  async findAll(): Promise<EdgeSemantic[]> {
-    return this.repository.findAll();
+  async findAll(query?: EdgeSemanticQuery): Promise<EdgeSemantic[]> {
+    return this.repository.findAll(query);
   }
 
   async findByName(name: string): Promise<EdgeSemantic | null> {

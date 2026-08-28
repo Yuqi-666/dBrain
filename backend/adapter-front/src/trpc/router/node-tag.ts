@@ -8,6 +8,7 @@ const addSchema = z.object({
   id: z.string(),
   name: z.string(),
   color: z.string().optional(),
+  workspaceId: z.string().optional(),
 });
 
 const updateSchema = z.object({
@@ -48,15 +49,24 @@ export const nodeTagRouter = router({
     });
     return { success: true, id: input.id };
   }),
-  list: protectedProcedure.query(async () => {
-    return getContainer().semanticQueryService.listNodeTags({});
-  }),
+  list: protectedProcedure
+    .input(z.object({ workspaceId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.listNodeTags({ workspaceId: input?.workspaceId });
+    }),
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.listNodeTags({ workspaceId: input.workspaceId });
+    }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       return getContainer().semanticQueryService.getNodeTagById({ id: input.id });
     }),
-  sync: protectedProcedure.query(async () => {
-    return getContainer().semanticQueryService.listNodeTags({});
-  }),
+  sync: protectedProcedure
+    .input(z.object({ workspaceId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      return getContainer().semanticQueryService.listNodeTags({ workspaceId: input?.workspaceId });
+    }),
 });

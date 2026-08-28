@@ -15,6 +15,7 @@ export interface EdgeProps {
   stateData?: EdgeStateData;
   createdAt?: string;
   updatedAt?: string;
+  workspaceId?: string;
 }
 
 /**
@@ -35,6 +36,7 @@ export class Edge {
   readonly stateData?: EdgeStateData;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly workspaceId?: string;
 
   private constructor(props: EdgeProps) {
     this.id = props.id;
@@ -45,6 +47,7 @@ export class Edge {
     this.stateData = props.stateData;
     this.createdAt = props.createdAt ?? new Date().toISOString();
     this.updatedAt = props.updatedAt ?? new Date().toISOString();
+    this.workspaceId = props.workspaceId;
   }
 
   /**

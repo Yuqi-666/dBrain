@@ -13,6 +13,7 @@ import type { Node } from '@workspace/domain';
 function toNodeDTO(node: Node): NodeDTO {
   const base = {
     id: node.id.toString(),
+    workspaceId: node.workspaceId,
     title: node.title,
     abstract: node.abstract,
     permission: node.permission.value,
@@ -88,6 +89,7 @@ function toNodeQuery(q: ListNodesQuery): NodeQuery {
     updatedAfter: q.updatedAfter,
     updatedBefore: q.updatedBefore,
     permission: q.permission,
+    workspaceId: q.workspaceId,
   };
 }
 
@@ -102,6 +104,11 @@ export class NodeQueryService {
   async list(q: ListNodesQuery): Promise<NodeDTO[]> {
     const items = await this.nodeRepository.findAll(toNodeQuery(q));
     return items.map(toNodeDTO)
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<NodeDTO[]> {
+    const items = await this.nodeRepository.findAll({ workspaceId });
+    return items.map(toNodeDTO);
   }
 
   async getByIds(q: GetNodesByIdsQuery): Promise<NodeDTO[]> {

@@ -6,6 +6,7 @@ export interface CreateNodeSemanticCommand {
   description?: string;
   color?: string;
   icon?: string;
+  workspaceId?: string;
   userId: string;
   sourceId?: string;
 }
@@ -32,6 +33,7 @@ export interface CreateEdgeSemanticCommand {
   category: EdgeType;
   description?: string;
   color?: string;
+  workspaceId?: string;
   userId: string;
   sourceId?: string;
 }
@@ -56,6 +58,7 @@ export interface CreateNodeTagCommand {
   id: string;
   name: string;
   color?: string;
+  workspaceId?: string;
   userId: string;
   sourceId?: string;
 }

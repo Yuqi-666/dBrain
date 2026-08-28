@@ -9,6 +9,7 @@ export interface DomainEvent<T = unknown> {
     occurredAt: string;
     eventVersion: 1;
     userId: string;
+    sourceId?: string;
   };
   data: T;
 }
@@ -37,6 +38,13 @@ export type NodeTagAddedEvent = DomainEvent<{ id: string }> & { eventType: "Node
 export type NodeTagUpdatedEvent = DomainEvent<{ id: string }> & { eventType: "NodeTagUpdated" };
 export type NodeTagDeletedEvent = DomainEvent<{ id: string }> & { eventType: "NodeTagDeleted" };
 
+export type WorkspaceAddedEvent = DomainEvent<{ id: string }> & { eventType: "WorkspaceCreated" };
+export type WorkspaceUpdatedEvent = DomainEvent<{ id: string }> & { eventType: "WorkspaceUpdated" };
+export type WorkspaceDeletedEvent = DomainEvent<{ id: string }> & { eventType: "WorkspaceDeleted" };
+
+export type WorkspaceMemberAddedEvent = DomainEvent<{ id: string; workspaceId: string; userId: string }> & { eventType: "WorkspaceMemberAdded" };
+export type WorkspaceMemberRemovedEvent = DomainEvent<{ id: string; workspaceId: string; userId: string }> & { eventType: "WorkspaceMemberRemoved" };
+
 export type IDomainEvent =
   | NodeAddedEvent
   | NodeUpdatedEvent
@@ -55,4 +63,9 @@ export type IDomainEvent =
   | EdgeSemanticDeletedEvent
   | NodeTagAddedEvent
   | NodeTagUpdatedEvent
-  | NodeTagDeletedEvent;
+  | NodeTagDeletedEvent
+  | WorkspaceAddedEvent
+  | WorkspaceUpdatedEvent
+  | WorkspaceDeletedEvent
+  | WorkspaceMemberAddedEvent
+  | WorkspaceMemberRemovedEvent;

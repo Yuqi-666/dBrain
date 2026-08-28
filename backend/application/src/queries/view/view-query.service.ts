@@ -12,6 +12,7 @@ import type { View } from '@workspace/domain';
 function toViewDTO(view: View): ViewDTO {
   return {
     id: view.id.toString(),
+    workspaceId: view.workspaceId,
     name: view.name,
     viewType: view.viewType.getValue() as ViewDTO['viewType'],
     visualConfig: {
@@ -35,6 +36,7 @@ function toViewQuery(q: ListViewsQuery): ViewQuery {
   return {
     isPinned: q.isPinned,
     viewType: q.viewType as ViewQuery['viewType'],
+    workspaceId: q.workspaceId,
   };
 }
 
@@ -48,6 +50,11 @@ export class ViewQueryService {
 
   async list(q: ListViewsQuery): Promise<ViewDTO[]> {
     const items = await this.viewRepository.findAll(toViewQuery(q));
+    return items.map(toViewDTO);
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<ViewDTO[]> {
+    const items = await this.viewRepository.findAll({ workspaceId });
     return items.map(toViewDTO);
   }
 

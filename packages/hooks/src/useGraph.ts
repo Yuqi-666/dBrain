@@ -24,7 +24,6 @@ import type {
 import { useUIStore, useDataStore } from "@workspace/store";
 import { NodeService, EdgeService, NodeTagService } from "@workspace/services";
 
-
 export function useGraph() {
   const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,

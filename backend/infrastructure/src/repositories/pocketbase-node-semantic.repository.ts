@@ -1,6 +1,6 @@
 import type { RecordModel } from "pocketbase";
 
-import type { INodeSemanticRepository } from "@workspace/domain/repositories";
+import type { INodeSemanticRepository, NodeSemanticQuery } from "@workspace/domain/repositories";
 import { NodeSemantic } from "@workspace/domain/models/semantic/entities";
 import type { SemanticId } from "@workspace/domain/models/semantic/value-objects";
 import { NodeSemanticMapper } from "../database/mappers/node-semantic.mapper";
@@ -54,8 +54,13 @@ export class PocketBaseNodeSemanticRepository implements INodeSemanticRepository
     await this.collection().delete(id.getValue());
   }
 
-  async findAll(): Promise<NodeSemantic[]> {
-    const records = await this.collection().getFullList();
+  async findAll(query?: NodeSemanticQuery): Promise<NodeSemantic[]> {
+    const filter = query?.workspaceId
+      ? `workspaceId = "${query.workspaceId}"`
+      : undefined;
+    const records = await this.collection().getFullList({
+      filter,
+    });
     return records.map((record) => this.mapper.toDomain(record));
   }
 
@@ -88,4 +93,5 @@ interface NodeSemanticRecord extends RecordModel {
   description?: string;
   color?: string;
   icon?: string;
+  workspaceId?: string;
 }

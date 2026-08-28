@@ -11,6 +11,7 @@ export class EdgeSemanticMapper {
       category: record.category as EdgeType,
       color: record.color as string | undefined,
       description: record.description as string | undefined,
+      workspaceId: record.workspaceId as string | undefined,
     });
   }
 
@@ -21,6 +22,7 @@ export class EdgeSemanticMapper {
       category: entity.category,
       color: entity.color,
       description: entity.description,
+      workspaceId: entity.workspaceId,
     };
   }
 }

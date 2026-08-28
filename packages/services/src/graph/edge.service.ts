@@ -1,9 +1,10 @@
 import type {
   EdgeData,
   EdgeId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
@@ -80,7 +81,10 @@ export const EdgeService = {
     }
 
     const edge = idOrEdge;
-    const result = await trpcClient.edge.add.mutate(edge);
+    const workspaceId =
+      edge.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedEdge = workspaceId ? { ...edge, workspaceId } : edge;
+    const result = await trpcClient.edge.add.mutate(scopedEdge);
     store.upsertEdge(result);
     return result;
   },
@@ -109,6 +113,16 @@ export const EdgeService = {
       const results = await trpcClient.edge.list.query({});
       store.upsertEdges(results);
     }
+  },
+
+  /**
+   * Load all edges scoped to a workspace into the data store.
+   * Relies on the `edge.listByWorkspace` tRPC procedure (backend B3 pending).
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.edge.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ edges: results });
   },
 
   flushPendingUpdate(id: EdgeId): Promise<void> | null {

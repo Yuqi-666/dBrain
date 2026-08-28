@@ -12,6 +12,7 @@ import {
 function toEdgeDTO(edge: Edge): EdgeDTO {
   return {
     id: edge.id.getValue(),
+    workspaceId: edge.workspaceId,
     from: edge.from.toString(),
     to: edge.to.toString(),
     direction: edge.direction.getValue(),
@@ -52,6 +53,7 @@ export class EdgeCommandService {
         direction: parseEdgeDirection(cmd.direction),
         semanticId: cmd.semanticId,
         stateData: cmd.stateData,
+        workspaceId: cmd.workspaceId,
       });
 
       const saved = await this.edgeRepository.save(edge);

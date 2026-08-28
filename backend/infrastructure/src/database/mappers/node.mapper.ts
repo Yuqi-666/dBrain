@@ -40,6 +40,7 @@ export interface BaseNodeRecord extends RecordModel {
   created: string;
   updated: string;
   nodeType: string;
+  workspaceId?: string;
 }
 
 interface TextNodeRecord extends BaseNodeRecord {
@@ -145,6 +146,7 @@ export class NodeMapper {
       stateData: record.stateData as NodeStateData | undefined,
       createdAt: record.created as string,
       updatedAt: record.updated as string,
+      workspaceId: record.workspaceId as string | undefined,
     };
 
     switch (nodeType) {
@@ -366,6 +368,7 @@ export class NodeMapper {
       created: node.createdAt,
       updated: node.updatedAt,
       nodeType: node.nodeType.value,
+      workspaceId: node.workspaceId,
     };
 
     if (node instanceof TextNode) {

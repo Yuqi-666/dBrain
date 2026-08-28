@@ -9,6 +9,8 @@ const ALL_EVENTS = [
   "NodeSemanticCreated", "NodeSemanticUpdated", "NodeSemanticDeleted",
   "EdgeSemanticCreated", "EdgeSemanticUpdated", "EdgeSemanticDeleted",
   "NodeTagCreated", "NodeTagUpdated", "NodeTagDeleted",
+  "WorkspaceCreated", "WorkspaceUpdated", "WorkspaceDeleted",
+  "WorkspaceMemberAdded", "WorkspaceMemberRemoved",
 ] as const;
 
 const unsubscribers: Array<() => void> = [];

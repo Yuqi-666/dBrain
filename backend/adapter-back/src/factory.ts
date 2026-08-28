@@ -13,6 +13,8 @@ import {
   PocketBaseEdgeSemanticRepository,
   PocketBaseNodeTagRepository,
   PocketBaseUserRepository,
+  PocketBaseWorkspaceRepository,
+  PocketBaseWorkspaceMemberRepository,
 } from "@workspace/infrastructure";
 
 import type {
@@ -23,6 +25,8 @@ import type {
   IEdgeSemanticRepository,
   INodeTagRepository,
   IUserRepository,
+  IWorkspaceRepository,
+  IWorkspaceMemberRepository,
 } from "@workspace/domain/repositories";
 
 import { NodeDao, EdgeDao, ViewDao, UserDao, NodeSemanticDao, EdgeSemanticDao, NodeTagDao } from "./dao";
@@ -34,6 +38,8 @@ let nodeSemanticRepository: INodeSemanticRepository | null = null;
 let edgeSemanticRepository: IEdgeSemanticRepository | null = null;
 let nodeTagRepository: INodeTagRepository | null = null;
 let userRepository: IUserRepository | null = null;
+let workspaceRepository: IWorkspaceRepository | null = null;
+let workspaceMemberRepository: IWorkspaceMemberRepository | null = null;
 
 export const createNodeRepository = (): INodeRepository => {
   if (!nodeRepository) {
@@ -87,6 +93,20 @@ export const createUserRepository = (): IUserRepository => {
   return userRepository;
 };
 
+export const createWorkspaceRepository = (): IWorkspaceRepository => {
+  if (!workspaceRepository) {
+    workspaceRepository = new PocketBaseWorkspaceRepository();
+  }
+  return workspaceRepository;
+};
+
+export const createWorkspaceMemberRepository = (): IWorkspaceMemberRepository => {
+  if (!workspaceMemberRepository) {
+    workspaceMemberRepository = new PocketBaseWorkspaceMemberRepository();
+  }
+  return workspaceMemberRepository;
+};
+
 export const createNodeDao = (): NodeDao => {
   return new NodeDao(createNodeRepository());
 };
@@ -122,6 +142,8 @@ export const createAll = () => ({
   nodeSemanticRepository: createNodeSemanticRepository(),
   edgeSemanticRepository: createEdgeSemanticRepository(),
   nodeTagRepository: createNodeTagRepository(),
+  workspaceRepository: createWorkspaceRepository(),
+  workspaceMemberRepository: createWorkspaceMemberRepository(),
   nodeDao: createNodeDao(),
   edgeDao: createEdgeDao(),
   viewDao: createViewDao(),

@@ -15,6 +15,7 @@ function toNodeSemanticDTO(entity: NodeSemantic): NodeSemanticDTO {
     description: entity.description,
     color: entity.color,
     icon: entity.icon,
+    workspaceId: entity.workspaceId,
   };
 }
 
@@ -25,6 +26,7 @@ function toEdgeSemanticDTO(entity: EdgeSemantic): EdgeSemanticDTO {
     category: entity.category,
     color: entity.color,
     description: entity.description,
+    workspaceId: entity.workspaceId,
   };
 }
 
@@ -33,6 +35,7 @@ function toNodeTagDTO(entity: NodeTag): NodeTagDTO {
     id: entity.id.getValue(),
     name: entity.name,
     color: entity.color,
+    workspaceId: entity.workspaceId,
   };
 }
 
@@ -48,8 +51,8 @@ export class SemanticQueryService {
     return entity ? toNodeSemanticDTO(entity) : null;
   }
 
-  async listNodeSemantics(_q: ListNodeSemanticsQuery): Promise<NodeSemanticDTO[]> {
-    const entities = await this.nodeSemanticRepository.findAll();
+  async listNodeSemantics(q: ListNodeSemanticsQuery): Promise<NodeSemanticDTO[]> {
+    const entities = await this.nodeSemanticRepository.findAll({ workspaceId: q.workspaceId });
     return entities.map(toNodeSemanticDTO);
   }
 
@@ -68,8 +71,8 @@ export class SemanticQueryService {
     return entity ? toEdgeSemanticDTO(entity) : null;
   }
 
-  async listEdgeSemantics(_q: ListEdgeSemanticsQuery): Promise<EdgeSemanticDTO[]> {
-    const entities = await this.edgeSemanticRepository.findAll();
+  async listEdgeSemantics(q: ListEdgeSemanticsQuery): Promise<EdgeSemanticDTO[]> {
+    const entities = await this.edgeSemanticRepository.findAll({ workspaceId: q.workspaceId });
     return entities.map(toEdgeSemanticDTO);
   }
 
@@ -88,8 +91,8 @@ export class SemanticQueryService {
     return entity ? toNodeTagDTO(entity) : null;
   }
 
-  async listNodeTags(_q: ListNodeTagsQuery): Promise<NodeTagDTO[]> {
-    const entities = await this.nodeTagRepository.findAll();
+  async listNodeTags(q: ListNodeTagsQuery): Promise<NodeTagDTO[]> {
+    const entities = await this.nodeTagRepository.findAll({ workspaceId: q.workspaceId });
     return entities.map(toNodeTagDTO);
   }
 

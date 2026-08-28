@@ -1,4 +1,4 @@
-import type { INodeTagRepository } from "@workspace/domain/repositories";
+import type { INodeTagRepository, NodeTagQuery } from "@workspace/domain/repositories";
 import type { NodeTag, TagId } from "@workspace/domain/models/semantic";
 
 export class NodeTagDao implements INodeTagRepository {
@@ -16,8 +16,8 @@ export class NodeTagDao implements INodeTagRepository {
     return this.repository.delete(id);
   }
 
-  async findAll(): Promise<NodeTag[]> {
-    return this.repository.findAll();
+  async findAll(query?: NodeTagQuery): Promise<NodeTag[]> {
+    return this.repository.findAll(query);
   }
 
   async findByName(name: string): Promise<NodeTag | null> {

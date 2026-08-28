@@ -18,6 +18,7 @@ const addSchema = z.object({
   direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]),
   semanticId: z.string(),
   stateData: edgeStateDataSchema,
+  workspaceId: z.string().optional(),
 });
 
 const updateSchema = z.object({
@@ -26,6 +27,7 @@ const updateSchema = z.object({
     direction: z.enum(["forward", "reverse", "bidirectional", "undirected"]).optional(),
     semanticId: z.string().optional(),
     stateData: edgeStateDataSchema,
+    workspaceId: z.string().optional(),
   }),
 });
 
@@ -46,6 +48,7 @@ export const edgeRouter = router({
         direction: input.direction,
         semanticId: input.semanticId,
         stateData,
+        workspaceId: input.workspaceId,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
       });
@@ -70,6 +73,7 @@ export const edgeRouter = router({
       direction: input.updates.direction,
       semanticId: input.updates.semanticId,
       stateData,
+      workspaceId: input.updates.workspaceId,
       userId: ctx.userId,
       sourceId: ctx.sourceId,
     });
@@ -89,6 +93,12 @@ export const edgeRouter = router({
     }))
     .query(async ({ input }) => {
       return container().edgeQueryService.list(input);
+    }),
+
+  listByWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ input }) => {
+      return container().edgeQueryService.listByWorkspace(input.workspaceId);
     }),
 
   getById: protectedProcedure

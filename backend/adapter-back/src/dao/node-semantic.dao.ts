@@ -1,4 +1,4 @@
-import type { INodeSemanticRepository } from "@workspace/domain/repositories";
+import type { INodeSemanticRepository, NodeSemanticQuery } from "@workspace/domain/repositories";
 import type { NodeSemantic } from "@workspace/domain/models";
 import type { SemanticId } from "@workspace/domain/models/semantic/value-objects";
 
@@ -17,8 +17,8 @@ export class NodeSemanticDao implements INodeSemanticRepository {
     return this.repository.delete(id);
   }
 
-  async findAll(): Promise<NodeSemantic[]> {
-    return this.repository.findAll();
+  async findAll(query?: NodeSemanticQuery): Promise<NodeSemantic[]> {
+    return this.repository.findAll(query);
   }
 
   async findByName(name: string): Promise<NodeSemantic | null> {

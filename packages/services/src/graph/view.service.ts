@@ -1,9 +1,10 @@
 import type {
   View,
   ViewId,
+  WorkspaceId,
 } from "@workspace/interfaces";
 import { trpcClient } from "@workspace/api-client";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
@@ -78,7 +79,10 @@ export const ViewService = {
     }
 
     const view = idOrView;
-    const result = await trpcClient.view.add.mutate(view);
+    const workspaceId =
+      view.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+    const scopedView = workspaceId ? { ...view, workspaceId } : view;
+    const result = await trpcClient.view.add.mutate(scopedView);
     store.upsertView(result);
     return result;
   },
@@ -107,6 +111,16 @@ export const ViewService = {
       const results = await trpcClient.view.list.query({});
       store.upsertViews(results);
     }
+  },
+
+  /**
+   * Load all views scoped to a workspace into the data store.
+   * Relies on the `view.listByWorkspace` tRPC procedure (backend B3 pending).
+   */
+  async syncByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    const store = useDataStore.getState();
+    const results = await trpcClient.view.listByWorkspace.query({ workspaceId });
+    store.loadWorkspaceData({ views: results });
   },
 
   flushPendingUpdate(id: ViewId): Promise<void> | null {

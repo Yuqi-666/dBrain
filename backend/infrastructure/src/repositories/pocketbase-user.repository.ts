@@ -123,7 +123,15 @@ export class PocketBaseUserRepository implements IUserRepository {
         passwordConfirm: password,
         nickname,
       }) as UserRecord;
-      return this.mapper.toDomain(record);
+      // PocketBase hides the `email` field on the create response of an auth
+      // collection (it is only included for the owning user or when
+      // `emailVisibility` is on). Re-apply the known value so the mapper can
+      // build the domain entity — otherwise `new Email(undefined)` throws
+      // "Email cannot be empty" even though the record was created.
+      return this.mapper.toDomain({
+        ...record,
+        email: email.value,
+      });
     } catch (error) {
       if (error instanceof Error) {
         console.error("PocketBase createUser error:", error.message);

@@ -12,6 +12,7 @@ import { EdgeId, EdgeDirection } from "@workspace/domain/models/edge/value-objec
 function toEdgeDTO(edge: Edge): EdgeDTO {
   return {
     id: edge.id.toString(),
+    workspaceId: edge.workspaceId,
     from: edge.from.toString(),
     to: edge.to.toString(),
     direction: edge.direction.getValue(),
@@ -42,6 +43,7 @@ function toEdgeQuery(q: ListEdgesQuery): EdgeQuery {
     to: q.to as any,
     semanticId: q.semanticId,
     direction: q.direction ? toEdgeDirection(q.direction) : undefined,
+    workspaceId: q.workspaceId,
   }
 }
 export class EdgeQueryService {
@@ -54,6 +56,11 @@ export class EdgeQueryService {
 
   async list(q: ListEdgesQuery): Promise<EdgeDTO[]> {
     const items = await this.edgeRepository.findAll(toEdgeQuery(q));
+    return items.map(toEdgeDTO);
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<EdgeDTO[]> {
+    const items = await this.edgeRepository.findAll({ workspaceId });
     return items.map(toEdgeDTO);
   }
 

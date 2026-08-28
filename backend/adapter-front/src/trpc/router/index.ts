@@ -7,6 +7,7 @@ import { viewRouter } from "./view";
 import { nodeTagRouter } from "./node-tag";
 import { eventRouter } from "./event";
 import { authRouter } from "./auth";
+import { workspaceRouter } from "./workspace";
 
 export const appRouter = router({
   auth: authRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   edgeSemantic: edgeSemanticRouter,
   nodeTag: nodeTagRouter,
   event: eventRouter,
+  workspace: workspaceRouter,
 });
 
 export type AppRouter = typeof appRouter;

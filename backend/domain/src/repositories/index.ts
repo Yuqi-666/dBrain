@@ -69,6 +69,7 @@ export interface NodeQuery {
   updatedAfter?: string;
   updatedBefore?: string;
   permission?: Permission["value"];
+  workspaceId?: string;
 }
 
 /**
@@ -79,6 +80,7 @@ export interface EdgeQuery {
   to?: NodeId;
   semanticId?: EdgeSemanticId;
   direction?: EdgeDirection;
+  workspaceId?: string;
 }
 
 /**
@@ -87,6 +89,7 @@ export interface EdgeQuery {
 export interface ViewQuery {
   isPinned?: boolean;
   viewType?: ViewType["value"];
+  workspaceId?: string;
 }
 
 // ============================================================
@@ -271,6 +274,27 @@ export interface IViewRepository {
 // ============================================================
 
 /**
+ * Query object for filtering node semantics.
+ */
+export interface NodeSemanticQuery {
+  workspaceId?: string;
+}
+
+/**
+ * Query object for filtering edge semantics.
+ */
+export interface EdgeSemanticQuery {
+  workspaceId?: string;
+}
+
+/**
+ * Query object for filtering node tags.
+ */
+export interface NodeTagQuery {
+  workspaceId?: string;
+}
+
+/**
  * Repository port for NodeSemantic entities.
  */
 export interface INodeSemanticRepository {
@@ -280,7 +304,7 @@ export interface INodeSemanticRepository {
 
   delete(id: SemanticId): Promise<void>;
 
-  findAll(): Promise<NodeSemantic[]>;
+  findAll(query?: NodeSemanticQuery): Promise<NodeSemantic[]>;
 
   /**
    * Find semantic by exact name match.
@@ -303,7 +327,7 @@ export interface IEdgeSemanticRepository {
 
   delete(id: SemanticId): Promise<void>;
 
-  findAll(): Promise<EdgeSemantic[]>;
+  findAll(query?: EdgeSemanticQuery): Promise<EdgeSemantic[]>;
 
   /**
    * Find semantic by exact name match.
@@ -326,7 +350,7 @@ export interface INodeTagRepository {
 
   delete(id: TagId): Promise<void>;
 
-  findAll(): Promise<NodeTag[]>;
+  findAll(query?: NodeTagQuery): Promise<NodeTag[]>;
 
   /**
    * Find tag by exact name match.
@@ -371,4 +395,31 @@ export interface IUserRepository {
     password: string,
     nickname: string,
   ): Promise<User>;
+}
+
+// ============================================================
+// IWorkspaceRepository - Workspace Aggregate
+// ============================================================
+
+import { Workspace, WorkspaceMember } from "../models/workspace";
+import { WorkspaceId, WorkspaceMemberId } from "../models/workspace/value-objects";
+
+export interface IWorkspaceRepository {
+  findById(id: WorkspaceId): Promise<Workspace | null>;
+  save(workspace: Workspace): Promise<Workspace>;
+  delete(id: WorkspaceId): Promise<void>;
+  findAll(): Promise<Workspace[]>;
+  findByOwnerId(ownerId: string): Promise<Workspace[]>;
+}
+
+export interface IWorkspaceMemberRepository {
+  findById(id: WorkspaceMemberId): Promise<WorkspaceMember | null>;
+  save(member: WorkspaceMember): Promise<WorkspaceMember>;
+  delete(id: WorkspaceMemberId): Promise<void>;
+  findByWorkspaceId(workspaceId: WorkspaceId): Promise<WorkspaceMember[]>;
+  findByUserId(userId: string): Promise<WorkspaceMember[]>;
+  findByWorkspaceAndUser(
+    workspaceId: WorkspaceId,
+    userId: string,
+  ): Promise<WorkspaceMember | null>;
 }

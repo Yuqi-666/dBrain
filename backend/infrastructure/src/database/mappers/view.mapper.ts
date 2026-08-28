@@ -14,6 +14,7 @@ export class ViewMapper {
       ),
       filterConfig: FilterConfig.create(record.filterConfig),
       isPinned: record.isPinned as boolean,
+      workspaceId: record.workspaceId as string | undefined,
     });
   }
 
@@ -36,6 +37,7 @@ export class ViewMapper {
         collectionType: view.filterConfig.collectionType,
       },
       isPinned: view.isPinned,
+      workspaceId: view.workspaceId,
     };
   }
 }
