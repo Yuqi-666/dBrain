@@ -40,8 +40,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { DataTypeList } from "../list/node/dataType-list";
-import { SemanticList } from "../list/node/semantic-list";
+import { DataTypeList } from "@workspace/ui/components/menu/node/dataType-list";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import {
   Tabs,
@@ -75,7 +75,7 @@ import { useTheme } from "next-themes";
 import LogoIcon from "../../img/icon/logo.svg";
 import { useGraph } from "@workspace/hooks";
 
-export function CognitiveSidebar() {
+export function MainSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
   const { views, nodes } = useDataStore();

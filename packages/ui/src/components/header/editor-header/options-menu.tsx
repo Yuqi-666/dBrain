@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { OptionsButton } from "./options-button";
+import { Button } from "@workspace/ui/components/ui/button";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeService } from "@workspace/services";
 import {
@@ -17,6 +17,7 @@ import {
   DownloadIcon,
   ShareIcon,
   ExternalLinkIcon,
+  MoreHorizontalIcon,
 } from "lucide-react";
 
 interface OptionsMenuProps {
@@ -55,7 +56,13 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <OptionsButton nodeId={nodeId} />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="更多选项"
+        >
+          <MoreHorizontalIcon />
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>操作</DropdownMenuLabel>

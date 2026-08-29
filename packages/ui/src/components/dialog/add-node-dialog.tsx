@@ -14,8 +14,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { SemanticList } from "@workspace/ui/components/list/node/semantic-list";
-import { NODE_TYPE_LABELS } from "@workspace/ui/components/list/node/dataType-list";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
+import { NODE_TYPE_LABELS } from "@workspace/ui/components/menu/node/dataType-list";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useGraph } from "@workspace/hooks";
 import { useDataStore } from "@workspace/store";

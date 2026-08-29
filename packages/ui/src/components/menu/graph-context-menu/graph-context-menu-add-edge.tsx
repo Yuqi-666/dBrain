@@ -5,7 +5,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Plus } from "lucide-react";
-import { NodeList } from "../list/node/node-list";
+import { NodeList } from "@workspace/ui/components/menu/node/node-list";
 
 export interface GraphContextMenuAddEdgeProps {
   sourceIds: string[];

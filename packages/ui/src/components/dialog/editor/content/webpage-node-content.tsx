@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
-import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
+import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
 import type { WebpageNodeData } from "@workspace/interfaces";
 
 interface WebpageNodeContentProps {

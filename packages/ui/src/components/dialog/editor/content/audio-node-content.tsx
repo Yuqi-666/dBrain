@@ -3,15 +3,15 @@
 import { useState, useEffect } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
-import { LoadingPlaceholder } from "@workspace/ui/components/loading-placeholder";
-import type { VideoNodeData } from "@workspace/interfaces";
+import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
+import type { AudioNodeData } from "@workspace/interfaces";
 
-interface VideoNodeContentProps {
-  node: VideoNodeData;
+interface AudioNodeContentProps {
+  node: AudioNodeData;
   className?: string;
 }
 
-export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
+export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
 
   const url = node.content?.url;
@@ -23,35 +23,27 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
     }
   }, [hasUrl]);
 
-  const isLoading = mediaLoading;
-
   if (!hasUrl) {
     return (
       <FileDropZone
         nodeId={node.id}
-        accept=".mp4,.webm,.mov,video/*"
-        variant="video"
-        className={cn("w-full h-full min-h-[200px]", className)}
+        accept=".mp3,.wav,.ogg,.m4a,audio/*"
+        variant="audio"
+        className={cn("w-full h-full min-h-[100px]", className)}
       />
     );
   }
 
   return (
     <div className={cn("flex items-center p-4 w-full h-full", className)}>
-      {isLoading && <LoadingPlaceholder variant="video" />}
-      <video
+      {mediaLoading && <LoadingPlaceholder variant="audio" />}
+      <audio
         src={url}
         controls
-        className={cn(
-          "w-full object-contain",
-          isLoading ? "hidden" : "block"
-        )}
-        playsInline
+        className={cn("w-full", mediaLoading ? "hidden" : "block")}
         onLoadedData={() => setMediaLoading(false)}
         onError={() => setMediaLoading(false)}
-      >
-        您的浏览器不支持视频播放
-      </video>
+      />
     </div>
   );
 }

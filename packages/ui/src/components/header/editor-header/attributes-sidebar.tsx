@@ -7,7 +7,6 @@ import { useGraph } from "@workspace/hooks";
 import { NodeService } from "@workspace/services";
 import {
   AlignLeft,
-  ChevronRight,
   Clock,
   Database,
   FileText,
@@ -37,8 +36,8 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Popover, PopoverTrigger } from "@workspace/ui/components/ui/popover";
-import { TagList, TagPill } from "@workspace/ui/components/list/node/tag-list";
-import { SemanticList } from "@workspace/ui/components/list/node/semantic-list";
+import { TagList, TagPill } from "@workspace/ui/components/menu/node/tag-list";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 
 interface AttributesSidebarProps {
   className?: string;

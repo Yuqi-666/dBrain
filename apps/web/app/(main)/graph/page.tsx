@@ -7,10 +7,11 @@ import { WorkspaceService } from "@workspace/services";
 import { seedDemoIntoCurrentWorkspace } from "./demo-seed";
 import type { ViewId } from "@workspace/interfaces";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
-import { CognitiveGraphLayout } from "@workspace/ui/components/layout/cognitive-graph-layout";
-import { CognitiveSidebar } from "@workspace/ui/components/sidebar/cognitive-sidebar";
-import { NodeEditor, NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/editor";
-import { QuickPanel } from "@workspace/ui/components/quick-panel/quick-panel";
+import { MainLayout } from "@workspace/ui/components/layout/main-layout";
+import { MainSidebar } from "@workspace/ui/components/sidebar/main-sidebar";
+import { NodeEditor } from "@workspace/ui/components/dialog/editor";
+import { NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/dialog/semantic-dialog"
+import { QuickPanel } from "@workspace/ui/components/dialog/quick-panel/quick-panel";
 
 export default function GraphPage(): ReactNode {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -56,7 +57,7 @@ export default function GraphPage(): ReactNode {
   }, []);
 
   return (
-    <CognitiveGraphLayout sidebar={<CognitiveSidebar />}>
+    <MainLayout sidebar={<MainSidebar />}>
       <div className="absolute inset-0 z-0">
         {mainView === "graph" ? (
           <>
@@ -79,6 +80,6 @@ export default function GraphPage(): ReactNode {
         <EdgeSemanticDialog />
         <QuickPanel />
       </div>
-    </CognitiveGraphLayout>
+    </MainLayout>
   );
 }

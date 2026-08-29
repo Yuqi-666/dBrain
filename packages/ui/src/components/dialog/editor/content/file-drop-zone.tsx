@@ -9,7 +9,7 @@ import {
   GlobeIcon,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { UploadMenu } from "@workspace/ui/components/upload-menu";
+import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import { X } from "lucide-react";
 import { useFileUpload, uploadFile } from "@workspace/api-client";

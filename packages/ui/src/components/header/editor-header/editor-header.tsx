@@ -2,7 +2,7 @@
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
 import { ToggleSearchCommandButton } from "../toggle-search-command-button";
-import { BackToGraphButton } from "./back-to-graph-button";
+import GraphIcon from "@workspace/ui/img/icon/graph.svg"
 import { FullscreenButton } from "./fullscreen-button";
 import { PinButton } from "./pin-button";
 import { NodeTitle } from "./node-title";
@@ -48,13 +48,17 @@ export function EditorHeader({ className }: EditorHeaderProps) {
       <div className="flex items-center gap-4 pointer-events-auto">
         <NodeTitle className="text-center border-none" />
         {mainViewType === "editor" ? (
-          <BackToGraphButton
-            className={``}
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => {
               setMainViewType("graph");
               setCurrentEditingNodeId(null);
             }}
-          />
+            aria-label="返回节点图"
+          >
+            <img src={GraphIcon.src} alt="返回节点图" className="" />
+          </Button>
         ) : null}
       </div>
 

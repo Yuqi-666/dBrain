@@ -4,10 +4,9 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useUIStore, useDataStore } from "@workspace/store";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "./content/node-content-editor";
-import { EditorHeader } from "../header/editor-header/editor-header";
-import { AttributesSidebar } from "../header/editor-header/attributes-sidebar";
+import { EditorHeader } from "@workspace/ui/components/header/editor-header/editor-header";
+import { AttributesSidebar } from "@workspace/ui/components/header/editor-header/attributes-sidebar";
 import type { NodeData } from "@workspace/interfaces";
-import { useEffect } from "react";
 
 interface NodeEditorProps {
   className?: string;

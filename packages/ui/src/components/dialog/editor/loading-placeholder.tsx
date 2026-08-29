@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "../../ui/skeleton";
 
 interface LoadingPlaceholderProps {
   /** 显示类型，决定骨架屏的形状和比例 */

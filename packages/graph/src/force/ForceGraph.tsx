@@ -74,7 +74,7 @@ import { debounce } from "@workspace/utils";
 import {
   GraphContextMenu,
   type GraphContextMenuProps,
-} from "@workspace/ui/components/graph-context-menu/graph-context-menu";
+} from "@workspace/ui/components/menu/graph-context-menu/graph-context-menu";
 import { PreviewBlock } from "@workspace/ui/components/preview-block/preview-block";
 import type { GraphEventHandler } from "../eventHandler";
 
@@ -641,7 +641,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
           // ★ Re-check cancelled BEFORE subscribing (fixes 0.4 leak)
           if (cancelled) {
-            api.setEventHandler(null).catch(() => {});
+            api.setEventHandler(null).catch(() => { });
             worker.terminate();
             return;
           }
@@ -667,7 +667,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           },
           onViewportChange: (x, y, scale) => {
             // best-effort: rejections during worker teardown races are expected and harmless
-            api?.setViewport(x, y, scale).catch(() => {});
+            api?.setViewport(x, y, scale).catch(() => { });
           },
         },
         dprRef.current,

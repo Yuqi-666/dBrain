@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Edit, Trash2, Link2 } from "lucide-react";
 import { useDataStore } from "@workspace/store";
-import { SemanticList } from "@workspace/ui/components/list/node/semantic-list";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 
 export interface GraphContextMenuNodeProps {
   nodeId: string;

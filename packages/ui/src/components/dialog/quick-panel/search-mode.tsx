@@ -21,8 +21,8 @@ import {
   type QuickSearchMatch,
   type QuickGroupKey,
 } from "./quick-panel.type";
-import { COMMANDS } from "../command/command-registry";
-import type { ArgCommand } from "../command/command";
+import { COMMANDS } from "../../command/command-registry";
+import type { ArgCommand } from "../../command/command";
 
 export interface SearchModeProps {
   className?: string;

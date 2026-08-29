@@ -10,7 +10,7 @@ import {
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import type { EdgeId, EdgeDirection } from "@workspace/interfaces";
 import { useDataStore } from "@workspace/store";
-import { EdgeSemanticList } from "@workspace/ui/components/list/edge/semantic-list";
+import { EdgeSemanticList } from "@workspace/ui/components/menu/edge/semantic-list";
 
 function directionToFlags(direction: EdgeDirection): [boolean, boolean] {
   switch (direction) {

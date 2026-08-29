@@ -1,10 +1,10 @@
 export {
   GraphContextMenu,
   type GraphContextMenuProps,
-} from "./graph-context-menu/graph-context-menu";
-export { CognitiveGraphLayout } from "./layout/cognitive-graph-layout";
-export { CognitiveSidebar } from "./sidebar/cognitive-sidebar";
-export { QuickPanel } from "./quick-panel/quick-panel";
+} from "./menu/graph-context-menu/graph-context-menu";
+export { MainLayout as CognitiveGraphLayout } from "./layout/main-layout";
+export { MainSidebar } from "./sidebar/main-sidebar";
+export { QuickPanel } from "./dialog/quick-panel/quick-panel";
 export { COMMANDS, getCommand } from "./command/command-registry";
 export type {
   Command,
@@ -14,5 +14,5 @@ export type {
   CommandFormContext,
 } from "./command/command";
 export { PreviewBlock } from "./preview-block";
-export * from "./loading-placeholder";
-export * from "./upload-menu";
+export * from "./dialog/editor/loading-placeholder";
+export * from "./menu/upload-menu";

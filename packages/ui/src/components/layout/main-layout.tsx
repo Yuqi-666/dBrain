@@ -17,7 +17,7 @@ const MENU_SELECTOR = [
   "[data-slot='dropdown-menu-sub-content']",
 ].join(",");
 
-export function CognitiveGraphLayout({
+export function MainLayout({
   children,
   sidebar,
 }: CognitiveGraphLayoutProps) {

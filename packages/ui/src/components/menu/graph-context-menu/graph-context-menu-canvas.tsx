@@ -7,8 +7,8 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Plus } from "lucide-react";
 import type { NodeDataType } from "@workspace/interfaces";
-import { DataTypeList } from "../list/node/dataType-list";
-import { SemanticList } from "../list/node/semantic-list";
+import { DataTypeList } from "@workspace/ui/components/menu/node/dataType-list";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 
 export interface GraphContextMenuCanvasProps {
   onAddNode?: (nodeType: NodeDataType, semanticId: string, simX?: number, simY?: number, viewId?: string) => void;
