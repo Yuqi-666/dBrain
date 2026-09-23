@@ -81,8 +81,17 @@ export const ViewService = {
     const view = idOrView;
     const workspaceId =
       view.workspaceId ?? useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
-    const scopedView = workspaceId ? { ...view, workspaceId } : view;
-    const result = await trpcClient.view.add.mutate(scopedView);
+    // `view.add` 只接受 `View` 的部分字段：`visualConfig` 不在 addSchema 里
+    // （zod 会静默丢弃未知字段，因此它只能由 `view.update` 写入）。显式构造
+    // payload，避免字段名对不上时静默丢配置。
+    const result = await trpcClient.view.add.mutate({
+      id: view.id,
+      name: view.name,
+      viewType: view.viewType,
+      filterConfig: view.filterConfig,
+      isPinned: view.isPinned,
+      workspaceId,
+    });
     store.upsertView(result);
     return result;
   },

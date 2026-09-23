@@ -7,7 +7,8 @@ const addSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   viewType: z.enum(["Force", "Flow"]),
-  filter: z.any().optional(),
+  filterConfig: z.any().optional(),
+  isPinned: z.boolean().optional(),
   workspaceId: z.string().optional(),
 });
 
@@ -17,7 +18,8 @@ const updateSchema = z.object({
     name: z.string().optional(),
     description: z.string().optional(),
     viewType: z.enum(["Force", "Flow"]).optional(),
-    filter: z.any().optional(),
+    filterConfig: z.any().optional(),
+    isPinned: z.boolean().optional(),
     visualConfig: z
       .object({
         backgroundColor: z.string().optional(),
@@ -42,8 +44,8 @@ export const viewRouter = router({
       id: input.id,
       name: input.name,
       viewType: input.viewType,
-      filterConfig: input.filter,
-      isPinned: false,
+      filterConfig: input.filterConfig,
+      isPinned: input.isPinned,
       workspaceId: input.workspaceId,
       userId: ctx.userId,
       sourceId: ctx.sourceId,

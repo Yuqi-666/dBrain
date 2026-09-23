@@ -85,6 +85,9 @@ export function MainSidebar() {
   const openEdgeSemanticDialog = useUIStore(
     (state) => state.openEdgeSemanticDialog,
   );
+  const openViewCreateDialog = useUIStore(
+    (state) => state.openViewCreateDialog,
+  );
   const sidebarActiveTab = useUIStore((state) => state.sidebarActiveTab);
   const setSidebarActiveTab = useUIStore((state) => state.setSidebarActiveTab);
   const currentEditingNodeId = useUIStore(
@@ -198,7 +201,10 @@ export function MainSidebar() {
                 variant="ghost"
                 size="icon"
                 className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openViewCreateDialog();
+                }}
               >
                 <Plus className="size-3.5" />
               </Button>
@@ -320,6 +326,9 @@ function SpaceSelector() {
   const currentWorkspaceId = useWorkspaceStore(
     (state) => state.currentWorkspaceId,
   );
+  const openCreateWorkspaceDialog = useUIStore(
+    (state) => state.openWorkspaceCreateDialog,
+  );
   const workspaceList = useMemo(
     () => Array.from(workspaces.values()),
     [workspaces],
@@ -383,7 +392,10 @@ function SpaceSelector() {
           </DropdownMenuItem>
         )}
         <Separator className="my-1.5 bg-sidebar-border" />
-        <DropdownMenuItem className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
+        <DropdownMenuItem
+          onClick={() => openCreateWorkspaceDialog()}
+          className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+        >
           <Plus className="mr-2 size-4" />
           Create new workspace
         </DropdownMenuItem>

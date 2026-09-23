@@ -200,13 +200,12 @@ export async function runDevDemoSeed(
   }
 
   // 4. Views — a view's `filterConfig.selectedNodes` references nodes; remap
-  //    them to real ids. The tRPC `view.add` schema reads the filter via
-  //    `filter`, not `filterConfig`. `visualConfig` is not accepted by `add`,
-  //    so it is applied via `view.update` after creation.
+  //    them to real ids. `visualConfig` is not accepted by `add`, so it is
+  //    applied via `view.update` after creation.
   for (const view of DEMO_VIEWS) {
-    const filter = { ...view.filterConfig };
-    if (filter.selectedNodes) {
-      filter.selectedNodes = filter.selectedNodes.map(
+    const filterConfig = { ...view.filterConfig };
+    if (filterConfig.selectedNodes) {
+      filterConfig.selectedNodes = filterConfig.selectedNodes.map(
         (nodeId) => nodeIdMap.get(nodeId) ?? nodeId,
       );
     }
@@ -215,7 +214,7 @@ export async function runDevDemoSeed(
         id: `tmp_view_${view.name}`,
         name: view.name,
         viewType: view.viewType,
-        filter,
+        filterConfig,
         isPinned: view.isPinned,
         workspaceId,
       });

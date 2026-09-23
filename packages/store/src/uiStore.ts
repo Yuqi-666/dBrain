@@ -76,6 +76,20 @@ export interface UIStore {
   openEdgeSemanticDialog: (semantic?: EdgeSemantic | null) => void;
   closeEdgeSemanticDialog: () => void;
 
+  // Workspace dialogs - Create
+  workspaceCreateDialog: {
+    open: boolean;
+  };
+  openWorkspaceCreateDialog: () => void;
+  closeWorkspaceCreateDialog: () => void;
+
+  // View dialogs - Create
+  viewCreateDialog: {
+    open: boolean;
+  };
+  openViewCreateDialog: () => void;
+  closeViewCreateDialog: () => void;
+
   // Graph UI actions
   handleNodeEdit: (nodeId: string) => void;
   handleCreateEdge: (from: string[], to: string | null, x?: number, y?: number) => Promise<void>;
@@ -238,6 +252,32 @@ export const useUIStore = create<UIStore>()(
       closeEdgeSemanticDialog: () =>
         set({
           edgeSemanticDialog: { open: false, editingSemantic: null },
+        }),
+
+      // ==================== Graph UI - Workspace Dialogs ====================
+      workspaceCreateDialog: {
+        open: false,
+      },
+      openWorkspaceCreateDialog: () =>
+        set({
+          workspaceCreateDialog: { open: true },
+        }),
+      closeWorkspaceCreateDialog: () =>
+        set({
+          workspaceCreateDialog: { open: false },
+        }),
+
+      // ==================== Graph UI - View Dialogs ====================
+      viewCreateDialog: {
+        open: false,
+      },
+      openViewCreateDialog: () =>
+        set({
+          viewCreateDialog: { open: true },
+        }),
+      closeViewCreateDialog: () =>
+        set({
+          viewCreateDialog: { open: false },
         }),
 
       // ==================== Graph UI - Actions ====================

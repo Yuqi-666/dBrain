@@ -1,0 +1,381 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/ui/dialog";
+import { Button } from "@workspace/ui/components/ui/button";
+import { Input } from "@workspace/ui/components/ui/input";
+import { Label } from "@workspace/ui/components/ui/label";
+import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
+import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
+import { cn } from "@workspace/ui/lib/utils";
+import { useDataStore, useUIStore, useWorkspaceStore } from "@workspace/store";
+import { ViewService } from "@workspace/services";
+import {
+  buildNodeFilterFields,
+  type FilterConfig,
+  type NodeData,
+  type NodeId,
+  type NodeSemantic,
+  type NodeSemanticId,
+  type View,
+} from "@workspace/interfaces";
+import type { RuleGroupType } from "@workspace/utils";
+import { Check, Search } from "lucide-react";
+
+const VIEW_NAME_MAX_LENGTH = 50;
+
+/** 新建视图的默认类型，与视图配置面板的选项保持一致。 */
+const DEFAULT_VIEW_TYPE = "Force" as const;
+
+const EMPTY_RULE_GROUP: RuleGroupType = { combinator: "and", rules: [] };
+
+/**
+ * 创建 view 的 dialog。
+ *
+ * 与 `CreateWorkspaceDialog` / `NodeSemanticDialog` 同模式：开合状态读自
+ * `useUIStore`，service 调用内联在本组件里，页面级挂载，任何入口只要调用
+ * `openViewCreateDialog()` 即可打开。
+ *
+ * 表单包含三部分：名称、节点选择（写入 `filterConfig.selectedNodes`）、
+ * 筛选条件（写入 `filterConfig.ruleGroup`）。后两者是"并集"语义——视图显示
+ * 已勾选节点 ∪ 命中筛选条件的节点；两者都为空则为全局视图，显示全部节点。
+ */
+export function CreateViewDialog() {
+  const { open } = useUIStore((state) => state.viewCreateDialog);
+  const closeDialog = useUIStore((state) => state.closeViewCreateDialog);
+  const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
+  const nodes = useDataStore((state) => state.nodes);
+  const nodeSemantics = useDataStore((state) => state.nodeSemantics);
+
+  const handleSubmit = useCallback(
+    async (input: CreateViewInput) => {
+      const workspaceId =
+        useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
+
+      const view: View = {
+        id: `tmp_${crypto.randomUUID()}`,
+        name: input.name.trim(),
+        viewType: DEFAULT_VIEW_TYPE,
+        visualConfig: {},
+        filterConfig: input.filterConfig,
+        workspaceId,
+      };
+
+      const created = await ViewService.upsert(view);
+      const createdView = (created ?? view) as View;
+      // 新视图立即可用：切到它，Graph 会按它的 filterConfig 重新过滤。
+      setCurrentViewId(createdView.id);
+      closeDialog();
+    },
+    [closeDialog, setCurrentViewId],
+  );
+
+  return (
+    <CreateViewDialogContent
+      open={open}
+      onOpenChange={(o) => !o && closeDialog()}
+      nodes={nodes}
+      nodeSemantics={nodeSemantics}
+      onSubmit={handleSubmit}
+    />
+  );
+}
+
+export interface CreateViewInput {
+  name: string;
+  filterConfig: FilterConfig;
+}
+
+export interface CreateViewDialogContentProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** 当前 workspace 的节点，用于"节点选择"列表。 */
+  nodes: ReadonlyMap<NodeId, NodeData>;
+  /** 用于构建筛选字段（语义类型下拉的选项）。 */
+  nodeSemantics: ReadonlyMap<NodeSemanticId, NodeSemantic>;
+  onSubmit: (input: CreateViewInput) => void | Promise<void>;
+}
+
+export function CreateViewDialogContent({
+  open,
+  onOpenChange,
+  nodes,
+  nodeSemantics,
+  onSubmit,
+}: CreateViewDialogContentProps) {
+  const [name, setName] = useState("");
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<NodeId>>(
+    new Set(),
+  );
+  const [ruleGroup, setRuleGroup] = useState<RuleGroupType>(EMPTY_RULE_GROUP);
+  const [search, setSearch] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 每次打开都重置表单，避免上一次的输入/错误残留。
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setSelectedNodeIds(new Set());
+      setRuleGroup(EMPTY_RULE_GROUP);
+      setSearch("");
+      setIsSubmitting(false);
+      setError(null);
+    }
+  }, [open]);
+
+  const filterFields = useMemo(
+    () => buildNodeFilterFields(nodeSemantics),
+    [nodeSemantics],
+  );
+
+  const visibleNodes = useMemo(() => {
+    const list = Array.from(nodes.values());
+    const term = search.trim().toLowerCase();
+    if (!term) return list;
+    return list.filter(
+      (node) =>
+        node.title.toLowerCase().includes(term) ||
+        nodeSemantics.get(node.semanticId)?.name.toLowerCase().includes(term),
+    );
+  }, [nodes, nodeSemantics, search]);
+
+  const toggleNode = useCallback((nodeId: NodeId) => {
+    setSelectedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedNodeIds(new Set(visibleNodes.map((node) => node.id)));
+  }, [visibleNodes]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedNodeIds(new Set());
+  }, []);
+
+  const hasRules = (ruleGroup.rules?.length ?? 0) > 0;
+
+  /**
+   * 只在非空时写入字段：`filterByViewFilterConfig` 把"无 selectedNodes 且无
+   * ruleGroup"判定为全局视图，写入空数组 / 空 ruleGroup 会破坏这个语义。
+   */
+  const buildFilterConfig = useCallback((): FilterConfig => {
+    const filterConfig: FilterConfig = {};
+    if (selectedNodeIds.size > 0) {
+      filterConfig.selectedNodes = Array.from(selectedNodeIds);
+    }
+    if (hasRules) {
+      filterConfig.ruleGroup = ruleGroup;
+    }
+    return filterConfig;
+  }, [selectedNodeIds, hasRules, ruleGroup]);
+
+  const handleSubmit = useCallback(async () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("请输入视图名称");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ name: trimmed, filterConfig: buildFilterConfig() });
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Failed to create view:", err);
+      setError("创建失败，请稍后重试");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [name, buildFilterConfig, onSubmit, onOpenChange]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>创建新视图</DialogTitle>
+          <DialogDescription>
+            视图按筛选配置决定显示哪些节点，可随时在侧边栏切换。
+          </DialogDescription>
+        </DialogHeader>
+
+        {/*
+          这里刻意不使用 <form>：内嵌的 react-querybuilder 控件（Add Rule /
+          Remove 等）是未指定 type 的 <button>，在 form 内会隐式成为 submit，
+          点击即触发创建。名称输入框单独处理 Enter 键提交。
+        */}
+        <div className="flex flex-col gap-5 py-2">
+          <div className="grid gap-2">
+            <Label htmlFor="view-name">名称</Label>
+            <Input
+              id="view-name"
+              name="name"
+              autoFocus
+              value={name}
+              maxLength={VIEW_NAME_MAX_LENGTH}
+              placeholder="例如：待办事项"
+              disabled={isSubmitting}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleSubmit();
+                }
+              }}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (error) setError(null);
+              }}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="view-node-search">
+                节点选择
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  已选 {selectedNodeIds.size} / {nodes.size}
+                </span>
+              </Label>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSubmitting || visibleNodes.length === 0}
+                  onClick={selectAll}
+                >
+                  全选当前
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSubmitting || selectedNodeIds.size === 0}
+                  onClick={clearSelection}
+                >
+                  清空
+                </Button>
+              </div>
+            </div>
+
+            <div className="relative flex items-center">
+              <Search className="absolute left-2.5 size-3.5 text-muted-foreground" />
+              <Input
+                id="view-node-search"
+                value={search}
+                placeholder="搜索节点标题或语义类型…"
+                className="h-8 pl-8 text-xs"
+                disabled={isSubmitting}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+
+            <ScrollArea className="h-44 rounded-lg border">
+              <div className="flex flex-col gap-0.5 p-1.5">
+                {visibleNodes.length > 0 ? (
+                  visibleNodes.map((node) => {
+                    const isSelected = selectedNodeIds.has(node.id);
+                    const semantic = nodeSemantics.get(node.semanticId);
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => toggleNode(node.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+                          isSelected ? "bg-accent" : "hover:bg-accent/60",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-input",
+                          )}
+                        >
+                          {isSelected && <Check className="size-3" />}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[13px]">
+                          {node.title}
+                        </span>
+                        {semantic && (
+                          <span
+                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              backgroundColor: semantic.color
+                                ? `${semantic.color}1a`
+                                : undefined,
+                              color: semantic.color ?? undefined,
+                            }}
+                          >
+                            {semantic.name}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="px-2 py-6 text-center text-[12px] text-muted-foreground">
+                    {nodes.size === 0
+                      ? "当前工作区还没有节点"
+                      : "没有匹配的节点"}
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>筛选条件</Label>
+            <FilterQueryBuilder
+              fields={filterFields}
+              query={ruleGroup}
+              onQueryChange={setRuleGroup}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。
+          </p>
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={() => onOpenChange(false)}
+          >
+            取消
+          </Button>
+          <Button
+            type="button"
+            disabled={isSubmitting || !name.trim()}
+            onClick={() => void handleSubmit()}
+          >
+            {isSubmitting ? "创建中…" : "创建"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
