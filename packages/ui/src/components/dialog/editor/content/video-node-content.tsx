@@ -5,6 +5,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
 import type { VideoNodeData } from "@workspace/interfaces";
+import { resolveFileUrl } from "@workspace/api-client";
 
 interface VideoNodeContentProps {
   node: VideoNodeData;
@@ -14,7 +15,7 @@ interface VideoNodeContentProps {
 export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
 
-  const url = node.content?.url;
+  const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
 
   useEffect(() => {

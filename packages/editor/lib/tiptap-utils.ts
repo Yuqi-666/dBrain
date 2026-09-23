@@ -354,7 +354,13 @@ export function selectionWithinConvertibleTypes(
 }
 
 /**
- * Handles image upload with progress tracking and abort capability
+ * Handles image upload with progress tracking and abort capability.
+ *
+ * Delegates to the shared PocketBase uploader in `@workspace/api-client`
+ * (`files` collection). The import is dynamic so this utility module — which is
+ * pulled in by nearly every editor component — keeps a light static graph and
+ * stays usable in isolation.
+ *
  * @param file The file to upload
  * @param onProgress Optional callback for tracking upload progress
  * @param abortSignal Optional AbortSignal for cancelling the upload
@@ -376,17 +382,9 @@ export const handleImageUpload = async (
     );
   }
 
-  // For demo/testing: Simulate upload progress. In production, replace the following code
-  // with your own upload implementation.
-  for (let progress = 0; progress <= 100; progress += 10) {
-    if (abortSignal?.aborted) {
-      throw new Error("Upload cancelled");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    onProgress?.({ progress });
-  }
+  const { uploadFile } = await import("@workspace/api-client");
 
-  return "/images/tiptap-ui-placeholder-image.jpg";
+  return uploadFile(file, onProgress ?? (() => {}), abortSignal ?? new AbortController().signal);
 };
 
 type ProtocolOptions = {

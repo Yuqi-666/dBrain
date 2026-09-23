@@ -5,6 +5,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
 import type { AudioNodeData } from "@workspace/interfaces";
+import { resolveFileUrl } from "@workspace/api-client";
 
 interface AudioNodeContentProps {
   node: AudioNodeData;
@@ -14,7 +15,7 @@ interface AudioNodeContentProps {
 export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
 
-  const url = node.content?.url;
+  const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
 
   useEffect(() => {

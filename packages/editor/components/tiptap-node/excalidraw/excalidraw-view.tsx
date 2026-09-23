@@ -1,7 +1,7 @@
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect } from "react";
-import { uploadFile } from "@workspace/api-client";
+import { uploadAttachment } from "@workspace/api-client";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { IAttachment } from "@workspace/interfaces";
 import clsx from "clsx";
@@ -13,7 +13,7 @@ import { ExcalidrawWrapper } from "./excalidraw-wrapper";
 
 export default function ExcalidrawView(props: NodeViewProps) {
   const { node, updateAttributes, editor, selected } = props;
-  const { src, title, width, data, attachmentId } = node.attrs;
+  const { src, title, width, data } = node.attrs;
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
@@ -66,15 +66,16 @@ export default function ExcalidrawView(props: NodeViewProps) {
     });
 
     let attachment: IAttachment | null = null;
-    if (attachmentId) {
-      attachment = await uploadFile(excalidrawFile);
-    } else {
-      attachment = await uploadFile(excalidrawFile);
+    try {
+      attachment = await uploadAttachment(excalidrawFile);
+    } catch (error) {
+      console.error("Failed to save Excalidraw diagram:", error);
+      return;
     }
 
     updateAttributes({
       data: jsonString,
-      src: `/files/${attachment.id}/${attachment.fileName}`,
+      src: attachment.url,
       title: attachment.fileName,
       size: attachment.fileSize,
       attachmentId: attachment.id,

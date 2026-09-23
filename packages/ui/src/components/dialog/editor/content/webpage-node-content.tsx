@@ -5,6 +5,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
 import type { WebpageNodeData } from "@workspace/interfaces";
+import { resolveFileUrl } from "@workspace/api-client";
 
 interface WebpageNodeContentProps {
   node: WebpageNodeData;
@@ -17,7 +18,7 @@ export function WebpageNodeContent({
 }: WebpageNodeContentProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
 
-  const screenshotUrl = node.content?.screenshotUrl;
+  const screenshotUrl = resolveFileUrl(node.content?.screenshotUrl);
   const hasScreenshot = !!screenshotUrl;
 
   useEffect(() => {

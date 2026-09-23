@@ -174,8 +174,41 @@ migrate((app) => {
     ],
   });
   app.save(edges);
+
+  // 8. 创建 files 表（所有上传二进制的存储：节点媒体、编辑器图片、excalidraw 场景）
+  //
+  // 前端一直往 /api/collections/files/records 上传（见 packages/api-client/src/upload.ts），
+  // 但集合本身从未创建，导致每次上传都 404。
+  // 规则与其余集合一致（nodes/edges/views 都用 "" 即公开），因为应用没有客户端
+  // PocketBase 登录，鉴权由服务端 tRPC 层负责。
+  //
+  // 注意：Collection 构造函数只认「普通字段描述对象」。这里若写成
+  // `new FileField({...})` 会被静默丢弃（集合只保存下系统 id 字段），必须保持普通对象。
+  const files = new Collection({
+    name: "files",
+    type: "base",
+    listRule: "",
+    viewRule: "",
+    createRule: "",
+    updateRule: "",
+    deleteRule: "",
+    fields: [
+      {
+        name: "file",
+        type: "file",
+        required: true,
+        maxSelect: 1,
+        // 100MB — 与 FileDropZone 的 maxSize 保持一致
+        maxSize: 104857600,
+      },
+      { name: "created", type: "autodate", onCreate: true },
+      { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
+    ],
+  });
+  app.save(files);
 }, (app) => {
   // 回滚逻辑：先删子表，再删父表，最后删除 users 字段
+  app.delete(app.findCollectionByNameOrId("files"));
   app.delete(app.findCollectionByNameOrId("edges"));
   app.delete(app.findCollectionByNameOrId("nodes"));
   app.delete(app.findCollectionByNameOrId("views"));
@@ -186,10 +219,10 @@ migrate((app) => {
   app.delete(app.findCollectionByNameOrId("node_semantics"));
 
   // 移除 users 表的 nickname 字段
+  // 注意：PB 0.40 的 FieldsList 只有 removeById/removeByName，没有 remove()。
+  // 早先的 `fields.remove(field)` 会抛 "Object has no member 'remove'"，导致整条
+  // 回滚（含上面的集合删除）一起失败。removeByName 在字段不存在时是 no-op。
   const usersCollection = app.findCollectionByNameOrId("users");
-  const nicknameField = usersCollection.fields.find(f => f.name === "nickname");
-  if (nicknameField) {
-    usersCollection.fields.remove(nicknameField);
-    app.save(usersCollection);
-  }
+  usersCollection.fields.removeByName("nickname");
+  app.save(usersCollection);
 });

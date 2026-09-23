@@ -2,6 +2,7 @@
 
 import type { PdfNodeData } from "@workspace/interfaces";
 import { FileType } from "lucide-react";
+import { resolveFileUrl } from "@workspace/api-client";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -10,12 +11,13 @@ function formatSize(bytes: number) {
 }
 
 export function PdfPreview({ node }: { node: PdfNodeData }) {
+  const pageCount = node.pageCount ?? 0;
   return (
     <div className="space-y-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
         {node.content?.coverUrl ? (
           <img
-            src={node.content.coverUrl}
+            src={resolveFileUrl(node.content.coverUrl)}
             alt={node.title}
             className="size-full object-cover"
           />
@@ -27,8 +29,8 @@ export function PdfPreview({ node }: { node: PdfNodeData }) {
         )}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{node.pageCount} pages</span>
-        <span>{formatSize(node.fileSize)}</span>
+        {pageCount > 0 && <span>{pageCount} pages</span>}
+        <span className="ml-auto">{formatSize(node.fileSize)}</span>
       </div>
     </div>
   );

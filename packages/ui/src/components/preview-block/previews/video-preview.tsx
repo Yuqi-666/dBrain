@@ -3,6 +3,7 @@
 import type { VideoNodeData } from "@workspace/interfaces";
 import { Video } from "lucide-react";
 import { useState } from "react";
+import { resolveFileUrl } from "@workspace/api-client";
 
 // 格式化时长：秒 → mm:ss
 function formatDuration(seconds: number): string {
@@ -37,7 +38,7 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
           <>
             {node.content?.coverUrl ? (
               <img
-                src={node.content.coverUrl}
+                src={resolveFileUrl(node.content.coverUrl)}
                 alt={node.title}
                 className="size-full object-cover"
               />
@@ -59,7 +60,7 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
         {/* 2. 鼠标移入后显示：视频自动播放 */}
         {isPlaying && node.content?.url && (
           <video
-            src={node.content.url}
+            src={resolveFileUrl(node.content.url)}
             autoPlay
             muted // 必须静音才能自动播放（浏览器规则）
             loop // 循环播放（更像预览效果）

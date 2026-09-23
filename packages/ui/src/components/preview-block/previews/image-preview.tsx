@@ -2,6 +2,7 @@
 
 import type { ImageNodeData } from "@workspace/interfaces";
 import { Image } from "lucide-react";
+import { resolveFileUrl } from "@workspace/api-client";
 
 export function ImagePreview({ node }: { node: ImageNodeData }) {
   const formatSize = (bytes: number) => {
@@ -15,7 +16,7 @@ export function ImagePreview({ node }: { node: ImageNodeData }) {
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
         {node.content?.url ? (
           <img
-            src={node.content.url}
+            src={resolveFileUrl(node.content.url)}
             alt={node.title}
             className="size-full object-cover"
           />

@@ -1,13 +1,15 @@
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import { resolveFileUrl } from "@workspace/api-client";
 
-const FILE_BASE_URL = "http://localhost:3001";
-
+/**
+ * Resolves an attachment `src` to an absolute URL.
+ *
+ * Uploads now land in PocketBase's `files` collection, so the base origin comes
+ * from the shared PocketBase client (`resolveFileUrl`) instead of a hard-coded
+ * `localhost:3001`.
+ */
 export function getFileUrl(src: string): string {
-  if (!src) return "";
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    return src;
-  }
-  return `${FILE_BASE_URL}${src.startsWith("/") ? "" : "/"}${src}`;
+  return resolveFileUrl(src);
 }
 
 export async function loadExcalidrawData(src: string): Promise<any> {
@@ -16,6 +18,12 @@ export async function loadExcalidrawData(src: string): Promise<any> {
     credentials: "include",
     cache: "no-store",
   });
+
+  if (!request.ok) {
+    throw new Error(
+      `Failed to load Excalidraw diagram (${request.status} ${request.statusText})`,
+    );
+  }
 
   const { loadFromBlob } = await import("@excalidraw/excalidraw");
   return loadFromBlob(await request.blob(), null, null);
@@ -32,9 +40,7 @@ export async function getExcalidrawInitialData(
   return { elements: data.elements, files: data.files };
 }
 
-export async function exportToExcalidrawJSON(
-  api: ExcalidrawImperativeAPI,
-): Promise<{ elements: any[]; files: any }> {
+export async function exportToExcalidrawJSON(api: ExcalidrawImperativeAPI) {
   return {
     elements: api.getSceneElements(),
     files: api.getFiles(),

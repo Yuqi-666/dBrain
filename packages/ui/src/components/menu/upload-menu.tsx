@@ -20,6 +20,11 @@ interface UploadMenuProps {
   onClose: () => void;
   accept?: string;
   onFilesSelected: (files: File[]) => void;
+  /**
+   * Called when a menu-initiated action fails (clipboard denied, CORS-blocked
+   * URL fetch, ...) so the host can surface it too.
+   */
+  onError?: (error: Error) => void;
 }
 
 const MenuItemButton = ({
@@ -47,9 +52,12 @@ export function UploadMenu({
   onClose,
   accept,
   onFilesSelected,
+  onError,
 }: UploadMenuProps) {
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -57,6 +65,22 @@ export function UploadMenu({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Auto-dismiss the inline error banner.
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  const reportError = useCallback(
+    (message: string, cause?: unknown) => {
+      if (cause) console.error(message, cause);
+      setError(message);
+      onError?.(cause instanceof Error ? cause : new Error(message));
+    },
+    [onError],
+  );
 
   const closeMenu = useCallback(() => {
     onClose();
@@ -82,58 +106,96 @@ export function UploadMenu({
 
   const handlePasteUpload = async () => {
     closeMenu();
+    setError(null);
+
+    if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
+      reportError("当前浏览器不支持读取剪贴板，请改用「本地上传」");
+      return;
+    }
+
     try {
       const clipboardItems = await navigator.clipboard.read();
       let imageBlob: Blob | null = null;
 
       for (const item of clipboardItems) {
-        if (item.types.includes("image/png")) {
-          imageBlob = await item.getType("image/png");
-          break;
-        } else if (item.types.includes("image/jpeg")) {
-          imageBlob = await item.getType("image/jpeg");
+        const type = item.types.find(
+          (candidate) =>
+            candidate === "image/png" || candidate === "image/jpeg",
+        );
+        if (type) {
+          imageBlob = await item.getType(type);
           break;
         }
       }
 
       if (!imageBlob) {
-        console.error("No image found in clipboard");
+        reportError("剪贴板中没有图片");
         return;
       }
 
-      const file = new File([imageBlob], `pasted-image-${Date.now()}.png`, {
-        type: imageBlob.type,
-      });
+      const extension = imageBlob.type === "image/jpeg" ? "jpg" : "png";
+      const file = new File(
+        [imageBlob],
+        `pasted-image-${Date.now()}.${extension}`,
+        { type: imageBlob.type },
+      );
 
       onFilesSelected([file]);
-    } catch (error) {
-      console.error("Paste upload failed:", error);
+    } catch (cause) {
+      reportError("粘贴图片失败（剪贴板权限被拒绝？）", cause);
     }
   };
 
   const handleUrlConfirm = async () => {
-    if (!urlInput.trim()) return;
+    const url = urlInput.trim();
+    if (!url) return;
+
+    setError(null);
+    setUrlLoading(true);
 
     try {
-      const response = await fetch(urlInput.trim());
+      let response: Response;
+      try {
+        response = await fetch(url, { mode: "cors" });
+      } catch (cause) {
+        reportError("无法访问该 URL（可能是跨域限制或网络问题）", cause);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.statusText}`);
+        reportError(`下载失败：${response.status} ${response.statusText}`);
+        return;
       }
 
       const blob = await response.blob();
-      const filename = urlInput.split("/").pop() || "url-file";
+      if (blob.size === 0) {
+        reportError("下载到的文件为空");
+        return;
+      }
+
+      const rawName = url.split("/").pop()?.split("?")[0] ?? "";
+      let filename = "url-file";
+      try {
+        filename = decodeURIComponent(rawName) || filename;
+      } catch {
+        filename = rawName || filename;
+      }
+
       const file = new File([blob], filename, { type: blob.type });
 
       onFilesSelected([file]);
       setUrlInput("");
       setUrlDialogOpen(false);
-    } catch (error) {
-      console.error("URL upload failed:", error);
+    } catch (cause) {
+      reportError("URL 上传失败", cause);
+    } finally {
+      setUrlLoading(false);
     }
   };
 
   const handleUrlCancel = () => {
     setUrlInput("");
+    setError(null);
     setUrlDialogOpen(false);
   };
 
@@ -202,6 +264,7 @@ export function UploadMenu({
               type="url"
               placeholder="https://example.com/file.pdf"
               value={urlInput}
+              disabled={urlLoading}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -211,15 +274,33 @@ export function UploadMenu({
                 }
               }}
             />
+            {error && (
+              <p className="mt-2 text-xs text-destructive">{error}</p>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleUrlCancel}>
+            <Button
+              variant="outline"
+              onClick={handleUrlCancel}
+              disabled={urlLoading}
+            >
               取消
             </Button>
-            <Button onClick={handleUrlConfirm}>确认</Button>
+            <Button onClick={handleUrlConfirm} disabled={urlLoading}>
+              {urlLoading ? "下载中…" : "确认"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {error && !urlDialogOpen &&
+        mounted &&
+        createPortal(
+          <div className="fixed left-1/2 top-4 z-[10000] w-[min(24rem,90vw)] -translate-x-1/2 rounded-md border border-destructive/40 bg-popover px-3 py-2 text-xs text-destructive shadow-lg">
+            {error}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

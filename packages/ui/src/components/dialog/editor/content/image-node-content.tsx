@@ -5,6 +5,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { FileDropZone } from "./file-drop-zone";
 import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
 import type { ImageNodeData } from "@workspace/interfaces";
+import { resolveFileUrl } from "@workspace/api-client";
 
 interface ImageNodeContentProps {
   node: ImageNodeData;
@@ -12,7 +13,7 @@ interface ImageNodeContentProps {
 }
 
 export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
-  const url = node.content?.url;
+  const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
 
   const [mediaLoading, setMediaLoading] = useState(hasUrl);

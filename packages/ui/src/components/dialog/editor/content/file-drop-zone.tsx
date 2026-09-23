@@ -7,18 +7,21 @@ import {
   ImageIcon,
   FileTextIcon,
   GlobeIcon,
+  X,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
-import { X } from "lucide-react";
 import { useFileUpload, uploadFile } from "@workspace/api-client";
 import { NodeService } from "@workspace/services";
+import type { NodeData } from "@workspace/interfaces";
+
+type Variant = "audio" | "video" | "image" | "pdf" | "webpage";
 
 interface FileDropZoneProps {
   nodeId: string;
   accept: string;
-  variant: "audio" | "video" | "image" | "pdf" | "webpage";
+  variant: Variant;
   onUploadStart?: () => void;
   onUploadError?: (error: Error) => void;
   className?: string;
@@ -52,65 +55,186 @@ const VARIANT_CONFIG = {
   },
 } as const;
 
-async function generateCover(
-  file: File | undefined,
-  variant: "pdf" | "video"
-): Promise<string> {
-  if (!file) return "";
+/** Metadata read off the picked file, plus an optional generated cover blob. */
+interface FilePreview {
+  coverFile?: File;
+  duration?: number;
+  width?: number;
+  height?: number;
+}
 
-  if (variant === "video") {
-    try {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.muted = true;
-      const url = URL.createObjectURL(file);
-      video.src = url;
-
-      const coverUrl = await new Promise<string>((resolve, reject) => {
-        video.onloadedmetadata = () => {
-          video.currentTime = 0.1;
-        };
-        video.onseeked = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            URL.revokeObjectURL(url);
-            reject(new Error("Canvas context unavailable"));
-            return;
-          }
-          ctx.drawImage(video, 0, 0);
-          canvas.toBlob(
-            (blob) => {
-              URL.revokeObjectURL(url);
-              if (!blob) {
-                reject(new Error("Blob creation failed"));
-                return;
-              }
-              const coverFile = new File([blob], `cover-${Date.now()}.png`, {
-                type: "image/png",
-              });
-              uploadFile(coverFile, () => { }, new AbortController().signal)
-                .then((url) => resolve(url))
-                .catch(() => reject(new Error("Cover upload failed")));
-            },
-            "image/png",
-            0.9
-          );
-        };
-        video.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error("Video load failed"));
-        };
-      });
-      return coverUrl;
-    } catch {
-      return "";
-    }
+/** Creates an object URL for `file`, runs `use`, and always revokes it again. */
+async function withObjectUrl<T>(
+  file: File,
+  use: (url: string) => Promise<T>,
+): Promise<T> {
+  const url = URL.createObjectURL(file);
+  try {
+    return await use(url);
+  } finally {
+    URL.revokeObjectURL(url);
   }
+}
 
-  return "";
+/** Grabs a frame ~0.1s in (frame 0 is often black) and returns it as a PNG. */
+function createVideoPreview(file: File): Promise<FilePreview> {
+  return withObjectUrl(
+    file,
+    (url) =>
+      new Promise<FilePreview>((resolve, reject) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.src = url;
+
+        const fail = () => reject(new Error("Video load failed"));
+
+        video.onloadedmetadata = () => {
+          const duration = video.duration;
+          video.currentTime =
+            Number.isFinite(duration) && duration > 0
+              ? Math.min(0.1, duration / 2)
+              : 0;
+        };
+
+        video.onseeked = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              reject(new Error("Canvas context unavailable"));
+              return;
+            }
+            ctx.drawImage(video, 0, 0);
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error("Blob creation failed"));
+                  return;
+                }
+                resolve({
+                  coverFile: new File([blob], `cover-${Date.now()}.png`, {
+                    type: "image/png",
+                  }),
+                  duration: Number.isFinite(video.duration) ? video.duration : 0,
+                  width: video.videoWidth,
+                  height: video.videoHeight,
+                });
+              },
+              "image/png",
+              0.9,
+            );
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        video.onerror = fail;
+      }),
+  );
+}
+
+function readImageSize(file: File): Promise<FilePreview> {
+  return withObjectUrl(
+    file,
+    (url) =>
+      new Promise<FilePreview>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () =>
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => reject(new Error("Image load failed"));
+        img.src = url;
+      }),
+  );
+}
+
+function readAudioDuration(file: File): Promise<FilePreview> {
+  return withObjectUrl(
+    file,
+    (url) =>
+      new Promise<FilePreview>((resolve, reject) => {
+        const audio = document.createElement("audio");
+        audio.preload = "metadata";
+        audio.src = url;
+        audio.onloadedmetadata = () =>
+          resolve({
+            duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+          });
+        audio.onerror = () => reject(new Error("Audio load failed"));
+      }),
+  );
+}
+
+/**
+ * Best-effort metadata extraction. Never rejects: a missing preview only means
+ * the node falls back to its placeholder rendering.
+ */
+async function generatePreview(
+  file: File,
+  variant: Variant,
+): Promise<FilePreview> {
+  try {
+    switch (variant) {
+      case "video":
+        return await createVideoPreview(file);
+      case "audio":
+        return await readAudioDuration(file);
+      case "image":
+      case "webpage":
+        return await readImageSize(file);
+      case "pdf":
+        // Rendering a PDF first page needs a PDF engine (pdfjs-dist), which this
+        // workspace does not ship. `PdfPreview` falls back to a file icon, and
+        // `pageCount` stays unknown.
+        return {};
+    }
+  } catch (error) {
+    console.warn(`[FileDropZone] preview generation failed (${variant})`, error);
+    return {};
+  }
+}
+
+/** Maps the stored file onto the node fields the matching node type expects. */
+function buildNodeUpdates(
+  variant: Variant,
+  url: string,
+  file: File,
+  preview: FilePreview,
+  coverUrl = "",
+): Partial<NodeData> {
+  switch (variant) {
+    case "image":
+      return {
+        content: { url },
+        fileSize: file.size,
+        width: preview.width ?? 0,
+        height: preview.height ?? 0,
+      };
+    case "video":
+      return {
+        content: { url, coverUrl },
+        fileSize: file.size,
+        duration: preview.duration ?? 0,
+        source: "local",
+      };
+    case "audio":
+      return {
+        content: { url },
+        fileSize: file.size,
+        duration: preview.duration ?? 0,
+      };
+    case "pdf":
+      return {
+        content: { url, coverUrl },
+        fileSize: file.size,
+      };
+    case "webpage":
+      // `screenshotUrl` is what WebpageNodeContent renders; `url` keeps the
+      // stored file address for symmetry with the other variants.
+      return { content: { html: "", url, screenshotUrl: url } };
+  }
 }
 
 export function FileDropZone({
@@ -127,25 +251,44 @@ export function FileDropZone({
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
 
-  const { fileItems, uploadFiles, removeFileItem } =
-    useFileUpload({
-      maxSize: 100 * 1024 * 1024,
-      limit: 1,
-      accept: accept,
-      upload: uploadFile,
-      onSuccess: async (url: string) => {
+  const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
+    maxSize: 100 * 1024 * 1024,
+    limit: 1,
+    accept: accept,
+    upload: uploadFile,
+    // `file` comes straight from the uploader — reading `fileItems[0]` here
+    // would see the pre-upload state and silently skip cover generation.
+    onSuccess: async (url: string, file: File) => {
+      try {
+        const preview = await generatePreview(file, variant);
+
         let coverUrl = "";
-        if (variant === "pdf" || variant === "video") {
-          coverUrl = await generateCover(fileItems[0]?.file, variant);
+        if (preview.coverFile) {
+          try {
+            coverUrl = await uploadFile(
+              preview.coverFile,
+              () => {},
+              new AbortController().signal,
+            );
+          } catch (error) {
+            console.warn("[FileDropZone] cover upload failed", error);
+          }
         }
-        await NodeService.upsert(nodeId, {
-          content: { url, coverUrl },
-        });
-      },
-      onError: (error) => {
-        onUploadError?.(error);
-      },
-    });
+
+        await NodeService.upsert(
+          nodeId,
+          buildNodeUpdates(variant, url, file, preview, coverUrl),
+        );
+      } catch (error) {
+        onUploadError?.(
+          error instanceof Error ? error : new Error("Upload failed"),
+        );
+      }
+    },
+    onError: (error) => {
+      onUploadError?.(error);
+    },
+  });
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -182,6 +325,7 @@ export function FileDropZone({
           onClose={() => setMenuOpen(false)}
           accept={accept}
           onFilesSelected={handleFilesSelected}
+          onError={onUploadError}
         />
       </>
     );
@@ -208,7 +352,7 @@ export function FileDropZone({
           </div>
           <Progress value={item.progress} />
           <span className="text-xs text-muted-foreground">
-            {item.progress}%
+            {item.status === "error" ? "上传失败" : `${item.progress}%`}
           </span>
         </div>
       ))}
