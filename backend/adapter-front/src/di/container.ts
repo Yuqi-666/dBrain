@@ -27,6 +27,8 @@ import {
   createNodeSemanticDao,
   createEdgeSemanticDao,
   createNodeTagDao,
+  createDocumentAnalyzer,
+  createFileStore,
   createWorkspaceRepository,
   createWorkspaceMemberRepository,
 } from "@workspace/adapter-back/factory";
@@ -41,6 +43,7 @@ import {
   SemanticQueryService,
   WorkspaceCommandService,
   WorkspaceQueryService,
+  FileCommandService,
 } from "@workspace/application";
 import type { IWorkspaceMemberRepository } from "@workspace/domain";
 import { initializeEventBridge } from "./event-bridge";
@@ -69,6 +72,8 @@ export class AppContainer {
   readonly viewCommandService: ViewCommandService;
   readonly semanticCommandService: SemanticCommandService;
   readonly workspaceCommandService: WorkspaceCommandService;
+  /** Server-side file analysis (PDF parsing, cover rendering). */
+  readonly fileCommandService: FileCommandService;
 
   // Application Query Services (require repository only)
   readonly nodeQueryService: NodeQueryService;
@@ -101,6 +106,11 @@ export class AppContainer {
       this.edgeSemanticDao,
       this.nodeTagDao,
       this.eventBus,
+    );
+
+    this.fileCommandService = new FileCommandService(
+      createDocumentAnalyzer(),
+      createFileStore(),
     );
 
     this.nodeQueryService = new NodeQueryService(this.nodeDao);

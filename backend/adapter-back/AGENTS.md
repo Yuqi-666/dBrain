@@ -23,7 +23,7 @@ src/
 
 ## DEPENDENCIES
 
-- **@workspace/domain** — imports repository interfaces
+- **@workspace/domain** — imports repository interfaces and the document-analysis ports (`IDocumentAnalyzer`, `IFileStore`)
 - **@workspace/infrastructure** — imports repository implementations
 
 ## COMMANDS
@@ -59,6 +59,8 @@ const { nodeRepository, edgeRepository, viewRepository, nodeDao, edgeDao, viewDa
 | `createNodeSemanticRepository()` | `INodeSemanticRepository` | Singleton |
 | `createEdgeSemanticRepository()` | `IEdgeSemanticRepository` | Singleton |
 | `createNodeTagRepository()` | `INodeTagRepository` | Singleton |
+| `createDocumentAnalyzer()` | `IDocumentAnalyzer` | Singleton (`PdfDocumentAnalyzer`) |
+| `createFileStore()` | `IFileStore` | Singleton (`PocketBaseFileStore`) |
 | `createNodeDao()` | `NodeDao` | New instance |
 | `createEdgeDao()` | `EdgeDao` | New instance |
 | `createViewDao()` | `ViewDao` | New instance |

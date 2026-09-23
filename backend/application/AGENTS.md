@@ -22,9 +22,12 @@ src/
 │   ├── view/
 │   │   ├── command.ts      # CreateViewCommand, UpdateViewCommand, DeleteViewCommand
 │   │   └── view-command.service.ts
-│   └── semantic/
+│   ├── semantic/
 │       ├── command.ts      # Commands for NodeSemantic, EdgeSemantic, NodeTag
 │       └── semantic-command.service.ts
+│   └── file/
+│       ├── command.ts      # AnalyzePdfCommand + AnalyzedPdfDTO
+│       └── file-command.service.ts  # fetch blob → parse → store cover (via ports)
 ├── queries/            # Read operations
 │   ├── node/
 │   ├── edge/
@@ -47,6 +50,7 @@ src/
 | Edge CUD                 | commands/edge/        | Self-loop validation in Edge.create()           |
 | View CUD                 | commands/view/        | VisualConfig factory methods                    |
 | Semantic CUD             | commands/semantic/    | NodeSemantic, EdgeSemantic, NodeTag             |
+| Uploaded-file analysis   | commands/file/        | `analyzePdf`: fetch blob → parse → store cover  |
 | Node reads               | queries/node/         | Paginated list, getByIds, getPinned             |
 | Edge reads               | queries/edge/         | findByNodeId, findByEndpoints                  |
 | View reads               | queries/view/         | findByNodeId for filtered views                 |

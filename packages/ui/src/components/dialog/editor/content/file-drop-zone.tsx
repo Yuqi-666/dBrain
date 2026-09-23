@@ -12,11 +12,18 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
-import { useFileUpload, uploadFile } from "@workspace/api-client";
+import { useFileUpload, uploadFile, analyzePdf } from "@workspace/api-client";
 import { NodeService } from "@workspace/services";
 import type { NodeData } from "@workspace/interfaces";
 
 type Variant = "audio" | "video" | "image" | "pdf" | "webpage";
+
+/**
+ * Variants whose metadata is read in the browser. PDFs are excluded: their
+ * parameters and their cover are produced by the backend (`file.analyzePdf`),
+ * which is the only side that can parse and rasterize a PDF.
+ */
+type LocalVariant = Exclude<Variant, "pdf">;
 
 interface FileDropZoneProps {
   nodeId: string;
@@ -173,7 +180,7 @@ function readAudioDuration(file: File): Promise<FilePreview> {
  */
 async function generatePreview(
   file: File,
-  variant: Variant,
+  variant: LocalVariant,
 ): Promise<FilePreview> {
   try {
     switch (variant) {
@@ -184,11 +191,6 @@ async function generatePreview(
       case "image":
       case "webpage":
         return await readImageSize(file);
-      case "pdf":
-        // Rendering a PDF first page needs a PDF engine (pdfjs-dist), which this
-        // workspace does not ship. `PdfPreview` falls back to a file icon, and
-        // `pageCount` stays unknown.
-        return {};
     }
   } catch (error) {
     console.warn(`[FileDropZone] preview generation failed (${variant})`, error);
@@ -198,7 +200,7 @@ async function generatePreview(
 
 /** Maps the stored file onto the node fields the matching node type expects. */
 function buildNodeUpdates(
-  variant: Variant,
+  variant: LocalVariant,
   url: string,
   file: File,
   preview: FilePreview,
@@ -225,16 +227,45 @@ function buildNodeUpdates(
         fileSize: file.size,
         duration: preview.duration ?? 0,
       };
-    case "pdf":
-      return {
-        content: { url, coverUrl },
-        fileSize: file.size,
-      };
     case "webpage":
       // `screenshotUrl` is what WebpageNodeContent renders; `url` keeps the
       // stored file address for symmetry with the other variants.
       return { content: { html: "", url, screenshotUrl: url } };
   }
+}
+
+/**
+ * Patches a freshly uploaded PDF onto its node using the parameters the backend
+ * parsed out of it.
+ *
+ * Best-effort on purpose: the blob is already stored, so a document the backend
+ * cannot parse (password protected, corrupt) must still leave the node pointing
+ * at its file — it just keeps `pageCount: 0` and no cover, which is what the
+ * node renders before any metadata arrives.
+ */
+async function applyPdfAnalysis(
+  nodeId: string,
+  url: string,
+  file: File,
+): Promise<void> {
+  let coverUrl = "";
+  let pageCount = 0;
+  let fileSize = file.size;
+
+  try {
+    const analysis = await analyzePdf(url);
+    coverUrl = analysis.coverUrl;
+    pageCount = analysis.pageCount;
+    fileSize = analysis.fileSize;
+  } catch (error) {
+    console.warn("[FileDropZone] PDF analysis failed", error);
+  }
+
+  await NodeService.upsert(nodeId, {
+    content: { url, coverUrl },
+    fileSize,
+    pageCount,
+  });
 }
 
 export function FileDropZone({
@@ -260,6 +291,14 @@ export function FileDropZone({
     // would see the pre-upload state and silently skip cover generation.
     onSuccess: async (url: string, file: File) => {
       try {
+        if (variant === "pdf") {
+          // Parsing happens on the server: it takes a PDF parser and a
+          // rasterizer, neither of which belongs in the client bundle. The
+          // blob is already stored, so only its address is sent over.
+          await applyPdfAnalysis(nodeId, url, file);
+          return;
+        }
+
         const preview = await generatePreview(file, variant);
 
         let coverUrl = "";

@@ -30,6 +30,10 @@ src/
 │   └── pocketbase-node-tag.repository.ts
 ├── event-bus/
 │   └── in-memory-event-bus.ts  # IEventBus implementation
+├── parsers/                 # IDocumentAnalyzer implementations
+│   └── pdf-document-analyzer.ts  # pdfjs-dist + @napi-rs/canvas, Node-side
+├── storage/                 # IFileStore implementations
+│   └── pocketbase-file-store.ts  # blob download/upload against `files`
 └── index.ts                # Barrel exports
 ```
 
@@ -37,6 +41,8 @@ src/
 
 - **@workspace/domain** — imports repository interfaces, entities, value objects
 - **pocketbase** — database SDK (npm package)
+- **pdfjs-dist** + **@napi-rs/canvas** — PDF parsing and page rasterization, both
+  loaded lazily by `parsers/pdf-document-analyzer.ts` and never touched at boot
 
 ## COMMANDS
 
@@ -66,6 +72,8 @@ pb.collection('nodes').getOne(id);
 - `node_semantics` — node semantic classifications
 - `edge_semantics` — edge semantic classifications
 - `node_tags` — node tags
+- `files` — uploaded blobs (original documents + generated PDF covers), public rules,
+  field `file` (required, maxSelect 1, maxSize 100 MB)
 
 ## CONVENTIONS
 

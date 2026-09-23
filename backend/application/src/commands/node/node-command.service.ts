@@ -320,6 +320,8 @@ export class NodeCommandService {
       updatedNode = updatedNode.updateNodeStateData(cmd.stateData);
     }
 
+    updatedNode = this.updateNodeFileMeta(updatedNode, cmd);
+
     const savedNode = await this.nodeRepository.save(updatedNode);
 
     const event: NodeUpdated = {
@@ -338,6 +340,27 @@ export class NodeCommandService {
     this.eventBus.publish(event);
 
     return toNodeDTO(savedNode);
+  }
+
+  /**
+   * File metadata belongs to a single media node type each, so hand the command
+   * to every candidate and let the node decide — same shape as
+   * `updateNodeContent`.
+   */
+  private updateNodeFileMeta(node: Node, cmd: UpdateNodeCommand): Node {
+    if (node instanceof ImageNode) {
+      return node.updateFileMeta(cmd);
+    }
+    if (node instanceof PdfNode) {
+      return node.updateFileMeta(cmd);
+    }
+    if (node instanceof VideoNode) {
+      return node.updateFileMeta(cmd);
+    }
+    if (node instanceof AudioNode) {
+      return node.updateFileMeta(cmd);
+    }
+    return node;
   }
 
   private updateNodeContent(node: Node, content: any): Node {

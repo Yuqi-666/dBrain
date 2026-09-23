@@ -182,6 +182,21 @@ export interface UpdateNodeCommand {
   isPinned?: boolean;
   content?: any;
   stateData?: NodeStateData;
+  /**
+   * File metadata measured by the upload flow (dimensions, duration, page
+   * count, …). These are immutable everywhere else in the domain, so they ride
+   * along with the update that carries the uploaded url — see
+   * `ImageNode.updateFileMeta`. Each media node picks the subset it owns.
+   */
+  fileSize?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  pageCount?: number;
+  source?: "local" | "online";
+  sourceUrl?: string;
+  location?: string;
+  shootingTime?: string;
   userId: string;
   sourceId?: string;
   workspaceId?: string;

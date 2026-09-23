@@ -73,6 +73,7 @@ Each entity router exposes:
 | `view.ts` | add, update, delete | list, getById, getPinned | onAdded, onUpdated, onDeleted |
 | `node-semantic.ts` | add, update, delete | list, getById, sync | onAdded, onUpdated, onDeleted |
 | `edge-semantic.ts` | add, update, delete | list, getById, sync | onAdded, onUpdated, onDeleted |
+| `file.ts` | analyzePdf | — | — |
 
 ## EVENT FLOW
 
@@ -118,6 +119,9 @@ container.nodeQueryService
 container.edgeQueryService
 container.viewQueryService
 container.semanticQueryService
+
+// File analysis (server-side PDF parsing + cover storage)
+container.fileCommandService
 ```
 
 ## DEVELOPMENT
@@ -127,7 +131,10 @@ cd backend/adapter-front && pnpm typecheck  # Type check
 cd backend/adapter-front && pnpm lint       # Lint
 ```
 
-Note: Path alias `@workspace/domain` not configured in this package — type errors from other packages (adapter-back, application, infrastructure) are pre-existing monorepo issues, not adapter-front errors.
+Note: `@workspace/domain`, `@workspace/adapter-back`, `@workspace/application` and
+`@workspace/infrastructure` **are** aliased in this package's `tsconfig.json`;
+`pnpm typecheck` here reports 0 errors. (Historically the alias was missing and
+type errors from the other backend packages leaked in — that is no longer the case.)
 
 ## WS SERVER
 

@@ -15,6 +15,8 @@ import {
   PocketBaseUserRepository,
   PocketBaseWorkspaceRepository,
   PocketBaseWorkspaceMemberRepository,
+  PdfDocumentAnalyzer,
+  PocketBaseFileStore,
 } from "@workspace/infrastructure";
 
 import type {
@@ -27,7 +29,9 @@ import type {
   IUserRepository,
   IWorkspaceRepository,
   IWorkspaceMemberRepository,
-} from "@workspace/domain/repositories";
+  IDocumentAnalyzer,
+  IFileStore,
+} from "@workspace/domain";
 
 import { NodeDao, EdgeDao, ViewDao, UserDao, NodeSemanticDao, EdgeSemanticDao, NodeTagDao } from "./dao";
 
@@ -135,6 +139,23 @@ export const createNodeTagDao = (): NodeTagDao => {
   return new NodeTagDao(createNodeTagRepository());
 };
 
+let documentAnalyzer: IDocumentAnalyzer | null = null;
+let fileStore: IFileStore | null = null;
+
+export const createDocumentAnalyzer = (): IDocumentAnalyzer => {
+  if (!documentAnalyzer) {
+    documentAnalyzer = new PdfDocumentAnalyzer();
+  }
+  return documentAnalyzer;
+};
+
+export const createFileStore = (): IFileStore => {
+  if (!fileStore) {
+    fileStore = new PocketBaseFileStore(getPocketBaseClient());
+  }
+  return fileStore;
+};
+
 export const createAll = () => ({
   nodeRepository: createNodeRepository(),
   edgeRepository: createEdgeRepository(),
@@ -151,6 +172,8 @@ export const createAll = () => ({
   nodeSemanticDao: createNodeSemanticDao(),
   edgeSemanticDao: createEdgeSemanticDao(),
   nodeTagDao: createNodeTagDao(),
+  documentAnalyzer: createDocumentAnalyzer(),
+  fileStore: createFileStore(),
 });
 
 export { createPocketBaseClient, getPocketBaseClient } from "@workspace/infrastructure";

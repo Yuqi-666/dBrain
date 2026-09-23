@@ -15,6 +15,8 @@ export * from "./queries/view/query";
 export * from "./queries/view/view-query.service";
 export * from "./queries/semantic/query";
 export * from "./queries/semantic/semantic-query.service";
+export * from "./commands/file/command";
+export * from "./commands/file/file-command.service";
 export * from "./commands/workspace/command";
 export * from "./commands/workspace/workspace-command.service";
 export * from "./queries/workspace/query";

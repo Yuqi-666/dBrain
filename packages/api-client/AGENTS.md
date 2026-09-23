@@ -16,6 +16,7 @@ This package provides the typed tRPC client for frontend applications to communi
 | React Provider | `./src/trpc/provider.tsx`      | TRPCProvider + QueryClientProvider |
 | Graph hooks    | `./src/trpc/hooks/useGraph.ts` | Mutation + subscription hooks      |
 | Subscriptions  | `./src/trpc/subscriptions.ts`  | useGraphSubscriptions              |
+| File analysis  | `./src/file-analysis.ts`       | `analyzePdf(url)` → server-side PDF parsing + cover |
 
 ## ARCHITECTURE
 

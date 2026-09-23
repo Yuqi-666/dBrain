@@ -119,6 +119,23 @@ const addSchema = z.discriminatedUnion("nodeType", [
   }),
 ]);
 
+/**
+ * File metadata patched onto an already-created node by the upload flow. Zod
+ * strips keys it does not know, so every field the client actually writes has
+ * to be declared here or it is silently dropped before reaching the service.
+ */
+const fileMetaSchema = {
+  fileSize: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  duration: z.number().optional(),
+  pageCount: z.number().optional(),
+  source: z.enum(["local", "online"]).optional(),
+  sourceUrl: z.string().optional(),
+  location: z.string().optional(),
+  shootingTime: z.string().optional(),
+};
+
 const updateSchema = z.object({
   id: z.string(),
   updates: z.object({
@@ -131,6 +148,7 @@ const updateSchema = z.object({
     content: z.any().optional(),
     stateData: z.any().optional(),
     workspaceId: z.string().optional(),
+    ...fileMetaSchema,
   }),
 });
 
@@ -162,6 +180,15 @@ export const nodeRouter = router({
         content: input.updates.content,
         stateData: input.updates.stateData,
         workspaceId: input.updates.workspaceId,
+        fileSize: input.updates.fileSize,
+        width: input.updates.width,
+        height: input.updates.height,
+        duration: input.updates.duration,
+        pageCount: input.updates.pageCount,
+        source: input.updates.source,
+        sourceUrl: input.updates.sourceUrl,
+        location: input.updates.location,
+        shootingTime: input.updates.shootingTime,
         userId: ctx.userId,
         sourceId: ctx.sourceId,
       });

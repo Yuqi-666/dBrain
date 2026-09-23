@@ -8,6 +8,7 @@ import { nodeTagRouter } from "./node-tag";
 import { eventRouter } from "./event";
 import { authRouter } from "./auth";
 import { workspaceRouter } from "./workspace";
+import { fileRouter } from "./file";
 
 export const appRouter = router({
   auth: authRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   nodeTag: nodeTagRouter,
   event: eventRouter,
   workspace: workspaceRouter,
+  file: fileRouter,
 });
 
 export type AppRouter = typeof appRouter;

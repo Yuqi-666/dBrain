@@ -12,6 +12,10 @@ export {
 // Event bus
 export * from "./event-bus/in-memory-event-bus";
 
+// Parsers / storage adapters (implement the domain ports)
+export * from "./parsers/pdf-document-analyzer";
+export * from "./storage/pocketbase-file-store";
+
 // Mappers
 export * from "./database/mappers/node.mapper";
 export * from "./database/mappers/edge.mapper";

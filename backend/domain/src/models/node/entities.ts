@@ -378,6 +378,49 @@ export class ImageNode extends Node {
     });
   }
 
+  /**
+   * Replaces the metadata measured on the uploaded file. The upload flow patches
+   * an already-created node, so these values arrive after `create()`. Returns
+   * `this` when the patch carries nothing this node understands.
+   */
+  updateFileMeta(meta: {
+    width?: number;
+    height?: number;
+    fileSize?: number;
+    location?: string;
+    shootingTime?: string;
+  }): ImageNode {
+    if (
+      meta.width === undefined &&
+      meta.height === undefined &&
+      meta.fileSize === undefined &&
+      meta.location === undefined &&
+      meta.shootingTime === undefined
+    ) {
+      return this;
+    }
+
+    return new ImageNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      width: meta.width ?? this._width,
+      height: meta.height ?? this._height,
+      fileSize: meta.fileSize ?? this._fileSize,
+      location: meta.location ?? this._location,
+      shootingTime: meta.shootingTime ?? this._shootingTime,
+      content: this._content,
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
   protected cloneWith(props: Partial<NodeBaseProps>): ImageNode {
     return new ImageNode({
       id: props.id ?? this._id,
@@ -484,6 +527,30 @@ export class PdfNode extends Node {
       pageCount: this._pageCount,
       fileSize: this._fileSize,
       content,
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
+  /** See `ImageNode.updateFileMeta`. */
+  updateFileMeta(meta: { pageCount?: number; fileSize?: number }): PdfNode {
+    if (meta.pageCount === undefined && meta.fileSize === undefined) {
+      return this;
+    }
+
+    return new PdfNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      pageCount: meta.pageCount ?? this._pageCount,
+      fileSize: meta.fileSize ?? this._fileSize,
+      content: this._content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
       workspaceId: this._workspaceId,
@@ -640,6 +707,48 @@ export class VideoNode extends Node {
     });
   }
 
+  /** See `ImageNode.updateFileMeta`. */
+  updateFileMeta(meta: {
+    duration?: number;
+    source?: "local" | "online";
+    sourceUrl?: string;
+    fileSize?: number;
+    location?: string;
+    shootingTime?: string;
+  }): VideoNode {
+    if (
+      meta.duration === undefined &&
+      meta.source === undefined &&
+      meta.sourceUrl === undefined &&
+      meta.fileSize === undefined &&
+      meta.location === undefined &&
+      meta.shootingTime === undefined
+    ) {
+      return this;
+    }
+
+    return new VideoNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      duration: meta.duration ?? this._duration,
+      source: meta.source ?? this._source,
+      sourceUrl: meta.sourceUrl ?? this._sourceUrl,
+      fileSize: meta.fileSize ?? this._fileSize,
+      location: meta.location ?? this._location,
+      shootingTime: meta.shootingTime ?? this._shootingTime,
+      content: this._content,
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
   protected cloneWith(props: Partial<NodeBaseProps>): VideoNode {
     return new VideoNode({
       id: props.id ?? this._id,
@@ -747,6 +856,30 @@ export class AudioNode extends Node {
       duration: this._duration,
       fileSize: this._fileSize,
       content,
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
+  /** See `ImageNode.updateFileMeta`. */
+  updateFileMeta(meta: { duration?: number; fileSize?: number }): AudioNode {
+    if (meta.duration === undefined && meta.fileSize === undefined) {
+      return this;
+    }
+
+    return new AudioNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      duration: meta.duration ?? this._duration,
+      fileSize: meta.fileSize ?? this._fileSize,
+      content: this._content,
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
       workspaceId: this._workspaceId,
