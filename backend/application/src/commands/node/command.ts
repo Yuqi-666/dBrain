@@ -1,4 +1,8 @@
-import type { FilterConfig, NodeStateData } from "@workspace/interfaces";
+import type {
+  FilterConfig,
+  NodeStateData,
+  WebpageContent,
+} from "@workspace/interfaces";
 
 export interface CreateTextNodeCommand {
   nodeType: "text";
@@ -105,7 +109,7 @@ export interface CreateWebpageNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
-  content: { html: string; url: string; screenshotUrl?: string };
+  content: WebpageContent;
   userId: string;
   sourceId?: string;
   workspaceId?: string;

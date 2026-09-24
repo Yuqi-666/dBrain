@@ -50,9 +50,8 @@ export interface DemoNodeSeed {
   // audio
   audioUrl?: string;
   // webpage
-  webpageHtml?: string;
-  webpageUrl?: string;
-  screenshotUrl?: string;
+  webpageCode?: string;
+  webpageLanguage?: string;
 }
 
 export const DEMO_NODE_SEMANTICS: NodeSemantic[] = [
@@ -302,18 +301,19 @@ export const DEMO_NODES: DemoNodeSeed[] = [
     pageCount: 32,
   },
   {
+    // A screenshot is an image now that a webpage node only holds source, so
+    // the sample that used to be one is seeded as a real image node.
     id: "demo-node-tech-article",
-    nodeType: "webpage",
+    nodeType: "image",
     title: "Technical Article",
     abstract: "",
     permission: "public",
     semanticId: "demo-sem-component",
     isPinned: false,
     stateData: { client: {}, server: { weight: 8 } },
-    webpageHtml:
-      "<html><body><h1>Captured Webpage</h1><p>Technical article about system architecture</p></body></html>",
-    webpageUrl: "https://arxiv.org/html/2604.14020v1",
-    screenshotUrl: "https://picsum.photos/1024/768",
+    imageUrl: "https://picsum.photos/1024/768",
+    width: 1024,
+    height: 768,
   },
   {
     id: "demo-node-project-docs",
@@ -324,24 +324,22 @@ export const DEMO_NODES: DemoNodeSeed[] = [
     semanticId: "demo-sem-component",
     isPinned: false,
     stateData: { client: {}, server: { weight: 8 } },
-    webpageHtml:
-      "<html><body><h1>Documentation Page</h1><p>API reference and usage guide</p></body></html>",
-    webpageUrl: "https://arxiv.org/html/2604.14020v1",
-    screenshotUrl: "https://picsum.photos/1024/768",
+    webpageLanguage: "html",
+    webpageCode:
+      '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>API Reference</title>\n  </head>\n  <body>\n    <h1>Documentation Page</h1>\n    <p>API reference and usage guide.</p>\n  </body>\n</html>',
   },
   {
+    // Likewise a live address belongs to a website node, which is where the
+    // url-mode sample moved when webpage stopped holding one.
     id: "demo-node-interactive-tut",
-    nodeType: "webpage",
+    nodeType: "website",
     title: "Interactive Tutorial",
     abstract: "",
     permission: "public",
     semanticId: "demo-sem-component",
     isPinned: false,
     stateData: { client: {}, server: { weight: 8 } },
-    webpageHtml:
-      "<html><body><h1>Tutorial</h1><p>Step-by-step guide for beginners</p></body></html>",
-    webpageUrl: "https://arxiv.org/html/2604.14020v1",
-    screenshotUrl: "https://picsum.photos/1024/768",
+    webUrl: "https://arxiv.org/html/2604.14020v1",
   },
   {
     id: "demo-node-bilibili",

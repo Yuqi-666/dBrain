@@ -73,7 +73,8 @@ function nodePayload(seed: DemoNodeSeed, workspaceId: string): Record<string, un
     case "pdf":
       return { ...base, nodeType: "pdf" as const, pageCount: seed.pageCount ?? 1, fileSize: 0, content: { url: seed.pdfUrl ?? "", coverUrl: seed.coverUrl ?? "" } };
     case "webpage":
-      return { ...base, nodeType: "webpage" as const, content: { html: seed.webpageHtml ?? "", url: seed.webpageUrl ?? "", screenshotUrl: seed.screenshotUrl } };
+      // A webpage node holds source and nothing else.
+      return { ...base, nodeType: "webpage" as const, content: { code: seed.webpageCode ?? "", language: seed.webpageLanguage ?? "html" } };
     case "video":
       return { ...base, nodeType: "video" as const, duration: seed.duration ?? 0, source: seed.source ?? "online", fileSize: 0, content: { url: seed.videoUrl ?? "", coverUrl: seed.coverUrl ?? "" } };
     case "audio":

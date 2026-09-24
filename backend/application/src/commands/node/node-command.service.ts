@@ -64,7 +64,14 @@ function toNodeDTO(node: Node): NodeDTO {
       return { ...base, nodeType: "audio" as const, duration: audNode.duration, fileSize: audNode.fileSize, content: { url: audNode.content.url } };
     case "webpage":
       const webNode = node as WebpageNode;
-      return { ...base, nodeType: "webpage" as const, content: { html: webNode.content.html, url: webNode.content.url, screenshotUrl: webNode.content.screenshotUrl } };
+      return {
+        ...base,
+        nodeType: "webpage" as const,
+        content: {
+          code: webNode.content.code,
+          language: webNode.content.language,
+        },
+      };
     case "website":
       const siteNode = node as WebsiteNode;
       return { ...base, nodeType: "website" as const, content: { url: siteNode.content.url, faviconUrl: siteNode.content.faviconUrl } };
@@ -202,11 +209,7 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
-          content: new WebpageContent(
-            cmd.content.html,
-            cmd.content.url,
-            cmd.content.screenshotUrl,
-          ),
+          content: new WebpageContent(cmd.content),
           workspaceId: cmd.workspaceId,
         });
         break;
@@ -379,8 +382,15 @@ export class NodeCommandService {
     if (node instanceof AudioNode && content.url !== undefined) {
       return node.updateContent(new AudioContent(content.url));
     }
-    if (node instanceof WebpageNode && content.html !== undefined && content.url !== undefined) {
-      return node.updateContent(new WebpageContent(content.html, content.url, content.screenshotUrl));
+    if (node instanceof WebpageNode) {
+      // The editor always writes source and language together; a partial patch
+      // keeps the stored half so a language switch cannot blank the source.
+      return node.updateContent(
+        new WebpageContent({
+          code: content.code ?? node.content.code,
+          language: content.language ?? node.content.language,
+        }),
+      );
     }
     if (node instanceof WebsiteNode && content.url !== undefined) {
       return node.updateContent(new WebsiteContent(content.url, content.faviconUrl));

@@ -26,7 +26,7 @@ export type { ImageNodeData } from "./single/image";
 export type { PdfNodeData } from "./single/pdf";
 export type { VideoNodeData, VideoSource } from "./single/video";
 export type { AudioNodeData } from "./single/audio";
-export type { WebpageNodeData } from "./single/webpage";
+export type { WebpageNodeData, WebpageContent } from "./single/webpage";
 export type { WebsiteNodeData } from "./single/website";
 
 export type { CollectionNodeData } from "./complex/collection";

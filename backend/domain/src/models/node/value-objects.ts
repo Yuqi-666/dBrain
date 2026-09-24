@@ -4,6 +4,7 @@ import type {
 import type {
   NodeDataType,
 } from "@workspace/interfaces/models/node/types";
+import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import { FilterConfig } from "../filter/value-objects";
 
 /**
@@ -236,37 +237,31 @@ export class AudioContent {
 }
 
 /**
- * Webpage node content.
+ * Webpage node content: the page source and the language it is written in.
+ *
+ * Source is the only representation a webpage node holds — a live address
+ * belongs to a `website` node, and a screenshot is just an uploaded `image`,
+ * so there is no mode to discriminate on any more.
  */
 export class WebpageContent {
-  private readonly _html: string;
-  private readonly _url: string;
-  private readonly _screenshotUrl?: string;
+  private readonly _code: string;
+  private readonly _language: string;
 
-  constructor(html: string, url: string, screenshotUrl?: string) {
-    this._html = html;
-    this._url = url;
-    this._screenshotUrl = screenshotUrl;
+  constructor(data: WebpageContentData) {
+    this._code = data.code;
+    this._language = data.language;
   }
 
-  get html(): string {
-    return this._html;
+  get code(): string {
+    return this._code;
   }
 
-  get url(): string {
-    return this._url;
-  }
-
-  get screenshotUrl(): string | undefined {
-    return this._screenshotUrl;
+  get language(): string {
+    return this._language;
   }
 
   equals(other: WebpageContent): boolean {
-    return (
-      this._html === other._html &&
-      this._url === other._url &&
-      this._screenshotUrl === other._screenshotUrl
-    );
+    return this._code === other._code && this._language === other._language;
   }
 }
 

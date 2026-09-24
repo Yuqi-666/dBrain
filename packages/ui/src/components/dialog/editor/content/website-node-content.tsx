@@ -1,152 +1,151 @@
 "use client";
 
-import { useState } from "react";
-import { cn } from "@workspace/ui/lib/utils";
-import { GlobeIcon } from "lucide-react";
-import { NodeService } from "@workspace/services";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@workspace/ui/components/ui/dialog";
-import { Input } from "@workspace/ui/components/ui/input";
-import { Button } from "@workspace/ui/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
+import { ExternalLink, Globe } from "lucide-react";
 import type { WebsiteNodeData } from "@workspace/interfaces";
+import { NodeService } from "@workspace/services";
+import { cn } from "@workspace/ui/lib/utils";
+import { Button } from "@workspace/ui/components/ui/button";
+import { Input } from "@workspace/ui/components/ui/input";
+import { EmptyHint } from "./empty-hint";
+
+const HTTPS_PATTERN = /^https?:\/\//i;
+/** A bare host such as `example.com/path` — schemeless but clearly a page. */
+const BARE_HOST_PATTERN = /^[\w-]+(\.[\w-]+)+([/?#].*)?$/;
 
 /**
- * Props for the WebsiteNodeContent component
- * Renders a website preview card with editable URL
+ * Absolute address to embed, or `""` when the input is not an embeddable page.
+ *
+ * Only `http(s)` survives: `javascript:` and friends must never reach an
+ * iframe `src`. A schemeless host is upgraded to `https://` so typing
+ * `example.com` still previews.
  */
+function toEmbeddableUrl(raw: string): string {
+  const value = raw.trim();
+  if (!value) return "";
+  if (HTTPS_PATTERN.test(value)) return value;
+  if (BARE_HOST_PATTERN.test(value)) return `https://${value}`;
+  return "";
+}
+
+/**
+ * Favicon address for `url`, resolved from its host through Google's favicon
+ * service — the same source the preview card and the sidebar show. `undefined`
+ * when the address has no host to ask about.
+ */
+function faviconUrlFor(url: string): string | undefined {
+  try {
+    const { hostname } = new URL(url);
+    if (!hostname) return undefined;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+  } catch {
+    return undefined;
+  }
+}
+
 interface WebsiteNodeContentProps {
   node: WebsiteNodeData;
   className?: string;
 }
 
 /**
- * WebsiteNodeContent - Simplified website card display with URL editing
- * Allows inline editing of URL and automatically fetches favicon using Google Favicon API
+ * Node content editor for `website` nodes.
+ *
+ * A website node is its address, so this editor is the address: type one and
+ * the page is embedded below in a sandboxed iframe, with a link out for the
+ * many sites that refuse to be framed. The favicon is derived from the host on
+ * every commit, so the preview card and the attributes sidebar stay in sync.
  */
 export function WebsiteNodeContent({
   node,
   className,
 }: WebsiteNodeContentProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [urlInput, setUrlInput] = useState(node.content.url || "");
+  // Local draft so the iframe is not re-navigated on every keystroke.
+  const [draft, setDraft] = useState(node.content.url);
+  const [committed, setCommitted] = useState(node.content.url);
 
-  const handleUrlSubmit = async () => {
-    if (!urlInput.trim()) return;
+  // Adopt addresses that changed outside this input: another client, or the
+  // attributes sidebar, which edits the very same field.
+  useEffect(() => {
+    if (node.content.url === committed) return;
+    setCommitted(node.content.url);
+    setDraft(node.content.url);
+  }, [node.content.url, committed]);
 
-    let processedUrl = urlInput.trim();
-    // Add protocol if missing
-    if (
-      !processedUrl.startsWith("http://") &&
-      !processedUrl.startsWith("https://")
-    ) {
-      processedUrl = `https://${processedUrl}`;
-    }
+  const commit = useCallback(
+    (value: string) => {
+      const raw = value.trim();
+      // Store an absolute address so the preview card's link and the embedded
+      // frame both resolve; an unembeddable input is kept exactly as typed.
+      const url = toEmbeddableUrl(raw) || raw;
+      setCommitted(url);
+      setDraft(url);
+      // The store is updated immediately either way; only the mutation is
+      // debounced, so a burst of typing does not fire one request per pause.
+      void NodeService.upsert(
+        node.id,
+        { content: { url, faviconUrl: faviconUrlFor(url) } },
+        { debounce: true },
+      );
+    },
+    [node.id],
+  );
 
-    // Extract hostname from URL
-    let hostname: string;
-    try {
-      hostname = new URL(processedUrl).hostname;
-    } catch {
-      // Invalid URL, still save it but don't generate favicon
-      await NodeService.upsert(node.id, {
-        content: {
-          ...node.content,
-          url: processedUrl,
-        },
-      });
-      setIsEditing(false);
-      return;
-    }
+  // Auto-commit once typing pauses, so the preview follows along.
+  useEffect(() => {
+    if (draft === committed) return;
+    const timer = setTimeout(() => commit(draft), 800);
+    return () => clearTimeout(timer);
+  }, [draft, committed, commit]);
 
-    // Generate favicon URL using Google Favicon API
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-
-    await NodeService.upsert(node.id, {
-      content: {
-        ...node.content,
-        url: processedUrl,
-        faviconUrl,
-      },
-    });
-
-    setIsEditing(false);
-  };
-
-  const handleOpenEdit = () => {
-    setUrlInput(node.content.url || "");
-    setIsEditing(true);
-  };
+  const previewUrl = toEmbeddableUrl(node.content.url);
 
   return (
-    <div className={cn("flex items-start p-4 w-full h-full", className)}>
-      {/* Website Card */}
-      <div className="w-full space-y-2">
-        <p className="text-xs text-muted-foreground">网站概览</p>
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-start gap-4">
-            {node.content.faviconUrl ? (
-              <img
-                src={node.content.faviconUrl}
-                alt=""
-                className="w-12 h-12 rounded-lg object-contain bg-white border"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                <GlobeIcon className="size-6 text-muted-foreground" />
-              </div>
-            )}
-            <div className="flex-1 space-y-1">
-              <p className="font-medium">{node.title || "网站标题"}</p>
-              <div
-                className="cursor-pointer hover:bg-muted/50 transition-colors rounded p-2 -m-2"
-                onClick={handleOpenEdit}
-              >
-                <p className="text-xs text-muted-foreground truncate">
-                  {node.content.url || "点击输入网站地址"}
-                </p>
-              </div>
-            </div>
-          </div>
-          {(node.tags?.length || 0) > 0 && (
-            <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t">
-              {node.tags?.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full bg-muted text-xs"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className={cn("flex h-full min-h-[380px] flex-col gap-3", className)}>
+      <div className="flex items-center gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(draft);
+          }}
+          placeholder="https://example.com/article"
+          className="h-8 text-xs"
+        />
+        {previewUrl && (
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0 gap-1 px-2 text-xs"
+          >
+            <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3.5" />
+              打开
+            </a>
+          </Button>
+        )}
       </div>
 
-      {/* Edit URL Dialog */}
-      <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>输入网站地址</DialogTitle>
-          </DialogHeader>
-          <Input
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="https://example.com"
-            autoFocus
+      <div className="h-[60vh] max-h-[560px] min-h-[300px] overflow-hidden rounded-lg border bg-white">
+        {previewUrl ? (
+          <iframe
+            key={previewUrl}
+            title={node.title || "网站预览"}
+            src={previewUrl}
+            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+            className="size-full border-0"
           />
-          <DialogFooter>
-            <Button onClick={handleUrlSubmit}>确认</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        ) : (
+          <EmptyHint
+            icon={Globe}
+            title="输入网址后在此嵌入预览"
+            description="部分站点禁止被嵌入，预览空白时可点「打开」在新标签页查看。"
+          />
+        )}
+      </div>
     </div>
   );
 }

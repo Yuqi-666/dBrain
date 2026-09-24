@@ -215,13 +215,11 @@ function MetadataTabContent({
 
   const handleContentUrlChange = (field: string, value: string) => {
     if (!node.content) return;
-    void NodeService.upsert(
-      nodeId,
-      {
-        content: { ...node.content, [field]: value },
-      },
-      { debounce: true },
-    );
+    // `node.content` is a union over every node type, so spreading it with a
+    // dynamic key widens past what `Partial<NodeData>` accepts on its own.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content = { ...node.content, [field]: value } as any;
+    void NodeService.upsert(nodeId, { content }, { debounce: true });
   };
 
   const handleCollectionTypeChange = (value: string) => {
@@ -243,7 +241,8 @@ function MetadataTabContent({
     );
   };
 
-  // Helper to get content url based on node type
+  // Helper to get content url based on node type. A webpage node holds source
+  // only, so it has no address field at all.
   const getContentUrl = () => {
     if (!node.content) return "";
     switch (node.nodeType) {
@@ -252,8 +251,6 @@ function MetadataTabContent({
       case "image":
       case "pdf":
         return (node.content as { url?: string }).url || "";
-      case "webpage":
-        return (node.content as { screenshotUrl?: string }).screenshotUrl || "";
       case "website":
         return (node.content as { url?: string }).url || "";
       default:
@@ -267,9 +264,6 @@ function MetadataTabContent({
       case "audio":
       case "image":
       case "pdf":
-        return "url";
-      case "webpage":
-        return "screenshotUrl";
       case "website":
         return "url";
       default:
@@ -282,7 +276,6 @@ function MetadataTabContent({
     node.nodeType === "audio" ||
     node.nodeType === "image" ||
     node.nodeType === "pdf" ||
-    node.nodeType === "webpage" ||
     node.nodeType === "website";
 
   const showFaviconUrl = node.nodeType === "website";
@@ -396,7 +389,11 @@ function MetadataTabContent({
             onChange={(e) =>
               handleContentUrlChange(getContentUrlField(), e.target.value)
             }
-            placeholder="输入内容URL..."
+            placeholder={
+              node.nodeType === "website"
+                ? "输入网站地址..."
+                : "输入内容URL..."
+            }
             className="h-8 text-xs"
           />
         </div>

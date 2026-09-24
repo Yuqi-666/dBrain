@@ -19,6 +19,18 @@ interface UploadMenuProps {
   open: boolean;
   onClose: () => void;
   accept?: string;
+  /**
+   * Whether the host node is an image, i.e. whether a pasted image is a valid
+   * upload for it. The paste entry is an image-only source, so the caller
+   * states this explicitly instead of `accept` being sniffed for `image/*`.
+   */
+  allowPasteImage?: boolean;
+  /**
+   * Copy for the URL entry, so a host can say what kind of file it expects
+   * (a media file, an `.html` source file, ...).
+   */
+  urlDialogTitle?: string;
+  urlDialogPlaceholder?: string;
   onFilesSelected: (files: File[]) => void;
   /**
    * Called when a menu-initiated action fails (clipboard denied, CORS-blocked
@@ -51,6 +63,9 @@ export function UploadMenu({
   open,
   onClose,
   accept,
+  allowPasteImage = false,
+  urlDialogTitle = "输入文件URL",
+  urlDialogPlaceholder = "https://example.com/file.pdf",
   onFilesSelected,
   onError,
 }: UploadMenuProps) {
@@ -238,9 +253,11 @@ export function UploadMenu({
             <MenuItemButton onClick={handleLocalUpload}>
               本地上传
             </MenuItemButton>
-            <MenuItemButton onClick={handlePasteUpload}>
-              粘贴图片
-            </MenuItemButton>
+            {allowPasteImage && (
+              <MenuItemButton onClick={handlePasteUpload}>
+                粘贴图片
+              </MenuItemButton>
+            )}
             <MenuItemButton
               onClick={() => {
                 closeMenu();
@@ -257,12 +274,12 @@ export function UploadMenu({
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>输入文件URL</DialogTitle>
+            <DialogTitle>{urlDialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <Input
               type="url"
-              placeholder="https://example.com/file.pdf"
+              placeholder={urlDialogPlaceholder}
               value={urlInput}
               disabled={urlLoading}
               onChange={(e) => setUrlInput(e.target.value)}

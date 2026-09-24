@@ -33,6 +33,7 @@ styles/
 | Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)      |
 | Header variants   | components/header/        | Graph and editor header bars                |
 | Preview blocks    | components/preview-block/ | Node content renderers                      |
+| Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source |
 | Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes         |
 
 ## CONVENTIONS

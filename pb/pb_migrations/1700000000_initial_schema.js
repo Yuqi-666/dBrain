@@ -146,6 +146,10 @@ migrate((app) => {
       { name: "sourceUrl", type: "url" },
       { name: "url", type: "url" },
       { name: "screenshotUrl", type: "text" },
+      // 网页节点只保存源码这一种表现形式：content 列存放源码（HTML 或任意
+      // 代码），codeLanguage 是它高亮所用的语言。节点不再有初始化模式，地址
+      // 归 website 节点，截图归 image 节点，所以没有 webpageMode 列。
+      { name: "codeLanguage", type: "text" },
       { name: "faviconUrl", type: "text" },
       { name: "filterConfig", type: "json" },
       { name: "referencedNodes", type: "json" },

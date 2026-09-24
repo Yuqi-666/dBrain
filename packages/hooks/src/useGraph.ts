@@ -133,10 +133,12 @@ export function useGraph() {
           break;
         }
         case "webpage": {
+          // A webpage node holds source only, so a fresh one opens straight in
+          // the editor with nothing to initialize first.
           const webpageNode: WebpageNodeData = {
             ...baseNode,
             nodeType: "webpage",
-            content: { html: "", url: "" },
+            content: { code: "", language: "html" },
           };
           newNode = webpageNode;
           break;

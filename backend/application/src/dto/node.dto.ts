@@ -1,5 +1,6 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+import type { WebpageContent } from "@workspace/interfaces/models/node/nodes/single/webpage";
 
 export interface BaseNodeDTO {
   id: string;
@@ -57,7 +58,7 @@ export interface AudioNodeDTO extends BaseNodeDTO {
 
 export interface WebpageNodeDTO extends BaseNodeDTO {
   nodeType: "webpage";
-  content: { html: string; url: string; screenshotUrl?: string };
+  content: WebpageContent;
 }
 
 export interface WebsiteNodeDTO extends BaseNodeDTO {

@@ -50,7 +50,11 @@ function toNodeDTO(node: Node): NodeDTO {
     }
     case 'webpage': {
       const n = node as import('@workspace/domain').WebpageNode;
-      return { ...base, nodeType: 'webpage', content: { html: n.content.html, url: n.content.url, screenshotUrl: n.content.screenshotUrl } };
+      return {
+        ...base,
+        nodeType: 'webpage',
+        content: { code: n.content.code, language: n.content.language },
+      };
     }
     case 'website': {
       const n = node as import('@workspace/domain').WebsiteNode;

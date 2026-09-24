@@ -6,30 +6,45 @@ import {
   VideoIcon,
   ImageIcon,
   FileTextIcon,
-  GlobeIcon,
+  FileCode2Icon,
   X,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
-import { useFileUpload, uploadFile, analyzePdf } from "@workspace/api-client";
+import {
+  matchesAccept,
+  useFileUpload,
+  uploadFile,
+  analyzePdf,
+} from "@workspace/api-client";
+import { languageFromFilename } from "@workspace/ui/components/code-editor/code-editor";
 import { NodeService } from "@workspace/services";
 import type { NodeData } from "@workspace/interfaces";
 
-type Variant = "audio" | "video" | "image" | "pdf" | "webpage";
+/** Variants that store an uploaded blob. */
+type UploadVariant = "audio" | "video" | "image" | "pdf";
+/**
+ * `webpage-source` is the odd one out: a source file is read locally into the
+ * node's `code` field instead of being uploaded as a blob, because what the
+ * editor needs is its text, not its address.
+ */
+type Variant = UploadVariant | "webpage-source";
 
 /**
  * Variants whose metadata is read in the browser. PDFs are excluded: their
  * parameters and their cover are produced by the backend (`file.analyzePdf`),
  * which is the only side that can parse and rasterize a PDF.
  */
-type LocalVariant = Exclude<Variant, "pdf">;
+type LocalVariant = Exclude<UploadVariant, "pdf">;
 
 interface FileDropZoneProps {
   nodeId: string;
   accept: string;
   variant: Variant;
   onUploadStart?: () => void;
+  /** Fired after a successful upload / source read, so hosts can react. */
+  onUploaded?: () => void;
   onUploadError?: (error: Error) => void;
   className?: string;
 }
@@ -55,12 +70,15 @@ const VARIANT_CONFIG = {
     label: "PDF",
     minHeight: "min-h-[400px]",
   },
-  webpage: {
-    icon: GlobeIcon,
-    label: "网页截图",
+  "webpage-source": {
+    icon: FileCode2Icon,
+    label: "HTML / 代码文件",
     minHeight: "min-h-[300px]",
   },
 } as const;
+
+/** Ceiling for locally read source files — past this the tab starts to stall. */
+const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
 /** Metadata read off the picked file, plus an optional generated cover blob. */
 interface FilePreview {
@@ -189,7 +207,6 @@ async function generatePreview(
       case "audio":
         return await readAudioDuration(file);
       case "image":
-      case "webpage":
         return await readImageSize(file);
     }
   } catch (error) {
@@ -227,10 +244,6 @@ function buildNodeUpdates(
         fileSize: file.size,
         duration: preview.duration ?? 0,
       };
-    case "webpage":
-      // `screenshotUrl` is what WebpageNodeContent renders; `url` keeps the
-      // stored file address for symmetry with the other variants.
-      return { content: { html: "", url, screenshotUrl: url } };
   }
 }
 
@@ -268,14 +281,19 @@ async function applyPdfAnalysis(
   });
 }
 
-export function FileDropZone({
+/**
+ * Picks a file and uploads it to PocketBase. Used by every media variant, all
+ * of which store the blob they uploaded.
+ */
+function UploadDropZone({
   nodeId,
   accept,
   variant,
   onUploadStart,
+  onUploaded,
   onUploadError,
   className,
-}: FileDropZoneProps) {
+}: FileDropZoneProps & { variant: UploadVariant }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -296,6 +314,7 @@ export function FileDropZone({
           // rasterizer, neither of which belongs in the client bundle. The
           // blob is already stored, so only its address is sent over.
           await applyPdfAnalysis(nodeId, url, file);
+          onUploaded?.();
           return;
         }
 
@@ -318,6 +337,7 @@ export function FileDropZone({
           nodeId,
           buildNodeUpdates(variant, url, file, preview, coverUrl),
         );
+        onUploaded?.();
       } catch (error) {
         onUploadError?.(
           error instanceof Error ? error : new Error("Upload failed"),
@@ -363,6 +383,7 @@ export function FileDropZone({
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
           accept={accept}
+          allowPasteImage={variant === "image"}
           onFilesSelected={handleFilesSelected}
           onError={onUploadError}
         />
@@ -397,4 +418,122 @@ export function FileDropZone({
       ))}
     </div>
   );
+}
+
+/**
+ * Imports a source file by reading its text into the node's `code` field.
+ *
+ * There is no blob to store — the source *is* the content — so this skips the
+ * uploader entirely and only reuses the picker UI (and the URL entry, which
+ * still downloads the remote file once).
+ */
+function LocalTextDropZone({
+  nodeId,
+  accept,
+  onUploaded,
+  onUploadError,
+  className,
+}: FileDropZoneProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [reading, setReading] = useState<string | null>(null);
+
+  const config = VARIANT_CONFIG["webpage-source"];
+  const Icon = config.icon;
+
+  const handleFilesSelected = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+
+    if (!matchesAccept(file, accept)) {
+      onUploadError?.(
+        new Error(`不支持的文件类型：${file.name}（期望 ${accept}）`),
+      );
+      return;
+    }
+    if (file.size > MAX_SOURCE_BYTES) {
+      onUploadError?.(
+        new Error(`源码文件超过 ${MAX_SOURCE_BYTES / 1024 / 1024}MB，无法载入编辑器`),
+      );
+      return;
+    }
+
+    setReading(file.name);
+    try {
+      const code = await file.text();
+      if (!code.trim()) throw new Error("文件内容为空");
+
+      await NodeService.upsert(nodeId, {
+        content: {
+          code,
+          language: languageFromFilename(file.name),
+        },
+      });
+      onUploaded?.();
+    } catch (error) {
+      onUploadError?.(error instanceof Error ? error : new Error("读取文件失败"));
+    } finally {
+      setReading(null);
+    }
+  };
+
+  if (reading) {
+    return (
+      <div
+        className={cn(
+          "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg",
+          config.minHeight,
+          className,
+        )}
+      >
+        <Icon className="size-10 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">正在读取 {reading}…</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setMenuPosition({ x: e.clientX, y: e.clientY });
+          setMenuOpen(true);
+        }}
+        className={cn(
+          "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+          config.minHeight,
+          className,
+        )}
+      >
+        <Icon className="size-12 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          点击导入{config.label}
+        </span>
+        <span className="text-xs text-muted-foreground/70">
+          上传 .html 或代码文件，内容会载入源码编辑器
+        </span>
+      </div>
+
+      <UploadMenu
+        position={menuPosition}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        accept={accept}
+        urlDialogTitle="输入源码文件 URL"
+        urlDialogPlaceholder="https://example.com/index.html"
+        onFilesSelected={handleFilesSelected}
+        onError={onUploadError}
+      />
+    </>
+  );
+}
+
+export function FileDropZone(props: FileDropZoneProps) {
+  if (props.variant === "webpage-source") {
+    return <LocalTextDropZone {...props} />;
+  }
+
+  return <UploadDropZone {...props} variant={props.variant} />;
 }

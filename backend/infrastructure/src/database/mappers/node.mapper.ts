@@ -1,6 +1,7 @@
 import type { RecordModel } from "pocketbase";
 
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 
 import {
   NodeId,
@@ -87,9 +88,9 @@ interface AudioNodeRecord extends BaseNodeRecord {
 
 interface WebpageNodeRecord extends BaseNodeRecord {
   nodeType: "webpage";
+  /** Source text — the node's only representation. */
   content: string;
-  url: string;
-  screenshotUrl?: string;
+  codeLanguage?: string;
 }
 
 interface WebsiteNodeRecord extends BaseNodeRecord {
@@ -125,6 +126,23 @@ type ValidNodeType = (typeof VALID_NODE_TYPES)[number];
 
 function isValidNodeType(type: string): type is ValidNodeType {
   return VALID_NODE_TYPES.includes(type as ValidNodeType);
+}
+
+/**
+ * Language assumed for webpage source written before `codeLanguage` existed.
+ *
+ * The retired `webpageMode` / `url` / `screenshotUrl` columns are deliberately
+ * not read any more: `url` and `screenshot` are no longer representations of a
+ * webpage node, so a record that only held one of them maps to empty source.
+ */
+const DEFAULT_WEBPAGE_LANGUAGE = "html";
+
+/** The one representation a webpage node holds: its source and its language. */
+function resolveWebpageContent(record: WebpageNodeRecord): WebpageContentData {
+  return {
+    code: record.content || "",
+    language: record.codeLanguage || DEFAULT_WEBPAGE_LANGUAGE,
+  };
 }
 
 export class NodeMapper {
@@ -292,11 +310,7 @@ export class NodeMapper {
   }): WebpageNode {
     return WebpageNode.create({
       ...baseProps,
-      content: new WebpageContent(
-        record.content || "",
-        record.url || "",
-        record.screenshotUrl,
-      ),
+      content: new WebpageContent(resolveWebpageContent(record)),
     });
   }
 
@@ -424,11 +438,14 @@ export class NodeMapper {
     }
 
     if (node instanceof WebpageNode) {
+      // Source goes in the `content` column, where every other node type keeps
+      // its payload too. The retired `url` / `screenshotUrl` / `webpageMode`
+      // columns are left untouched rather than cleared, so a record written by
+      // an older build keeps its bytes until something else rewrites them.
       return {
         ...baseRecord,
-        content: node.content.html,
-        url: node.content.url,
-        screenshotUrl: node.content.screenshotUrl,
+        content: node.content.code,
+        codeLanguage: node.content.language,
       };
     }
 

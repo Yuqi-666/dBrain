@@ -36,11 +36,25 @@ const audioContentSchema = z.object({
   url: z.string(),
 });
 
-const webpageContentSchema = z.object({
-  html: z.string(),
-  url: z.string(),
-  screenshotUrl: z.string().optional(),
-});
+/**
+ * Webpage source — the node's only representation, so there is no mode to
+ * branch on: `code` plus the language it is highlighted as.
+ *
+ * `html` is accepted as a legacy alias for `code` so payloads built before the
+ * node stored a single `code` field still round-trip instead of being silently
+ * stripped. The retired `mode` / `url` / `screenshotUrl` keys are unknown to
+ * this schema and simply drop out.
+ */
+const webpageContentSchema = z
+  .object({
+    code: z.string().optional(),
+    language: z.string().optional(),
+    html: z.string().optional(),
+  })
+  .transform((content) => ({
+    code: content.code ?? content.html ?? "",
+    language: content.language ?? "html",
+  }));
 
 const websiteContentSchema = z.object({
   url: z.string(),
