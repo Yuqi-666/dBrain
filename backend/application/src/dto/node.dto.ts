@@ -46,7 +46,7 @@ export interface VideoNodeDTO extends BaseNodeDTO {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
-  content: { url: string; coverUrl: string };
+  content: { url: string; coverUrl: string; hlsUrl?: string };
 }
 
 export interface AudioNodeDTO extends BaseNodeDTO {

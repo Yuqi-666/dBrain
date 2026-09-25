@@ -23,7 +23,8 @@ src/
 ├── repositories/
 │   └── index.ts        # Repository interfaces (INodeRepository, IEdgeRepository, etc.)
 ├── ports/              # Non-repository ports
-│   └── document-analysis.ts  # IDocumentAnalyzer, IFileStore (+ their DTOs)
+│   ├── document-analysis.ts  # IDocumentAnalyzer, IFileStore (+ their DTOs)
+│   └── video-transcode.ts    # IVideoTranscoder (HLS packaging, + its DTOs)
 └── index.ts            # Public exports: models, repositories, ports, event-bus
 ```
 
@@ -35,7 +36,7 @@ src/
 | Entity definitions    | models/\*/entities.ts      | Business logic encapsulated              |
 | Value objects         | models/\*/value-objects.ts | Immutable types (NodeId, Permission...)  |
 | Repository interfaces | repositories/index.ts      | Ports only — impls in infrastructure/    |
-| Non-repository ports  | ports/document-analysis.ts | IDocumentAnalyzer, IFileStore            |
+| Non-repository ports  | ports/                     | IDocumentAnalyzer, IFileStore, IVideoTranscoder |
 | Event bus interfaces  | event-bus/index.ts         | IDomainEvent, IEventBus                  |
 | Public API            | src/index.ts               | Barrel export                            |
 

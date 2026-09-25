@@ -75,7 +75,7 @@ export interface CreateVideoNodeCommand {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
-  content: { url: string; coverUrl: string };
+  content: { url: string; coverUrl: string; hlsUrl?: string };
   userId: string;
   sourceId?: string;
   workspaceId?: string;

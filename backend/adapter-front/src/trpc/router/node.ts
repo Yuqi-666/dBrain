@@ -30,6 +30,9 @@ const pdfContentSchema = z.object({
 const videoContentSchema = z.object({
   url: z.string(),
   coverUrl: z.string(),
+  // Written by the upload flow once the backend has packaged the video as HLS;
+  // absent until then, and on every record created by an older build.
+  hlsUrl: z.string().optional(),
 });
 
 const audioContentSchema = z.object({

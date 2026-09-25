@@ -17,6 +17,7 @@ import {
   useFileUpload,
   uploadFile,
   analyzePdf,
+  transcodeVideo,
 } from "@workspace/api-client";
 import { languageFromFilename } from "@workspace/ui/components/code-editor/code-editor";
 import { NodeService } from "@workspace/services";
@@ -32,11 +33,11 @@ type UploadVariant = "audio" | "video" | "image" | "pdf";
 type Variant = UploadVariant | "webpage-source";
 
 /**
- * Variants whose metadata is read in the browser. PDFs are excluded: their
- * parameters and their cover are produced by the backend (`file.analyzePdf`),
- * which is the only side that can parse and rasterize a PDF.
+ * Variants whose metadata is read in the browser. PDFs and videos are excluded:
+ * both are measured by the backend, which is the only side that can parse a PDF
+ * or decode a codec the browser cannot play.
  */
-type LocalVariant = Exclude<UploadVariant, "pdf">;
+type LocalVariant = Exclude<UploadVariant, "pdf" | "video">;
 
 interface FileDropZoneProps {
   nodeId: string;
@@ -80,9 +81,8 @@ const VARIANT_CONFIG = {
 /** Ceiling for locally read source files — past this the tab starts to stall. */
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
-/** Metadata read off the picked file, plus an optional generated cover blob. */
+/** Metadata read off the picked file. */
 interface FilePreview {
-  coverFile?: File;
   duration?: number;
   width?: number;
   height?: number;
@@ -99,66 +99,6 @@ async function withObjectUrl<T>(
   } finally {
     URL.revokeObjectURL(url);
   }
-}
-
-/** Grabs a frame ~0.1s in (frame 0 is often black) and returns it as a PNG. */
-function createVideoPreview(file: File): Promise<FilePreview> {
-  return withObjectUrl(
-    file,
-    (url) =>
-      new Promise<FilePreview>((resolve, reject) => {
-        const video = document.createElement("video");
-        video.preload = "metadata";
-        video.muted = true;
-        video.src = url;
-
-        const fail = () => reject(new Error("Video load failed"));
-
-        video.onloadedmetadata = () => {
-          const duration = video.duration;
-          video.currentTime =
-            Number.isFinite(duration) && duration > 0
-              ? Math.min(0.1, duration / 2)
-              : 0;
-        };
-
-        video.onseeked = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              reject(new Error("Canvas context unavailable"));
-              return;
-            }
-            ctx.drawImage(video, 0, 0);
-            canvas.toBlob(
-              (blob) => {
-                if (!blob) {
-                  reject(new Error("Blob creation failed"));
-                  return;
-                }
-                resolve({
-                  coverFile: new File([blob], `cover-${Date.now()}.png`, {
-                    type: "image/png",
-                  }),
-                  duration: Number.isFinite(video.duration) ? video.duration : 0,
-                  width: video.videoWidth,
-                  height: video.videoHeight,
-                });
-              },
-              "image/png",
-              0.9,
-            );
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        video.onerror = fail;
-      }),
-  );
 }
 
 function readImageSize(file: File): Promise<FilePreview> {
@@ -195,6 +135,11 @@ function readAudioDuration(file: File): Promise<FilePreview> {
 /**
  * Best-effort metadata extraction. Never rejects: a missing preview only means
  * the node falls back to its placeholder rendering.
+ *
+ * Video is absent on purpose. Its cover used to be grabbed here from a canvas,
+ * which only works for a codec the browser can decode — precisely what an upload
+ * cannot be relied on to be. The backend now measures the video and renders its
+ * cover while packaging it (`FileCommandService.transcodeVideo`).
  */
 async function generatePreview(
   file: File,
@@ -202,15 +147,16 @@ async function generatePreview(
 ): Promise<FilePreview> {
   try {
     switch (variant) {
-      case "video":
-        return await createVideoPreview(file);
       case "audio":
         return await readAudioDuration(file);
       case "image":
         return await readImageSize(file);
     }
   } catch (error) {
-    console.warn(`[FileDropZone] preview generation failed (${variant})`, error);
+    console.warn(
+      `[FileDropZone] preview generation failed (${variant})`,
+      error,
+    );
     return {};
   }
 }
@@ -221,7 +167,6 @@ function buildNodeUpdates(
   url: string,
   file: File,
   preview: FilePreview,
-  coverUrl = "",
 ): Partial<NodeData> {
   switch (variant) {
     case "image":
@@ -230,13 +175,6 @@ function buildNodeUpdates(
         fileSize: file.size,
         width: preview.width ?? 0,
         height: preview.height ?? 0,
-      };
-    case "video":
-      return {
-        content: { url, coverUrl },
-        fileSize: file.size,
-        duration: preview.duration ?? 0,
-        source: "local",
       };
     case "audio":
       return {
@@ -282,6 +220,50 @@ async function applyPdfAnalysis(
 }
 
 /**
+ * Packages a freshly uploaded video as HLS and maps the result onto the node.
+ *
+ * A transcode that fails must not lose the upload: the node then simply keeps
+ * the original blob as its only representation — what every upload did before
+ * the backend packaged videos — and the player reports the codec it cannot
+ * decode instead of pretending to play it.
+ *
+ * The whole content object is written at once (rather than patched field by
+ * field) because the store merges top-level keys: a partial `content` patch
+ * would replace the object and drop the address written above it.
+ */
+async function applyVideoTranscode(
+  url: string,
+  file: File,
+): Promise<Partial<NodeData>> {
+  try {
+    const transcoded = await transcodeVideo(url);
+
+    return {
+      content: {
+        url,
+        coverUrl: transcoded.coverUrl,
+        hlsUrl: transcoded.hlsUrl,
+      },
+      fileSize: file.size,
+      duration: transcoded.duration,
+      source: "local",
+    };
+  } catch (error) {
+    console.warn(
+      "[FileDropZone] HLS packaging failed, keeping the original upload",
+      error,
+    );
+
+    return {
+      content: { url, coverUrl: "", hlsUrl: "" },
+      fileSize: file.size,
+      duration: 0,
+      source: "local",
+    };
+  }
+}
+
+/**
  * Picks a file and uploads it to PocketBase. Used by every media variant, all
  * of which store the blob they uploaded.
  */
@@ -296,6 +278,8 @@ function UploadDropZone({
 }: FileDropZoneProps & { variant: UploadVariant }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  /** Set while the backend is packaging an uploaded video as HLS. */
+  const [packaging, setPackaging] = useState(false);
 
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
@@ -306,7 +290,7 @@ function UploadDropZone({
     accept: accept,
     upload: uploadFile,
     // `file` comes straight from the uploader — reading `fileItems[0]` here
-    // would see the pre-upload state and silently skip cover generation.
+    // would see the pre-upload state and silently skip post-processing.
     onSuccess: async (url: string, file: File) => {
       try {
         if (variant === "pdf") {
@@ -318,24 +302,30 @@ function UploadDropZone({
           return;
         }
 
-        const preview = await generatePreview(file, variant);
-
-        let coverUrl = "";
-        if (preview.coverFile) {
+        if (variant === "video") {
+          // Packaging happens on the server as well, and for a stronger reason
+          // than for a PDF: the codec the file arrived in may be one this
+          // browser cannot decode at all. The node only learns it can play the
+          // video once the playlist is back, so the drop zone stays up with a
+          // "packaging" note until then.
+          setPackaging(true);
           try {
-            coverUrl = await uploadFile(
-              preview.coverFile,
-              () => {},
-              new AbortController().signal,
+            await NodeService.upsert(
+              nodeId,
+              await applyVideoTranscode(url, file),
             );
-          } catch (error) {
-            console.warn("[FileDropZone] cover upload failed", error);
+          } finally {
+            setPackaging(false);
           }
+          onUploaded?.();
+          return;
         }
+
+        const preview = await generatePreview(file, variant);
 
         await NodeService.upsert(
           nodeId,
-          buildNodeUpdates(variant, url, file, preview, coverUrl),
+          buildNodeUpdates(variant, url, file, preview),
         );
         onUploaded?.();
       } catch (error) {
@@ -369,7 +359,7 @@ function UploadDropZone({
           className={cn(
             "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
             config.minHeight,
-            className
+            className,
           )}
         >
           <Icon className="size-12 text-muted-foreground" />
@@ -395,7 +385,7 @@ function UploadDropZone({
     <div
       className={cn(
         "w-full h-full flex flex-col items-center justify-center gap-4",
-        className
+        className,
       )}
     >
       {fileItems.map((item) => (
@@ -410,9 +400,13 @@ function UploadDropZone({
               <X className="size-4" />
             </button>
           </div>
-          <Progress value={item.progress} />
+          <Progress value={packaging ? 100 : item.progress} />
           <span className="text-xs text-muted-foreground">
-            {item.status === "error" ? "上传失败" : `${item.progress}%`}
+            {item.status === "error"
+              ? "上传失败"
+              : packaging
+                ? "正在转码为 HLS…"
+                : `${item.progress}%`}
           </span>
         </div>
       ))}
@@ -453,7 +447,9 @@ function LocalTextDropZone({
     }
     if (file.size > MAX_SOURCE_BYTES) {
       onUploadError?.(
-        new Error(`源码文件超过 ${MAX_SOURCE_BYTES / 1024 / 1024}MB，无法载入编辑器`),
+        new Error(
+          `源码文件超过 ${MAX_SOURCE_BYTES / 1024 / 1024}MB，无法载入编辑器`,
+        ),
       );
       return;
     }
@@ -471,7 +467,9 @@ function LocalTextDropZone({
       });
       onUploaded?.();
     } catch (error) {
-      onUploadError?.(error instanceof Error ? error : new Error("读取文件失败"));
+      onUploadError?.(
+        error instanceof Error ? error : new Error("读取文件失败"),
+      );
     } finally {
       setReading(null);
     }
@@ -487,7 +485,9 @@ function LocalTextDropZone({
         )}
       >
         <Icon className="size-10 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">正在读取 {reading}…</span>
+        <span className="text-sm text-muted-foreground">
+          正在读取 {reading}…
+        </span>
       </div>
     );
   }

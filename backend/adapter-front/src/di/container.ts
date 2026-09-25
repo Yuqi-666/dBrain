@@ -29,6 +29,7 @@ import {
   createNodeTagDao,
   createDocumentAnalyzer,
   createFileStore,
+  createVideoTranscoder,
   createWorkspaceRepository,
   createWorkspaceMemberRepository,
 } from "@workspace/adapter-back/factory";
@@ -111,6 +112,7 @@ export class AppContainer {
     this.fileCommandService = new FileCommandService(
       createDocumentAnalyzer(),
       createFileStore(),
+      createVideoTranscoder(),
     );
 
     this.nodeQueryService = new NodeQueryService(this.nodeDao);

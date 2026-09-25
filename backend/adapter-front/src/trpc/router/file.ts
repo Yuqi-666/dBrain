@@ -7,7 +7,7 @@ import { container } from "../../di/container";
  *
  * The client uploads blobs straight to the file store (that is what gives it a
  * progress bar); these procedures then hand the backend the address of the
- * freshly uploaded blob so it can parse it server-side. No bytes travel over
+ * freshly uploaded blob so it can process it server-side. No bytes travel over
  * tRPC.
  */
 export const fileRouter = router({
@@ -21,6 +21,23 @@ export const fileRouter = router({
     .input(z.object({ fileUrl: z.string().min(1) }))
     .mutation(async ({ input }) => {
       return container().fileCommandService.analyzePdf({
+        fileUrl: input.fileUrl,
+      });
+    }),
+
+  /**
+   * Packages an uploaded video as HLS and stores the playlist, its segments and
+   * a poster frame.
+   *
+   * Returns the playlist and cover URLs plus the video's parameters; the caller
+   * patches them onto its node. A stream browsers already decode is copied, so
+   * this is quick for H.264 and only slow when the source needs re-encoding —
+   * which is exactly the case the browser cannot play on its own.
+   */
+  transcodeVideo: protectedProcedure
+    .input(z.object({ fileUrl: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      return container().fileCommandService.transcodeVideo({
         fileUrl: input.fileUrl,
       });
     }),

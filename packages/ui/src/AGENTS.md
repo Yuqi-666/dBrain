@@ -15,6 +15,7 @@ components/
 ├── ui/              # Base shadcn components (DO NOT modify)
 ├── header/          # App headers (graph-header, editor-header)
 ├── preview-block/    # Node preview renderers
+├── video-player/     # HLS-aware <VideoPlayer> (hls.js, loaded lazily)
 ├── footer/          # App footers
 └── *.tsx            # Custom components (KnowledgeGraph, etc.)
 utils/
@@ -33,6 +34,7 @@ styles/
 | Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)      |
 | Header variants   | components/header/        | Graph and editor header bars                |
 | Preview blocks    | components/preview-block/ | Node content renderers                      |
+| Video playback    | components/video-player/  | `<VideoPlayer>` — HLS via hls.js, falls back to the progressive source |
 | Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source |
 | Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes         |
 

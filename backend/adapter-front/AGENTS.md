@@ -73,7 +73,7 @@ Each entity router exposes:
 | `view.ts` | add, update, delete | list, getById, getPinned | onAdded, onUpdated, onDeleted |
 | `node-semantic.ts` | add, update, delete | list, getById, sync | onAdded, onUpdated, onDeleted |
 | `edge-semantic.ts` | add, update, delete | list, getById, sync | onAdded, onUpdated, onDeleted |
-| `file.ts` | analyzePdf | — | — |
+| `file.ts` | analyzePdf, transcodeVideo | — | — |
 
 ## EVENT FLOW
 
@@ -120,7 +120,7 @@ container.edgeQueryService
 container.viewQueryService
 container.semanticQueryService
 
-// File analysis (server-side PDF parsing + cover storage)
+// File processing (server-side PDF parsing + cover storage, video HLS packaging)
 container.fileCommandService
 ```
 

@@ -17,6 +17,7 @@ import {
   PocketBaseWorkspaceMemberRepository,
   PdfDocumentAnalyzer,
   PocketBaseFileStore,
+  FfmpegVideoTranscoder,
 } from "@workspace/infrastructure";
 
 import type {
@@ -31,6 +32,7 @@ import type {
   IWorkspaceMemberRepository,
   IDocumentAnalyzer,
   IFileStore,
+  IVideoTranscoder,
 } from "@workspace/domain";
 
 import { NodeDao, EdgeDao, ViewDao, UserDao, NodeSemanticDao, EdgeSemanticDao, NodeTagDao } from "./dao";
@@ -156,6 +158,15 @@ export const createFileStore = (): IFileStore => {
   return fileStore;
 };
 
+let videoTranscoder: IVideoTranscoder | null = null;
+
+export const createVideoTranscoder = (): IVideoTranscoder => {
+  if (!videoTranscoder) {
+    videoTranscoder = new FfmpegVideoTranscoder();
+  }
+  return videoTranscoder;
+};
+
 export const createAll = () => ({
   nodeRepository: createNodeRepository(),
   edgeRepository: createEdgeRepository(),
@@ -174,6 +185,7 @@ export const createAll = () => ({
   nodeTagDao: createNodeTagDao(),
   documentAnalyzer: createDocumentAnalyzer(),
   fileStore: createFileStore(),
+  videoTranscoder: createVideoTranscoder(),
 });
 
 export { createPocketBaseClient, getPocketBaseClient } from "@workspace/infrastructure";

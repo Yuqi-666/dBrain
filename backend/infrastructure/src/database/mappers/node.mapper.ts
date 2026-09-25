@@ -71,6 +71,8 @@ interface VideoNodeRecord extends BaseNodeRecord {
   nodeType: "video";
   content: string;
   coverUrl: string;
+  /** HLS playlist address; `""` on a record written before transcode existed. */
+  hlsUrl?: string;
   duration: number;
   source: "local" | "online";
   sourceUrl?: string;
@@ -272,7 +274,11 @@ export class NodeMapper {
       fileSize: record.fileSize,
       location: record.location,
       shootingTime: record.shootingTime,
-      content: new VideoContent(record.content || "", record.coverUrl || ""),
+      content: new VideoContent(
+        record.content || "",
+        record.coverUrl || "",
+        record.hlsUrl || "",
+      ),
     });
   }
 
@@ -419,6 +425,7 @@ export class NodeMapper {
         ...baseRecord,
         content: node.content.url,
         coverUrl: node.content.coverUrl,
+        hlsUrl: node.content.hlsUrl,
         duration: node.duration,
         source: node.source,
         sourceUrl: node.sourceUrl,

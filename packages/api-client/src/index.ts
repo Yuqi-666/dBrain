@@ -13,8 +13,8 @@ export {
   useFileUpload,
 } from "./upload";
 export type { FileItem, UploadOptions } from "./upload";
-export { analyzePdf } from "./file-analysis";
-export type { PdfAnalysis } from "./file-analysis";
+export { analyzePdf, transcodeVideo } from "./file-analysis";
+export type { PdfAnalysis, VideoTranscode } from "./file-analysis";
 export {
   createPocketbaseClient,
   getPocketbaseClient,

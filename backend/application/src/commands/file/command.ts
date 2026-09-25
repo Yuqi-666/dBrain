@@ -34,3 +34,40 @@ export interface AnalyzedPdfDTO {
   /** Document-level parameters from the PDF Info dictionary. */
   info: PdfDocumentInfo;
 }
+
+/**
+ * Asks the backend to package an already-uploaded video as HLS so a browser can
+ * play it.
+ *
+ * Needed because the codec an upload arrives in is the recording device's
+ * choice, not the browser's: a phone writing HEVC produces a node that plays its
+ * audio track with no picture. Only the address of the blob travels here — the
+ * client has already uploaded it.
+ */
+export interface TranscodeVideoCommand {
+  /**
+   * Address of the uploaded video, absolute
+   * (`http://…/api/files/files/<id>/x.mp4`) or relative
+   * (`/api/files/files/<id>/x.mp4`). Addresses outside the file store are
+   * rejected.
+   */
+  fileUrl: string;
+}
+
+/** Result of {@link TranscodeVideoCommand}. */
+export interface TranscodedVideoDTO {
+  /** URL of the stored `.m3u8` playlist. */
+  hlsUrl: string;
+  /** URL of the stored poster frame, or `""` when none could be rendered. */
+  coverUrl: string;
+  /** Duration in seconds, `0` when the container declared none. */
+  duration: number;
+  width: number;
+  height: number;
+  /** Video codec of the *source*, e.g. `hevc`. */
+  videoCodec: string;
+  /** Audio codec of the source, absent when it carried no audio. */
+  audioCodec?: string;
+  /** True when the video stream had to be re-encoded rather than copied. */
+  reencoded: boolean;
+}

@@ -26,8 +26,8 @@ src/
 │       ├── command.ts      # Commands for NodeSemantic, EdgeSemantic, NodeTag
 │       └── semantic-command.service.ts
 │   └── file/
-│       ├── command.ts      # AnalyzePdfCommand + AnalyzedPdfDTO
-│       └── file-command.service.ts  # fetch blob → parse → store cover (via ports)
+│       ├── command.ts      # AnalyzePdfCommand, TranscodeVideoCommand (+ their DTOs)
+│       └── file-command.service.ts  # fetch blob → parse / package as HLS → store
 ├── queries/            # Read operations
 │   ├── node/
 │   ├── edge/
@@ -35,6 +35,7 @@ src/
 │   └── semantic/
 ├── dto/                # Data transfer objects
 │   ├── node.dto.ts         # 9 node DTOs as discriminated union (NodeDTO type)
+│   ├── node-dto.mapper.ts  # THE Node → NodeDTO mapper, shared by commands + queries
 │   ├── edge.dto.ts         # EdgeDTO + toEdgeDTO helper
 │   ├── view.dto.ts         # ViewDTO
 │   ├── semantic.dto.ts      # NodeSemanticDTO, EdgeSemanticDTO, NodeTagDTO
@@ -50,12 +51,17 @@ src/
 | Edge CUD                 | commands/edge/        | Self-loop validation in Edge.create()           |
 | View CUD                 | commands/view/        | VisualConfig factory methods                    |
 | Semantic CUD             | commands/semantic/    | NodeSemantic, EdgeSemantic, NodeTag             |
-| Uploaded-file analysis   | commands/file/        | `analyzePdf`: fetch blob → parse → store cover  |
+| Uploaded-file processing | commands/file/        | `analyzePdf`: parse → cover; `transcodeVideo`: ffmpeg → HLS |
 | Node reads               | queries/node/         | Paginated list, getByIds, getPinned             |
 | Edge reads               | queries/edge/         | findByNodeId, findByEndpoints                  |
 | View reads               | queries/view/         | findByNodeId for filtered views                 |
 | Semantic reads           | queries/semantic/     | 12 query methods for 3 semantic types           |
 | DTOs                     | dto/*.ts              | Type-safe discriminated unions for nodes        |
+
+**Every node DTO comes from `dto/node-dto.mapper.ts`.** Commands and queries
+used to keep a copy each, and a field added to one (first `hlsUrl`) was silently
+dropped by the other on the way to the client — do not reintroduce a second
+mapper.
 
 ## KEY PATTERNS
 

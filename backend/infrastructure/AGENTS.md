@@ -34,6 +34,8 @@ src/
 │   └── pdf-document-analyzer.ts  # pdfjs-dist + @napi-rs/canvas, Node-side
 ├── storage/                 # IFileStore implementations
 │   └── pocketbase-file-store.ts  # blob download/upload against `files`
+├── transcoders/             # IVideoTranscoder implementations
+│   └── ffmpeg-video-transcoder.ts  # upload → HLS (ffmpeg/ffprobe child processes)
 └── index.ts                # Barrel exports
 ```
 
@@ -43,6 +45,10 @@ src/
 - **pocketbase** — database SDK (npm package)
 - **pdfjs-dist** + **@napi-rs/canvas** — PDF parsing and page rasterization, both
   loaded lazily by `parsers/pdf-document-analyzer.ts` and never touched at boot
+- **ffmpeg** + **ffprobe** — **system binaries**, spawned by
+  `transcoders/ffmpeg-video-transcoder.ts`; override with `FFMPEG_PATH` /
+  `FFPROBE_PATH`. A server without them fails only the video transcode (the
+  upload is kept and the player says the codec cannot be decoded)
 
 ## COMMANDS
 
@@ -72,8 +78,11 @@ pb.collection('nodes').getOne(id);
 - `node_semantics` — node semantic classifications
 - `edge_semantics` — edge semantic classifications
 - `node_tags` — node tags
-- `files` — uploaded blobs (original documents + generated PDF covers), public rules,
-  field `file` (required, maxSelect 1, maxSize 100 MB)
+- `files` — uploaded blobs (original documents, generated PDF covers, and HLS
+  playlists/segments/posters), public rules,
+  field `file` (required, maxSelect 1, maxSize 100 MB). Segments are served with
+  `Accept-Ranges` and `Access-Control-Allow-Origin: *`, which is what lets
+  hls.js read a playlist cross-origin from the web app
 
 ## CONVENTIONS
 

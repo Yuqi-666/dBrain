@@ -25,3 +25,24 @@ export type PdfAnalysis = inferRouterOutputs<AppRouter>["file"]["analyzePdf"];
 export async function analyzePdf(fileUrl: string): Promise<PdfAnalysis> {
   return trpcClient.file.analyzePdf.mutate({ fileUrl });
 }
+
+/**
+ * The HLS package the backend built from an uploaded video, plus the parameters
+ * it read off it: `{ hlsUrl, coverUrl, duration, width, height, videoCodec,
+ * audioCodec, reencoded }`.
+ */
+export type VideoTranscode =
+  inferRouterOutputs<AppRouter>["file"]["transcodeVideo"];
+
+/**
+ * Asks the backend to package the video at `fileUrl` as HLS.
+ *
+ * This is what makes an upload playable at all: a phone records HEVC, which
+ * desktop browsers cannot decode, and the packaged playlist carries a codec they
+ * can. `hlsUrl` is the playlist the node should store; the original `fileUrl`
+ * stays the fallback. Rejects when the video cannot be read by the transcoder —
+ * callers keep the plain upload in that case.
+ */
+export async function transcodeVideo(fileUrl: string): Promise<VideoTranscode> {
+  return trpcClient.file.transcodeVideo.mutate({ fileUrl });
+}

@@ -4,6 +4,7 @@ import type { VideoNodeData } from "@workspace/interfaces";
 import { Video } from "lucide-react";
 import { useState } from "react";
 import { resolveFileUrl } from "@workspace/api-client";
+import { VideoPlayer } from "@workspace/ui/components/video-player/video-player";
 
 // 格式化时长：秒 → mm:ss
 function formatDuration(seconds: number): string {
@@ -57,15 +58,17 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
           </>
         )}
 
-        {/* 2. 鼠标移入后显示：视频自动播放 */}
-        {isPlaying && node.content?.url && (
-          <video
-            src={resolveFileUrl(node.content.url)}
+        {/* 2. 鼠标移入后显示：视频自动播放（有 HLS 时播放转码后的流） */}
+        {isPlaying && (node.content?.url || node.content?.hlsUrl) && (
+          <VideoPlayer
+            src={node.content?.url}
+            hlsSrc={node.content?.hlsUrl}
+            poster={node.content?.coverUrl}
             autoPlay
             muted // 必须静音才能自动播放（浏览器规则）
             loop // 循环播放（更像预览效果）
+            controls={false}
             className="size-full object-cover"
-            playsInline
           />
         )}
 

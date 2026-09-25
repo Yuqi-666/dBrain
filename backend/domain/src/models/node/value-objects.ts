@@ -194,14 +194,21 @@ export class PdfContent {
 
 /**
  * Video node content.
+ *
+ * `hlsUrl` is the HLS playlist the backend packaged the upload into. It is
+ * optional because a video that has not been transcoded yet (or whose
+ * transcode was refused) is still a valid node: the player then falls back to
+ * `url`, which is all an existing record has.
  */
 export class VideoContent {
   private readonly _url: string;
   private readonly _coverUrl: string;
+  private readonly _hlsUrl: string;
 
-  constructor(url: string, coverUrl: string) {
+  constructor(url: string, coverUrl: string, hlsUrl = "") {
     this._url = url;
     this._coverUrl = coverUrl;
+    this._hlsUrl = hlsUrl;
   }
 
   get url(): string {
@@ -212,8 +219,16 @@ export class VideoContent {
     return this._coverUrl;
   }
 
+  get hlsUrl(): string {
+    return this._hlsUrl;
+  }
+
   equals(other: VideoContent): boolean {
-    return this._url === other._url && this._coverUrl === other._coverUrl;
+    return (
+      this._url === other._url &&
+      this._coverUrl === other._coverUrl &&
+      this._hlsUrl === other._hlsUrl
+    );
   }
 }
 

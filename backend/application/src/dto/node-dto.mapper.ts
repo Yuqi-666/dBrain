@@ -1,0 +1,150 @@
+import type { Node } from "@workspace/domain";
+import {
+  AudioNode,
+  CollectionNode,
+  ImageNode,
+  PdfNode,
+  RichTextNode,
+  TextNode,
+  VideoNode,
+  WebpageNode,
+  WebsiteNode,
+} from "@workspace/domain";
+
+import type { NodeDTO } from "./node.dto";
+
+/**
+ * Domain node → DTO mapping, shared by the command and query services.
+ *
+ * Both services hand nodes to the client, and the two used to carry their own
+ * copy of this switch. That copy is how `hlsUrl` first shipped half-wired: the
+ * write path mapped it and the read path silently dropped it, so a node was
+ * stored with a playlist the client never saw. One mapper means one place to
+ * teach about a new field.
+ */
+export function toNodeDTO(node: Node): NodeDTO {
+  const base = {
+    id: node.id.value,
+    workspaceId: node.workspaceId,
+    title: node.title,
+    abstract: node.abstract,
+    permission: node.permission.value as "private" | "public" | "restricted",
+    semanticId: node.semanticId,
+    tags: node.tags,
+    isPinned: node.isPinned,
+    stateData: node.stateData,
+    createdAt: node.createdAt,
+    updatedAt: node.updatedAt,
+  };
+
+  switch (node.nodeType.value) {
+    case "text":
+      return {
+        ...base,
+        nodeType: "text" as const,
+        content: { docs: (node as TextNode).content.docs },
+      };
+    case "image": {
+      const image = node as ImageNode;
+      return {
+        ...base,
+        nodeType: "image" as const,
+        width: image.width,
+        height: image.height,
+        fileSize: image.fileSize,
+        location: image.location,
+        shootingTime: image.shootingTime,
+        content: { url: image.content.url },
+      };
+    }
+    case "pdf": {
+      const pdf = node as PdfNode;
+      return {
+        ...base,
+        nodeType: "pdf" as const,
+        pageCount: pdf.pageCount,
+        fileSize: pdf.fileSize,
+        content: { url: pdf.content.url, coverUrl: pdf.content.coverUrl },
+      };
+    }
+    case "video": {
+      const video = node as VideoNode;
+      return {
+        ...base,
+        nodeType: "video" as const,
+        duration: video.duration,
+        source: video.source,
+        sourceUrl: video.sourceUrl,
+        fileSize: video.fileSize,
+        location: video.location,
+        shootingTime: video.shootingTime,
+        content: {
+          url: video.content.url,
+          coverUrl: video.content.coverUrl,
+          hlsUrl: video.content.hlsUrl,
+        },
+      };
+    }
+    case "audio": {
+      const audio = node as AudioNode;
+      return {
+        ...base,
+        nodeType: "audio" as const,
+        duration: audio.duration,
+        fileSize: audio.fileSize,
+        content: { url: audio.content.url },
+      };
+    }
+    case "webpage": {
+      const webpage = node as WebpageNode;
+      return {
+        ...base,
+        nodeType: "webpage" as const,
+        content: {
+          code: webpage.content.code,
+          language: webpage.content.language,
+        },
+      };
+    }
+    case "website": {
+      const website = node as WebsiteNode;
+      return {
+        ...base,
+        nodeType: "website" as const,
+        content: {
+          url: website.content.url,
+          faviconUrl: website.content.faviconUrl,
+        },
+      };
+    }
+    case "collection": {
+      const collection = node as CollectionNode;
+      return {
+        ...base,
+        nodeType: "collection" as const,
+        content: {
+          filterConfig: collection.content.filterConfig && {
+            selectedNodes: collection.content.filterConfig.selectedNodes?.map(
+              (nodeId) => nodeId.value,
+            ),
+            ruleGroup: collection.content.filterConfig.ruleGroup,
+            collectionType: collection.content.filterConfig.collectionType,
+          },
+        },
+      };
+    }
+    case "rich-text": {
+      const richText = node as RichTextNode;
+      return {
+        ...base,
+        nodeType: "rich-text" as const,
+        content: {
+          referencedNodes: richText.content.referencedNodes.map((n) => n.value),
+          docs: richText.content.docs,
+        },
+      };
+    }
+    default:
+      throw new Error(`Unknown node type`);
+  }
+}

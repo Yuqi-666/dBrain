@@ -142,6 +142,12 @@ migrate((app) => {
       { name: "coverUrl", type: "text" },
       { name: "pageCount", type: "number" },
       { name: "duration", type: "number" },
+      // 视频节点上传后由服务端打包成 HLS，这里保存播放列表地址。
+      //
+      // 上传进来的是录制设备写出的编码——手机通常是 HEVC/H.265，桌面浏览器解不了，
+      // 于是节点只出声音不出画面。打包后的 HLS 是 H.264/AAC。content.url 仍指向原始
+      // 文件，没有播放列表时播放器回退到它。
+      { name: "hlsUrl", type: "text" },
       { name: "source", type: "select", values: ["local", "online"] },
       { name: "sourceUrl", type: "url" },
       { name: "url", type: "url" },
