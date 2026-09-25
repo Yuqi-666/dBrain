@@ -128,7 +128,7 @@ export function WebsiteNodeContent({
         )}
       </div>
 
-      <div className="h-[60vh] max-h-[560px] min-h-[300px] overflow-hidden rounded-lg border bg-white">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-white">
         {previewUrl ? (
           <iframe
             key={previewUrl}

@@ -165,7 +165,7 @@ export function WebpageNodeContent({
         </Button>
       </div>
 
-      <div className="h-[60vh] max-h-[560px] min-h-[320px] overflow-hidden rounded-lg border">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
         {view === "edit" ? (
           <CodeEditor
             value={content.code}
