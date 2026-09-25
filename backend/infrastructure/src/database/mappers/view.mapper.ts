@@ -1,7 +1,10 @@
 import type { RecordModel } from "pocketbase";
-import { FilterConfig } from "@workspace/domain/models/filter/value-objects";
 import { View } from "@workspace/domain/models/view/entities";
 import { ViewId, VisualConfig, ViewType } from "@workspace/domain/models/view/value-objects";
+import {
+  filterConfigFromRecord,
+  filterConfigToRecord,
+} from "./filter-config.mapper";
 
 export class ViewMapper {
   static toDomain(record: RecordModel): View {
@@ -12,7 +15,7 @@ export class ViewMapper {
       visualConfig: VisualConfig.create(
         record.visualConfig as Partial<VisualConfig>,
       ),
-      filterConfig: FilterConfig.create(record.filterConfig),
+      filterConfig: filterConfigFromRecord(record.filterConfig),
       isPinned: record.isPinned as boolean,
       workspaceId: record.workspaceId as string | undefined,
     });
@@ -31,11 +34,7 @@ export class ViewMapper {
         snapToGrid: view.visualConfig.snapToGrid,
         showMinimap: view.visualConfig.showMinimap,
       },
-      filterConfig: {
-        selectedNodes: view.filterConfig.selectedNodes,
-        ruleGroup: view.filterConfig.ruleGroup,
-        collectionType: view.filterConfig.collectionType,
-      },
+      filterConfig: filterConfigToRecord(view.filterConfig),
       isPinned: view.isPinned,
       workspaceId: view.workspaceId,
     };

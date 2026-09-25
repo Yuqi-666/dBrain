@@ -16,7 +16,6 @@ import {
   CollectionContent,
   RichTextContent,
 } from "@workspace/domain/models/node/value-objects";
-import { FilterConfig } from "@workspace/domain/models/filter/value-objects";
 import {
   Node,
   TextNode,
@@ -29,6 +28,10 @@ import {
   CollectionNode,
   RichTextNode,
 } from "@workspace/domain/models/node/entities";
+import {
+  filterConfigFromRecord,
+  filterConfigToRecord,
+} from "./filter-config.mapper";
 
 export interface BaseNodeRecord extends RecordModel {
   title: string;
@@ -103,7 +106,8 @@ interface WebsiteNodeRecord extends BaseNodeRecord {
 
 interface CollectionNodeRecord extends BaseNodeRecord {
   nodeType: "collection";
-  filterConfig?: FilterConfig;
+  /** PocketBase 的原始 JSON，可能来自旧版写入（含 `{ _value }` 包装）。 */
+  filterConfig?: unknown;
 }
 
 interface RichTextNodeRecord extends BaseNodeRecord {
@@ -352,7 +356,11 @@ export class NodeMapper {
   }): CollectionNode {
     return CollectionNode.create({
       ...baseProps,
-      content: new CollectionContent(record.filterConfig),
+      content: new CollectionContent(
+        record.filterConfig
+          ? filterConfigFromRecord(record.filterConfig)
+          : undefined,
+      ),
     });
   }
 
@@ -467,7 +475,9 @@ export class NodeMapper {
     if (node instanceof CollectionNode) {
       return {
         ...baseRecord,
-        filterConfig: node.content.filterConfig,
+        filterConfig: node.content.filterConfig
+          ? filterConfigToRecord(node.content.filterConfig)
+          : undefined,
       };
     }
 

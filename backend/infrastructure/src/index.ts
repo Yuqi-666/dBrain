@@ -21,6 +21,7 @@ export * from "./transcoders/ffmpeg-video-transcoder";
 export * from "./database/mappers/node.mapper";
 export * from "./database/mappers/edge.mapper";
 export * from "./database/mappers/view.mapper";
+export * from "./database/mappers/filter-config.mapper";
 export * from "./database/mappers/node-semantic.mapper";
 export * from "./database/mappers/edge-semantic.mapper";
 export * from "./database/mappers/node-tag.mapper";
