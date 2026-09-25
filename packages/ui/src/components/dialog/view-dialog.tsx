@@ -37,25 +37,39 @@ const DEFAULT_VIEW_TYPE = "Force" as const;
 const EMPTY_RULE_GROUP: RuleGroupType = { combinator: "and", rules: [] };
 
 /**
- * 创建 view 的 dialog。
+ * 创建 / 编辑 view 的 dialog。
  *
- * 与 `CreateWorkspaceDialog` / `NodeSemanticDialog` 同模式：开合状态读自
- * `useUIStore`，service 调用内联在本组件里，页面级挂载，任何入口只要调用
- * `openViewCreateDialog()` 即可打开。
+ * 与 `CreateWorkspaceDialog` / `NodeSemanticDialog` 同模式：开合状态与编辑目标
+ * 读自 `useUIStore.viewDialog`，service 调用内联在本组件里，页面级挂载。任何入口
+ * 调用 `openViewCreateDialog()` 打开新建，调用 `openViewEditDialog(view)` 打开编辑。
+ *
+ * 两种模式共用同一套表单（名称、节点选择、筛选条件），只是初始值不同：编辑时用
+ * `editingView` 回填，提交走 `ViewService.upsert(id, patch)`，因此 `viewType` /
+ * `visualConfig` / `isPinned` 等本表单不涉及的字段会被保留。
  *
  * 表单包含三部分：名称、节点选择（写入 `filterConfig.selectedNodes`）、
  * 筛选条件（写入 `filterConfig.ruleGroup`）。后两者是"并集"语义——视图显示
  * 已勾选节点 ∪ 命中筛选条件的节点；两者都为空则为全局视图，显示全部节点。
  */
-export function CreateViewDialog() {
-  const { open } = useUIStore((state) => state.viewCreateDialog);
-  const closeDialog = useUIStore((state) => state.closeViewCreateDialog);
+export function ViewDialog() {
+  const { open, editingView } = useUIStore((state) => state.viewDialog);
+  const closeDialog = useUIStore((state) => state.closeViewDialog);
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
   const nodes = useDataStore((state) => state.nodes);
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
 
   const handleSubmit = useCallback(
-    async (input: CreateViewInput) => {
+    async (input: ViewDialogInput) => {
+      if (editingView) {
+        // 局部更新：service 会与 store 中的当前视图合并，未提交的字段保持不变。
+        await ViewService.upsert(editingView.id, {
+          name: input.name.trim(),
+          filterConfig: input.filterConfig,
+        });
+        closeDialog();
+        return;
+      }
+
       const workspaceId =
         useWorkspaceStore.getState().currentWorkspaceId ?? undefined;
 
@@ -74,13 +88,14 @@ export function CreateViewDialog() {
       setCurrentViewId(createdView.id);
       closeDialog();
     },
-    [closeDialog, setCurrentViewId],
+    [editingView, closeDialog, setCurrentViewId],
   );
 
   return (
-    <CreateViewDialogContent
+    <ViewDialogContent
       open={open}
       onOpenChange={(o) => !o && closeDialog()}
+      editingView={editingView}
       nodes={nodes}
       nodeSemantics={nodeSemantics}
       onSubmit={handleSubmit}
@@ -88,28 +103,32 @@ export function CreateViewDialog() {
   );
 }
 
-export interface CreateViewInput {
+export interface ViewDialogInput {
   name: string;
   filterConfig: FilterConfig;
 }
 
-export interface CreateViewDialogContentProps {
+export interface ViewDialogContentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** 编辑目标；为 null 时表示新建视图。 */
+  editingView: View | null;
   /** 当前 workspace 的节点，用于"节点选择"列表。 */
   nodes: ReadonlyMap<NodeId, NodeData>;
   /** 用于构建筛选字段（语义类型下拉的选项）。 */
   nodeSemantics: ReadonlyMap<NodeSemanticId, NodeSemantic>;
-  onSubmit: (input: CreateViewInput) => void | Promise<void>;
+  onSubmit: (input: ViewDialogInput) => void | Promise<void>;
 }
 
-export function CreateViewDialogContent({
+export function ViewDialogContent({
   open,
   onOpenChange,
+  editingView,
   nodes,
   nodeSemantics,
   onSubmit,
-}: CreateViewDialogContentProps) {
+}: ViewDialogContentProps) {
+  const isEditing = editingView !== null;
   const [name, setName] = useState("");
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<NodeId>>(
     new Set(),
@@ -119,17 +138,16 @@ export function CreateViewDialogContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 每次打开都重置表单，避免上一次的输入/错误残留。
+  // 每次打开（或切换编辑目标）都用编辑对象回填表单，避免上一次的输入/错误残留。
   useEffect(() => {
-    if (open) {
-      setName("");
-      setSelectedNodeIds(new Set());
-      setRuleGroup(EMPTY_RULE_GROUP);
-      setSearch("");
-      setIsSubmitting(false);
-      setError(null);
-    }
-  }, [open]);
+    if (!open) return;
+    setName(editingView?.name ?? "");
+    setSelectedNodeIds(new Set(editingView?.filterConfig?.selectedNodes ?? []));
+    setRuleGroup(editingView?.filterConfig?.ruleGroup ?? EMPTY_RULE_GROUP);
+    setSearch("");
+    setIsSubmitting(false);
+    setError(null);
+  }, [open, editingView]);
 
   const filterFields = useMemo(
     () => buildNodeFilterFields(nodeSemantics),
@@ -197,20 +215,22 @@ export function CreateViewDialogContent({
       await onSubmit({ name: trimmed, filterConfig: buildFilterConfig() });
       onOpenChange(false);
     } catch (err) {
-      console.error("Failed to create view:", err);
-      setError("创建失败，请稍后重试");
+      console.error("Failed to save view:", err);
+      setError(isEditing ? "保存失败，请稍后重试" : "创建失败，请稍后重试");
     } finally {
       setIsSubmitting(false);
     }
-  }, [name, buildFilterConfig, onSubmit, onOpenChange]);
+  }, [name, buildFilterConfig, onSubmit, onOpenChange, isEditing]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>创建新视图</DialogTitle>
+          <DialogTitle>{isEditing ? "编辑视图" : "创建新视图"}</DialogTitle>
           <DialogDescription>
-            视图按筛选配置决定显示哪些节点，可随时在侧边栏切换。
+            {isEditing
+              ? "修改视图名称与筛选配置，保存后立即生效。"
+              : "视图按筛选配置决定显示哪些节点，可随时在侧边栏切换。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -372,7 +392,13 @@ export function CreateViewDialogContent({
             disabled={isSubmitting || !name.trim()}
             onClick={() => void handleSubmit()}
           >
-            {isSubmitting ? "创建中…" : "创建"}
+            {isSubmitting
+              ? isEditing
+                ? "保存中…"
+                : "创建中…"
+              : isEditing
+                ? "保存"
+                : "创建"}
           </Button>
         </DialogFooter>
       </DialogContent>

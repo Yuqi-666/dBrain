@@ -12,7 +12,7 @@ import { MainSidebar } from "@workspace/ui/components/sidebar/main-sidebar";
 import { NodeEditor } from "@workspace/ui/components/dialog/editor";
 import { NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/dialog/semantic-dialog"
 import { CreateWorkspaceDialog } from "@workspace/ui/components/dialog/workspace-dialog"
-import { CreateViewDialog } from "@workspace/ui/components/dialog/view-dialog"
+import { ViewDialog } from "@workspace/ui/components/dialog/view-dialog"
 import { QuickPanel } from "@workspace/ui/components/dialog/quick-panel/quick-panel";
 
 export default function GraphPage(): ReactNode {
@@ -81,7 +81,7 @@ export default function GraphPage(): ReactNode {
         <NodeSemanticDialog />
         <EdgeSemanticDialog />
         <CreateWorkspaceDialog />
-        <CreateViewDialog />
+        <ViewDialog />
         <QuickPanel />
       </div>
     </MainLayout>

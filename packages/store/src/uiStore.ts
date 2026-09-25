@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { ViewId, NodeId, NodeSemantic, EdgeSemantic } from "@workspace/interfaces";
+import type {
+  ViewId,
+  NodeId,
+  NodeSemantic,
+  EdgeSemantic,
+  View,
+} from "@workspace/interfaces";
 
 // ==================== Shared Types ====================
 
@@ -83,12 +89,15 @@ export interface UIStore {
   openWorkspaceCreateDialog: () => void;
   closeWorkspaceCreateDialog: () => void;
 
-  // View dialogs - Create
-  viewCreateDialog: {
+  // View dialogs - Create / Edit
+  viewDialog: {
     open: boolean;
+    /** 编辑目标；为 null 表示新建视图。 */
+    editingView: View | null;
   };
   openViewCreateDialog: () => void;
-  closeViewCreateDialog: () => void;
+  openViewEditDialog: (view: View) => void;
+  closeViewDialog: () => void;
 
   // Graph UI actions
   handleNodeEdit: (nodeId: string) => void;
@@ -268,16 +277,21 @@ export const useUIStore = create<UIStore>()(
         }),
 
       // ==================== Graph UI - View Dialogs ====================
-      viewCreateDialog: {
+      viewDialog: {
         open: false,
+        editingView: null,
       },
       openViewCreateDialog: () =>
         set({
-          viewCreateDialog: { open: true },
+          viewDialog: { open: true, editingView: null },
         }),
-      closeViewCreateDialog: () =>
+      openViewEditDialog: (view) =>
         set({
-          viewCreateDialog: { open: false },
+          viewDialog: { open: true, editingView: view },
+        }),
+      closeViewDialog: () =>
+        set({
+          viewDialog: { open: false, editingView: null },
         }),
 
       // ==================== Graph UI - Actions ====================

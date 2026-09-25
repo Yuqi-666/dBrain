@@ -21,6 +21,7 @@ import type {
   EdgeSemantic,
   NodeData,
   NodeSemantic,
+  View,
   Workspace,
 } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -436,11 +437,11 @@ function ViewItem({
   onEdit,
   onDelete,
 }: {
-  view: { id: string; name: string; isPinned?: boolean };
+  view: View;
   isSelected?: boolean;
   onSelect: (id: string) => void;
   onTogglePin: (id: string, isPinned: boolean) => void;
-  onEdit: (id: string) => void;
+  onEdit: (view: View) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -497,7 +498,7 @@ function ViewItem({
             className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
           >
             <DropdownMenuItem
-              onClick={() => onEdit(view.id)}
+              onClick={() => onEdit(view)}
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Pencil className="mr-2 size-4" />
@@ -521,32 +522,24 @@ function ViewsList({
   pinnedViews,
   recentViews,
 }: {
-  pinnedViews: Array<{
-    id: string;
-    name: string;
-    isPinned?: boolean;
-    updatedAt?: string;
-  }>;
-  recentViews: Array<{
-    id: string;
-    name: string;
-    isPinned?: boolean;
-    updatedAt?: string;
-  }>;
+  pinnedViews: View[];
+  recentViews: View[];
 }) {
   const handleTogglePin = async (id: string, isPinned: boolean) => {
     await ViewService.upsert(id, { isPinned });
   };
 
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
+  const openViewEditDialog = useUIStore((state) => state.openViewEditDialog);
   const currentViewId = useUIStore((state) => state.currentViewId);
 
   const handleSelectView = (id: string) => {
     setCurrentViewId(id);
   };
 
-  const handleEditView = (id: string) => {
-    setCurrentViewId(id);
+  // 编辑按钮打开与"创建视图"同一个 dialog，只是预填该视图的名称与筛选配置。
+  const handleEditView = (view: View) => {
+    openViewEditDialog(view);
   };
 
   const handleDeleteView = async (id: string) => {
