@@ -95,7 +95,7 @@ export function WebpageNodeContent({
 
   if (importing) {
     return (
-      <div className={cn("relative h-full min-h-[380px]", className)}>
+      <div className={cn("relative h-full min-h-[380px] p-4", className)}>
         <FileDropZone
           nodeId={node.id}
           accept={SOURCE_ACCEPT}
@@ -119,7 +119,9 @@ export function WebpageNodeContent({
   }
 
   return (
-    <div className={cn("flex h-full min-h-[380px] flex-col gap-2", className)}>
+    <div
+      className={cn("flex h-full min-h-[380px] flex-col gap-2 p-4", className)}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-md bg-muted/40 p-0.5">
           <ViewTab

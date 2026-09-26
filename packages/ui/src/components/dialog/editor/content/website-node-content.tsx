@@ -101,7 +101,9 @@ export function WebsiteNodeContent({
   const previewUrl = toEmbeddableUrl(node.content.url);
 
   return (
-    <div className={cn("flex h-full min-h-[380px] flex-col gap-3", className)}>
+    <div
+      className={cn("flex h-full min-h-[380px] flex-col gap-3 p-4", className)}
+    >
       <div className="flex items-center gap-2">
         <Input
           value={draft}

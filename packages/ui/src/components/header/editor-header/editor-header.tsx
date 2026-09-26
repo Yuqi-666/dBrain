@@ -2,7 +2,6 @@
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
 import { ToggleSearchCommandButton } from "../toggle-search-command-button";
-import GraphIcon from "@workspace/ui/img/icon/graph.svg"
 import { FullscreenButton } from "./fullscreen-button";
 import { PinButton } from "./pin-button";
 import { NodeTitle } from "./node-title";
@@ -19,12 +18,8 @@ export function EditorHeader({ className }: EditorHeaderProps) {
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
-  const setCurrentEditingNodeId = useUIStore(
-    (state) => state.setCurrentEditingNodeId,
-  );
   const sidebarMode = useUIStore((state) => state.sidebarMode);
   const mainViewType = useUIStore((state) => state.mainViewType);
-  const setMainViewType = useUIStore((state) => state.setMainViewType);
   const toggleAttributesSidebar = useUIStore(
     (state) => state.toggleAttributesSidebar,
   );
@@ -32,38 +27,24 @@ export function EditorHeader({ className }: EditorHeaderProps) {
     <header
       className={` z-10 flex flex-shrink-0 items-center justify-between pt-4 pb-2 px-6 ${className || ""}`}
     >
-      {mainViewType === "editor" ? (
-        <div
-          className={`flex flex-1 justify-start items-center gap-0 p-0.5 transition-all  bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
-        >
-          <ToggleSidebarButton />
-          <ToggleSearchCommandButton />
-        </div>
-      ) : (
-        <div className="flex-1 justify-start">
-          <FullscreenButton />
-        </div>
-      )}
+      <div className="flex flex-1 justify-start items-center gap-0">
+        <FullscreenButton />
+        {mainViewType === "editor" && (
+          <div
+            className={`flex items-center gap-0 p-0.5 transition-all  bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
+          >
+            <ToggleSidebarButton />
+            <ToggleSearchCommandButton />
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center gap-4 pointer-events-auto">
         <NodeTitle className="text-center border-none" />
-        {mainViewType === "editor" ? (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              setMainViewType("graph");
-              setCurrentEditingNodeId(null);
-            }}
-            aria-label="返回节点图"
-          >
-            <img src={GraphIcon.src} alt="返回节点图" className="" />
-          </Button>
-        ) : null}
       </div>
 
       <div
-        className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none z-10 pointer-events-auto bg-background text-foreground `}
+        className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none z-10 pointer-events-auto text-foreground `}
       >
         <PinButton />
         <Button
