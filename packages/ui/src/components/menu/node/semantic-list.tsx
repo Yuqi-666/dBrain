@@ -13,9 +13,14 @@ import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
 
 export interface SemanticListProps {
   onSelect: (semanticId: string) => void;
+  /**
+   * 覆盖 “Add new type” 的默认行为（默认只打开全局语义对话框）。
+   * 调用方可在打开对话框时额外记录“新建后要绑定到哪个元素”。
+   */
+  onCreateRequest?: () => void;
 }
 
-export function SemanticList({ onSelect }: SemanticListProps) {
+export function SemanticList({ onSelect, onCreateRequest }: SemanticListProps) {
   const [search, setSearch] = React.useState("");
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
@@ -103,6 +108,10 @@ export function SemanticList({ onSelect }: SemanticListProps) {
       <DropdownMenuItem
         onSelect={() => {
           setSearch("");
+          if (onCreateRequest) {
+            onCreateRequest();
+            return;
+          }
           openDialog();
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md text-primary"

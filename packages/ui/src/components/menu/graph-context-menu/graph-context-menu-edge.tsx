@@ -9,7 +9,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import type { EdgeId, EdgeDirection } from "@workspace/interfaces";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { EdgeSemanticList } from "@workspace/ui/components/menu/edge/semantic-list";
 
 function directionToFlags(direction: EdgeDirection): [boolean, boolean] {
@@ -49,6 +49,9 @@ export function GraphContextMenuEdge({
 }: GraphContextMenuEdgeProps) {
   const edge = useDataStore((state) => state.edges.get(edgeId));
   const edgeSemantics = useDataStore((state) => state.edgeSemantics);
+  const openEdgeSemanticDialog = useUIStore(
+    (state) => state.openEdgeSemanticDialog,
+  );
   const currentDirection = edge?.direction ?? "forward";
   const [showFromTo, showToFrom] = directionToFlags(currentDirection);
   const currentSemantic = edge?.semanticId ? edgeSemantics.get(edge.semanticId) : undefined;
@@ -93,7 +96,10 @@ export function GraphContextMenuEdge({
             )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <EdgeSemanticList onSelect={handleSemanticSelect} />
+            <EdgeSemanticList
+              onSelect={handleSemanticSelect}
+              onCreateRequest={() => openEdgeSemanticDialog(null, edgeId)}
+            />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <div className="flex items-center gap-1">

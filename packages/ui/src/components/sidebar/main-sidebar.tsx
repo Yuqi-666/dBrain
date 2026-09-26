@@ -185,6 +185,12 @@ export function MainSidebar() {
                             onSelect={(semanticId) => {
                               onAddNode?.(nodeType, semanticId);
                             }}
+                            onCreateRequest={() =>
+                              openNodeSemanticDialog(null, {
+                                kind: "create",
+                                nodeType,
+                              })
+                            }
                           />
                         </DropdownMenuSubContent>
                       )}

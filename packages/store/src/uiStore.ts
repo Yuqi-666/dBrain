@@ -3,6 +3,8 @@ import { devtools } from "zustand/middleware";
 import type {
   ViewId,
   NodeId,
+  NodeDataType,
+  EdgeId,
   NodeSemantic,
   EdgeSemantic,
   View,
@@ -31,6 +33,24 @@ export type QuickPanelMode = "search" | "agent";
  * - "temp": 临时显示（浮动面板，不推开内容）
  */
 export type SidebarMode = "closed" | "fixed" | "temp";
+
+/**
+ * 「新建节点语义」对话框创建成功后的后续动作（发起入口写入，对话框消费）。
+ *
+ * - `assign`：把新语义选给一个已存在的节点 —
+ *   节点右键菜单 → 选择类型 → Add new type。
+ * - `create`：用新语义创建一个新节点 —
+ *   画布右键菜单 → Add Node → 选数据类型 → Add new type。
+ */
+export type NodeSemanticAfterCreate =
+  | { kind: "assign"; nodeId: NodeId }
+  | {
+      kind: "create";
+      nodeType: NodeDataType;
+      simX?: number;
+      simY?: number;
+      viewId?: string;
+    };
 
 // ==================== Store Interface ====================
 
@@ -70,16 +90,31 @@ export interface UIStore {
   nodeSemanticDialog: {
     open: boolean;
     editingSemantic: NodeSemantic | null;
+    /**
+     * 创建成功后的后续动作；`null` 表示只在语义库中新建，不改变图中的节点。
+     */
+    afterCreate: NodeSemanticAfterCreate | null;
   };
-  openNodeSemanticDialog: (semantic?: NodeSemantic | null) => void;
+  openNodeSemanticDialog: (
+    semantic?: NodeSemantic | null,
+    afterCreate?: NodeSemanticAfterCreate | null,
+  ) => void;
   closeNodeSemanticDialog: () => void;
 
   // Semantic dialogs - Edge
   edgeSemanticDialog: {
     open: boolean;
     editingSemantic: EdgeSemantic | null;
+    /**
+     * 新建语义后要自动绑定该语义的边（从边的右键菜单进入时写入）。
+     * `null` 表示只在语义库中新建，不改变任何边。
+     */
+    assignToEdgeId: EdgeId | null;
   };
-  openEdgeSemanticDialog: (semantic?: EdgeSemantic | null) => void;
+  openEdgeSemanticDialog: (
+    semantic?: EdgeSemantic | null,
+    assignToEdgeId?: EdgeId | null,
+  ) => void;
   closeEdgeSemanticDialog: () => void;
 
   // Workspace dialogs - Create
@@ -240,27 +275,45 @@ export const useUIStore = create<UIStore>()(
       nodeSemanticDialog: {
         open: false,
         editingSemantic: null,
+        afterCreate: null,
       },
-      openNodeSemanticDialog: (semantic = null) =>
+      openNodeSemanticDialog: (semantic = null, afterCreate = null) =>
         set({
-          nodeSemanticDialog: { open: true, editingSemantic: semantic },
+          nodeSemanticDialog: {
+            open: true,
+            editingSemantic: semantic,
+            afterCreate,
+          },
         }),
       closeNodeSemanticDialog: () =>
         set({
-          nodeSemanticDialog: { open: false, editingSemantic: null },
+          nodeSemanticDialog: {
+            open: false,
+            editingSemantic: null,
+            afterCreate: null,
+          },
         }),
 
       edgeSemanticDialog: {
         open: false,
         editingSemantic: null,
+        assignToEdgeId: null,
       },
-      openEdgeSemanticDialog: (semantic = null) =>
+      openEdgeSemanticDialog: (semantic = null, assignToEdgeId = null) =>
         set({
-          edgeSemanticDialog: { open: true, editingSemantic: semantic },
+          edgeSemanticDialog: {
+            open: true,
+            editingSemantic: semantic,
+            assignToEdgeId,
+          },
         }),
       closeEdgeSemanticDialog: () =>
         set({
-          edgeSemanticDialog: { open: false, editingSemantic: null },
+          edgeSemanticDialog: {
+            open: false,
+            editingSemantic: null,
+            assignToEdgeId: null,
+          },
         }),
 
       // ==================== Graph UI - Workspace Dialogs ====================

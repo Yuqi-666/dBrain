@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeSemanticService, EdgeSemanticService } from "@workspace/services";
+import { useGraph } from "@workspace/hooks";
 import {
   Dialog,
   DialogContent,
@@ -23,34 +24,73 @@ import type {
 } from "@workspace/interfaces";
 import { Trash2Icon, PlusIcon } from "lucide-react";
 
+export interface NodeSemanticFormData {
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+}
+
+/**
+ * 节点语义表单值 → 落库载荷：裁剪空白，空串统一收敛为 `undefined`。
+ * 语义对话框与「Add Node」表单共用，保证两个入口创建出的语义完全一致。
+ */
+export function buildNodeSemanticPayload(formData: NodeSemanticFormData) {
+  return {
+    name: formData.name.trim(),
+    description: formData.description?.trim() || undefined,
+    color: formData.color || undefined,
+    icon: formData.icon?.trim() || undefined,
+  };
+}
+
+/** 以表单值新建一个节点语义（`tmp_` 占位 id 由 service 换成后端 id）。 */
+export async function createNodeSemantic(
+  formData: NodeSemanticFormData,
+): Promise<NodeSemantic | void> {
+  const id = "tmp_" as NodeSemanticId;
+  return NodeSemanticService.upsert({
+    id,
+    ...buildNodeSemanticPayload(formData),
+  });
+}
+
 export function NodeSemanticDialog() {
-  const { open, editingSemantic } = useUIStore(
+  const { open, editingSemantic, afterCreate } = useUIStore(
     (state) => state.nodeSemanticDialog,
   );
   const closeDialog = useUIStore((state) => state.closeNodeSemanticDialog);
+  const { onChangeNodeSemantic, onAddNode } = useGraph();
 
   const handleSubmit = useCallback(
-    async (formData: {
-      name: string;
-      description?: string;
-      color?: string;
-      icon?: string;
-    }) => {
+    async (formData: NodeSemanticFormData) => {
       if (!formData.name.trim()) return;
 
       try {
-        const semanticData = {
-          name: formData.name.trim(),
-          description: formData.description?.trim() || undefined,
-          color: formData.color || undefined,
-          icon: formData.icon?.trim() || undefined,
-        };
-
         if (editingSemantic) {
-          await NodeSemanticService.upsert(editingSemantic.id, semanticData);
+          await NodeSemanticService.upsert(
+            editingSemantic.id,
+            buildNodeSemanticPayload(formData),
+          );
         } else {
-          const id = "tmp_" as NodeSemanticId;
-          await NodeSemanticService.upsert({ id, ...semanticData });
+          const created = await createNodeSemantic(formData);
+
+          // 从节点右键菜单进来新建时把新语义选给那个节点；从画布/侧边栏
+          // Add Node 进来新建时用新语义把节点补建出来。两条路径都省去用户
+          // 「创建 → 重开菜单 → 再选一次」的往返。
+          if (afterCreate && created) {
+            if (afterCreate.kind === "assign") {
+              await onChangeNodeSemantic(afterCreate.nodeId, created.id);
+            } else {
+              await onAddNode(
+                afterCreate.nodeType,
+                created.id,
+                afterCreate.simX,
+                afterCreate.simY,
+                afterCreate.viewId,
+              );
+            }
+          }
         }
 
         closeDialog();
@@ -58,7 +98,13 @@ export function NodeSemanticDialog() {
         console.error("Failed to save node semantic:", error);
       }
     },
-    [editingSemantic, closeDialog],
+    [
+      editingSemantic,
+      afterCreate,
+      onChangeNodeSemantic,
+      onAddNode,
+      closeDialog,
+    ],
   );
 
   return (
@@ -76,12 +122,7 @@ interface NodeSemanticDialogContentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingSemantic: NodeSemantic | null;
-  onSubmit: (data: {
-    name: string;
-    description?: string;
-    color?: string;
-    icon?: string;
-  }) => void;
+  onSubmit: (data: NodeSemanticFormData) => void;
   onDelete?: () => void;
 }
 
@@ -202,10 +243,11 @@ const EDGE_TYPE_OPTIONS: { value: EdgeType; label: string }[] = [
 ];
 
 export function EdgeSemanticDialog() {
-  const { open, editingSemantic } = useUIStore(
+  const { open, editingSemantic, assignToEdgeId } = useUIStore(
     (state) => state.edgeSemanticDialog,
   );
   const closeDialog = useUIStore((state) => state.closeEdgeSemanticDialog);
+  const { onChangeEdgeSemantic } = useGraph();
 
   const handleSubmit = useCallback(
     async (formData: {
@@ -228,7 +270,16 @@ export function EdgeSemanticDialog() {
           await EdgeSemanticService.upsert(editingSemantic.id, semanticData);
         } else {
           const id = "tmp_" as EdgeSemanticId;
-          await EdgeSemanticService.upsert({ id, ...semanticData });
+          const created = await EdgeSemanticService.upsert({
+            id,
+            ...semanticData,
+          });
+
+          // 从边的右键菜单进来新建时，直接把新语义选给那条边，
+          // 省去用户「创建 → 重开菜单 → 再选一次」的往返。
+          if (assignToEdgeId && created) {
+            await onChangeEdgeSemantic(assignToEdgeId, created.id);
+          }
         }
 
         closeDialog();
@@ -236,7 +287,7 @@ export function EdgeSemanticDialog() {
         console.error("Failed to save edge semantic:", error);
       }
     },
-    [editingSemantic, closeDialog],
+    [editingSemantic, assignToEdgeId, onChangeEdgeSemantic, closeDialog],
   );
 
   return (

@@ -9,7 +9,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Edit, Trash2, Link2 } from "lucide-react";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 
 export interface GraphContextMenuNodeProps {
@@ -31,6 +31,9 @@ export function GraphContextMenuNode({
 }: GraphContextMenuNodeProps) {
   const node = useDataStore((state) => state.nodes.get(nodeId));
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
+  const openNodeSemanticDialog = useUIStore(
+    (state) => state.openNodeSemanticDialog,
+  );
   const currentSemantic = node?.semanticId ? nodeSemantics.get(node.semanticId) : undefined;
 
   const handleSemanticSelect = (semanticId: string) => {
@@ -58,10 +61,17 @@ export function GraphContextMenuNode({
                   {currentSemantic.name}
                 </span>
               </>
-            ) : null}
+            ) : (
+              <span className="text-xs text-muted-foreground">请选择类型</span>
+            )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <SemanticList onSelect={handleSemanticSelect} />
+            <SemanticList
+              onSelect={handleSemanticSelect}
+              onCreateRequest={() =>
+                openNodeSemanticDialog(null, { kind: "assign", nodeId })
+              }
+            />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </div>

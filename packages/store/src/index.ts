@@ -9,6 +9,7 @@ export type {
   MainViewType,
   SidebarMode,
   QuickPanelMode,
+  NodeSemanticAfterCreate,
 } from "./uiStore";
 
 export { useAuthStore } from "./authStore";

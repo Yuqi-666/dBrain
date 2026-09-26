@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,11 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 import { NODE_TYPE_LABELS } from "@workspace/ui/components/menu/node/dataType-list";
+import {
+  NodeSemanticDialogContent,
+  createNodeSemantic,
+  type NodeSemanticFormData,
+} from "@workspace/ui/components/dialog/semantic-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useGraph } from "@workspace/hooks";
 import { useDataStore } from "@workspace/store";
@@ -32,6 +37,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const [nodeType, setNodeType] = useState<NodeDataType | null>(null);
   const [semanticId, setSemanticId] = useState<string | null>(null);
+  const [semanticDialogOpen, setSemanticDialogOpen] = useState(false);
 
   const semanticName = semanticId
     ? (nodeSemanticsMap.get(semanticId)?.name ?? null)
@@ -51,71 +57,99 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
     onOpenChange(false);
   };
 
+  // 就地新建语义：创建成功后直接把它填进下方 Semantic 选择，用户无需再
+  // 重开下拉重新选一次（拿到 id 后 Create 按钮也随之可用）。
+  const handleCreateSemantic = async (data: NodeSemanticFormData) => {
+    try {
+      const created = await createNodeSemantic(data);
+      if (created) {
+        setSemanticId(created.id);
+        setSemanticDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to create node semantic:", error);
+    }
+  };
+
+  // 外层表单关闭时一并收起内层对话框，避免残留状态在下次打开时复现。
+  useEffect(() => {
+    if (!open) setSemanticDialogOpen(false);
+  }, [open]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Node</DialogTitle>
-          <DialogDescription>
-            Create a new node and pick its type and semantic.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Node Type
-            </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="justify-start">
-                  {nodeType ? NODE_TYPE_LABELS[nodeType] : "Select node type"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                {NODE_DATA_TYPES.map((type) => (
-                  <Button
-                    key={type}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setNodeType(type);
-                    }}
-                  >
-                    {NODE_TYPE_LABELS[type] || type}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Node</DialogTitle>
+            <DialogDescription>
+              Create a new node and pick its type and semantic.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Node Type
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="justify-start">
+                    {nodeType ? NODE_TYPE_LABELS[nodeType] : "Select node type"}
                   </Button>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  {NODE_DATA_TYPES.map((type) => (
+                    <Button
+                      key={type}
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setNodeType(type);
+                      }}
+                    >
+                      {NODE_TYPE_LABELS[type] || type}
+                    </Button>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Semantic
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="justify-start">
+                    {semanticName ?? "Select semantic"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="p-0">
+                  <SemanticList
+                    onSelect={(id) => {
+                      setSemanticId(id);
+                    }}
+                    onCreateRequest={() => setSemanticDialogOpen(true)}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Semantic
-            </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="justify-start">
-                  {semanticName ?? "Select semantic"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="p-0">
-                <SemanticList
-                  onSelect={(id) => {
-                    setSemanticId(id);
-                  }}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button disabled={!nodeType || !semanticId} onClick={handleConfirm}>
-            Create
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="ghost" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button disabled={!nodeType || !semanticId} onClick={handleConfirm}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <NodeSemanticDialogContent
+        open={semanticDialogOpen}
+        onOpenChange={setSemanticDialogOpen}
+        editingSemantic={null}
+        onSubmit={handleCreateSemantic}
+      />
+    </>
   );
 }
