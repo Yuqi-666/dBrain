@@ -110,7 +110,8 @@ export const WorkspaceService = {
    *
    * Data isolation: switching to a *different* workspace resets the data store
    * first so the previous workspace's nodes/edges/views never leak into the new
-   * one. Opening the *same* workspace only reloads when its data is not present
+   * one, and resets the main view type back to `graph` (see below). Opening the
+   * *same* workspace only reloads when its data is not present
    * (e.g. an initially-empty workspace just seeded — the seed writes to the
    * backend, so re-open reloads it into the store).
    */
@@ -120,6 +121,13 @@ export const WorkspaceService = {
 
     const dataStore = useDataStore.getState();
     const isWorkspaceSwitch = prevWorkspaceId !== null && prevWorkspaceId !== workspaceId;
+
+    // Switching workspaces always lands on the graph view. The editor view is a
+    // focused, single-node surface whose context belongs to the previous
+    // workspace, so returning to it would show stale content.
+    if (isWorkspaceSwitch) {
+      useUIStore.getState().setMainViewType("graph");
+    }
 
     if (isWorkspaceSwitch || dataStore.nodes.size === 0 || dataStore.views.size === 0) {
       if (isWorkspaceSwitch) {
