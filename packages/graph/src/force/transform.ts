@@ -9,9 +9,11 @@
  */
 
 import type {
+  EdgeClientStyle,
   EdgeData,
   EdgeSemanticId,
   EdgeType,
+  NodeClientStyle,
   NodeData,
   NodeSemanticId,
   PositionEntry,
@@ -26,8 +28,6 @@ import {
   NODE_BUSINESS_RULES,
   EDGE_BUSINESS_RULES,
   resolveBusinessStyle,
-  type NodeResolvedStyle,
-  type EdgeResolvedStyle,
 } from "./styleConfig";
 
 // -----------------------------------------------------------------------
@@ -105,6 +105,11 @@ export interface TransformOptions {
   edgeSemanticColorMap?: Map<EdgeSemanticId, string>;
   /** External joined data: EdgeSemantic.id → category. Drives shape/strokeType. */
   edgeSemanticCategoryMap?: Map<EdgeSemanticId, EdgeType>;
+  /**
+   * External joined data: EdgeSemantic.id → name. Business layer fallback
+   * for the edge label when `stateData.server.label` is absent.
+   */
+  edgeSemanticNameMap?: Map<EdgeSemanticId, string>;
 }
 
 // -----------------------------------------------------------------------
@@ -118,21 +123,24 @@ export interface TransformOptions {
  *   1. NODE_DEFAULTS
  *   2. stateData.server → resolveBusinessStyle() via NODE_BUSINESS_RULES
  *   3. semanticColorMap[semanticId] → fillColor (external joined data)
- *   4. stateData.client.style → spread overrides (explicit display)
+ *   4. stateData.client.style → overrides (explicit display)
+ *
+ * The resolved shape is `Required<NodeClientStyle>` — by the time the seed
+ * is built every visual property is present.
  */
 export function nodeDataToForceSeeds(
   nodes: ReadonlyArray<NodeData>,
   options: TransformOptions,
 ): ForceNodeSeed[] {
   return nodes.map((node) => {
-    // Layer 1: defaults
-    let resolved: NodeResolvedStyle = resolveBusinessStyle(
+    // Layer 1 + 2: defaults → business(stateData.server) → semantic.color
+    let resolved: Required<NodeClientStyle> = resolveBusinessStyle(
       node.stateData?.server,
       NODE_BUSINESS_RULES,
       { ...NODE_DEFAULTS },
     );
 
-    // Layer 2: business — semantic.color (external joined data)
+    // Layer 2b: business — semantic.color (external joined data)
     if (node.semanticId && options.semanticColorMap) {
       const semanticColor = options.semanticColorMap.get(node.semanticId);
       if (semanticColor) resolved = { ...resolved, fillColor: semanticColor };
@@ -140,7 +148,7 @@ export function nodeDataToForceSeeds(
 
     // Layer 3: client.style — explicit display overrides (highest priority before worker)
     const clientStyle = node.stateData?.client?.style;
-    if (clientStyle) resolved = { ...resolved, ...clientStyle };
+    if (clientStyle) Object.assign(resolved, clientStyle);
 
     const seed: ForceNodeSeed = {
       id: node.id,
@@ -176,7 +184,10 @@ export function nodeDataToForceSeeds(
  *   1. EDGE_DEFAULTS + category → shape/strokeType
  *   2. stateData.server → resolveBusinessStyle() via EDGE_BUSINESS_RULES
  *   3. edgeSemanticColorMap[semanticId] → strokeColor (external joined data)
- *   4. stateData.client.style → spread overrides (explicit display)
+ *   4. stateData.client.style → overrides (explicit display)
+ *
+ * The label falls back to `edgeSemanticNameMap[semanticId]`
+ * (`EdgeSemantic.name`) when `stateData.server.label` is absent.
  */
 export function edgeDataToForceSeeds(
   edges: ReadonlyArray<EdgeData>,
@@ -188,7 +199,7 @@ export function edgeDataToForceSeeds(
       : "association";
 
     // Layer 1: defaults + category-driven shape/strokeType
-    let resolved: EdgeResolvedStyle = resolveBusinessStyle(
+    let resolved: Required<EdgeClientStyle> = resolveBusinessStyle(
       edge.stateData?.server,
       EDGE_BUSINESS_RULES,
       {
@@ -206,13 +217,18 @@ export function edgeDataToForceSeeds(
 
     // Layer 3: client.style — explicit display overrides
     const clientStyle = edge.stateData?.client?.style;
-    if (clientStyle) resolved = { ...resolved, ...clientStyle };
+    if (clientStyle) Object.assign(resolved, clientStyle);
 
     return {
       id: edge.id,
       source: edge.from,
       target: edge.to,
-      label: edge.stateData?.server?.label ?? "",
+      label:
+        edge.stateData?.server?.label ??
+        (edge.semanticId
+          ? options?.edgeSemanticNameMap?.get(edge.semanticId)
+          : undefined) ??
+        "",
       labelColor: resolved.labelColor,
       labelSize: resolved.labelSize,
       shape: resolved.shape,

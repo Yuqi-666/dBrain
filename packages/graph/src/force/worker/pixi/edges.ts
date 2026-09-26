@@ -59,17 +59,36 @@ export function clearStyleKeyCaches(): void {
   outlineKeyCache.clear();
 }
 
+/** Resolved paint style for one link (render-state adjustments applied). */
+export interface EdgeRenderStyle {
+  color: string;
+  width: number;
+  shadow?: { color: string; blur: number };
+}
+
+/**
+ * Resolve a link's effective stroke style — the same computation the edge
+ * buckets paint with. Exported so the edge-label renderer can stroke its
+ * background with the exact color/width of the edge it belongs to.
+ */
+export function resolveEdgeRenderStyle(link: SimLink): EdgeRenderStyle {
+  const adj = getRenderAdjustment(link.renderState, EDGE_RENDER_RULES);
+  return {
+    color: adj?.strokeColorOverride ?? link.strokeColor,
+    width: adj?.strokeWidthMultiplier
+      ? link.strokeWidth * adj.strokeWidthMultiplier
+      : link.strokeWidth,
+    shadow: adj?.shadow,
+  };
+}
+
 function edgeStyleKey(link: SimLink): string {
   const cached = styleKeyCache.get(link.id as string);
   if (cached) return cached;
-  const adj = getRenderAdjustment(link.renderState, EDGE_RENDER_RULES);
-  const color = adj?.strokeColorOverride ?? link.strokeColor;
-  const width = adj?.strokeWidthMultiplier
-    ? link.strokeWidth * adj.strokeWidthMultiplier
-    : link.strokeWidth;
+  const { color, width, shadow } = resolveEdgeRenderStyle(link);
   const shape = link.shape + (link.direction === "bidirectional" ? ":bi" : "");
-  const shadow = adj?.shadow ? `|${adj.shadow.color}:${adj.shadow.blur}` : "";
-  const key = `${color}|${width}|${link.strokeType}|${shape}${shadow}`;
+  const shadowKey = shadow ? `|${shadow.color}:${shadow.blur}` : "";
+  const key = `${color}|${width}|${link.strokeType}|${shape}${shadowKey}`;
   styleKeyCache.set(link.id as string, key);
   return key;
 }

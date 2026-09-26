@@ -235,6 +235,7 @@ export type WorkerEvent =
   | { type: "node:drag-end"; nodeId: NodeId; x: number; y: number }
   | { type: "edge:click"; edgeId: EdgeId; modifiers: Modifiers }
   | { type: "canvas:click"; x: number; y: number }
+  | { type: "canvas:dblclick" }
   | { type: "canvas:pointer-down"; x: number; y: number; modifiers: Modifiers }
   | { type: "canvas:pointer-move"; x: number; y: number }
   | { type: "canvas:pointer-up"; x: number; y: number }

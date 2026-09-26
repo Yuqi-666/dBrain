@@ -304,14 +304,17 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       }
       const edgeSemanticColorMap = new Map<string, string>();
       const edgeSemanticCategoryMap = new Map<string, EdgeType>();
+      const edgeSemanticNameMap = new Map<string, string>();
       for (const [id, sem] of storeState.edgeSemantics) {
         if (sem.color) edgeSemanticColorMap.set(id, sem.color);
         if (sem.category) edgeSemanticCategoryMap.set(id, sem.category);
+        if (sem.name) edgeSemanticNameMap.set(id, sem.name);
       }
       return {
         semanticColorMap,
         edgeSemanticColorMap,
         edgeSemanticCategoryMap,
+        edgeSemanticNameMap,
       };
     }, []);
 
@@ -326,12 +329,14 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         semanticColorMap,
         edgeSemanticColorMap,
         edgeSemanticCategoryMap,
+        edgeSemanticNameMap,
       } = buildSemanticColorMaps();
       const opts = {
         viewId,
         semanticColorMap,
         edgeSemanticColorMap,
         edgeSemanticCategoryMap,
+        edgeSemanticNameMap,
       };
 
       const seeds = nodeDataToForceSeeds(filtered.nodes, opts);
@@ -440,11 +445,13 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
       buildSemanticColorMaps,
     ]);
 
-    // ---- Semantic color change handler -------------------------------
-    // NodeSemantic/EdgeSemantic color changes don't produce NodeData/EdgeData
+    // ---- Semantic change handler --------------------------------------
+    // NodeSemantic/EdgeSemantic changes don't produce NodeData/EdgeData
     // diffs, so they're handled separately. We find all nodes/edges that
     // reference the changed semanticId, re-transform just those, and push
-    // as a nodeUpserts-only diff (no simulation restart, no removals).
+    // as an upserts-only diff (no simulation restart, no removals).
+    // Edge semantics matter for more than color: category drives
+    // shape/strokeType and name is the default label.
     const handleSemanticColorUpdate = useCallback(
       (diff: SourceDiff) => {
         const sd = diff.semanticDiffs;
@@ -457,10 +464,11 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
             .filter((s) => s.color !== undefined)
             .map((s) => s.id),
         );
+        // Edge semantics contribute color (business layer), category
+        // (shape/strokeType) and name (default label), so every updated
+        // edge semantic invalidates its referencing edges.
         const changedEdgeSemIds = new Set(
-          sd.edgeSemantics.updated
-            .filter((s) => s.color !== undefined)
-            .map((s) => s.id),
+          sd.edgeSemantics.updated.map((s) => s.id),
         );
         if (changedNodeSemIds.size === 0 && changedEdgeSemIds.size === 0)
           return;
@@ -478,12 +486,14 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           semanticColorMap,
           edgeSemanticColorMap,
           edgeSemanticCategoryMap,
+          edgeSemanticNameMap,
         } = buildSemanticColorMaps();
         const opts = {
           viewId,
           semanticColorMap,
           edgeSemanticColorMap,
           edgeSemanticCategoryMap,
+          edgeSemanticNameMap,
         };
         const nodeUpserts = nodeDataToForceSeeds(affectedNodes, opts);
         const linkUpserts = edgeDataToForceSeeds(affectedEdges, opts);
@@ -534,6 +544,15 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           event.type === "edge:click"
         ) {
           listenersRef.current?.cancelPan();
+        } else if (event.type === "canvas:dblclick") {
+          // Double-click on empty canvas → restore the default view:
+          // translation back to the origin (the layout is centered there
+          // by forceCenter) and zoom back to scale 1.
+          listenersRef.current?.cancelPan();
+          viewportRef.current = { x: 0, y: 0, scale: 1 };
+          apiRef.current?.setViewport(0, 0, 1).catch((err) => {
+            console.debug("[ForceGraph] viewport reset failed:", err);
+          });
         }
 
         // Context-menu results: the worker returns the hit-test target

@@ -30,12 +30,15 @@ import {
 } from "pixi.js";
 
 // -----------------------------------------------------------------------
-// Layer hierarchy (z-order: grid < edges < outlines < nodes < labels)
+// Layer hierarchy (z-order: grid < edges < edge labels < assist <
+// outlines < nodes < node labels)
 // -----------------------------------------------------------------------
 
 export interface ForceLayers {
   grid: Graphics;
   edges: Container;
+  /** Interaction-driven edge labels (rounded chip at the edge midpoint). */
+  edgeLabels: Container;
   assist: Container;
   outlines: Container;
   nodes: Container;
@@ -103,6 +106,7 @@ export async function createPixiApp(
   layers = {
     grid: new Graphics(),
     edges: new Container(),
+    edgeLabels: new Container(),
     assist: new Container(),
     outlines: new Container(),
     nodes: new Container(),
@@ -111,6 +115,7 @@ export async function createPixiApp(
   world.addChild(
     layers.grid,
     layers.edges,
+    layers.edgeLabels,
     layers.assist,
     layers.outlines,
     layers.nodes,

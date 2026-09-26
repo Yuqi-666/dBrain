@@ -115,6 +115,12 @@ let dragStartY = 0;
 /** Double-click detection (FIX 1.4). */
 let lastClickTime = 0;
 let lastClickNode: NodeId | null = null;
+/**
+ * Double-click on empty canvas → the main thread resets the viewport
+ * (center + default scale). Tracked separately from node double-clicks so
+ * the two gestures never collide.
+ */
+let lastCanvasClickTime = 0;
 
 /** Alt-drag edge-creation state (drives the assist-edge render + event emission). */
 interface AltDragAssistState {
@@ -887,6 +893,8 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       if (target) {
         lastClickTime = now;
         lastClickNode = target.id;
+        // A node press is never part of a canvas double-click sequence.
+        lastCanvasClickTime = 0;
         // Track drag origin so click-vs-drag can be distinguished.
         dragMoved = false;
         dragStarted = false;
@@ -918,10 +926,17 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         // No node hit — try edge hit-test before falling back to canvas.
         const edgeTarget = hitTestEdge(evt.x, evt.y, 10);
         if (edgeTarget) {
+          lastCanvasClickTime = 0;
           clearSelection();
           setSelectedEdges([edgeTarget.link.id]);
           emit({ type: "edge:click", edgeId: edgeTarget.link.id, modifiers: evt.modifiers });
+        } else if (now - lastCanvasClickTime < 300) {
+          // Double-click on empty canvas → main thread resets the viewport.
+          lastCanvasClickTime = 0;
+          clearSelection();
+          emit({ type: "canvas:dblclick" });
         } else {
+          lastCanvasClickTime = now;
           clearSelection();
           emit({ type: "canvas:pointer-down", x: evt.x, y: evt.y, modifiers: evt.modifiers });
         }

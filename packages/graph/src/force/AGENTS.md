@@ -28,7 +28,7 @@ Force Graph 采用 **React 主线程 + Web Worker** 的双线程设计，通过 
 | ----------------------------- | ---- | ------------------------------------------------ | ----------------------------------------------------------------------- |
 | `ForceGraph.tsx`              | 623  | 主线程编排器：启动 Worker、同步数据、渲染 canvas | `ForceGraph`(forwardRef)、`ForceGraphHandle`                            |
 | `ForceGraphErrorBoundary.tsx` | 44   | React 错误边界                                   | `ForceGraphErrorBoundary`                                               |
-| `eventListener.ts`            | 330  | DOM 事件捕获→序列化 + 延迟拖拽平移状态机         | `installDomEventProxy`、`screenToSimulation`                            |
+| `eventListener.ts`            | 330  | DOM 事件捕获→序列化 + 延迟拖拽平移状态机 + 双指捏合缩放 | `installDomEventProxy`、`screenToSimulation`                            |
 | `styleConfig.ts`              | 188  | 四层样式管线 + d3 默认参数 | `NODE_DEFAULTS`/`EDGE_DEFAULTS`、`*_BUSINESS_RULES`、`*_RENDER_RULES`、`DEFAULT_FORCE_CONFIG`、`resolveBusinessStyle`、`getRenderAdjustment` |
 | `transform.ts`                | 184  | 源数据→Worker 种子转换 + 四层 merge + diff 提取 | `nodeDataToForceSeeds`、`edgeDataToForceSeeds`、`diffToForcePayload`    |
 | `types.ts`                    | 391  | Force 私有类型系统 + Comlink RPC 契约            | `ProxiedDomEvent`、`RenderState`、`WorkerInbound`、`WorkerEvent`            |
@@ -125,6 +125,23 @@ cancelPan() → panCancelled=true, isPanning=false（worker 检测到节点命�
 ```
 
 这防止了 viewport 跳动：若 worker 发现命中节点，`cancelPan()` 在平移开始前阻断它。
+
+**双指捏合缩放状态机**（触控屏，主线程拥有 viewport）：
+
+触控屏不产生 `wheel` 事件（触控板捏合才会以 `wheel + ctrlKey` 到达），因此捏合由原始 touch 指针流重建：
+
+```
+touch#1 pointerdown → 正常单指行为（平移 / 拖拽节点）
+touch#2 pointerdown → beginPinch(): 终止进行中的单指手势（cancelPan + 向 worker 补发一次
+                      pointer-up，释放拖拽时 setNodeFixed(true) 造成的钉住），
+                      记录 pinchStartDistance / pinchStartScale / 中点下的模拟坐标
+pointermove (2 指)  → updatePinch(): scale = clamp(起始 scale × 距离比)，
+                      vp = 当前中点 - scale × 锚点模拟坐标  ← 一条公式同时实现缩放 + 双指平移
+所有 touch 事件        → 在 pinch 锁定期间全部吞掉（不下发 worker，不平移），手指全部抬起后解锁
+pointercancel        → 与 pointerup 同路径（浏览器抢占手势时不会卡死状态机）
+```
+
+捏合期间某个手指加入/离开会**重新锚定**（用当前中点与当前 scale 重算锚点，视觉无跳变）。canvas 上的 `touch-action: none`（`ForceGraph.tsx`）是前提——否则浏览器会把手势用于页面缩放，第二个指针的 move 根本不会派发。
 
 **阶段二：Worker 事件处理（`simulation.ts handleProxiedEvent`）**
 
@@ -308,6 +325,8 @@ Render rules **只调整描边和投影，不改变填充色**。填充色完全
 | client 覆盖 business | `stateData.client` 是用户显式指定的显示属性，优先级高于 business 层的推断 |
 | semantic.color 属 business 层 | 与 `stateData.server` 同级 merge，client 可覆盖它 |
 | Worker 只做乘法 | 交互态不查固定颜色表，仅对 seed 上的属性做乘法和覆盖 |
+| 解析后样式复用 interfaces 类型 | `NODE_DEFAULTS`/`EDGE_DEFAULTS` 与 `resolveBusinessStyle()` 使用 `Required<NodeClientStyle>` / `Required<EdgeClientStyle>`，不再维护 `*ResolvedStyle` 平行定义 |
+| 边标签默认不渲染 | 仅在端点节点为 `hover/selected/active` 或边本身为 `selected` 时渲染（`labels.ts` `edgeLabelVisible`）；白色圆角 chip 位于边中点，描边复用 `edges.ts` 的 `resolveEdgeRenderStyle()`；LOD 门控与 `LABEL_BUDGET` 体系一致，另有 `EDGE_LABEL_BUDGET` 上限 |
 | SimNode/SimLink 对称继承 | `SimLink extends Omit<ForceLinkSeed, "source" \| "target">` |
 | Flow 模式无此系统 | RenderState 是 force 独有的概念 |
 
@@ -364,6 +383,7 @@ Semantic 颜色同步（独立路径，不经过 NodeData diff）：
 12. **仿真仅拓扑变更时重启**：`applyDiff` 用 `hasTopologyChange` 标志——节点/边增删触发 `alphaTarget(0.1).restart()`，纯属性更新（颜色、stateData）仅更新内存值，不重启仿真
 13. **视觉属性前置到 seed**：`ForceNodeSeed`/`ForceLinkSeed` 包含完整的 fillColor/strokeColor/strokeWidth/labelSize/... — Worker 零查表、零 JOIN
 14. **四层样式管线**：defaults → business(stateData.server + semantic.color) → client(stateData.client) → worker(hover/select 交互态)。优先级：worker > client > business > defaults
+15. **缩放有两个入口，都在主线程**：触控板的 `wheel + ctrlKey`，以及触控屏的双指捏合（由 `pointerType === "touch"` 指针流重建）。两者共用 `clampScale()` 的 0.1–5 边界；worker 只收到 `setViewport`。触控屏支持的前提是 canvas 的 `touch-action: none`
 
 ### 十、性能优化（2026-08 实施）
 

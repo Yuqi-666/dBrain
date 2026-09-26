@@ -269,6 +269,7 @@ export function useGraphEventHandler(): GraphEventHandler {
           case "canvas:pointer-move":
           case "canvas:pointer-up":
           case "canvas:wheel":
+          case "canvas:dblclick":
           case "node:drag":
           case "node:drag-end":
             return;

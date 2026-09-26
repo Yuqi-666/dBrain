@@ -272,6 +272,32 @@ export function resolveEdgeGeometry(
 // Curve sampling (dash decomposition)
 // -----------------------------------------------------------------------
 
+/**
+ * Point at the middle of the resolved edge path (bezier `t = 0.5`).
+ * Used to anchor the interaction-driven edge label at the visual center
+ * of the curve rather than the chord midpoint.
+ */
+export function resolveEdgeMidpoint(geom: ResolvedEdgeGeometry): {
+  x: number;
+  y: number;
+} {
+  if (geom.kind === "cubic") {
+    // B(0.5) = (P0 + 3·C1 + 3·C2 + P1) / 8
+    return {
+      x: (geom.sx + 3 * geom.c1x + 3 * geom.c2x + geom.tx) / 8,
+      y: (geom.sy + 3 * geom.c1y + 3 * geom.c2y + geom.ty) / 8,
+    };
+  }
+  if (geom.kind === "quadratic") {
+    // B(0.5) = (P0 + 2·C + P1) / 4
+    return {
+      x: (geom.sx + 2 * geom.c1x + geom.tx) / 4,
+      y: (geom.sy + 2 * geom.c1y + geom.ty) / 4,
+    };
+  }
+  return { x: (geom.sx + geom.tx) / 2, y: (geom.sy + geom.ty) / 2 };
+}
+
 /** Sample a quadratic bezier into `n+1` points. */
 export function sampleQuadratic(
   x0: number,

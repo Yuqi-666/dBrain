@@ -13,29 +13,17 @@
  * seed construction. The worker only applies render rules at canvas paint time.
  */
 
+import type { EdgeClientStyle, NodeClientStyle } from "@workspace/interfaces";
 import type { ForceConfig, RenderState } from "./types";
 
 // -----------------------------------------------------------------------
 // 1. Defaults
 // -----------------------------------------------------------------------
 
-export interface NodeResolvedStyle {
-  fillColor: string;
-  strokeColor: string;
-  strokeWidth: number;
-  labelColor: string;
-  labelSize: number;
-  radius: number;
-}
-
-export interface EdgeResolvedStyle {
-  strokeColor: string;
-  strokeWidth: number;
-  labelColor: string;
-  labelSize: number;
-  shape: "straight" | "curve" | "s-curve";
-  strokeType: "solid" | "dotted" | "dashed";
-}
+// The resolved style shapes are exactly the interfaces' client-style
+// shapes (`NodeClientStyle` / `EdgeClientStyle`). We reuse them instead of
+// maintaining parallel definitions — `Required<>` expresses "every field
+// has been resolved by the time the seeds are built".
 
 /** Default node label color on light backgrounds. */
 export const DEFAULT_LABEL_COLOR = "#1f2937";
@@ -64,7 +52,7 @@ export function resolveDefaultLabelColor(backgroundColor: string): string {
     : DEFAULT_LABEL_COLOR;
 }
 
-export const NODE_DEFAULTS: NodeResolvedStyle = {
+export const NODE_DEFAULTS: Required<NodeClientStyle> = {
   fillColor: "#165DFF",
   strokeColor: "#165DFF",
   strokeWidth: 2,
@@ -73,7 +61,7 @@ export const NODE_DEFAULTS: NodeResolvedStyle = {
   radius: 8,
 };
 
-export const EDGE_DEFAULTS: EdgeResolvedStyle = {
+export const EDGE_DEFAULTS: Required<EdgeClientStyle> = {
   strokeColor: "#91caff",
   strokeWidth: 2,
   labelColor: "#9ca3af",
@@ -88,31 +76,37 @@ export const EDGE_DEFAULTS: EdgeResolvedStyle = {
 
 export interface BusinessStyleRule {
   field: string;
-  mapping: Record<string, Partial<NodeResolvedStyle>>;
+  mapping: Record<string, Partial<NodeClientStyle>>;
 }
 
 export const NODE_BUSINESS_RULES: BusinessStyleRule[] = [];
 
 export interface EdgeBusinessStyleRule {
   field: string;
-  mapping: Record<string, Partial<EdgeResolvedStyle>>;
+  mapping: Record<string, Partial<EdgeClientStyle>>;
 }
 
 export const EDGE_BUSINESS_RULES: EdgeBusinessStyleRule[] = [];
 
+/**
+ * Merge `stateData` over a complete set of defaults using the given rules.
+ * `defaults` must already be fully resolved (`Required<T>`), so the result
+ * is guaranteed to carry every visual property — the worker never has to
+ * fall back to a style table.
+ */
 export function resolveBusinessStyle<T extends object>(
   stateData: Record<string, unknown> | undefined,
   rules: ReadonlyArray<{ field: string; mapping: Record<string, Partial<T>> }>,
-  defaults: T,
-): T {
+  defaults: Required<T>,
+): Required<T> {
   if (!stateData) return defaults;
-  let result: T = { ...defaults };
+  const result: Required<T> = { ...defaults };
   for (const rule of rules) {
     const value = stateData[rule.field];
     if (value === undefined || value === null) continue;
     const key = String(value);
     const overrides = rule.mapping[key];
-    if (overrides) result = { ...result, ...overrides };
+    if (overrides) Object.assign(result, overrides);
   }
   return result;
 }
@@ -243,3 +237,24 @@ export const LABEL_BUDGET = 100;
 
 /** Viewport scale below which all labels are hidden (LOD gate). */
 export const TRANSFORM_THRESHOLD = 1;
+
+// -----------------------------------------------------------------------
+// Edge label rendering (interaction-driven)
+// -----------------------------------------------------------------------
+
+/**
+ * Max visible edge labels per frame. Edge labels are only shown for edges
+ * connected to a hovered/selected node (or the selected edge itself), so
+ * this is a safety cap for very high-degree nodes.
+ */
+export const EDGE_LABEL_BUDGET = 50;
+
+/** Edge label background (opaque so the edge line never shows through). */
+export const EDGE_LABEL_BG_COLOR = "#ffffff";
+
+/** Corner radius of the edge label background. */
+export const EDGE_LABEL_BG_RADIUS = 4;
+
+/** Horizontal / vertical padding of the edge label background. */
+export const EDGE_LABEL_PAD_X = 5;
+export const EDGE_LABEL_PAD_Y = 2;
