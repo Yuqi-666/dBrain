@@ -20,6 +20,12 @@ import {
   WebsiteContent,
   CollectionContent,
   RichTextContent,
+  DatabaseContent,
+  DatabaseField,
+  DatabaseFieldOption,
+  DatabaseCell,
+  DatabaseRow,
+  type DatabaseFieldType,
 } from "./value-objects";
 import { FilterConfig } from "../filter/value-objects";
 
@@ -1266,6 +1272,315 @@ export class RichTextNode extends Node {
 
   protected cloneWith(props: Partial<NodeBaseProps>): RichTextNode {
     return new RichTextNode({
+      id: props.id ?? this._id,
+      title: props.title ?? this._title,
+      abstract: props.abstract ?? this._abstract,
+      permission: props.permission ?? this._permission,
+      semanticId: props.semanticId ?? this._semanticId,
+      tags: props.tags ?? this._tags,
+      isPinned: props.isPinned ?? this._isPinned,
+      stateData: props.stateData ?? this._stateData,
+      content: this._content,
+      createdAt: this._createdAt,
+      updatedAt: props.updatedAt ?? this._updatedAt,
+      workspaceId: props.workspaceId ?? this._workspaceId,
+    });
+  }
+}
+
+/**
+ * Reorders `items` to the order given by `ids`, which must be a permutation of
+ * the existing ids. A mismatch throws rather than silently dropping the
+ * entries a caller forgot to list.
+ */
+function reorderById<T extends { id: string }>(
+  items: T[],
+  ids: string[],
+  label: string,
+): T[] {
+  if (ids.length !== items.length) {
+    throw new Error(
+      `Invalid database ${label} order: expected ${items.length} ids, received ${ids.length}`,
+    );
+  }
+
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const seen = new Set<string>();
+  const reordered: T[] = [];
+
+  for (const id of ids) {
+    const item = byId.get(id);
+    if (!item || seen.has(id)) {
+      throw new Error(
+        `Invalid database ${label} order: unknown or duplicate id "${id}"`,
+      );
+    }
+    seen.add(id);
+    reordered.push(item);
+  }
+
+  return reordered;
+}
+
+/**
+ * Drops the cell a row holds for `fieldId`. A row without one is returned
+ * unchanged, so callers can map it over every row cheaply.
+ */
+function withoutCell(row: DatabaseRow, fieldId: string): DatabaseRow {
+  const cells = row.cells;
+  if (cells[fieldId] === undefined) {
+    return row;
+  }
+  delete cells[fieldId];
+  return row.withCells(cells);
+}
+
+/**
+ * Database node: a self-contained Notion-style table.
+ *
+ * Rows are not nodes — they never enter the graph and own no `NodeBase`. A
+ * `relation` cell stores graph node ids as a soft reference; this aggregate
+ * never creates an `Edge` for one (design doc §10).
+ */
+export class DatabaseNode extends Node {
+  protected readonly _content: DatabaseContent;
+
+  private constructor(props: NodeBaseProps & { content: DatabaseContent }) {
+    super({ ...props, nodeType: new NodeType<"database">("database") });
+    this._content = props.content;
+  }
+
+  get content(): DatabaseContent {
+    return this._content;
+  }
+
+  static create(props: {
+    id: NodeId;
+    title: string;
+    abstract?: string;
+    permission: Permission;
+    semanticId: NodeSemanticId;
+    tags?: NodeTagId[];
+    isPinned?: boolean;
+    stateData?: NodeStateData;
+    content: DatabaseContent;
+    createdAt?: string;
+    updatedAt?: string;
+    workspaceId?: string;
+  }): DatabaseNode {
+    const now = new Date().toISOString();
+    return new DatabaseNode({
+      id: props.id,
+      title: props.title,
+      abstract: props.abstract,
+      permission: props.permission,
+      semanticId: props.semanticId,
+      tags: props.tags ?? [],
+      isPinned: props.isPinned ?? false,
+      stateData: props.stateData,
+      content: props.content,
+      createdAt: props.createdAt ?? now,
+      updatedAt: props.updatedAt ?? now,
+      workspaceId: props.workspaceId,
+    });
+  }
+
+  updateContent(content: DatabaseContent): DatabaseNode {
+    return new DatabaseNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      content,
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
+  /** Append a field to the schema. A duplicate id is rejected by content. */
+  addField(field: DatabaseField): DatabaseNode {
+    return this.updateContent(
+      new DatabaseContent([...this._content.fields, field], this._content.rows),
+    );
+  }
+
+  renameField(fieldId: string, name: string): DatabaseNode {
+    this.requireField(fieldId);
+    const fields = this._content.fields.map((field) =>
+      field.id === fieldId ? field.withName(name) : field,
+    );
+    return this.updateContent(new DatabaseContent(fields, this._content.rows));
+  }
+
+  /**
+   * Replace a column's option list.
+   *
+   * Removing an option would leave cells pointing at an option the field no
+   * longer declares, which `DatabaseContent` rejects — so exactly those values
+   * are cleared (a `select` cell becomes `null`, a `multiSelect` cell keeps the
+   * options that survived) instead of failing the whole update. This mirrors
+   * `removeField`'s cascade.
+   */
+  setFieldOptions(
+    fieldId: string,
+    options: DatabaseFieldOption[],
+  ): DatabaseNode {
+    const field = this.requireField(fieldId);
+    const fields = this._content.fields.map((candidate) =>
+      candidate.id === fieldId ? candidate.withOptions(options) : candidate,
+    );
+
+    const allowed = new Set(options.map((option) => option.id));
+    const rows =
+      field.type === "select" || field.type === "multiSelect"
+        ? this._content.rows.map((row) => {
+            const cell = row.cell(fieldId);
+            if (!cell) {
+              return row;
+            }
+            const value = cell.value;
+            if (value.type === "select") {
+              if (value.optionId === null || allowed.has(value.optionId)) {
+                return row;
+              }
+              return row.withCells({
+                ...row.cells,
+                [fieldId]: new DatabaseCell({
+                  type: "select",
+                  optionId: null,
+                }),
+              });
+            }
+            if (value.type === "multiSelect") {
+              const kept = value.optionIds.filter((optionId: string) =>
+                allowed.has(optionId),
+              );
+              if (kept.length === value.optionIds.length) {
+                return row;
+              }
+              return row.withCells({
+                ...row.cells,
+                [fieldId]: new DatabaseCell({
+                  type: "multiSelect",
+                  optionIds: kept,
+                }),
+              });
+            }
+            return row;
+          })
+        : this._content.rows;
+
+    return this.updateContent(new DatabaseContent(fields, rows));
+  }
+
+  /**
+   * Change a column's type.
+   *
+   * Cells cannot survive a type change — their payload discriminator would no
+   * longer match the field — so every value in that column is dropped. That is
+   * the same cascade `removeField` performs, minus the field itself; it is
+   * spelled out here because silently coercing values across types is not
+   * something the aggregate can do safely. `options` must be supplied when
+   * `type` is `select` / `multiSelect` and is ignored by the other types.
+   */
+  setFieldType(
+    fieldId: string,
+    type: DatabaseFieldType,
+    options?: DatabaseFieldOption[],
+  ): DatabaseNode {
+    this.requireField(fieldId);
+
+    const fields = this._content.fields.map((field) =>
+      field.id === fieldId ? field.withType(type, options) : field,
+    );
+    const rows = this._content.rows.map((row) => withoutCell(row, fieldId));
+
+    return this.updateContent(new DatabaseContent(fields, rows));
+  }
+
+  /**
+   * Remove a field and cascade-delete its cells from every row, so no row is
+   * left holding a cell for a field that no longer exists.
+   */
+  removeField(fieldId: string): DatabaseNode {
+    this.requireField(fieldId);
+
+    const fields = this._content.fields.filter((field) => field.id !== fieldId);
+    const rows = this._content.rows.map((row) => withoutCell(row, fieldId));
+
+    return this.updateContent(new DatabaseContent(fields, rows));
+  }
+
+  /** Append a row. A duplicate id is rejected by content. */
+  addRow(row: DatabaseRow): DatabaseNode {
+    return this.updateContent(
+      new DatabaseContent(this._content.fields, [...this._content.rows, row]),
+    );
+  }
+
+  /**
+   * Set one cell. The field must exist and the cell's type must match it; a
+   * select cell whose option id is not declared on the field is rejected by
+   * `DatabaseContent`.
+   */
+  updateCell(rowId: string, fieldId: string, cell: DatabaseCell): DatabaseNode {
+    const row = this.requireRow(rowId);
+    const field = this.requireField(fieldId);
+
+    if (cell.type !== field.type) {
+      throw new Error(
+        `Database cell "${fieldId}" is a ${cell.type} but the field is a ${field.type}`,
+      );
+    }
+
+    const updatedRow = row.withCells({ ...row.cells, [fieldId]: cell });
+    const rows = this._content.rows.map((candidate) =>
+      candidate.id === rowId ? updatedRow : candidate,
+    );
+    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+  }
+
+  removeRow(rowId: string): DatabaseNode {
+    this.requireRow(rowId);
+    const rows = this._content.rows.filter((row) => row.id !== rowId);
+    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+  }
+
+  /** Reorder the columns; `ids` must be a permutation of the field ids. */
+  reorderFields(ids: string[]): DatabaseNode {
+    const fields = reorderById(this._content.fields, ids, "field");
+    return this.updateContent(new DatabaseContent(fields, this._content.rows));
+  }
+
+  /** Reorder the rows; `ids` must be a permutation of the row ids. */
+  reorderRows(ids: string[]): DatabaseNode {
+    const rows = reorderById(this._content.rows, ids, "row");
+    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+  }
+
+  private requireField(fieldId: string): DatabaseField {
+    const field = this._content.field(fieldId);
+    if (!field) {
+      throw new Error(`Database field not found: ${fieldId}`);
+    }
+    return field;
+  }
+
+  private requireRow(rowId: string): DatabaseRow {
+    const row = this._content.row(rowId);
+    if (!row) {
+      throw new Error(`Database row not found: ${rowId}`);
+    }
+    return row;
+  }
+
+  protected cloneWith(props: Partial<NodeBaseProps>): DatabaseNode {
+    return new DatabaseNode({
       id: props.id ?? this._id,
       title: props.title ?? this._title,
       abstract: props.abstract ?? this._abstract,

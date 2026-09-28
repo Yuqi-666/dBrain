@@ -19,6 +19,7 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
   website: "Website",
   collection: "Collection",
   "rich-text": "Rich Text",
+  database: "Database",
 };
 
 export interface DataTypeListProps {

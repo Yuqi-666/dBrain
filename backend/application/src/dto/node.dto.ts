@@ -1,6 +1,7 @@
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 import type { WebpageContent } from "@workspace/interfaces/models/node/nodes/single/webpage";
+import type { DatabaseContent } from "@workspace/interfaces/models/node/nodes/complex/database";
 
 export interface BaseNodeDTO {
   id: string;
@@ -81,6 +82,11 @@ export interface RichTextNodeDTO extends BaseNodeDTO {
   };
 }
 
+export interface DatabaseNodeDTO extends BaseNodeDTO {
+  nodeType: "database";
+  content: DatabaseContent;
+}
+
 export type NodeDTO =
   | TextNodeDTO
   | ImageNodeDTO
@@ -90,4 +96,5 @@ export type NodeDTO =
   | WebpageNodeDTO
   | WebsiteNodeDTO
   | CollectionNodeDTO
-  | RichTextNodeDTO;
+  | RichTextNodeDTO
+  | DatabaseNodeDTO;

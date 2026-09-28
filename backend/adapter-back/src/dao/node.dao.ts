@@ -15,6 +15,7 @@ import type {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
 } from "@workspace/domain/models";
 
 export class NodeDao implements INodeRepository {
@@ -65,7 +66,7 @@ export class NodeDao implements INodeRepository {
   }
 
   async findByNodeType(
-    nodeType: "text" | "image" | "pdf" | "video" | "audio" | "webpage" | "website" | "collection" | "rich-text"
+    nodeType: "text" | "image" | "pdf" | "video" | "audio" | "webpage" | "website" | "collection" | "rich-text" | "database"
   ): Promise<Node[]> {
     return this.repository.findAll({ nodeType });
   }
@@ -197,5 +198,9 @@ export class NodeDao implements INodeRepository {
 
   async findRichTextNode(id: NodeId): Promise<RichTextNode | null> {
     return this.repository.findRichTextNode(id);
+  }
+
+  async findDatabaseNode(id: NodeId): Promise<DatabaseNode | null> {
+    return this.repository.findDatabaseNode(id);
   }
 }

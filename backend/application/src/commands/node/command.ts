@@ -1,4 +1,5 @@
 import type {
+  DatabaseContent,
   FilterConfig,
   NodeStateData,
   WebpageContent,
@@ -165,6 +166,26 @@ export interface CreateRichTextNodeCommand {
   workspaceId?: string;
 }
 
+/**
+ * `content` is the whole table — fields and rows are replaced wholesale, so
+ * column/row edits do not need a command of their own (design doc §10).
+ */
+export interface CreateDatabaseNodeCommand {
+  nodeType: "database";
+  id: string;
+  title: string;
+  abstract?: string;
+  permission?: "private" | "public" | "restricted";
+  semanticId: string;
+  tags?: string[];
+  isPinned?: boolean;
+  stateData?: NodeStateData;
+  content: DatabaseContent;
+  userId: string;
+  sourceId?: string;
+  workspaceId?: string;
+}
+
 export type CreateNodeCommand =
   | CreateTextNodeCommand
   | CreateImageNodeCommand
@@ -174,7 +195,8 @@ export type CreateNodeCommand =
   | CreateWebpageNodeCommand
   | CreateWebsiteNodeCommand
   | CreateCollectionNodeCommand
-  | CreateRichTextNodeCommand;
+  | CreateRichTextNodeCommand
+  | CreateDatabaseNodeCommand;
 
 export interface UpdateNodeCommand {
   id: string;

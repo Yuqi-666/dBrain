@@ -8,7 +8,7 @@ export type SingleNodeDataType =
   | "webpage"
   | "website";
 
-export type ComplexNodeDataType = "collection" | "rich-text";
+export type ComplexNodeDataType = "collection" | "rich-text" | "database";
 
 export interface NodeType<T extends NodeDataType> {
   nodeType: T;
@@ -24,6 +24,7 @@ export const NODE_DATA_TYPES: NodeDataType[] = [
   "website",
   "collection",
   "rich-text",
+  "database",
 ];
 
 export const SINGLE_NODE_DATA_TYPES: SingleNodeDataType[] = [
@@ -39,4 +40,5 @@ export const SINGLE_NODE_DATA_TYPES: SingleNodeDataType[] = [
 export const COMPLEX_NODE_DATA_TYPES: ComplexNodeDataType[] = [
   "collection",
   "rich-text",
+  "database",
 ];

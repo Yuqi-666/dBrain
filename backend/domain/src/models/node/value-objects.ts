@@ -5,6 +5,18 @@ import type {
   NodeDataType,
 } from "@workspace/interfaces/models/node/types";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
+// NOTE: the bare `@workspace/interfaces` entry point is deliberate. Only `.`,
+// `./api`, `./common`, `./models` and `./nodes` are published in that package's
+// `exports` map, so a VALUE import from a deep subpath (e.g.
+// `@workspace/interfaces/models/node/nodes/complex/database`) resolves for `tsc`
+// — whose tsconfig `paths` widen it — but throws `ERR_PACKAGE_PATH_NOT_EXPORTED`
+// at runtime under tsx/node. Type-only deep imports are fine (they are erased).
+import {
+  DATABASE_FIELD_TYPES,
+  type DatabaseCell as DatabaseCellData,
+  type DatabaseContent as DatabaseContentData,
+  type DatabaseFieldType,
+} from "@workspace/interfaces";
 import { FilterConfig } from "../filter/value-objects";
 
 /**
@@ -103,6 +115,7 @@ export class NodeType<T extends NodeDataType = NodeDataType> {
       "website",
       "collection",
       "rich-text",
+      "database",
     ] as const;
     const isValid = validTypes.some((t) => t === value);
     if (!isValid) {
@@ -364,5 +377,541 @@ export class RichTextContent {
       }
     }
     return JSON.stringify(this._docs) === JSON.stringify(other._docs);
+  }
+}
+
+/**
+ * Database (Notion-style structured table) content value objects.
+ *
+ * A database node owns an ordered field list (its schema) and an ordered row
+ * list (its records). Cells are keyed by `DatabaseField.id` and their payload
+ * is a discriminated union whose `type` must match the owning field's type.
+ *
+ * `DatabaseContent` is the single validation boundary for stored table data: it
+ * cannot be constructed from data that violates any structural rule (duplicate
+ * field / row / option ids, a cell for a removed field, a cell whose type
+ * disagrees with its field, an out-of-range select option, a malformed date or
+ * url, a non-finite number).
+ *
+ * Every payload kept here is plain JSON — never a domain value object — so the
+ * table can be written straight into the `nodes.content` column without
+ * `JSON.stringify` turning a wrapper into `{ "_value": ... }` (the failure mode
+ * `filter-config.mapper.ts` documents for `selectedNodes`).
+ */
+
+/**
+ * Field types a database column may declare.
+ *
+ * Both the runtime list and the type come from `@workspace/interfaces` — this
+ * module only re-exports them so the domain keeps a single import surface. Do
+ * not re-declare the list here: a second copy is exactly what used to drift.
+ */
+export { DATABASE_FIELD_TYPES };
+export type { DatabaseFieldType };
+
+/** A cell payload, discriminated by the field type it belongs to. */
+export type DatabaseCellValue = DatabaseCellData;
+
+function isDatabaseFieldType(value: unknown): value is DatabaseFieldType {
+  return DATABASE_FIELD_TYPES.includes(value as DatabaseFieldType);
+}
+
+function isSelectFieldType(type: DatabaseFieldType): boolean {
+  return type === "select" || type === "multiSelect";
+}
+
+/**
+ * ISO 8601 calendar date, optionally carrying a time component.
+ *
+ * A date cell is date-only in the editor (`2024-03-12`), so the full
+ * `toISOString()` form (`2024-03-12T00:00:00.000Z`) must not be the only
+ * accepted shape — but neither may a locale string such as `03/12/2024`.
+ */
+const ISO_8601_DATE =
+  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+function assertIsoDate(value: string): void {
+  if (!ISO_8601_DATE.test(value) || Number.isNaN(Date.parse(value))) {
+    throw new Error(`Database date cell must be an ISO 8601 string: ${value}`);
+  }
+}
+
+function assertUrl(value: string): void {
+  try {
+    new URL(value);
+  } catch {
+    throw new Error(`Database url cell must be a valid URL: ${value}`);
+  }
+}
+
+function assertStringArray(value: unknown, label: string): void {
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== "string")
+  ) {
+    throw new Error(`Database ${label} must be an array of strings`);
+  }
+}
+
+/** Payload-shape checks that a cell can make on its own, without its field. */
+function assertCellPayload(value: DatabaseCellValue): void {
+  switch (value.type) {
+    case "text":
+      if (typeof value.text !== "string") {
+        throw new Error("Database text cell must carry a string");
+      }
+      return;
+    case "number":
+      // `Number.isFinite` (not `typeof`) is deliberate: `Infinity` and `-Infinity`
+      // pass a typeof check but `JSON.stringify` turns them into `null`, so the
+      // value would silently change on the way to the database.
+      if (value.number !== null && !Number.isFinite(value.number)) {
+        throw new Error("Database number cell must be a finite number or null");
+      }
+      return;
+    case "select":
+      if (value.optionId !== null && typeof value.optionId !== "string") {
+        throw new Error("Database select cell must carry an option id or null");
+      }
+      return;
+    case "multiSelect":
+      assertStringArray(value.optionIds, "multiSelect cell optionIds");
+      return;
+    case "date":
+      if (value.date !== null) {
+        if (typeof value.date !== "string") {
+          throw new Error("Database date cell must carry a string or null");
+        }
+        assertIsoDate(value.date);
+      }
+      return;
+    case "checkbox":
+      if (typeof value.checked !== "boolean") {
+        throw new Error("Database checkbox cell must carry a boolean");
+      }
+      return;
+    case "url":
+      if (value.url !== null) {
+        if (typeof value.url !== "string") {
+          throw new Error("Database url cell must carry a string or null");
+        }
+        assertUrl(value.url);
+      }
+      return;
+    case "relation":
+      assertStringArray(value.nodeIds, "relation cell nodeIds");
+      return;
+  }
+}
+
+/** Defensive copy so a caller's array can never alias the stored payload. */
+function cloneCellValue(value: DatabaseCellValue): DatabaseCellValue {
+  switch (value.type) {
+    case "multiSelect":
+      return { ...value, optionIds: [...value.optionIds] };
+    case "relation":
+      return { ...value, nodeIds: [...value.nodeIds] };
+    default:
+      return { ...value };
+  }
+}
+
+/**
+ * One option of a `select` / `multiSelect` field.
+ */
+export class DatabaseFieldOption {
+  private readonly _id: string;
+  private readonly _name: string;
+  private readonly _color: string | undefined;
+
+  constructor(id: string, name: string, color?: string) {
+    if (!id || id.trim().length === 0) {
+      throw new Error("DatabaseFieldOption id cannot be empty");
+    }
+    if (!name || name.trim().length === 0) {
+      throw new Error("DatabaseFieldOption name cannot be empty");
+    }
+    this._id = id;
+    this._name = name;
+    this._color = color;
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get name(): string {
+    return this._name;
+  }
+
+  get color(): string | undefined {
+    return this._color;
+  }
+
+  equals(other: DatabaseFieldOption): boolean {
+    return (
+      this._id === other._id &&
+      this._name === other._name &&
+      this._color === other._color
+    );
+  }
+}
+
+/**
+ * A column of the table: stable id, display name, type and (for the select
+ * types) its option list.
+ *
+ * `options` is only meaningful — and only required — for `select` /
+ * `multiSelect`. It is carried through untouched for every other type so a
+ * round-trip through the `content` column never drops data.
+ */
+export class DatabaseField {
+  private readonly _id: string;
+  private readonly _name: string;
+  private readonly _type: DatabaseFieldType;
+  private readonly _options: readonly DatabaseFieldOption[] | undefined;
+
+  constructor(
+    id: string,
+    name: string,
+    type: DatabaseFieldType,
+    options?: DatabaseFieldOption[],
+  ) {
+    if (!id || id.trim().length === 0) {
+      throw new Error("DatabaseField id cannot be empty");
+    }
+    if (!name || name.trim().length === 0) {
+      throw new Error("DatabaseField name cannot be empty");
+    }
+    if (!isDatabaseFieldType(type)) {
+      throw new Error(`Invalid database field type: ${type}`);
+    }
+    if (isSelectFieldType(type) && (!options || options.length === 0)) {
+      throw new Error(
+        `DatabaseField "${id}" of type ${type} must declare at least one option`,
+      );
+    }
+    if (options) {
+      // Duplicate option ids would make `hasOption` ambiguous and, once the
+      // editor exists, collide as React keys. The rule applies to every type
+      // that carries options, not just the select ones.
+      const optionIds = new Set<string>();
+      for (const option of options) {
+        if (optionIds.has(option.id)) {
+          throw new Error(
+            `DatabaseField "${id}" declares duplicate option id "${option.id}"`,
+          );
+        }
+        optionIds.add(option.id);
+      }
+    }
+    this._id = id;
+    this._name = name;
+    this._type = type;
+    this._options = options ? Object.freeze([...options]) : undefined;
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get name(): string {
+    return this._name;
+  }
+
+  get type(): DatabaseFieldType {
+    return this._type;
+  }
+
+  get options(): DatabaseFieldOption[] | undefined {
+    return this._options ? [...this._options] : undefined;
+  }
+
+  /** Whether `optionId` is one of this field's declared options. */
+  hasOption(optionId: string): boolean {
+    return (this._options ?? []).some((option) => option.id === optionId);
+  }
+
+  withName(name: string): DatabaseField {
+    return new DatabaseField(
+      this._id,
+      name,
+      this._type,
+      this._options ? [...this._options] : undefined,
+    );
+  }
+
+  withOptions(options: DatabaseFieldOption[]): DatabaseField {
+    return new DatabaseField(this._id, this._name, this._type, options);
+  }
+
+  /**
+   * Same column with a different type. `options` is passed through as given: a
+   * select type needs a fresh non-empty list (the old one may not fit the new
+   * type), and `undefined` drops whatever the column used to carry.
+   */
+  withType(
+    type: DatabaseFieldType,
+    options?: DatabaseFieldOption[],
+  ): DatabaseField {
+    return new DatabaseField(this._id, this._name, type, options);
+  }
+
+  equals(other: DatabaseField): boolean {
+    if (
+      this._id !== other._id ||
+      this._name !== other._name ||
+      this._type !== other._type
+    ) {
+      return false;
+    }
+    const mine = this._options ?? [];
+    const theirs = other._options ?? [];
+    if (mine.length !== theirs.length) {
+      return false;
+    }
+    return mine.every((option, index) => {
+      const otherOption = theirs[index];
+      return otherOption !== undefined && option.equals(otherOption);
+    });
+  }
+}
+
+/**
+ * One cell value. The payload stays a discriminated union so callers keep
+ * exhaustive narrowing; the wrapper only freezes it and guards the shape.
+ *
+ * `relation` cells hold raw `NodeId` strings — a soft reference to other graph
+ * nodes. Target existence is deliberately not checked here (v1 never creates
+ * an `Edge` from a row).
+ */
+export class DatabaseCell {
+  private readonly _value: DatabaseCellValue;
+
+  constructor(value: DatabaseCellValue) {
+    const type = (value as { type?: unknown } | null | undefined)?.type;
+    if (typeof type !== "string" || !isDatabaseFieldType(type)) {
+      throw new Error(`Invalid database cell type: ${String(type)}`);
+    }
+    assertCellPayload(value);
+    this._value = Object.freeze(cloneCellValue(value));
+  }
+
+  get type(): DatabaseFieldType {
+    return this._value.type;
+  }
+
+  /** Plain, JSON-serializable payload — safe to write into `nodes.content`. */
+  get value(): DatabaseCellValue {
+    return cloneCellValue(this._value);
+  }
+
+  equals(other: DatabaseCell): boolean {
+    return JSON.stringify(this._value) === JSON.stringify(other._value);
+  }
+}
+
+/**
+ * One record of the table. `cells` is keyed by `DatabaseField.id`; a key with no
+ * matching field is rejected by `DatabaseContent`.
+ */
+export class DatabaseRow {
+  private readonly _id: string;
+  private readonly _cells: Readonly<Record<string, DatabaseCell>>;
+
+  constructor(id: string, cells: Record<string, DatabaseCell>) {
+    if (!id || id.trim().length === 0) {
+      throw new Error("DatabaseRow id cannot be empty");
+    }
+    this._id = id;
+    this._cells = Object.freeze({ ...cells });
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get cells(): Record<string, DatabaseCell> {
+    return { ...this._cells };
+  }
+
+  /** The cell stored under `fieldId`, if this row has one. */
+  cell(fieldId: string): DatabaseCell | undefined {
+    return this._cells[fieldId];
+  }
+
+  withCells(cells: Record<string, DatabaseCell>): DatabaseRow {
+    return new DatabaseRow(this._id, cells);
+  }
+
+  equals(other: DatabaseRow): boolean {
+    const fieldIds = Object.keys(this._cells);
+    if (fieldIds.length !== Object.keys(other._cells).length) {
+      return false;
+    }
+    return fieldIds.every((fieldId) => {
+      const mine = this._cells[fieldId];
+      const theirs = other._cells[fieldId];
+      return mine !== undefined && theirs !== undefined && mine.equals(theirs);
+    });
+  }
+}
+
+/**
+ * A relation cell escapes the field-level option check: it stores graph node
+ * ids, and whether those nodes still exist is a rendering concern.
+ */
+function assertCellMatchesField(
+  row: DatabaseRow,
+  cell: DatabaseCell,
+  field: DatabaseField,
+): void {
+  if (cell.type !== field.type) {
+    throw new Error(
+      `Database cell "${field.id}" of row "${row.id}" is a ${cell.type} but the field is a ${field.type}`,
+    );
+  }
+
+  const value = cell.value;
+  if (value.type === "select") {
+    if (value.optionId !== null && !field.hasOption(value.optionId)) {
+      throw new Error(
+        `Database select cell "${field.id}" of row "${row.id}" references unknown option "${value.optionId}"`,
+      );
+    }
+    return;
+  }
+  if (value.type === "multiSelect") {
+    for (const optionId of value.optionIds) {
+      if (!field.hasOption(optionId)) {
+        throw new Error(
+          `Database multiSelect cell "${field.id}" of row "${row.id}" references unknown option "${optionId}"`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * The whole table: ordered fields plus ordered rows, validated on construction.
+ */
+export class DatabaseContent {
+  private readonly _fields: readonly DatabaseField[];
+  private readonly _rows: readonly DatabaseRow[];
+
+  constructor(fields: DatabaseField[], rows: DatabaseRow[]) {
+    this._fields = Object.freeze([...fields]);
+    this._rows = Object.freeze([...rows]);
+    this.validate();
+  }
+
+  /**
+   * Builds content from the plain JSON shape (the `DatabaseContent` interface
+   * in `@workspace/interfaces`), which is how it arrives from tRPC and from the
+   * `nodes.fields` / `nodes.rows` columns. Throws when the data cannot form a
+   * valid table.
+   */
+  static fromData(
+    data: Partial<DatabaseContentData> | null | undefined,
+  ): DatabaseContent {
+    const raw = data ?? {};
+    const fields = (raw.fields ?? []).map(
+      (field) =>
+        new DatabaseField(
+          field.id,
+          field.name,
+          field.type,
+          field.options?.map(
+            (option) =>
+              new DatabaseFieldOption(option.id, option.name, option.color),
+          ),
+        ),
+    );
+    const rows = (raw.rows ?? []).map(
+      (row) =>
+        new DatabaseRow(
+          row.id,
+          Object.fromEntries(
+            Object.entries(row.cells ?? {}).map(([fieldId, cell]) => [
+              fieldId,
+              new DatabaseCell(cell),
+            ]),
+          ),
+        ),
+    );
+    return new DatabaseContent(fields, rows);
+  }
+
+  get fields(): DatabaseField[] {
+    return [...this._fields];
+  }
+
+  get rows(): DatabaseRow[] {
+    return [...this._rows];
+  }
+
+  /** The field stored under `fieldId`, if the schema has one. */
+  field(fieldId: string): DatabaseField | undefined {
+    return this._fields.find((field) => field.id === fieldId);
+  }
+
+  /** The row stored under `rowId`, if the table has one. */
+  row(rowId: string): DatabaseRow | undefined {
+    return this._rows.find((row) => row.id === rowId);
+  }
+
+  equals(other: DatabaseContent): boolean {
+    if (
+      this._fields.length !== other._fields.length ||
+      this._rows.length !== other._rows.length
+    ) {
+      return false;
+    }
+    const fieldsMatch = this._fields.every((field, index) => {
+      const otherField = other._fields[index];
+      return otherField !== undefined && field.equals(otherField);
+    });
+    if (!fieldsMatch) {
+      return false;
+    }
+    return this._rows.every((row, index) => {
+      const otherRow = other._rows[index];
+      return otherRow !== undefined && row.equals(otherRow);
+    });
+  }
+
+  /**
+   * Structural validation (design doc §9):
+   * unique field ids, unique row ids, every cell key pointing at a live field,
+   * every cell type agreeing with its field, every select option id resolving
+   * against that field's options. Field names, option lists, cell payload
+   * shapes, dates and urls are checked by the value objects themselves.
+   */
+  private validate(): void {
+    const fieldsById = new Map<string, DatabaseField>();
+    for (const field of this._fields) {
+      if (fieldsById.has(field.id)) {
+        throw new Error(`Duplicate database field id: ${field.id}`);
+      }
+      fieldsById.set(field.id, field);
+    }
+
+    const rowIds = new Set<string>();
+    for (const row of this._rows) {
+      if (rowIds.has(row.id)) {
+        throw new Error(`Duplicate database row id: ${row.id}`);
+      }
+      rowIds.add(row.id);
+
+      for (const [fieldId, cell] of Object.entries(row.cells)) {
+        const field = fieldsById.get(fieldId);
+        if (!field) {
+          throw new Error(
+            `Database row "${row.id}" has a cell for unknown field "${fieldId}"`,
+          );
+        }
+        assertCellMatchesField(row, cell, field);
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@ import type { WebpageNodeData } from "./single/webpage";
 import type { WebsiteNodeData } from "./single/website";
 import type { CollectionNodeData } from "./complex/collection";
 import type { RichTextNodeData } from "./complex/rich-text";
+import type { DatabaseNodeData } from "./complex/database";
 
 export type NodeData = SingleNodeData | ComplexNodeData;
 
@@ -19,7 +20,10 @@ export type SingleNodeData =
   | WebpageNodeData
   | WebsiteNodeData;
 
-export type ComplexNodeData = CollectionNodeData | RichTextNodeData;
+export type ComplexNodeData =
+  | CollectionNodeData
+  | RichTextNodeData
+  | DatabaseNodeData;
 
 export type { TextNodeData } from "./single/text";
 export type { ImageNodeData } from "./single/image";
@@ -32,3 +36,16 @@ export type { WebsiteNodeData } from "./single/website";
 export type { CollectionNodeData } from "./complex/collection";
 
 export type { RichTextNodeData, RichTextContent } from "./complex/rich-text";
+
+export type {
+  DatabaseNodeData,
+  DatabaseContent,
+  DatabaseField,
+  DatabaseFieldType,
+  DatabaseFieldOption,
+  DatabaseCell,
+  DatabaseRow,
+} from "./complex/database";
+
+// Runtime value: canonical database field-type list (see `complex/database.ts`).
+export { DATABASE_FIELD_TYPES } from "./complex/database";

@@ -4,14 +4,18 @@ import type {
   EdgeId,
   NodeSemantic,
   EdgeSemantic,
+  DatabaseContent,
 } from "@workspace/interfaces";
 
 /**
  * Demo graph data for a fresh workspace in dev.
  *
- * This mirrors the dataset seeded by `pb/pb_migrations/1700000001_seed_cognitive_graph.js`
- * at HEAD (3 node semantics, 5 edge semantics, 24 nodes across 8 types, 24 edges,
- * 1 view), so the in-browser dev mock stays in sync with the PocketBase seed.
+ * This array is now the ONLY source of the demo dataset: the PocketBase seed
+ * migration it used to mirror (`pb/pb_migrations/1700000001_seed_cognitive_graph.js`)
+ * was deleted together with the workspace-isolation change, so `seed.ts` feeds
+ * these seeds straight through the tRPC client. Shape: 3 node semantics, 5 edge
+ * semantics, 25 nodes across 9 types, 24 edges, 1 view. The single `database`
+ * sample therefore has no PocketBase-side counterpart.
  *
  * The `id` values are STABLE LOGICAL keys: the backend generates different real
  * ids on persistence, so `seed.ts` captures returned ids and builds a remap that
@@ -21,7 +25,7 @@ import type {
 
 export interface DemoNodeSeed {
   id: NodeId;
-  nodeType: "text" | "rich-text" | "website" | "image" | "pdf" | "video" | "audio" | "webpage" | "collection";
+  nodeType: "text" | "rich-text" | "website" | "image" | "pdf" | "video" | "audio" | "webpage" | "collection" | "database";
   title: string;
   abstract?: string;
   permission: "private" | "public" | "restricted";
@@ -52,6 +56,8 @@ export interface DemoNodeSeed {
   // webpage
   webpageCode?: string;
   webpageLanguage?: string;
+  // database
+  databaseContent?: DatabaseContent;
 }
 
 export const DEMO_NODE_SEMANTICS: NodeSemantic[] = [
@@ -376,6 +382,79 @@ export const DEMO_NODES: DemoNodeSeed[] = [
     stateData: { client: {}, server: { weight: 8 } },
     webUrl: "https://docs.example.com",
     faviconUrl: "https://docs.example.com/favicon.ico",
+  },
+  {
+    // Complex-type sample: a self-contained structured table. `relation` cells
+    // hold soft NodeId references — `seed.ts` remaps them through the same
+    // logical→real id map the edges use, so this node must stay LAST in the
+    // array for its targets to already exist.
+    id: "demo-node-component-inventory",
+    nodeType: "database",
+    title: "Component Inventory",
+    abstract: "",
+    permission: "public",
+    semanticId: "demo-sem-component",
+    isPinned: false,
+    stateData: { client: {}, server: { weight: 8 } },
+    databaseContent: {
+      fields: [
+        { id: "fld-name", name: "Name", type: "text" },
+        {
+          id: "fld-status",
+          name: "Status",
+          type: "select",
+          options: [
+            { id: "opt-stable", name: "Stable", color: "#10B981" },
+            { id: "opt-wip", name: "In Progress", color: "#F59E0B" },
+          ],
+        },
+        { id: "fld-owner", name: "Owner", type: "relation" },
+        { id: "fld-shipped", name: "Shipped", type: "date" },
+        { id: "fld-documented", name: "Documented", type: "checkbox" },
+        { id: "fld-homepage", name: "Homepage", type: "url" },
+      ],
+      rows: [
+        {
+          id: "row-graph-canvas",
+          cells: {
+            "fld-name": { type: "text", text: "Graph Canvas" },
+            "fld-status": { type: "select", optionId: "opt-stable" },
+            "fld-owner": {
+              type: "relation",
+              nodeIds: ["demo-node-frontend-arch"],
+            },
+            "fld-shipped": { type: "date", date: "2024-03-12" },
+            "fld-documented": { type: "checkbox", checked: true },
+            "fld-homepage": { type: "url", url: "https://github.com" },
+          },
+        },
+        {
+          id: "row-rich-text-editor",
+          cells: {
+            "fld-name": { type: "text", text: "Rich Text Editor" },
+            "fld-status": { type: "select", optionId: "opt-wip" },
+            "fld-owner": {
+              type: "relation",
+              nodeIds: ["demo-node-backend", "demo-node-storage"],
+            },
+            "fld-shipped": { type: "date", date: null },
+            "fld-documented": { type: "checkbox", checked: false },
+            "fld-homepage": { type: "url", url: null },
+          },
+        },
+        {
+          id: "row-search-panel",
+          cells: {
+            "fld-name": { type: "text", text: "Search Panel" },
+            "fld-status": { type: "select", optionId: null },
+            "fld-owner": { type: "relation", nodeIds: [] },
+            "fld-shipped": { type: "date", date: "2024-05-02" },
+            "fld-documented": { type: "checkbox", checked: true },
+            "fld-homepage": { type: "url", url: null },
+          },
+        },
+      ],
+    },
   },
 ];
 

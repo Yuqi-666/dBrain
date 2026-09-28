@@ -11,6 +11,7 @@ export {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
 } from "./entities";
 
 export {
@@ -26,7 +27,15 @@ export {
   WebsiteContent,
   CollectionContent,
   RichTextContent,
+  DATABASE_FIELD_TYPES,
+  DatabaseFieldOption,
+  DatabaseField,
+  DatabaseCell,
+  DatabaseRow,
+  DatabaseContent,
 } from "./value-objects";
+
+export type { DatabaseFieldType, DatabaseCellValue } from "./value-objects";
 
 export type {
   NodeCreatedData,

@@ -188,6 +188,18 @@
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "computedHash": "e688fcd4c5693e14ebd00d48e982dbd2be060fbea89f5f60531e79c704a1bc28"
+    },
+    "vchart-development-assistant": {
+      "source": "visactor/vchart",
+      "sourceType": "github",
+      "skillPath": "skills/vchart-development-assistant/SKILL.md",
+      "computedHash": "efe04e61650fa0601de922fefda60a03a7ea35fda04cbcb4507d5669550feb76"
+    },
+    "vtable-development-assistant": {
+      "source": "visactor/vtable",
+      "sourceType": "github",
+      "skillPath": "skills/vtable-development-assistant/SKILL.md",
+      "computedHash": "6f24fceb32b7d460587ed0c8e93c643e969e8102a0a791e0880ad692af07e79a"
     }
   }
 }

@@ -1,5 +1,6 @@
 import { DEMO_NODE_SEMANTICS, DEMO_NODES, DEMO_EDGES, DEMO_EDGE_SEMANTICS, DEMO_VIEWS } from "./demo-data";
 import type { DemoNodeSeed } from "./demo-data";
+import type { DatabaseCell, DatabaseContent } from "@workspace/interfaces";
 
 /**
  * A minimal client-shaped type that the seeded workspace needs. It mirrors the
@@ -47,7 +48,38 @@ export interface DevSeedClient {
   };
 }
 
-function nodePayload(seed: DemoNodeSeed, workspaceId: string): Record<string, unknown> {
+/**
+ * database 的 `relation` 单元格存的是软引用 `NodeId`。种子数据里写的是稳定的
+ * 逻辑 id（`demo-node-*`），而真正入库时后端会生成新 id，所以要按 `nodeIdMap`
+ * 换一次；换不到目标时保留原值，预览会降级成原始 id 文本。
+ */
+function remapDatabaseRelations(
+  content: DatabaseContent,
+  nodeIdMap: Map<string, string>,
+): DatabaseContent {
+  return {
+    fields: content.fields,
+    rows: content.rows.map((row) => {
+      const cells: Record<string, DatabaseCell> = {};
+      for (const [fieldId, cell] of Object.entries(row.cells)) {
+        cells[fieldId] =
+          cell.type === "relation"
+            ? {
+                type: "relation",
+                nodeIds: cell.nodeIds.map((id) => nodeIdMap.get(id) ?? id),
+              }
+            : cell;
+      }
+      return { ...row, cells };
+    }),
+  };
+}
+
+function nodePayload(
+  seed: DemoNodeSeed,
+  workspaceId: string,
+  nodeIdMap: Map<string, string>,
+): Record<string, unknown> {
   const base = {
     // `tmp_` prefix makes the backend repo use its CREATE branch (the repo
     // strips client ids and PocketBase generates a fresh 15-char id).
@@ -81,6 +113,14 @@ function nodePayload(seed: DemoNodeSeed, workspaceId: string): Record<string, un
       return { ...base, nodeType: "audio" as const, duration: seed.duration ?? 0, fileSize: 0, content: { url: seed.audioUrl ?? "" } };
     case "collection":
       return { ...base, nodeType: "collection" as const, content: { filterConfig: null } };
+    case "database":
+      // Wire shape groups the pair under `content`; the infrastructure mapper
+      // splits it into the dedicated `fields` / `rows` columns.
+      return {
+        ...base,
+        nodeType: "database" as const,
+        content: remapDatabaseRelations(seed.databaseContent ?? { fields: [], rows: [] }, nodeIdMap),
+      };
     default:
       return base;
   }
@@ -162,7 +202,7 @@ export async function runDevDemoSeed(
       continue;
     }
 
-    const payload = nodePayload(node, workspaceId);
+    const payload = nodePayload(node, workspaceId, nodeIdMap);
     // Node payload carries the seed semanticId; remap to the real semantic id.
     payload.semanticId = semanticIdMap.get(node.semanticId) ?? node.semanticId;
     try {

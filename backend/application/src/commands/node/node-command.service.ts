@@ -8,6 +8,7 @@ import {
   WebsiteContent,
   CollectionContent,
   RichTextContent,
+  DatabaseContent,
 } from "@workspace/domain";
 import {
   TextNode,
@@ -19,6 +20,7 @@ import {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
   Node,
 } from "@workspace/domain";
 import { NodeId, Permission, FilterConfig } from "@workspace/domain";
@@ -219,6 +221,20 @@ export class NodeCommandService {
           workspaceId: cmd.workspaceId,
         });
         break;
+      case "database":
+        node = DatabaseNode.create({
+          id,
+          title: cmd.title,
+          abstract: cmd.abstract,
+          permission,
+          semanticId: cmd.semanticId,
+          tags: cmd.tags ?? [],
+          isPinned: cmd.isPinned ?? false,
+          stateData: cmd.stateData,
+          content: DatabaseContent.fromData(cmd.content),
+          workspaceId: cmd.workspaceId,
+        });
+        break;
       default:
         throw new Error(`Unknown node type`);
     }
@@ -383,6 +399,15 @@ export class NodeCommandService {
           content.docs,
         ),
       );
+    }
+    if (
+      node instanceof DatabaseNode &&
+      content.fields !== undefined &&
+      content.rows !== undefined
+    ) {
+      // Column and row edits replace the whole table, so the incoming content
+      // is always complete; `fromData` re-runs the structural validation.
+      return node.updateContent(DatabaseContent.fromData(content));
     }
     return node;
   }

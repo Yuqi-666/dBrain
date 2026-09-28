@@ -15,6 +15,7 @@ import { WebpagePreview } from "./previews/webpage-preview";
 import { WebsitePreview } from "./previews/website-preview";
 import { CollectionPreview } from "./previews/collection-preview";
 import { RichTextPreview } from "./previews/rich-text-preview";
+import { DatabasePreview } from "./previews/database-preview";
 
 let latestMousePosition = { x: 0, y: 0 };
 if (typeof window !== "undefined") {
@@ -84,6 +85,8 @@ function renderNodePreview(node: NodeData): React.ReactNode {
       return <CollectionPreview node={node} />;
     case "rich-text":
       return <RichTextPreview node={node} />;
+    case "database":
+      return <DatabasePreview node={node} />;
     default:
       return <TextPreview node={node} />;
   }

@@ -2,6 +2,7 @@ import type { Node } from "@workspace/domain";
 import {
   AudioNode,
   CollectionNode,
+  DatabaseNode,
   ImageNode,
   PdfNode,
   RichTextNode,
@@ -141,6 +142,36 @@ export function toNodeDTO(node: Node): NodeDTO {
         content: {
           referencedNodes: richText.content.referencedNodes.map((n) => n.value),
           docs: richText.content.docs,
+        },
+      };
+    }
+    case "database": {
+      const database = node as DatabaseNode;
+      // Cells are unwrapped to their plain JSON payload: a `DatabaseCell` value
+      // object written as-is would serialize to `{ "_value": ... }`.
+      return {
+        ...base,
+        nodeType: "database" as const,
+        content: {
+          fields: database.content.fields.map((field) => ({
+            id: field.id,
+            name: field.name,
+            type: field.type,
+            options: field.options?.map((option) => ({
+              id: option.id,
+              name: option.name,
+              color: option.color,
+            })),
+          })),
+          rows: database.content.rows.map((row) => ({
+            id: row.id,
+            cells: Object.fromEntries(
+              Object.entries(row.cells).map(([fieldId, cell]) => [
+                fieldId,
+                cell.value,
+              ]),
+            ),
+          })),
         },
       };
     }

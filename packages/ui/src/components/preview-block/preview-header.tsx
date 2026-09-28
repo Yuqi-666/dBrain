@@ -12,6 +12,7 @@ import {
   Globe,
   Folder,
   FileEdit,
+  Table,
 } from "lucide-react";
 
 const nodeTypeIcons = {
@@ -24,6 +25,7 @@ const nodeTypeIcons = {
   website: Globe,
   collection: Folder,
   "rich-text": FileEdit,
+  database: Table,
 };
 
 export function PreviewHeader({ node }: { node: NodeData }) {

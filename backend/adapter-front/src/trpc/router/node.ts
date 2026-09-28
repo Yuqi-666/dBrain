@@ -1,5 +1,6 @@
 import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
+import { DATABASE_FIELD_TYPES } from "@workspace/domain";
 import { z } from "zod";
 
 const baseNodeFields = {
@@ -73,6 +74,66 @@ const richTextContentSchema = z.object({
   docs: z.record(z.any()),
 });
 
+const databaseFieldOptionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  color: z.string().optional(),
+});
+
+const databaseFieldSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // Derived from the one canonical list in `@workspace/interfaces` (re-exported
+  // by the domain), never re-typed here — a hand-copied enum is how the schema
+  // and the value objects drift apart.
+  type: z.enum(DATABASE_FIELD_TYPES),
+  // Required on select / multiSelect (the domain value object enforces that),
+  // carried through untouched by every other type.
+  options: z.array(databaseFieldOptionSchema).optional(),
+});
+
+/**
+ * A date cell is date-only in the editor, so `2024-03-12` must be as valid as a
+ * full `2024-03-12T00:00:00.000Z`. Mirrors `DatabaseCell`'s check in the domain
+ * layer exactly — this schema must never be the stricter of the two.
+ */
+const databaseDateSchema = z
+  .string()
+  .refine(
+    (value) =>
+      /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(
+        value,
+      ) && !Number.isNaN(Date.parse(value)),
+    { message: "Must be an ISO 8601 date or datetime" },
+  );
+
+const databaseCellSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("text"), text: z.string() }),
+  // `.finite()` is required on top of `z.number()`: zod already rejects NaN but
+  // accepts ±Infinity, and `JSON.stringify` would persist that as `null`. The
+  // domain value object uses `Number.isFinite` for the same reason.
+  z.object({
+    type: z.literal("number"),
+    number: z.number().finite().nullable(),
+  }),
+  z.object({ type: z.literal("select"), optionId: z.string().nullable() }),
+  z.object({ type: z.literal("multiSelect"), optionIds: z.array(z.string()) }),
+  z.object({ type: z.literal("date"), date: databaseDateSchema.nullable() }),
+  z.object({ type: z.literal("checkbox"), checked: z.boolean() }),
+  z.object({ type: z.literal("url"), url: z.string().url().nullable() }),
+  z.object({ type: z.literal("relation"), nodeIds: z.array(z.string()) }),
+]);
+
+const databaseRowSchema = z.object({
+  id: z.string(),
+  cells: z.record(databaseCellSchema),
+});
+
+const databaseContentSchema = z.object({
+  fields: z.array(databaseFieldSchema),
+  rows: z.array(databaseRowSchema),
+});
+
 const addSchema = z.discriminatedUnion("nodeType", [
   z.object({
     ...baseNodeFields,
@@ -133,6 +194,11 @@ const addSchema = z.discriminatedUnion("nodeType", [
     ...baseNodeFields,
     nodeType: z.literal("rich-text"),
     content: richTextContentSchema,
+  }),
+  z.object({
+    ...baseNodeFields,
+    nodeType: z.literal("database"),
+    content: databaseContentSchema,
   }),
 ]);
 

@@ -2,6 +2,10 @@ import type { RecordModel } from "pocketbase";
 
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
+import type {
+  DatabaseField as DatabaseFieldData,
+  DatabaseRow as DatabaseRowData,
+} from "@workspace/interfaces/models/node/nodes/complex/database";
 
 import {
   NodeId,
@@ -15,6 +19,7 @@ import {
   WebsiteContent,
   CollectionContent,
   RichTextContent,
+  DatabaseContent,
 } from "@workspace/domain/models/node/value-objects";
 import {
   Node,
@@ -27,6 +32,7 @@ import {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
 } from "@workspace/domain/models/node/entities";
 import {
   filterConfigFromRecord,
@@ -116,6 +122,23 @@ interface RichTextNodeRecord extends BaseNodeRecord {
   docs: Record<string, unknown>;
 }
 
+/**
+ * A database node keeps its table in two dedicated JSON columns, `fields` and
+ * `rows` — not in the shared `content` column, which `text` / `image` / …
+ * own. This is the same split `rich-text` uses for `referencedNodes` + `docs`:
+ * the wire shape groups them under `content`, the record does not.
+ *
+ * Both columns are created by `1700000000_initial_schema.js`, so a `database`
+ * record always carries them; no legacy shape exists to accommodate.
+ */
+interface DatabaseNodeRecord extends BaseNodeRecord {
+  nodeType: "database";
+  /** Ordered schema column. */
+  fields: DatabaseFieldData[];
+  /** Ordered records column; each row's cells are keyed by field id. */
+  rows: DatabaseRowData[];
+}
+
 const VALID_NODE_TYPES = [
   "text",
   "image",
@@ -126,6 +149,7 @@ const VALID_NODE_TYPES = [
   "website",
   "collection",
   "rich-text",
+  "database",
 ] as const;
 
 type ValidNodeType = (typeof VALID_NODE_TYPES)[number];
@@ -192,6 +216,8 @@ export class NodeMapper {
         return this.mapCollectionNode(record as unknown as CollectionNodeRecord, baseProps);
       case "rich-text":
         return this.mapRichTextNode(record as unknown as RichTextNodeRecord, baseProps);
+      case "database":
+        return this.mapDatabaseNode(record as unknown as DatabaseNodeRecord, baseProps);
       default:
         throw new Error(`Unhandled node type: ${nodeType}`);
     }
@@ -383,6 +409,39 @@ export class NodeMapper {
     });
   }
 
+  private mapDatabaseNode(record: DatabaseNodeRecord, baseProps: {
+    id: NodeId;
+    title: string;
+    abstract?: string;
+    permission: Permission;
+    semanticId: string;
+    tags: string[];
+    isPinned: boolean;
+    stateData?: NodeStateData;
+    createdAt: string;
+    updatedAt: string;
+  }): DatabaseNode {
+    // Both columns are created by the 0 script and `toRecord` always writes
+    // them, so a `database` record that reaches here without them was not
+    // written by this application (hand-edited DB / raw REST insert). Fail loud:
+    // `fromData` would otherwise turn a missing column into a silently empty
+    // table (design doc §10).
+    if (record.fields == null || record.rows == null) {
+      throw new Error(
+        `Database node "${baseProps.id.value}" is missing its fields/rows columns`,
+      );
+    }
+    return DatabaseNode.create({
+      ...baseProps,
+      // The two columns come straight back off the record; the value objects
+      // validate them and throw if a hand-edited row no longer forms a table.
+      content: DatabaseContent.fromData({
+        fields: record.fields,
+        rows: record.rows,
+      }),
+    });
+  }
+
   toRecord(node: Node): Partial<RecordModel> {
     const baseRecord: Partial<RecordModel> = {
       id: node.id.value,
@@ -486,6 +545,37 @@ export class NodeMapper {
         ...baseRecord,
         referencedNodes: node.content.referencedNodes.map((n) => n.value),
         docs: node.content.docs,
+      };
+    }
+
+    if (node instanceof DatabaseNode) {
+      // The table goes in its own two JSON columns — `fields` and `rows` — the
+      // way `rich-text` uses `referencedNodes` + `docs`. `content` is
+      // deliberately not written, so the shared column is left to the node
+      // types that actually own a single payload. Fields and cells are also
+      // unwrapped to plain JSON: writing the value objects directly would
+      // persist `{ "_value": ... }` wrappers.
+      return {
+        ...baseRecord,
+        fields: node.content.fields.map((field) => ({
+          id: field.id,
+          name: field.name,
+          type: field.type,
+          options: field.options?.map((option) => ({
+            id: option.id,
+            name: option.name,
+            color: option.color,
+          })),
+        })),
+        rows: node.content.rows.map((row) => ({
+          id: row.id,
+          cells: Object.fromEntries(
+            Object.entries(row.cells).map(([fieldId, cell]) => [
+              fieldId,
+              cell.value,
+            ]),
+          ),
+        })),
       };
     }
 

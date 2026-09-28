@@ -9,6 +9,7 @@ import {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
 } from "@workspace/domain/models/node/entities";
 import type {
   NodeId,
@@ -136,6 +137,14 @@ export class PocketBaseNodeRepository implements INodeRepository {
   async findRichTextNode(id: NodeId): Promise<RichTextNode | null> {
     const node = await this.findById(id);
     if (!node || !(node instanceof RichTextNode)) {
+      return null;
+    }
+    return node;
+  }
+
+  async findDatabaseNode(id: NodeId): Promise<DatabaseNode | null> {
+    const node = await this.findById(id);
+    if (!node || !(node instanceof DatabaseNode)) {
       return null;
     }
     return node;

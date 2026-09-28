@@ -15,6 +15,7 @@ import type {
   WebsiteNodeData,
   CollectionNodeData,
   RichTextNodeData,
+  DatabaseNodeData,
   EdgeDirection,
   EdgeData,
   NodeTag,
@@ -159,6 +160,15 @@ export function useGraph() {
             content: { filterConfig: {} },
           };
           newNode = collectionNode;
+          break;
+        }
+        case "database": {
+          const databaseNode: DatabaseNodeData = {
+            ...baseNode,
+            nodeType: "database",
+            content: { fields: [], rows: [] },
+          };
+          newNode = databaseNode;
           break;
         }
         case "rich-text":

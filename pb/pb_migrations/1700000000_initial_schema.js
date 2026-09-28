@@ -160,6 +160,16 @@ migrate((app) => {
       { name: "filterConfig", type: "json" },
       { name: "referencedNodes", type: "json" },
       { name: "docs", type: "json" },
+      // database 节点（Notion 式结构化表格）的两列：fields 是列定义（有序），
+      // rows 是记录行（有序）。与 rich-text 用 referencedNodes + docs 两列同构：
+      // 复杂节点类型各自占用专用列，单一类型节点（text/image/pdf/...）才共用 content。
+      //
+      // 这两列随 0 号脚本建表时一起创建，因此 database 节点不需要额外的附加迁移。
+      // 注意：PocketBase 只按**文件名**去重迁移（见 _migrations 表），不比对文件内容，
+      // 所以改动 0 号脚本前必须先删掉已有 pb_data 让它重建；对已执行过 0 号脚本的库，
+      // 这两列不会补上，写 database 节点会直接报「unknown field」。
+      { name: "fields", type: "json" },
+      { name: "rows", type: "json" },
       { name: "workspaceId", type: "text" },
     ],
   });

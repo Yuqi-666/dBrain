@@ -22,6 +22,7 @@ import type {
   WebsiteNode,
   CollectionNode,
   RichTextNode,
+  DatabaseNode,
 } from "../models/node/entities";
 import type {
   NodeId,
@@ -99,8 +100,8 @@ export interface ViewQuery {
 /**
  * Repository port for Node aggregate root.
  *
- * Single repository handles all 9 node types (TextNode, ImageNode, etc.)
- * Type-specific finders return exact types for type safety.
+ * Single repository handles all 10 node types (TextNode, ImageNode, …,
+ * DatabaseNode) Type-specific finders return exact types for type safety.
  */
 export interface INodeRepository {
   // ----- Single Entity Operations -----
@@ -132,6 +133,7 @@ export interface INodeRepository {
   findWebsiteNode(id: NodeId): Promise<WebsiteNode | null>;
   findCollectionNode(id: NodeId): Promise<CollectionNode | null>;
   findRichTextNode(id: NodeId): Promise<RichTextNode | null>;
+  findDatabaseNode(id: NodeId): Promise<DatabaseNode | null>;
 
   // ----- Collection Operations -----
 
