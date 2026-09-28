@@ -1,3 +1,4 @@
+import type { DataView } from "@workspace/interfaces/models/data-view";
 import type {
   NodeTagId,
   NodeSemanticId,
@@ -1123,7 +1124,27 @@ export class CollectionNode extends Node {
       tags: this._tags,
       isPinned: this._isPinned,
       stateData: this._stateData,
-      content: new CollectionContent(FilterConfig.create(filterConfig)),
+      // `withFilter`, not a bare `new CollectionContent(...)`: the data views
+      // hanging off this node are not part of the filter and must survive it.
+      content: this._content.withFilter(FilterConfig.create(filterConfig)),
+      createdAt: this._createdAt,
+      updatedAt: new Date().toISOString(),
+      workspaceId: this._workspaceId,
+    });
+  }
+
+  /** Replace the node's data views, keeping the filter untouched. */
+  applyViews(views: readonly DataView[]): CollectionNode {
+    return new CollectionNode({
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      content: this._content.withViews(views),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
       workspaceId: this._workspaceId,
@@ -1140,7 +1161,7 @@ export class CollectionNode extends Node {
       tags: this._tags,
       isPinned: this._isPinned,
       stateData: this._stateData,
-      content: new CollectionContent(FilterConfig.empty()),
+      content: this._content.withFilter(FilterConfig.empty()),
       createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
       workspaceId: this._workspaceId,
@@ -1402,10 +1423,25 @@ export class DatabaseNode extends Node {
     });
   }
 
+  /**
+   * Rebuild the table from new `fields` / `rows`.
+   *
+   * Every column/row mutation below goes through here rather than constructing
+   * a `DatabaseContent` directly: the views (how the node browses its own
+   * table) are node state that a schema edit must not drop, and a bare
+   * constructor call defaults them to `[]`.
+   */
+  private rebuildContent(
+    fields: DatabaseField[],
+    rows: DatabaseRow[],
+  ): DatabaseContent {
+    return new DatabaseContent(fields, rows, this._content.views);
+  }
+
   /** Append a field to the schema. A duplicate id is rejected by content. */
   addField(field: DatabaseField): DatabaseNode {
     return this.updateContent(
-      new DatabaseContent([...this._content.fields, field], this._content.rows),
+      this.rebuildContent([...this._content.fields, field], this._content.rows),
     );
   }
 
@@ -1414,7 +1450,7 @@ export class DatabaseNode extends Node {
     const fields = this._content.fields.map((field) =>
       field.id === fieldId ? field.withName(name) : field,
     );
-    return this.updateContent(new DatabaseContent(fields, this._content.rows));
+    return this.updateContent(this.rebuildContent(fields, this._content.rows));
   }
 
   /**
@@ -1475,7 +1511,7 @@ export class DatabaseNode extends Node {
           })
         : this._content.rows;
 
-    return this.updateContent(new DatabaseContent(fields, rows));
+    return this.updateContent(this.rebuildContent(fields, rows));
   }
 
   /**
@@ -1500,7 +1536,7 @@ export class DatabaseNode extends Node {
     );
     const rows = this._content.rows.map((row) => withoutCell(row, fieldId));
 
-    return this.updateContent(new DatabaseContent(fields, rows));
+    return this.updateContent(this.rebuildContent(fields, rows));
   }
 
   /**
@@ -1513,13 +1549,13 @@ export class DatabaseNode extends Node {
     const fields = this._content.fields.filter((field) => field.id !== fieldId);
     const rows = this._content.rows.map((row) => withoutCell(row, fieldId));
 
-    return this.updateContent(new DatabaseContent(fields, rows));
+    return this.updateContent(this.rebuildContent(fields, rows));
   }
 
   /** Append a row. A duplicate id is rejected by content. */
   addRow(row: DatabaseRow): DatabaseNode {
     return this.updateContent(
-      new DatabaseContent(this._content.fields, [...this._content.rows, row]),
+      this.rebuildContent(this._content.fields, [...this._content.rows, row]),
     );
   }
 
@@ -1542,25 +1578,25 @@ export class DatabaseNode extends Node {
     const rows = this._content.rows.map((candidate) =>
       candidate.id === rowId ? updatedRow : candidate,
     );
-    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+    return this.updateContent(this.rebuildContent(this._content.fields, rows));
   }
 
   removeRow(rowId: string): DatabaseNode {
     this.requireRow(rowId);
     const rows = this._content.rows.filter((row) => row.id !== rowId);
-    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+    return this.updateContent(this.rebuildContent(this._content.fields, rows));
   }
 
   /** Reorder the columns; `ids` must be a permutation of the field ids. */
   reorderFields(ids: string[]): DatabaseNode {
     const fields = reorderById(this._content.fields, ids, "field");
-    return this.updateContent(new DatabaseContent(fields, this._content.rows));
+    return this.updateContent(this.rebuildContent(fields, this._content.rows));
   }
 
   /** Reorder the rows; `ids` must be a permutation of the row ids. */
   reorderRows(ids: string[]): DatabaseNode {
     const rows = reorderById(this._content.rows, ids, "row");
-    return this.updateContent(new DatabaseContent(this._content.fields, rows));
+    return this.updateContent(this.rebuildContent(this._content.fields, rows));
   }
 
   private requireField(fieldId: string): DatabaseField {

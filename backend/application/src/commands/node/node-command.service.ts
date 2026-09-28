@@ -200,6 +200,7 @@ export class NodeCommandService {
               ruleGroup: cmd.content.filterConfig?.ruleGroup,
               collectionType: cmd.content.filterConfig?.collectionType,
             }),
+            cmd.content.views ?? [],
           ),
           workspaceId: cmd.workspaceId,
         });
@@ -385,8 +386,19 @@ export class NodeCommandService {
         new WebsiteContent(content.url, content.faviconUrl),
       );
     }
-    if (node instanceof CollectionNode && content.filterConfig !== undefined) {
-      return node.applyFilter(content.filterConfig);
+    if (node instanceof CollectionNode) {
+      // `filterConfig` and `views` are independent halves of a collection's
+      // content, and either may be patched alone (the filter editor writes one,
+      // the data-view toolbar the other) — so an omitted key must leave its
+      // half untouched instead of resetting it.
+      let next = node;
+      if (content.filterConfig !== undefined) {
+        next = next.applyFilter(content.filterConfig);
+      }
+      if (content.views !== undefined) {
+        next = next.applyViews(content.views);
+      }
+      return next;
     }
     if (
       node instanceof RichTextNode &&
@@ -407,7 +419,14 @@ export class NodeCommandService {
     ) {
       // Column and row edits replace the whole table, so the incoming content
       // is always complete; `fromData` re-runs the structural validation.
-      return node.updateContent(DatabaseContent.fromData(content));
+      const table = DatabaseContent.fromData(content);
+      // `views` is optional in a patch. When the caller did not mention it the
+      // stored views stay (a column edit must not silently clear them).
+      return node.updateContent(
+        content.views === undefined
+          ? table.withViews(node.content.views)
+          : table,
+      );
     }
     return node;
   }

@@ -1,6 +1,7 @@
 import type { RecordModel } from "pocketbase";
 
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+import type { DataView } from "@workspace/interfaces/models/data-view";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import type {
   DatabaseField as DatabaseFieldData,
@@ -114,6 +115,8 @@ interface CollectionNodeRecord extends BaseNodeRecord {
   nodeType: "collection";
   /** PocketBase 的原始 JSON，可能来自旧版写入（含 `{ _value }` 包装）。 */
   filterConfig?: unknown;
+  /** Data views (`DataView[]`); absent on records written before the column. */
+  views?: DataView[];
 }
 
 interface RichTextNodeRecord extends BaseNodeRecord {
@@ -128,6 +131,10 @@ interface RichTextNodeRecord extends BaseNodeRecord {
  * own. This is the same split `rich-text` uses for `referencedNodes` + `docs`:
  * the wire shape groups them under `content`, the record does not.
  *
+ * `views` (how the node browses its own table) is the third such column and is
+ * shared with `collection`; it is optional here because a `database` record
+ * written before the column existed simply has no views.
+ *
  * Both columns are created by `1700000000_initial_schema.js`, so a `database`
  * record always carries them; no legacy shape exists to accommodate.
  */
@@ -137,6 +144,8 @@ interface DatabaseNodeRecord extends BaseNodeRecord {
   fields: DatabaseFieldData[];
   /** Ordered records column; each row's cells are keyed by field id. */
   rows: DatabaseRowData[];
+  /** Data views (`DataView[]`); absent on records written before the column. */
+  views?: DataView[];
 }
 
 const VALID_NODE_TYPES = [
@@ -386,6 +395,9 @@ export class NodeMapper {
         record.filterConfig
           ? filterConfigFromRecord(record.filterConfig)
           : undefined,
+        // A missing column reads as "no views": `normalizeViews` turns
+        // `undefined` into `[]`, and the frontend seeds a default view.
+        record.views,
       ),
     });
   }
@@ -438,6 +450,7 @@ export class NodeMapper {
       content: DatabaseContent.fromData({
         fields: record.fields,
         rows: record.rows,
+        views: record.views,
       }),
     });
   }
@@ -537,6 +550,9 @@ export class NodeMapper {
         filterConfig: node.content.filterConfig
           ? filterConfigToRecord(node.content.filterConfig)
           : undefined,
+        // Views are plain JSON already (no value objects to unwrap), so they go
+        // into their own column as-is.
+        views: node.content.views,
       };
     }
 
@@ -576,6 +592,7 @@ export class NodeMapper {
             ]),
           ),
         })),
+        views: node.content.views,
       };
     }
 

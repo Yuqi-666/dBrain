@@ -27,6 +27,7 @@ export {
   WebsiteContent,
   CollectionContent,
   RichTextContent,
+  DATA_VIEW_TYPES,
   DATABASE_FIELD_TYPES,
   DatabaseFieldOption,
   DatabaseField,
@@ -35,7 +36,11 @@ export {
   DatabaseContent,
 } from "./value-objects";
 
-export type { DatabaseFieldType, DatabaseCellValue } from "./value-objects";
+export type {
+  DataViewType,
+  DatabaseFieldType,
+  DatabaseCellValue,
+} from "./value-objects";
 
 export type {
   NodeCreatedData,

@@ -1,3 +1,4 @@
+import type { DataView } from "@workspace/interfaces/models/data-view";
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
 import type { NodeStateData } from "@workspace/interfaces/models/node/base";
 import type { WebpageContent } from "@workspace/interfaces/models/node/nodes/single/webpage";
@@ -70,7 +71,9 @@ export interface WebsiteNodeDTO extends BaseNodeDTO {
 export interface CollectionNodeDTO extends BaseNodeDTO {
   nodeType: "collection";
   content: {
-    filterConfig?: FilterConfig
+    filterConfig?: FilterConfig;
+    /** Data views of this collection; mirrors `CollectionContent.views`. */
+    views?: DataView[];
   };
 }
 

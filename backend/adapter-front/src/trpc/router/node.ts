@@ -1,6 +1,7 @@
 import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
-import { DATABASE_FIELD_TYPES } from "@workspace/domain";
+import { DATA_VIEW_TYPES, DATABASE_FIELD_TYPES } from "@workspace/domain";
+import type { DataView, DataViewType } from "@workspace/interfaces/models/data-view";
 import { z } from "zod";
 
 const baseNodeFields = {
@@ -65,8 +66,41 @@ const websiteContentSchema = z.object({
   faviconUrl: z.string().optional(),
 });
 
+/**
+ * A data view (`DataView` in `@workspace/interfaces`) as it crosses the API.
+ *
+ * Only the identity is checked here: `type` comes from the one canonical list
+ * (re-exported by the domain, never hand-copied), and the domain value objects
+ * re-check `id` / `name` / `type` / `config` on the way in. The shape *inside*
+ * `config` is owned by the frontend view registry, so it is opaque at this
+ * boundary.
+ *
+ * Deliberately not a `z.object`: zod strips unknown keys, which would silently
+ * drop anything a view carries beyond the keys listed here (`config` included,
+ * the moment the registry gains a key), and `.passthrough()` cannot be used
+ * either — its index signature makes the parsed type unassignable from the
+ * `DataView` interface union that `NodeData` is built from. `z.custom` keeps the
+ * payload byte-for-byte and pins the type to the interface.
+ */
+const dataViewSchema = z.custom<DataView>((value) => {
+  if (typeof value !== "object" || value === null) return false;
+  const view = value as Partial<DataView>;
+  return (
+    typeof view.id === "string" &&
+    view.id.length > 0 &&
+    typeof view.name === "string" &&
+    view.name.length > 0 &&
+    DATA_VIEW_TYPES.includes(view.type as DataViewType) &&
+    typeof view.config === "object" &&
+    view.config !== null
+  );
+}, "Must be a data view: { id, name, type, config }");
+
 const collectionContentSchema = z.object({
   filterConfig: z.any().optional(),
+  // Data views live under `content` (see docs/dataview/README.md §5.2). Zod
+  // strips keys it does not know, so an undeclared `views` would never persist.
+  views: z.array(dataViewSchema).optional(),
 });
 
 const richTextContentSchema = z.object({
@@ -132,6 +166,8 @@ const databaseRowSchema = z.object({
 const databaseContentSchema = z.object({
   fields: z.array(databaseFieldSchema),
   rows: z.array(databaseRowSchema),
+  // Same `views` column as `collection` — see `collectionContentSchema`.
+  views: z.array(dataViewSchema).optional(),
 });
 
 const addSchema = z.discriminatedUnion("nodeType", [

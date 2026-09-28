@@ -12,7 +12,10 @@ import type { WebpageContent as WebpageContentData } from "@workspace/interfaces
 // — whose tsconfig `paths` widen it — but throws `ERR_PACKAGE_PATH_NOT_EXPORTED`
 // at runtime under tsx/node. Type-only deep imports are fine (they are erased).
 import {
+  DATA_VIEW_TYPES,
   DATABASE_FIELD_TYPES,
+  type DataView,
+  type DataViewType,
   type DatabaseCell as DatabaseCellData,
   type DatabaseContent as DatabaseContentData,
   type DatabaseFieldType,
@@ -319,22 +322,120 @@ export class WebsiteContent {
 }
 
 /**
+ * The shapes a data view may declare.
+ *
+ * Both the runtime list and the type come from `@workspace/interfaces` — this
+ * module only re-exports them, exactly like `DATABASE_FIELD_TYPES` below. Do not
+ * re-declare the list here: a second copy is what used to drift.
+ */
+export { DATA_VIEW_TYPES };
+export type { DataViewType };
+
+/**
+ * Validates and copies the `views` payload a complex node carries.
+ *
+ * A data view is *how this node browses its own rows*. The per-view `config` is
+ * owned by the frontend registry, so the domain checks only what it must to
+ * guarantee a usable aggregate — an array of objects carrying a unique,
+ * non-empty `id`, a `name`, a known `type` and an object `config`. The config's
+ * internals are deliberately opaque here (`TableColumnConfig`, `ChartMeasure`,
+ * … are a registry concern, not an aggregate invariant).
+ */
+function normalizeViews(value: readonly DataView[] | undefined): DataView[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error("Node views must be an array");
+  }
+
+  const seen = new Set<string>();
+  return value.map((entry) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new Error("Every node view must be an object");
+    }
+    const view = entry as Partial<DataView>;
+    if (typeof view.id !== "string" || view.id.length === 0) {
+      throw new Error("Every node view must have a non-empty id");
+    }
+    if (seen.has(view.id)) {
+      throw new Error(`Duplicate data view id: ${view.id}`);
+    }
+    seen.add(view.id);
+    if (typeof view.name !== "string" || view.name.length === 0) {
+      throw new Error(`Data view "${view.id}" must have a non-empty name`);
+    }
+    if (!DATA_VIEW_TYPES.includes(view.type as DataViewType)) {
+      throw new Error(`Unknown data view type: ${String(view.type)}`);
+    }
+    if (typeof view.config !== "object" || view.config === null) {
+      throw new Error(`Data view "${view.id}" must have a config object`);
+    }
+    return view as DataView;
+  });
+}
+
+/**
+ * Structural equality of two view lists.
+ *
+ * Views are compared by their JSON payload (`id` / `name` / `type` / `config`):
+ * they are plain persisted configuration, not value objects with their own
+ * `equals`, so a deep compare is the only honest test. List order is part of
+ * the content — the toolbar renders in it.
+ */
+function sameViews(a: readonly DataView[], b: readonly DataView[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every(
+    (view, index) => JSON.stringify(view) === JSON.stringify(b[index]),
+  );
+}
+
+/**
  * Collection node content.
  */
 export class CollectionContent {
   private readonly _filterConfig: FilterConfig | undefined;
+  private readonly _views: readonly DataView[];
 
   constructor(
     filterConfig: FilterConfig | undefined,
+    views: readonly DataView[] = [],
   ) {
     this._filterConfig = filterConfig;
+    this._views = Object.freeze(normalizeViews(views));
   }
 
   get filterConfig(): FilterConfig | undefined {
     return this._filterConfig;
   }
 
+  /**
+   * The data views configured on this node, in display order.
+   *
+   * Views are node-level state that rides along with the filter: replacing the
+   * filter must not drop them, so every rebuild goes through `withFilter` /
+   * `withViews` rather than constructing a fresh content.
+   */
+  get views(): DataView[] {
+    return [...this._views];
+  }
+
+  /** Same content with a different filter; the views are carried over. */
+  withFilter(filterConfig: FilterConfig | undefined): CollectionContent {
+    return new CollectionContent(filterConfig, this._views);
+  }
+
+  /** Same content with a different view list; the filter is carried over. */
+  withViews(views: readonly DataView[]): CollectionContent {
+    return new CollectionContent(this._filterConfig, views);
+  }
+
   equals(other: CollectionContent): boolean {
+    if (!sameViews(this._views, other._views)) {
+      return false;
+    }
     if (!this._filterConfig && !other._filterConfig) {
       return true;
     }
@@ -798,10 +899,16 @@ function assertCellMatchesField(
 export class DatabaseContent {
   private readonly _fields: readonly DatabaseField[];
   private readonly _rows: readonly DatabaseRow[];
+  private readonly _views: readonly DataView[];
 
-  constructor(fields: DatabaseField[], rows: DatabaseRow[]) {
+  constructor(
+    fields: DatabaseField[],
+    rows: DatabaseRow[],
+    views: readonly DataView[] = [],
+  ) {
     this._fields = Object.freeze([...fields]);
     this._rows = Object.freeze([...rows]);
+    this._views = Object.freeze(normalizeViews(views));
     this.validate();
   }
 
@@ -839,7 +946,7 @@ export class DatabaseContent {
           ),
         ),
     );
-    return new DatabaseContent(fields, rows);
+    return new DatabaseContent(fields, rows, raw.views ?? []);
   }
 
   get fields(): DatabaseField[] {
@@ -848,6 +955,22 @@ export class DatabaseContent {
 
   get rows(): DatabaseRow[] {
     return [...this._rows];
+  }
+
+  /**
+   * The data views configured on this node, in display order.
+   *
+   * Views describe how the table above is browsed, so they live on the same
+   * content — but a column/row edit must not drop them. Every rebuild inside
+   * `DatabaseNode` therefore goes through a helper that carries them over.
+   */
+  get views(): DataView[] {
+    return [...this._views];
+  }
+
+  /** Same table with a different view list. */
+  withViews(views: readonly DataView[]): DatabaseContent {
+    return new DatabaseContent([...this._fields], [...this._rows], views);
   }
 
   /** The field stored under `fieldId`, if the schema has one. */
@@ -861,6 +984,9 @@ export class DatabaseContent {
   }
 
   equals(other: DatabaseContent): boolean {
+    if (!sameViews(this._views, other._views)) {
+      return false;
+    }
     if (
       this._fields.length !== other._fields.length ||
       this._rows.length !== other._rows.length

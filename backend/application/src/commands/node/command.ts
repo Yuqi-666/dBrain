@@ -1,4 +1,5 @@
 import type {
+  DataView,
   DatabaseContent,
   FilterConfig,
   NodeStateData,
@@ -143,7 +144,9 @@ export interface CreateCollectionNodeCommand {
   isPinned?: boolean;
   stateData?: NodeStateData;
   content: {
-    filterConfig?: FilterConfig
+    filterConfig?: FilterConfig;
+    /** Data views of this collection; absent means "start with none". */
+    views?: DataView[];
   };
   userId: string;
   sourceId?: string;

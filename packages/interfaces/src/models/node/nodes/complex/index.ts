@@ -1,4 +1,4 @@
-export type { CollectionNodeData } from "./collection";
+export type { CollectionNodeData, CollectionContent } from "./collection";
 
 export type {
   RichTextNodeData,

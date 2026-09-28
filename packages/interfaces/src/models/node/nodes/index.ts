@@ -33,7 +33,10 @@ export type { AudioNodeData } from "./single/audio";
 export type { WebpageNodeData, WebpageContent } from "./single/webpage";
 export type { WebsiteNodeData } from "./single/website";
 
-export type { CollectionNodeData } from "./complex/collection";
+export type {
+  CollectionNodeData,
+  CollectionContent,
+} from "./complex/collection";
 
 export type { RichTextNodeData, RichTextContent } from "./complex/rich-text";
 

@@ -131,6 +131,10 @@ export function toNodeDTO(node: Node): NodeDTO {
             ruleGroup: collection.content.filterConfig.ruleGroup,
             collectionType: collection.content.filterConfig.collectionType,
           },
+          // Views are already plain JSON, so they go out untouched — but they
+          // must be listed explicitly: this mapper builds the content by hand
+          // and anything not named here never reaches the client.
+          views: collection.content.views,
         },
       };
     }
@@ -172,6 +176,8 @@ export function toNodeDTO(node: Node): NodeDTO {
               ]),
             ),
           })),
+          // Same reason as the collection case: named here or dropped here.
+          views: database.content.views,
         },
       };
     }

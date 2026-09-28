@@ -1,3 +1,4 @@
+export * from "./data-view";
 export * from "./filter";
 export * from "./node";
 export * from "./edge";

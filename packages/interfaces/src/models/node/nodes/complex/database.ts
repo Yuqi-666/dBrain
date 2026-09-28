@@ -1,3 +1,4 @@
+import type { DataView } from "../../../data-view";
 import type { NodeBase, NodeId } from "../../base";
 import type { NodeType } from "../../types";
 
@@ -64,4 +65,12 @@ export interface DatabaseRow {
 export interface DatabaseContent {
   fields: DatabaseField[];
   rows: DatabaseRow[];
+  /**
+   * Data views attached to this node (see `docs/dataview/README.md`).
+   *
+   * Views are a property of how the node looks at its own table, so they live
+   * on content rather than in a separate entity. Optional: a node created
+   * before data views existed simply has none.
+   */
+  views?: DataView[];
 }
