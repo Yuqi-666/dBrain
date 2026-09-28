@@ -12,6 +12,7 @@ import { WebpageNodeContent } from "./webpage-node-content";
 import { WebsiteNodeContent } from "./website-node-content";
 import { RichTextNodeContent } from "./rich-text-node-content";
 import { CollectionNodeContent } from "./collection-node-content";
+import { DatabaseNodeContent } from "./database-node-content";
 
 /** Props for the NodeContentEditor component */
 interface NodeContentEditorProps {
@@ -45,6 +46,8 @@ export function NodeContentEditor({ node, className }: NodeContentEditorProps) {
         return <RichTextNodeContent node={node} className={className} />;
       case "collection":
         return <CollectionNodeContent node={node} className={className} />;
+      case "database":
+        return <DatabaseNodeContent node={node} className={className} />;
       default:
         return (
           <div
