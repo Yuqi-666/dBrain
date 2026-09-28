@@ -18,7 +18,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # d3-force graph (worker); flow mode is a placeholder shell
-│   ├── dataview/    # Multi-shape data views (table/kanban/calendar/... all placeholders); used by database & collection node content
+│   ├── dataview/    # Multi-shape data views (table implemented; kanban/calendar/... placeholders); used by database & collection node content
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -47,7 +47,7 @@ dBrain/
 | ------------------------ | -------------------------------------------- | ------------------------------------ |
 | UI components            | packages/ui/src/components                   | shadcn/ui + custom                   |
 | Graph                  | packages/graph/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
-| Data views             | packages/dataview/src                     | Multi-shape data browsing for database/collection nodes; every view is a placeholder — see dedicated section below |
+| Data views             | packages/dataview/src                     | Multi-shape data browsing for database/collection nodes; the table view is implemented and the other six are placeholders — see dedicated section below |
 | Rich text editor         | packages/editor/                             | Tiptap Pro + Yjs, Notion-like editor |
 | Type definitions         | packages/interfaces/src                      | Models, nodes, API types             |
 | State management         | packages/store/src                           | Zustand v5                           |
@@ -77,6 +77,17 @@ dBrain/
 - **No root Cargo.toml** — each crate is standalone
 - **Format:** Prettier (no .editorconfig)
 - **Imports:** Type-only imports MUST use `import type` (verbatimModuleSyntax). Root-level `"use client"` required in interactive files in shared packages.
+- **Tailwind content scanning:** only `packages/ui/src`, `apps/**` and the paths
+  explicitly listed in `packages/ui/src/styles/globals.css` are scanned. A
+  workspace package reaches the app through a symlink in `node_modules`, which
+  Tailwind's automatic detection skips — a class used *only* in that package is
+  silently missing from the stylesheet. Add an `@source` line for it (`dataview`
+  has one); never widen a glob to `apps/**`, which drags in `.next` and stalls
+  the dev-server compile.
+- **shadcn first:** `packages/ui/src/components/ui` gained `badge`, `checkbox`,
+  `switch`, `toggle` and `toggle-group` (built on the already-present
+  `radix-ui`). Feature UI composes these instead of native `<select>` /
+  `<input type="checkbox">` or hand-rolled popovers.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -278,10 +289,22 @@ No `build` / `dev` / `test` scripts exist.
   config panel), the source adapters (`databaseToDataViewSource`,
   `collectionToDataViewSource`), `CellResolver`, the view registry, and default
   config builders.
-- **All 7 view renderers + config editors — placeholder only:** `table`,
-  `kanban`, `calendar`, `gantt`, `gallery`, `chart`, `nodeGraph`. Each renders
-  `<DataViewPlaceholder />` and names the library it is planned to use. No
-  third-party view library is a dependency yet.
+- **Table view — implemented:** `@visactor/vtable` `ListTable` with cell editing
+  (input / date / select / multiSelect / checkbox), header + context-menu
+  sorting, per-column quick filters, `groupBy`, search, CSV/Excel export, row
+  insert/delete/drag-reorder, theme mapping and a full config editor. Files under
+  `views/table/` (`table-schema.ts`, `table-editors.ts`, `table-theme.ts`,
+  `table-filter.ts`, `table-toolbar.tsx`, `table-data-view.tsx`,
+  `config-editor.tsx`).
+- **UI shell + table chrome are shadcn-composed:** every picker is a `Select`,
+  every setting a `Switch`/`Checkbox`/`ToggleGroup`, every chip a `Badge`, the
+  search box an `InputGroup`; `--primary` is reserved for state the user engaged
+  (active filter/group, checked control, selection). The canvas theme mirrors the
+  same tokens (`shared/theme-tokens.ts` → `table-theme.ts`). Full conventions in
+  `packages/dataview/AGENTS.md` § *UI conventions*.
+- **The other 6 view renderers + config editors — placeholder only:** `kanban`,
+  `calendar`, `gantt`, `gallery`, `chart`, `nodeGraph`. Each renders
+  `<DataViewPlaceholder />` and names the library it is planned to use.
 
 ### Top-level structure
 
@@ -294,7 +317,9 @@ src/
 ├── toolbar/ config-panel/   # UI shell blocks
 ├── source/           # types (re-export), database/collection adapters, cell-resolver, field-utils
 ├── shared/           # placeholders, empty-state, theme-tokens, row filter/selection
-└── views/<name>/     # <name>-data-view.tsx + config-editor.tsx (all placeholders)
+└── views/<name>/     # <name>-data-view.tsx + config-editor.tsx
+                      #   table/ = implemented (+ table-schema/editors/theme/filter/toolbar)
+                      #   the other six = placeholders
 ```
 
 ### Architectural rules (do not break)
@@ -304,7 +329,10 @@ src/
    are node content. `source/types.ts` only re-exports them plus the React
    renderer/config-editor props contract.
 2. **Renderers never write.** Data changes bubble up via `onCellChange`; the
-   host node-content persists (today `NodeService.upsert`).
+   host node-content persists (today `NodeService.upsert`). The same applies to
+   view config edited on the canvas (header sort, column resize): it goes through
+   `onConfigChange`, which the root only forwards when the host passed
+   `onViewsChange`.
 3. **`readOnly` = data is read-only, not views are frozen.** View management is
    enabled by the host passing `onViewsChange`; a read-only collection
    projection still supports adding/renaming/configuring views.
@@ -318,8 +346,8 @@ src/
 
 | Host | File | Behaviour |
 |---|---|---|
-| `database` | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })` |
-| `collection` | `.../content/collection-node-content.tsx` | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)` |
+| `database` | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })`; also supplies `onRowInsert` / `onRowDelete` / `onRowReorder` and a lazy `resolveNodeTitle` |
+| `collection` | `.../content/collection-node-content.tsx` | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)`; no row callbacks, so the table offers no editing |
 
 `node-content-editor.tsx` routes `case "database"` / `case "collection"`.
 Hosts must mount with `key={node.id}` (the root seeds its view state once per
@@ -353,11 +381,15 @@ Because the `views` column was added to the **0-numbered** migration, an existin
 `pb_data` will not pick it up (PocketBase dedupes migrations by filename only) —
 delete `pb/pb_data` to rebuild, or writes fail with `unknown field`.
 
-### Known gap
+### Known gaps
 
-**All seven view renderers are placeholders** — the shell, adapters, registry,
-view CRUD and persistence are real; no view draws data yet. See the top of this
-section.
+The **table** view is real; **the other six views are still placeholders** — no
+`kanban` / `calendar` / `gantt` / `gallery` / `chart` / `nodeGraph` renderer
+draws data yet. Within the table view, relation cells are read-only (clicking one
+opens the referenced node instead of offering a picker), there is no entry point
+for adding/editing *fields* (the renderer has no field-level host callback), and
+`TableColumnConfig.format.dateFormat` / `numberFormat` and `cellTypeOverride`
+have no config-panel UI yet. See `docs/dataview/table.md` §9/§10.
 
 ### Commands (dataview only)
 

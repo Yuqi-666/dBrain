@@ -6,6 +6,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import type {
   DatabaseCell,
+  DataRow,
   DataView,
   DataViewConfig,
   DataViewId,
@@ -62,6 +63,14 @@ export interface DataViewRootProps {
   onCellChange?: (rowId: string, fieldId: string, cell: DatabaseCell) => void;
   onOpenRecord?: (rowId: string, source: DataViewSource) => void;
   onOpenNode?: (nodeId: string) => void;
+  /** Insert a row into the host's data (database hosts only). */
+  onRowInsert?: (row: DataRow, index?: number) => void;
+  /** Delete rows from the host's data (database hosts only). */
+  onRowDelete?: (rowIds: readonly string[]) => void;
+  /** Reorder the host's rows into the given id order (database hosts only). */
+  onRowReorder?: (rowIds: readonly string[]) => void;
+  /** Resolve a relation node id to its title for display. */
+  resolveNodeTitle?: (nodeId: string) => string | undefined;
 
   className?: string;
 }
@@ -124,6 +133,10 @@ export function DataViewRoot({
   onCellChange,
   onOpenRecord,
   onOpenNode,
+  onRowInsert,
+  onRowDelete,
+  onRowReorder,
+  resolveNodeTitle,
   className,
 }: DataViewRootProps) {
   const [initial] = useState(() =>
@@ -220,7 +233,7 @@ export function DataViewRoot({
       />
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto bg-background">
           <Suspense
             fallback={
               <div className="flex flex-col gap-2 p-4">
@@ -236,6 +249,15 @@ export function DataViewRoot({
               onCellChange={onCellChange}
               onOpenRecord={onOpenRecord}
               onOpenNode={onOpenNode}
+              onConfigChange={
+                canManageViews
+                  ? (config) => handleConfigChange(activeView.id, config)
+                  : undefined
+              }
+              onRowInsert={onRowInsert}
+              onRowDelete={onRowDelete}
+              onRowReorder={onRowReorder}
+              resolveNodeTitle={resolveNodeTitle}
               className="h-full"
             />
           </Suspense>
@@ -247,6 +269,7 @@ export function DataViewRoot({
             source={filteredSource}
             readOnly={readOnly}
             onConfigChange={canManageViews ? handleConfigChange : undefined}
+            onClose={() => setConfigPanelOpen(false)}
           />
         )}
       </div>

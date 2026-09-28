@@ -10,6 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
+import { Toggle } from "@workspace/ui/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/ui/tooltip";
 import type {
   DataView,
   DataViewId,
@@ -40,6 +47,10 @@ export interface DataViewToolbarProps {
  * The toolbar owns no name field: a rename arrives as `onRenameView` from the
  * tab strip, and every mutation produces a new `DataView[]` handed to
  * `onViewsChange`; the toolbar never persists anything itself.
+ *
+ * It is one 36px strip: navigation on the left (a segmented track), view-level
+ * actions on the right. Only the *pressed* state of the panel toggle and the
+ * active tab carry any emphasis.
  */
 export function DataViewToolbar({
   views,
@@ -99,72 +110,78 @@ export function DataViewToolbar({
   };
 
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5",
-        className,
-      )}
-    >
-      <ViewSwitcher
-        views={views}
-        activeViewId={activeView.id}
-        source={source}
-        onCreateView={canEditViews ? onCreateView : undefined}
-        onActiveViewChange={onActiveViewChange}
-        onRenameView={canEditViews ? renameView : undefined}
-      />
-
-      <div className="ml-auto flex shrink-0 items-center gap-1">
-        <Button
-          type="button"
-          size="icon"
-          variant={configPanelOpen ? "secondary" : "ghost"}
-          className="size-7 text-muted-foreground"
-          aria-label="切换配置面板"
-          aria-pressed={configPanelOpen}
-          onClick={onToggleConfigPanel}
-        >
-          <PanelRight className="size-3.5" />
-        </Button>
-
-        {canEditViews && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="size-7 text-muted-foreground"
-                aria-label="视图操作"
-              >
-                <MoreHorizontal className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem
-                onSelect={setActiveViewAsDefault}
-                disabled={activeView.isDefault}
-              >
-                <Star className="size-4" />
-                设为默认视图
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={duplicateActiveView}>
-                <Copy className="size-4" />
-                复制视图
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={deleteActiveView}
-                disabled={views.length <= 1}
-              >
-                <Trash2 className="size-4" />
-                删除视图
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <TooltipProvider delayDuration={400}>
+      <div
+        className={cn(
+          "flex min-h-9 shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-1",
+          className,
         )}
+      >
+        <ViewSwitcher
+          views={views}
+          activeViewId={activeView.id}
+          source={source}
+          onCreateView={canEditViews ? onCreateView : undefined}
+          onActiveViewChange={onActiveViewChange}
+          onRenameView={canEditViews ? renameView : undefined}
+        />
+
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                size="sm"
+                aria-label="配置面板"
+                aria-pressed={configPanelOpen}
+                pressed={configPanelOpen}
+                className="size-7 min-w-7 text-muted-foreground data-[state=on]:text-foreground"
+                onPressedChange={onToggleConfigPanel}
+              >
+                <PanelRight className="size-3.5" />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">视图配置</TooltipContent>
+          </Tooltip>
+
+          {canEditViews && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7 text-muted-foreground"
+                  aria-label="视图操作"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onSelect={setActiveViewAsDefault}
+                  disabled={activeView.isDefault}
+                >
+                  <Star className="size-4" />
+                  设为默认视图
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={duplicateActiveView}>
+                  <Copy className="size-4" />
+                  复制视图
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={deleteActiveView}
+                  disabled={views.length <= 1}
+                >
+                  <Trash2 className="size-4" />
+                  删除视图
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

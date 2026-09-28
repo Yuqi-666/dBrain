@@ -45,7 +45,7 @@ export function DataViewConfigPlaceholder({
         <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
           配置数据
         </summary>
-        <pre className="max-h-72 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-72 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground tabular-nums">
           {JSON.stringify(config, null, 2)}
         </pre>
       </details>

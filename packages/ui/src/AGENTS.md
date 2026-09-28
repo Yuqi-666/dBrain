@@ -26,6 +26,18 @@ styles/
 └── globals.css      # Global Tailwind styles
 ```
 
+`components/ui/` currently ships: alert, badge, button, card, checkbox,
+collapsible, command, dialog, dropdown-menu, input, input-group, label, popover,
+scroll-area, select, separator, sheet, sidebar, skeleton, slider, switch, tabs,
+textarea, toggle, toggle-group, tooltip. All are built on the single `radix-ui`
+package (not per-primitive `@radix-ui/react-*`), so a new primitive is a local
+file importing `{ X as XPrimitive } from "radix-ui"`.
+
+`globals.css` carries the Tailwind `@source` list. A workspace package reached
+through a `node_modules` symlink is **not** auto-scanned, so its source must be
+listed there (`@workspace/dataview` is) or every class used only by that package
+silently disappears.
+
 ## WHERE TO LOOK
 
 | Task              | Location                  | Notes                                       |

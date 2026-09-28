@@ -9,6 +9,7 @@
  */
 import type {
   DatabaseCell,
+  DataRow,
   DataView,
   DataViewConfig,
   DataViewSource,
@@ -59,6 +60,27 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   onOpenRecord?: (rowId: string, source: DataViewSource) => void;
   /** Open the graph node behind a row (collection only). */
   onOpenNode?: (nodeId: string) => void;
+  /**
+   * A change to this view's own config made *from the renderer* — a header sort
+   * or column resize the user performed directly on the canvas rather than in
+   * the config panel. Same ownership rule as `onCellChange`: the renderer
+   * reports, the root persists (README §8 "排序/筛选/分组态回写 config").
+   *
+   * Absent when the host does not allow view management.
+   */
+  onConfigChange?: (config: C) => void;
+  /** Insert a row (database hosts). `index` defaults to "append". */
+  onRowInsert?: (row: DataRow, index?: number) => void;
+  /** Delete rows by id (database hosts). */
+  onRowDelete?: (rowIds: readonly string[]) => void;
+  /** Reorder rows into the given id order (database hosts). */
+  onRowReorder?: (rowIds: readonly string[]) => void;
+  /**
+   * Resolve a `relation` node id to its title for display. The host supplies it
+   * because node titles live in the data store, which this package does not
+   * depend on (dataview/AGENTS.md — kept store-free).
+   */
+  resolveNodeTitle?: (nodeId: string) => string | undefined;
   className?: string;
 }
 

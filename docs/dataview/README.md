@@ -1,6 +1,6 @@
 # 数据展示组件（DataView）设计文档
 
-> 状态：设计稿（未实现）
+> 状态：外壳已实现；表格视图已实现（`packages/dataview/src/views/table/`），其余六个视图仍为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -107,10 +107,16 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   onCellChange?: (rowId, fieldId, cell) => void;   // 单元格/卡片/事件写回
   onOpenRecord?: (rowId, source) => void;
   onOpenNode?: (nodeId) => void;
+  // —— 渲染器直接操作的补充契约（表格视图引入） ——
+  onConfigChange?: (config: C) => void;            // 画布上的排序/列宽/列序写回视图 config
+  onRowInsert?: (row: DataRow, index?: number) => void;
+  onRowDelete?: (rowIds: readonly string[]) => void;
+  onRowReorder?: (rowIds: readonly string[]) => void;
+  resolveNodeTitle?: (nodeId: string) => string | undefined; // relation 显示名
 }
 ~~~
 
-关键约束：视图渲染器不直接调用 NodeService / useDataStore 写数据，所有数据变更通过 onCellChange 冒泡回 DataViewRoot，再由宿主 node-content 决定如何落库（复用既有 NodeService.upsert 乐观写）。这保证「组件只负责展示与交互，数据所有权在节点」。
+关键约束：视图渲染器不直接调用 NodeService / useDataStore 写数据，所有数据变更通过 onCellChange 冒泡回 DataViewRoot，再由宿主 node-content 决定如何落库（复用既有 NodeService.upsert 乐观写）。这保证「组件只负责展示与交互，数据所有权在节点」。同理，`onConfigChange` 只在宿主传了 `onViewsChange` 时下发，视图仍然不自己持久化。
 
 ---
 
@@ -372,7 +378,7 @@ packages/dataview/src/
 | --- | --- | --- |
 | M0 数据层 | DataViewSource / DataView 类型落地到 interfaces；cell-resolver；database-source / collection-source 适配器 | interfaces |
 | M1 外壳 | DataViewRoot + toolbar + registry + 视图增删改切 + 持久化（content.views + NodeService 写回） | M0 |
-| M2 核心视图-表格 | VTable 集成 + 编辑/排序/筛选/分组/导出 + config 面板（核心，全功能） | M1 |
+| M2 核心视图-表格 | VTable 集成 + 编辑/排序/筛选/分组/导出 + config 面板（核心，全功能） | M1 ✅ 已实现 |
 | M3 核心视图-日历 | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + config 面板（核心，全功能） | M1 |
 | M4 图表 | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出 | M1 |
 | M5 看板 | REUI 看板二次开发 + dnd-kit 拖拽写回 | M1 |

@@ -1,8 +1,22 @@
 # 表格视图（Table DataView）设计文档
 
-> 状态：设计稿（未实现）
+> 状态：**已实现**（`packages/dataview/src/views/table/`）
 > 依赖：[README.md](./README.md)（DataView 组件形态）、../database-node-design.md（fields/rows 数据模型）
 > 定位：核心视图，需全功能设计并优先实现
+
+实现落点（与本文的对应关系）：
+
+| 文件 | 职责 |
+| --- | --- |
+| `table-schema.ts` | fields→columns、rows→records、编辑值→DatabaseCell、列自愈（§3.1/§3.2） |
+| `table-editors.ts` | input / date / list 编辑器 + 自研 multiSelect 复选编辑器（§3.1/§8.3） |
+| `table-theme.ts` | themeTokens → VTable `ITableThemeDefine`（§8.5） |
+| `table-filter.ts` | `config.filterState` 的运行时形状与列快速筛选（§5.4） |
+| `table-toolbar.tsx` | 搜索 / 筛选 / 分组 / 密度 / 增删行 / 导出（§5，shadcn 组件，见 §8.6） |
+| `table-data-view.tsx` | ListTable 生命周期、事件映射、写回（§7） |
+| `config-editor.tsx` | 列可见性 / 列宽 / 列序 / 排序 / 行为开关 / 呈现选项（§4，shadcn 组件，见 §8.6） |
+
+尚未实现（见 §9「边界与取舍」与 §10 任务清单）：以行为单位的 relation 选择器、PivotTable 透视模式、行拖拽之外的批量改字段、`format.dateFormat` / `format.numberFormat`、`cellTypeOverride` 的配置面板入口。
 
 ---
 
@@ -226,6 +240,39 @@ export interface TableColumnConfig {
 6. 分组/筛选/排序态回写 config，保证切换视图回来不丢。
 7. 字段级联：删除字段/改类型由聚合级联（removeField 删整列、setFieldType 清整列），表格只提示「将清空该列 N 个值」。
 
+### 8.6 视觉约定（UI 美化落地）
+
+工具条与配置面板**只用 `@workspace/ui` 的 shadcn 组件**，不再出现原生 `<select>` / `<input type="checkbox">` / 手写浮层：
+
+| 场景 | 组件 |
+| --- | --- |
+| 下拉选择（筛选条件/筛选值/分组/主题） | `Select` |
+| 布尔设置（行为开关） | `Switch`；列显隐等多选 `Checkbox` |
+| 2–4 个互斥选项（行密度） | `ToggleGroup`（+ `Tooltip` 说明） |
+| 计数与状态标签 | `Badge` |
+| 带内嵌操作的搜索框 | `InputGroup` + `InputGroupAddon` / `InputGroupButton` |
+| 浮层 / 菜单 / 提示 / 滚动区 | `Popover` / `DropdownMenu` / `Tooltip` / `ScrollArea` |
+| 控件分组之间的分隔 | `Separator`（vertical，`h-4 self-center`） |
+
+排布与配色规则：
+
+- 每条 strip 一行控件：strip `min-h-9`、控件统一 `h-7`、图标按钮 `size-7`；组内间距 4px，组间 6–8px。
+- **`--primary` 只用于「用户已经施加的状态」**：生效中的筛选/分组、勾选的开关与复选框、选区描边、聚焦环。导航不改色——激活的视图页签是凹陷轨道（`bg-muted/60`）里唯一「抬起」的那一个。
+- 字号：标签 12px 句式大小写，提示 11px `text-muted-foreground`，数字 `tabular-nums`；不使用全大写加字距的小标题。
+- 空态是「邀请」而非「情绪」：图标 + 缺什么 + 怎么办（`DataViewEmptyState`）。
+
+画布（VTable）侧与 HTML 同源：
+
+- `shared/theme-tokens.ts` 的字面量与 `globals.css` 的 mist 基色 + 暖橙 `--primary` 对齐（深色模式把 accent 提亮，否则 2px 选区描边在近黑背景上看不见）；
+- 网格只画**横向发丝线**（`borderLineWidth: [0,0,1,0]`），不再画电子表格式全框线；表头为 muted 底 + muted 文字，行号列是独立窄轨（宽 56，容得下拖拽手柄）；
+- `checkboxStyle` 把 VTable 默认的蓝色勾选框改成品牌橙；`functionalIconsStyle` 把排序图标调淡、排序中态用 `--primary`；
+- **`fontFamily: "inherit"` 对 canvas 是非法值**（`12px inherit` 不解析，字体会被静默忽略），token 里只作哨兵，`buildTableTheme` 经 `resolveCanvasFontFamily()` 从 `<body>` 的计算样式取真实字体栈。
+
+两个坑（工程侧，跟本视图强相关）：
+
+- **Tailwind 默认不扫描 `packages/dataview/src`**：它以 `node_modules` 软链形式被消费，自动内容探测会跳过，于是「只有本包用到」的类（`text-[11px]`、`w-[4.5rem]`、`min-h-9`…）根本不在样式表里——症状是 DOM 正确但布局离谱（列宽输入框退回 `w-full`，字段名被挤成 0 宽、上移/下移按钮被挤出面板）。修复在 `packages/ui/src/styles/globals.css`：`@source "../../../dataview/src/**/*.{ts,tsx}"`；不要把 glob 放宽到 `apps/**`（会扫进 `.next`，dev 编译卡死）。
+- 临时验证页 + headless Chromium（CDP）实测：筛选/分组/密度/配置面板/只读/深浅色共 9 项断言通过，画布 9 列 12 行、中文与「Mist + 橙」配色正常。
+
 ---
 
 ## 9. 边界与取舍
@@ -240,14 +287,19 @@ export interface TableColumnConfig {
 
 ## 10. 开发任务清单
 
-| # | 任务 | 说明 |
-| --- | --- | --- |
-| T1 | table-schema.ts | rowsToRecords / valueToCell / cellType 映射 |
-| T2 | TableDataView 壳 | ListTable 生命周期 + 容器 |
-| T3 | 编辑链路 | vtable-editors 注入 + onCellChange 冒泡 |
-| T4 | 排序/筛选/分组/搜索 | 事件 + 状态回写 config |
-| T5 | 列/字段管理入口 | 列右键菜单 + 字段编辑弹层 |
-| T6 | 批量选择与删除/改字段 | 复选 + 批量动作 |
-| T7 | 导出 | vtable-export CSV/Excel |
-| T8 | 主题/空态/自愈 | themeTokens 映射 + EmptyState + config 自愈 |
-| T9 | collection 只读投影 | 复用投影 + 行点击跳节点 |
+| # | 任务 | 说明 | 状态 |
+| --- | --- | --- | --- |
+| T1 | table-schema.ts | rowsToRecords / valueToCell / cellType 映射 | ✅ |
+| T2 | TableDataView 壳 | ListTable 生命周期 + 容器 | ✅ |
+| T3 | 编辑链路 | vtable-editors 注入 + onCellChange 冒泡 | ✅ |
+| T4 | 排序/筛选/分组/搜索 | 事件 + 状态回写 config | ✅ |
+| T5 | 列/字段管理入口 | 列头右键菜单 + 字段编辑弹层 | 部分：列头菜单（排序/隐藏/冻结/显示全部）+ 配置面板列管理已完成；**新增/改字段弹层未做**（前端没有可调用的字段领域操作入口） |
+| T6 | 批量选择与删除/改字段 | 复选 + 批量动作 | 部分：行选择 + 批量删除 + 新增行已完成；**批量改字段未做** |
+| T7 | 导出 | vtable-export CSV/Excel | ✅ |
+| T8 | 主题/空态/自愈 | themeTokens 映射 + EmptyState + config 自愈 | ✅ |
+| T9 | collection 只读投影 | 复用投影 + 行点击跳节点 | ✅ |
+
+补充说明：
+
+- **行拖拽排序**（§5.2）已实现：拖动行号列的手柄重排，经 `onRowReorder` 冒泡。仅在未启用筛选/渲染上限时生效（否则会静默移动用户看不到的行）。
+- **`DataViewRendererProps` 的扩展**：渲染器新增 `onConfigChange`（画布上的排序/列宽/列序写回）、`onRowInsert` / `onRowDelete` / `onRowReorder`、`resolveNodeTitle`。前四项由宿主决定是否提供；`onConfigChange` 仅在宿主传入 `onViewsChange` 时下发。

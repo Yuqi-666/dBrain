@@ -5,11 +5,12 @@ import type {
   DatabaseCell,
   DatabaseContent,
   DatabaseNodeData,
+  DataRow,
   DataView,
 } from "@workspace/interfaces";
 import { DataViewRoot, databaseToDataViewSource } from "@workspace/dataview";
 import { NodeService } from "@workspace/services";
-import { useUIStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
 
 interface DatabaseNodeContentProps {
@@ -73,6 +74,50 @@ export function DatabaseNodeContent({
     useUIStore.getState().handleNodeEdit(nodeId);
   }, []);
 
+  const handleRowInsert = useCallback(
+    (row: DataRow) => {
+      persistContent({ ...content, rows: [...content.rows, row] });
+    },
+    [content, persistContent],
+  );
+
+  const handleRowDelete = useCallback(
+    (rowIds: readonly string[]) => {
+      if (rowIds.length === 0) return;
+      const removed = new Set(rowIds);
+      persistContent({
+        ...content,
+        rows: content.rows.filter((row) => !removed.has(row.id)),
+      });
+    },
+    [content, persistContent],
+  );
+
+  const handleRowReorder = useCallback(
+    (rowIds: readonly string[]) => {
+      if (rowIds.length === 0) return;
+      const byId = new Map(content.rows.map((row) => [row.id, row]));
+      const ordered = rowIds
+        .map((rowId) => byId.get(rowId))
+        .filter((row): row is DataRow => row !== undefined);
+      const listed = new Set(rowIds);
+      const rest = content.rows.filter((row) => !listed.has(row.id));
+      persistContent({ ...content, rows: [...ordered, ...rest] });
+    },
+    [content, persistContent],
+  );
+
+  /**
+   * Relation cells display the referenced node's title. Read through
+   * `getState()` rather than a store selector so a database node does not
+   * re-render on every unrelated node change; the lookup runs while the data
+   * views build their records.
+   */
+  const resolveNodeTitle = useCallback(
+    (nodeId: string) => useDataStore.getState().nodes.get(nodeId)?.title,
+    [],
+  );
+
   return (
     <div className={cn("h-full min-h-0 w-full p-4", className)}>
       <DataViewRoot
@@ -83,6 +128,10 @@ export function DatabaseNodeContent({
         onViewsChange={handleViewsChange}
         onCellChange={handleCellChange}
         onOpenNode={handleOpenNode}
+        onRowInsert={handleRowInsert}
+        onRowDelete={handleRowDelete}
+        onRowReorder={handleRowReorder}
+        resolveNodeTitle={resolveNodeTitle}
       />
     </div>
   );

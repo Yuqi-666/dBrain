@@ -8,6 +8,12 @@
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
+/* @workspace/dataview ships Tailwind classes in its own source but is only
+   reachable through a symlink inside consumer node_modules, which Tailwind's
+   automatic content detection skips: without this line every class used ONLY by
+   the data views (text-[11px], w-[4.5rem], min-h-9, ...) is silently missing
+   from the stylesheet. */
+@source "../../../dataview/src/**/*.{ts,tsx}";
 
 
 :root {

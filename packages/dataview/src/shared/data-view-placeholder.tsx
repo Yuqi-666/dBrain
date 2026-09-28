@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
+import { Badge } from "@workspace/ui/components/ui/badge";
 import type {
   DataViewConfig,
   DataViewSource,
@@ -53,19 +54,17 @@ export function DataViewPlaceholder({
       )}
     >
       <header className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-foreground">
+        <Badge variant="secondary" className="font-medium">
           {label}
-        </span>
-        <span className="rounded-md border border-dashed border-border px-2 py-0.5">
+        </Badge>
+        <Badge variant="outline" className="border-dashed">
           占位未实现
-        </span>
-        <span>
+        </Badge>
+        <span className="tabular-nums">
           {source.rows.length} 行 · {source.fields.length} 字段 · 数据源{" "}
           {source.kind}
         </span>
-        {readOnly && (
-          <span className="rounded-md bg-muted px-2 py-0.5">只读</span>
-        )}
+        {readOnly && <Badge variant="muted">只读</Badge>}
       </header>
 
       <DataViewEmptyState
