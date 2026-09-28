@@ -9,6 +9,12 @@
       "@workspace/editor/*": [
         "../../packages/editor/*"
       ],
+      "@workspace/dataview": [
+        "../../packages/dataview/src"
+      ],
+      "@workspace/dataview/*": [
+        "../../packages/dataview/src/*"
+      ],
       "@workspace/ui/*": [
         "../../packages/ui/src/*"
       ],

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  transpilePackages: ["@workspace/ui", "@workspace/editor"],
+  transpilePackages: ["@workspace/ui", "@workspace/editor", "@workspace/dataview"],
   output: "standalone",
 }
 

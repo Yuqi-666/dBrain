@@ -30,6 +30,12 @@
       "@workspace/editor/*": [
         "../editor/src/*"
       ],
+      "@workspace/dataview": [
+        "../dataview/src"
+      ],
+      "@workspace/dataview/*": [
+        "../dataview/src/*"
+      ],
       "@workspace/hooks": [
         "../hooks/src"
       ],

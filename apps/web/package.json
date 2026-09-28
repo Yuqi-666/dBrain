@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@workspace/api-client": "workspace:*",
+    "@workspace/dataview": "workspace:*",
     "@workspace/graph": "workspace:*",
     "@workspace/interfaces": "workspace:*",
     "@workspace/store": "workspace:*",

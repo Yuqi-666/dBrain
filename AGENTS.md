@@ -18,6 +18,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # d3-force graph (worker); flow mode is a placeholder shell
+│   ├── dataview/    # Multi-shape data views (table/kanban/calendar/... all placeholders); used by database & collection node content
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -46,6 +47,7 @@ dBrain/
 | ------------------------ | -------------------------------------------- | ------------------------------------ |
 | UI components            | packages/ui/src/components                   | shadcn/ui + custom                   |
 | Graph                  | packages/graph/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
+| Data views             | packages/dataview/src                     | Multi-shape data browsing for database/collection nodes; every view is a placeholder — see dedicated section below |
 | Rich text editor         | packages/editor/                             | Tiptap Pro + Yjs, Notion-like editor |
 | Type definitions         | packages/interfaces/src                      | Models, nodes, API types             |
 | State management         | packages/store/src                           | Zustand v5                           |
@@ -59,6 +61,7 @@ dBrain/
 **Per-package AGENTS.md** with deeper conventions exist at:
 - `packages/services/AGENTS.md` — service API (upsert/delete/sync)
 - `packages/editor/AGENTS.md` — Tiptap setup
+- `packages/dataview/AGENTS.md` — data view shell, registry, adapters
 - `packages/api-client/AGENTS.md` — tRPC client patterns
 - `packages/interfaces/src/AGENTS.md`, `packages/store/src/AGENTS.md`, `packages/ui/src/AGENTS.md`
 - `backend/{domain,application,infrastructure,adapter-back,adapter-front,adapter-tauri}/AGENTS.md`
@@ -259,3 +262,111 @@ No `build` / `dev` / `test` scripts exist.
 ### Test infrastructure
 
 **None.** No `*.test.*`, no `__tests__/`, no vitest/jest config. The only scripts are `lint`, `format`, `typecheck`. Consistent with the rest of the JS/TS monorepo (per anti-pattern note above).
+
+---
+
+## dataview (current architecture)
+
+`packages/dataview/` is the multi-shape data browsing layer embedded in the
+`database` and `collection` node contents (design:
+`docs/dataview/README.md` + one file per view). It exposes a single
+`<DataViewRoot />` that takes one normalized `DataViewSource` (`fields` +
+`rows`) and renders it through switchable views:
+
+- **Shell — implemented:** `<DataViewRoot />` (toolbar, view tabs, new/rename/
+  duplicate/delete/default actions, lazily-loaded renderer routing, collapsible
+  config panel), the source adapters (`databaseToDataViewSource`,
+  `collectionToDataViewSource`), `CellResolver`, the view registry, and default
+  config builders.
+- **All 7 view renderers + config editors — placeholder only:** `table`,
+  `kanban`, `calendar`, `gantt`, `gallery`, `chart`, `nodeGraph`. Each renders
+  `<DataViewPlaceholder />` and names the library it is planned to use. No
+  third-party view library is a dependency yet.
+
+### Top-level structure
+
+```
+src/
+├── index.ts          # Public API — <DataViewRoot /> + types + adapters
+├── data-view-root.tsx # toolbar + lazy renderer + config panel
+├── registry.ts       # DATA_VIEW_REGISTRY (type → descriptor, React.lazy renderers)
+├── defaults.ts       # createDefaultConfig / createDefaultDataView / seedDataViewId
+├── toolbar/ config-panel/   # UI shell blocks
+├── source/           # types (re-export), database/collection adapters, cell-resolver, field-utils
+├── shared/           # placeholders, empty-state, theme-tokens, row filter/selection
+└── views/<name>/     # <name>-data-view.tsx + config-editor.tsx (all placeholders)
+```
+
+### Architectural rules (do not break)
+
+1. **Persisted types live in `@workspace/interfaces`** (`models/data-view.ts`),
+   never in the package — `DatabaseContent.views` / `CollectionContent.views`
+   are node content. `source/types.ts` only re-exports them plus the React
+   renderer/config-editor props contract.
+2. **Renderers never write.** Data changes bubble up via `onCellChange`; the
+   host node-content persists (today `NodeService.upsert`).
+3. **`readOnly` = data is read-only, not views are frozen.** View management is
+   enabled by the host passing `onViewsChange`; a read-only collection
+   projection still supports adding/renaming/configuring views.
+4. **The registry is the single dispatch table** — the root, toolbar and config
+   panel never `switch` on `DataViewType`. `descriptor.nodeTypes` encodes the
+   capability matrix (nodeGraph is collection-only).
+5. **Lazy by construction** — every renderer/config editor is `React.lazy`;
+   view libraries must only be reachable through those dynamic imports.
+
+### Host integration
+
+| Host | File | Behaviour |
+|---|---|---|
+| `database` | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })` |
+| `collection` | `.../content/collection-node-content.tsx` | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)` |
+
+`node-content-editor.tsx` routes `case "database"` / `case "collection"`.
+Hosts must mount with `key={node.id}` (the root seeds its view state once per
+mount).
+
+### Persistence (views)
+
+`content.views` is persisted end to end (README §5.2). The chain, top to bottom:
+
+| Layer | Where | Shape |
+|---|---|---|
+| column | `pb/pb_migrations/1700000000_initial_schema.js` | `nodes.views` (json), shared by `database` + `collection`, alongside `fields`/`rows`/`filterConfig` |
+| domain | `backend/domain/.../value-objects.ts` | `CollectionContent` / `DatabaseContent` carry `views`; `normalizeViews` is the validation boundary (unique ids, non-empty `name`, `type` ∈ `DATA_VIEW_TYPES`, object `config`); `withFilter` / `withViews` and `DatabaseNode.rebuildContent` are the only sanctioned rebuilds |
+| app | `node-command.service.ts` | `filterConfig` and `views` are **independent halves**: a patch naming one leaves the other alone |
+| DTO | `dto/node-dto.mapper.ts` | both content literals name `views` explicitly — anything unnamed there is dropped |
+| infra | `database/mappers/node.mapper.ts` | `views` column ↔ `content.views` (a missing column reads as `[]`) |
+| API | `adapter-front/.../router/node.ts` | `views` declared on both content schemas as `z.array(z.custom<DataView>(…))` |
+
+Two traps when touching this:
+
+- **`z.object` would silently strip views.** Views go through `z.custom`, which
+  validates identity and passes the payload through byte-for-byte. Do not swap it
+  for a `z.object` (strips unknown keys, e.g. everything inside `config`), and do
+  not add `.passthrough()` either — its index signature makes the parsed type
+  unassignable from `NodeData`, which breaks `NodeService.upsert`'s typecheck.
+- **Inside the domain, rebuild content through the `with*` helpers.** A bare
+  `new DatabaseContent(fields, rows)` defaults `views` to `[]`, so every column /
+  row mutation in `DatabaseNode` goes through the private `rebuildContent`.
+
+Because the `views` column was added to the **0-numbered** migration, an existing
+`pb_data` will not pick it up (PocketBase dedupes migrations by filename only) —
+delete `pb/pb_data` to rebuild, or writes fail with `unknown field`.
+
+### Known gap
+
+**All seven view renderers are placeholders** — the shell, adapters, registry,
+view CRUD and persistence are real; no view draws data yet. See the top of this
+section.
+
+### Commands (dataview only)
+
+```bash
+pnpm --filter=@workspace/dataview typecheck   # tsc --noemit (clean)
+pnpm --filter=@workspace/dataview lint        # eslint (clean)
+pnpm --filter=@workspace/dataview format      # prettier
+```
+
+No `build` / `dev` / `test` scripts exist. Consumers receive `.ts` source via
+`exports`, and must add the package to `transpilePackages` + tsconfig paths
+(`apps/web` and `packages/ui` already do).
