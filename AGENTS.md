@@ -18,7 +18,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # d3-force graph (worker); flow mode is a placeholder shell
-│   ├── dataview/    # Multi-shape data views (table + kanban implemented; calendar/... placeholders); used by database & collection node content
+│   ├── dataview/    # Multi-shape data views (table + kanban + calendar implemented; gantt/gallery/chart/nodeGraph placeholders); used by database & collection node content
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -43,20 +43,20 @@ dBrain/
 
 ## WHERE TO LOOK
 
-| Task             | Location                     | Notes                                                                                                                                                                 |
-| ---------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI components    | packages/ui/src/components   | shadcn/ui + custom                                                                                                                                                    |
-| Graph            | packages/graph/src           | d3-force (worker); flow mode is a placeholder shell — see dedicated section below                                                                                     |
-| Data views       | packages/dataview/src        | Multi-shape data browsing for database/collection nodes; the table and kanban views are implemented and the other five are placeholders — see dedicated section below |
-| Rich text editor | packages/editor/             | Tiptap Pro + Yjs, Notion-like editor                                                                                                                                  |
-| Type definitions | packages/interfaces/src      | Models, nodes, API types                                                                                                                                              |
-| State management | packages/store/src           | Zustand v5                                                                                                                                                            |
-| Service layer    | packages/services/src/graph/ | Optimistic upsert/delete/sync                                                                                                                                         |
-| Desktop app      | apps/desktop/src             | Tauri + Next.js                                                                                                                                                       |
-| Web app          | apps/web/src                 | Next.js 16, React 19                                                                                                                                                  |
-| Backend domain   | backend/domain/src           | Entities, VOs, repository interfaces                                                                                                                                  |
-| Backend infra    | backend/infrastructure/src   | PocketBase repos, mappers, event bus                                                                                                                                  |
-| Backend adapter  | backend/adapter-back/src     | DAOs, DI factory                                                                                                                                                      |
+| Task             | Location                     | Notes                                                                                                                                                                           |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI components    | packages/ui/src/components   | shadcn/ui + custom                                                                                                                                                              |
+| Graph            | packages/graph/src           | d3-force (worker); flow mode is a placeholder shell — see dedicated section below                                                                                               |
+| Data views       | packages/dataview/src        | Multi-shape data browsing for database/collection nodes; the table, kanban and calendar views are implemented and the other four are placeholders — see dedicated section below |
+| Rich text editor | packages/editor/             | Tiptap Pro + Yjs, Notion-like editor                                                                                                                                            |
+| Type definitions | packages/interfaces/src      | Models, nodes, API types                                                                                                                                                        |
+| State management | packages/store/src           | Zustand v5                                                                                                                                                                      |
+| Service layer    | packages/services/src/graph/ | Optimistic upsert/delete/sync                                                                                                                                                   |
+| Desktop app      | apps/desktop/src             | Tauri + Next.js                                                                                                                                                                 |
+| Web app          | apps/web/src                 | Next.js 16, React 19                                                                                                                                                            |
+| Backend domain   | backend/domain/src           | Entities, VOs, repository interfaces                                                                                                                                            |
+| Backend infra    | backend/infrastructure/src   | PocketBase repos, mappers, event bus                                                                                                                                            |
+| Backend adapter  | backend/adapter-back/src     | DAOs, DI factory                                                                                                                                                                |
 
 **Per-package AGENTS.md** with deeper conventions exist at:
 
@@ -297,10 +297,13 @@ No `build` / `dev` / `test` scripts exist.
   wraps _inside_ its own box while the function group stays pinned to the right,
   so the right-hand buttons cannot jump between lines as the window is resized.
   The table uses _only_ dedicated menus (添加记录 /
-  字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色) and the kanban its own four panels
-  (分组 / 卡片 / 排序 / 显示), so neither has a generic 视图配置 popover and
-  neither registers a `configEditor`; `ViewConfigMenu` in
+  字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色), the kanban its own four panels
+  (分组 / 卡片 / 排序 / 显示) and the calendar its own four (字段 / 视图 / 交互 /
+  显示), so none of them has a generic 视图配置 popover and none registers a
+  `configEditor`; `ViewConfigMenu` in
   `shared/view-toolbar.tsx` remains for views that have no dedicated menu yet.
+  The panel chrome and the in-popover field picker are shared
+  (`shared/settings-panel.tsx`, `shared/field-select.tsx`).
 - **View actions (更多) live in that function group too**, not on the tab strip:
   the shell (`toolbar/view-actions.tsx`) publishes 设为默认/复制/删除视图 through a
   slot context, `ViewToolbar` appends it, and a view with its own toolbar (the
@@ -353,8 +356,19 @@ No `build` / `dev` / `test` scripts exist.
   `configEditor`. A `multiSelect` grouping renders read-only cards (one row in
   several lanes → no unambiguous drop target), and lane-internal order is never
   persisted. See `docs/dataview/kanban.md`.
-- **The other 5 view renderers + config editors — placeholder only:** `calendar`,
-  `gantt`, `gallery`, `chart`, `nodeGraph`. Each renders
+- **Calendar view — implemented** (`views/calendar/`): a FullCalendar (v6.1.21)
+  surface — 月 / 周 / 日 / 列表 / 多月, with the pure layer in `core/`
+  (`config.ts` self-heal + `headerToolbar` ⇄ "today + view buttons" + the
+  `multiMonth`→`multiMonthYear` mapping, `schema.ts` rows→events and
+  gesture→cells holding the **only** exclusive-`end` ±1 day conversion,
+  `theme.ts` → `--fc-*` variables), the one `memo`-wrapped `<FullCalendar>` plus
+  the hover-tooltip / click-popover anchors in `board/`, and the four settings
+  panels (字段 / 视图 / 交互 / 显示) in its toolbar — so, like the table and the
+  kanban, it registers **no** `configEditor`. Drag / resize / 框选 / 双击 bubble
+  up as `onCellChange` / `onRowInsert`; `eventClick` is 打开记录 / 详情弹层 /
+  不响应. See `docs/dataview/calendar.md` §0 for its load-bearing gotchas.
+- **The other 4 view renderers + config editors — placeholder only:** `gantt`,
+  `gallery`, `chart`, `nodeGraph`. Each renders
   `<DataViewPlaceholder />` and names the library it is planned to use (their
   placeholder toolbars still carry the generic 视图配置 popover, since they have
   no dedicated menus yet).
@@ -369,11 +383,14 @@ src/
 ├── defaults.ts       # createDefaultConfig / createDefaultDataView / seedDataViewId
 ├── toolbar/          # view tab strip + new-view menu, 更多 actions slot (view-actions.tsx)
 ├── source/           # types (re-export), database/collection adapters, cell-resolver, row-utils, field-utils
-├── shared/           # view-toolbar (ViewToolbar/ViewConfigMenu), field-meta, placeholders, empty-state, theme-tokens, row filter/selection
+├── shared/           # view-toolbar (ViewToolbar/ViewConfigMenu), field-meta, field-select (in-popover picker),
+│                     #   settings-panel (SettingsPanel/PanelSection/SwitchRow), color (contrastTextColor),
+│                     #   placeholders, empty-state, theme-tokens, row filter/selection
 └── views/<name>/     # <name>-data-view.tsx (+ config-editor.tsx when the view needs one)
-                      #   table/  = implemented, split into core/ canvas/ toolbar/ menus/ fields/; no config-editor
-                      #   kanban/ = implemented, split into reui/ core/ board/ fields/ toolbar/; no config-editor
-                      #   the other five = placeholders
+                      #   table/    = implemented, split into core/ canvas/ toolbar/ menus/ fields/; no config-editor
+                      #   kanban/   = implemented, split into reui/ core/ board/ toolbar/; no config-editor
+                      #   calendar/ = implemented, split into core/ board/ toolbar/; no config-editor
+                      #   the other four = placeholders
 ```
 
 ### Architectural rules (do not break)
@@ -444,8 +461,8 @@ delete `pb/pb_data` to rebuild, or writes fail with `unknown field`.
 
 ### Known gaps
 
-The **table** and **kanban** views are real; **the other five views are still
-placeholders** — no `calendar` / `gantt` / `gallery` / `chart` / `nodeGraph`
+The **table**, **kanban** and **calendar** views are real; **the other four views
+are still placeholders** — no `gantt` / `gallery` / `chart` / `nodeGraph`
 renderer draws data yet. Within the table view, relation cells are read-only
 (clicking one opens the referenced node instead of offering a picker), bulk field
 edits are not implemented, column groups do not nest, and
@@ -453,7 +470,11 @@ edits are not implemented, column groups do not nest, and
 have no UI yet. See `docs/dataview/table.md` §9/§10. The kanban draws no card
 entry for an option that has none (its 编辑选项 can rename/recolour an option but
 deliberately not delete it), and a card's lane-internal position is not
-persisted; see `docs/dataview/kanban.md` §8.
+persisted; see `docs/dataview/kanban.md` §8. The calendar has no recurring
+events, no resource/people view (premium), no event legend, and no
+time-of-day events — a `date` cell is a calendar day, so every event is all-day;
+its `timeZone` config key is persisted but pinned to `local`; see
+`docs/dataview/calendar.md` §9.
 
 ### Commands (dataview only)
 

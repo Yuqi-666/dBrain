@@ -1,7 +1,8 @@
 # 数据展示组件（DataView）设计文档
 
 > 状态：外壳已实现；表格视图已实现（`packages/dataview/src/views/table/`），看板视图已实现
-> （`packages/dataview/src/views/kanban/`，见 kanban.md），其余五个视图仍为占位
+> （`packages/dataview/src/views/kanban/`，见 kanban.md），日历视图已实现
+> （`packages/dataview/src/views/calendar/`，见 calendar.md），其余四个视图仍为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -425,6 +426,9 @@ packages/dataview/src/
 ├── shared/
 │   ├── view-toolbar.tsx     # ViewToolbar 骨架 +（可选）ViewConfigMenu 通用配置弹层
 │   ├── field-meta.tsx       # 字段类型标签/图标、选项与填色色板、字段搜索（各视图共用的字段词汇表）
+│   ├── field-select.tsx     # 弹层内的字段选择器（shadcn Select；看板与日历共用）
+│   ├── settings-panel.tsx   # 弹层式设置面板的三件套：SettingsPanel / PanelSection / SwitchRow（+ CheckboxOptionList）
+│   ├── color.ts             # contrastTextColor（填色/胶囊/日历事件共用的对比色）
 │   ├── use-row-filter.ts
 │   ├── use-row-selection.ts
 │   ├── theme-tokens.ts      # 浅/深色 → 各库主题映射
@@ -442,9 +446,11 @@ packages/dataview/src/
     │                ├── reui/     kanban.tsx          # vendor 的 REUI 看板原语
     │                ├── core/     board.ts + config.ts
     │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
-    │                ├── fields/   field-select.tsx
     │                └── toolbar/  kanban-toolbar.tsx
-    ├── calendar/    …
+    ├── calendar/    calendar-data-view.tsx   # 壳（唯一入口，无 config-editor）
+    │                ├── core/     config.ts + schema.ts + theme.ts
+    │                ├── board/    calendar-surface.tsx + event-readout.tsx
+    │                └── toolbar/  calendar-toolbar.tsx
     ├── gantt/       …
     ├── gallery/     …
     ├── chart/       …
@@ -461,7 +467,7 @@ packages/dataview/src/
 | M1 外壳           | DataViewRoot + toolbar + registry + 视图增删改切 + 持久化（content.views + NodeService 写回）                                            | M0           |
 | M2 核心视图-表格  | VTable 集成 + 编辑/排序/筛选/分组/字段增删改/填色/导出 + 工具栏化 config（核心，全功能）                                                 | M1 ✅ 已实现 |
 | M2.5 工具栏化改造 | 删除配置侧栏，配置并入视图 toolbar（配置左 / 功能右）；视图级「更多」也进视图 toolbar 功能区，页签条只留导航；功能组只放固定尺寸常驻控件 | M2 ✅ 已实现 |
-| M3 核心视图-日历  | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + config 面板（核心，全功能）                                                               | M1           |
+| M3 核心视图-日历  | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + 工具栏四面板（核心，全功能）                                                              | M1 ✅ 已实现 |
 | M4 图表           | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出                                                                                        | M1           |
 | M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
 | M6 画廊           | 自研卡片/网格/虚拟滚动（database 自定义卡片 + collection 复用预览）                                                                      | M1           |

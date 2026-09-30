@@ -18,20 +18,11 @@
  * The trigger reports engaged state with `--primary` (the current group field,
  * an active lane sort), and `--primary` is spent nowhere else here.
  */
-import type { ComponentType, ReactNode } from "react";
 import { ArrowUpDown, Columns3, IdCard, SlidersHorizontal } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { Button } from "@workspace/ui/components/ui/button";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/ui/popover";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
 import { Separator } from "@workspace/ui/components/ui/separator";
-import { Switch } from "@workspace/ui/components/ui/switch";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -42,117 +33,15 @@ import type {
   KanbanViewConfig,
 } from "@workspace/interfaces";
 
+import { FieldSelect } from "../../../shared/field-select";
 import { FieldTypeIcon } from "../../../shared/field-meta";
+import {
+  PanelSection,
+  SettingsPanel,
+  SwitchRow,
+} from "../../../shared/settings-panel";
 import { ViewToolbar } from "../../../shared/view-toolbar";
 import { groupableFields } from "../core/config";
-import { KanbanFieldSelect } from "../fields/field-select";
-
-/** One labelled block inside a settings panel. */
-function PanelSection({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-medium text-muted-foreground">
-        {label}
-      </span>
-      {children}
-      {hint && (
-        <span className="text-[11px] leading-relaxed text-muted-foreground">
-          {hint}
-        </span>
-      )}
-    </div>
-  );
-}
-
-/** A switch row: the label on the left, the control on the right. */
-function SwitchRow({
-  label,
-  hint,
-  checked,
-  disabled,
-  onCheckedChange,
-}: {
-  label: string;
-  hint?: string;
-  checked: boolean;
-  disabled?: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <label
-      className={cn(
-        "flex items-center justify-between gap-3",
-        disabled && "opacity-60",
-      )}
-    >
-      <span className="flex min-w-0 flex-col">
-        <span className="text-xs text-foreground">{label}</span>
-        {hint && (
-          <span className="text-[11px] text-muted-foreground">{hint}</span>
-        )}
-      </span>
-      <Switch
-        checked={checked}
-        disabled={disabled}
-        aria-label={label}
-        onCheckedChange={onCheckedChange}
-      />
-    </label>
-  );
-}
-
-/** A toolbar button that opens a settings panel. */
-function SettingsPanel({
-  label,
-  icon: Icon,
-  active,
-  value,
-  disabled,
-  children,
-}: {
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  active?: boolean;
-  /** Current value shown next to the label (e.g. the group field's name). */
-  value?: string;
-  disabled?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          className={cn(
-            "h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground",
-            active &&
-              "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-          )}
-        >
-          <Icon className="size-3.5" />
-          {label}
-          {value && (
-            <span className="max-w-28 truncate text-foreground">{value}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-3">
-        <div className="flex flex-col gap-3">{children}</div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 /** The 显示字段 checkbox list (the card's extra fields). */
 function CardFieldsList({
@@ -275,7 +164,7 @@ export function KanbanToolbar({
               : "卡片按该字段的选项分列，拖拽即改值。"
           }
         >
-          <KanbanFieldSelect
+          <FieldSelect
             fields={groupable}
             value={config.groupByField}
             placeholder="选择字段"
@@ -304,7 +193,7 @@ export function KanbanToolbar({
         disabled={!canConfigure}
       >
         <PanelSection label="标题字段">
-          <KanbanFieldSelect
+          <FieldSelect
             fields={source.fields}
             value={config.titleField}
             placeholder="选择字段"
@@ -338,7 +227,7 @@ export function KanbanToolbar({
         disabled={!canConfigure}
       >
         <PanelSection label="排序字段" hint="只影响每条泳道内部的卡片顺序">
-          <KanbanFieldSelect
+          <FieldSelect
             fields={source.fields}
             value={config.sortBy?.fieldId ?? ""}
             placeholder="选择字段"

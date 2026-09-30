@@ -24,6 +24,7 @@
  */
 import type { DatabaseField } from "@workspace/interfaces";
 
+import { contrastTextColor } from "../../../shared/color";
 import { resolveOptionColor } from "../../../shared/field-meta";
 
 /** Record key prefix carrying a select-ish cell's raw option ids. */
@@ -110,25 +111,6 @@ export interface OptionPillResult {
   elements: PillElement[];
   /** Option ids that did not fit (reported as a trailing +N chip). */
   hidden: number;
-}
-
-/**
- * A readable text colour for a colour-filled cell.
- *
- * A fill (or a capsule) sets only `bgColor`; the canvas would otherwise keep the
- * theme's text colour, and a pale tint under light-on-dark text (or the reverse)
- * is unreadable. The luminance of the fill decides.
- */
-export function contrastTextColor(background: string): string {
-  const hex = background.trim().replace("#", "");
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return "#111827";
-  const channel = (value: number) =>
-    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  const luminance =
-    0.2126 * channel(parseInt(hex.slice(0, 2), 16) / 255) +
-    0.7152 * channel(parseInt(hex.slice(2, 4), 16) / 255) +
-    0.0722 * channel(parseInt(hex.slice(4, 6), 16) / 255);
-  return luminance > 0.5 ? "#111827" : "#f8fafc";
 }
 
 // —— text metrics ——————————————————————————————————————————————————————————

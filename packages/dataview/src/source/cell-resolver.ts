@@ -49,9 +49,24 @@ export function toNodeIds(cell: DatabaseCell | undefined): NodeId[] {
   return [];
 }
 
+/** `YYYY-MM-DD`, i.e. a calendar day rather than an instant. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function parseDate(value: string | null | undefined): Date | null {
   if (!value) return null;
-  const date = new Date(value);
+  const trimmed = value.trim();
+  const dateOnly = DATE_ONLY.exec(trimmed);
+  // A date-only cell is a *calendar day*: `new Date("2026-05-20")` is UTC
+  // midnight, so anywhere west of Greenwich it renders as 05-19 and a calendar
+  // event lands on the wrong square. Build it from local components instead.
+  // A full ISO timestamp keeps its instant and is read back in local time.
+  const date = dateOnly
+    ? new Date(
+        Number(dateOnly[1]),
+        Number(dateOnly[2]) - 1,
+        Number(dateOnly[3]),
+      )
+    : new Date(trimmed);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

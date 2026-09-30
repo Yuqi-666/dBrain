@@ -22,12 +22,8 @@ import type {
 } from "@workspace/interfaces";
 
 import { DEFAULT_EMPTY_TEXT, displayText } from "../../../source/cell-resolver";
-import {
-  buildOptionPills,
-  contrastTextColor,
-  optionIdsKey,
-  type PillFont,
-} from "../canvas/pill";
+import { contrastTextColor } from "../../../shared/color";
+import { buildOptionPills, optionIdsKey, type PillFont } from "../canvas/pill";
 
 /**
  * Row-level helpers live in `source/` because every view that creates a row

@@ -125,11 +125,8 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.CalendarDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"calendar">(() =>
-      import("./views/calendar/config-editor").then((module) => ({
-        default: module.CalendarConfigEditor,
-      })),
-    ),
+    // No `configEditor`: 字段 / 视图 / 交互 / 显示 are the calendar's own toolbar
+    // panels, exactly like the table's seven menus and the kanban's four.
     defaultConfig: (source) => createDefaultConfig("calendar", source),
   },
   gantt: {

@@ -1,13 +1,16 @@
 "use client";
 
 /**
- * The kanban's field picker — one shadcn `Select` over a field list.
+ * The shared field picker — one shadcn `Select` over a field list.
  *
- * The kanban picks fields in three places (分组字段 / 卡片标题 / 排序字段) and
- * every one of them lives inside a settings popover, so a compact `Select` is
- * the right primitive here: the option lists are short, and the table's
- * searchable popover+`Command` picker would add a second floating layer inside
- * the first for no gain.
+ * It lives in `shared/` because more than one view picks a field from inside a
+ * settings popover (the kanban's 分组/卡片/排序, the calendar's 字段 panel), and
+ * in that position a compact `Select` is the right primitive: the option lists
+ * are short, and the table's searchable popover+`Command` picker would add a
+ * second floating layer inside the first for no gain.
+ *
+ * The table's `字段配置` list is a different control on purpose — it needs
+ * search, groups, drag and per-field menus — so it keeps its own picker.
  */
 import type { DatabaseField } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
@@ -19,12 +22,12 @@ import {
   SelectValue,
 } from "@workspace/ui/components/ui/select";
 
-import { FieldTypeIcon } from "../../../shared/field-meta";
+import { FieldTypeIcon } from "./field-meta";
 
 /** Radix reserves `""` for "no value", so "nothing selected" needs a sentinel. */
-const NO_FIELD = "__kanban_no_field__";
+const NO_FIELD = "__dataview_no_field__";
 
-export interface KanbanFieldSelectProps {
+export interface FieldSelectProps {
   fields: readonly DatabaseField[];
   /** The selected field id, or `""` for none. */
   value: string;
@@ -37,7 +40,7 @@ export interface KanbanFieldSelectProps {
   className?: string;
 }
 
-export function KanbanFieldSelect({
+export function FieldSelect({
   fields,
   value,
   onValueChange,
@@ -45,7 +48,7 @@ export function KanbanFieldSelect({
   noneLabel,
   disabled,
   className,
-}: KanbanFieldSelectProps) {
+}: FieldSelectProps) {
   const selected = fields.find((field) => field.id === value);
 
   return (

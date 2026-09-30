@@ -42,8 +42,8 @@ import {
 } from "@workspace/ui/components/ui/popover";
 import type { DatabaseField, DatabaseFieldOption } from "@workspace/interfaces";
 
+import { contrastTextColor } from "../../../shared/color";
 import { matchesText, resolveOptionColor } from "../../../shared/field-meta";
-import { contrastTextColor } from "../canvas/pill";
 
 /** Viewport rect of the cell the panel hangs off. */
 export interface SelectMenuAnchor {

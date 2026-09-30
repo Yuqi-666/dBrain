@@ -12,21 +12,24 @@
 (table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
 own config.
 
-**Current status: shell + the table and kanban views.** `<DataViewRoot />` (view
-tab strip, routing, view CRUD), the source adapters, the cell resolver, **the
+**Current status: shell + the table, kanban and calendar views.** `<DataViewRoot />`
+(view tab strip, routing, view CRUD), the source adapters, the cell resolver, **the
 `table` view** (VTable `ListTable`: rendering, editing, sorting, filtering,
 grouping, search, export, row CRUD/reorder, **field CRUD with column groups,
 conditional colouring, and 单选/多选 capsule cells whose options are picked from
-an anchored dropdown**) and **the `kanban` view** (vendored ReUI board on
+an anchored dropdown**), **the `kanban` view** (vendored ReUI board on
 `@dnd-kit`: lanes from a 单选/多选 field, cross-lane drag write-back, lane
-reorder/rename/collapse, new-card and card menu, four toolbar panels) are
-implemented. The other **five view renderers and config editors are still
-placeholders** that render `<DataViewPlaceholder>` /
-`<DataViewConfigPlaceholder>`, and their libraries (FullCalendar, VChart,
-@workspace/graph) are not dependencies yet — each view pulls its library only
-when it is implemented. The kanban's own deps (`@dnd-kit/core` +
-`@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui` for the vendored
-`Slot`) are installed.
+reorder/rename/collapse, new-card and card menu, four toolbar panels) and **the
+`calendar` view** (FullCalendar: 月/周/日/列表/多月, field mapping, drag/resize
+date write-back, 框选/双击 row creation, hover tooltip + click popover, four
+toolbar panels) are implemented. The other **four view renderers and config
+editors are still placeholders** that render `<DataViewPlaceholder>` /
+`<DataViewConfigPlaceholder>`, and their libraries (VChart,
+@workspace/graph, @visactor/vtable-gantt) are not dependencies yet — each view
+pulls its library only when it is implemented. The kanban's own deps
+(`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui`
+for the vendored `Slot`) and the calendar's (`@fullcalendar/core|react|daygrid|
+timegrid|list|multimonth|interaction`, all `6.1.21`) are installed.
 
 **There is no side config panel.** The design change in
 `docs/propmt/dataview-table-1.md` moved view configuration into each view's own
@@ -34,9 +37,10 @@ toolbar as buttons + dropdown menus, **config left / functions right**; a later
 change moved the shell's view actions (更多: 设为默认 / 复制 / 删除视图) into that
 same function group, so the tab strip above is pure navigation. Every renderer
 draws a `ViewToolbar`, which appends the 更多 slot automatically. `ViewConfigMenu` (the generic "视图配置" popover
-over the registry's lazy `configEditor`) **is not used by the table** — all seven
-of its controls have dedicated menus — and only remains for views that have no
-dedicated menu yet; a descriptor may therefore omit `configEditor` entirely.
+over the registry's lazy `configEditor`) **is not used by the table, kanban or
+calendar** — every one of their controls has a dedicated menu — and only remains
+for views that have no dedicated menu yet; a descriptor may therefore omit
+`configEditor` entirely.
 
 ## STRUCTURE
 
@@ -60,7 +64,10 @@ src/
 ├── shared/
 │   ├── view-toolbar.tsx         # ViewToolbar strip + ViewConfigMenu popover (config-in-toolbar)
 │   ├── field-meta.tsx           # field-type labels/icons, option + fill palettes, field search
-│   ├── data-view-placeholder.tsx        # placeholder body the five unimplemented views render
+│   ├── field-select.tsx         # the in-popover field picker (shadcn Select; kanban + calendar)
+│   ├── settings-panel.tsx       # SettingsPanel / PanelSection / SwitchRow / CheckboxOptionList
+│   ├── color.ts                 # contrastTextColor (fill + capsule + calendar event chips)
+│   ├── data-view-placeholder.tsx        # placeholder body the four unimplemented views render
 │   ├── data-view-config-placeholder.tsx # placeholder body their config editors render
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
@@ -77,9 +84,11 @@ src/
     ├── kanban/      kanban-data-view.tsx + reui/kanban.tsx     (implemented — see below)
     │                ├── core/     board.ts + config.ts
     │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
-    │                ├── fields/   field-select.tsx
     │                └── toolbar/  kanban-toolbar.tsx
-    ├── calendar/    calendar-data-view.tsx + config-editor.tsx  (placeholder)
+    ├── calendar/    calendar-data-view.tsx     (implemented — see below)
+    │                ├── core/     config.ts + schema.ts + theme.ts
+    │                ├── board/    calendar-surface.tsx + event-readout.tsx
+    │                └── toolbar/  calendar-toolbar.tsx
     ├── gantt/       gantt-data-view.tsx + config-editor.tsx     (placeholder)
     ├── gallery/     gallery-data-view.tsx + config-editor.tsx   (placeholder)
     ├── chart/       chart-data-view.tsx + config-editor.tsx     (placeholder)
@@ -127,13 +136,30 @@ imports `table-data-view.tsx`** — the shell only assembles. Keep it that way: 
 | board   | `board/kanban-board.tsx`       | `<Kanban>` root + lane strip + overlay; maps REUI's `onValueCommit` onto "cross-lane = write, same-lane = local order, column = `laneOrder`"                                                                      |
 | board   | `board/kanban-card.tsx`        | the card body (title + chips + meta rows) and the card menu (打开 / 移动到). Also what the drag overlay renders                                                                                                   |
 | board   | `board/lane-option-editor.tsx` | 编辑选项: rename + recolour one option (mounted per popover open, so its draft state re-seeds)                                                                                                                    |
-| fields  | `fields/field-select.tsx`      | the field picker: one shadcn `Select` over a field list (all three pickers live inside a popover, so a plain Select beats popover+Command here)                                                                   |
 | toolbar | `toolbar/kanban-toolbar.tsx`   | 分组 / 卡片 / 排序 / 显示 panels on the left (via `ViewToolbar`), lane/card count on the right                                                                                                                    |
 | —       | —                              | no `config-editor.tsx`: the four panels cover every `KanbanViewConfig` key, so the descriptor omits `configEditor`                                                                                                |
 
 Layering matches the table's: `core/*` is pure, `board/*` composes REUI + shadcn,
 `toolbar/*` only reads config and reports `onConfigChange`, and **nothing imports
-`kanban-data-view.tsx`**.
+`kanban-data-view.tsx`**. Its field picker is the shared
+`shared/field-select.tsx` (the calendar uses the same one).
+
+### calendar view internals
+
+| Group   | File                           | Responsibility                                                                                                                                                                                                                                                               |
+| ------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `calendar-data-view.tsx`       | the shell: field mapping resolved against the live schema, the write path (drop / resize / 框选 / 双击 → `onCellChange` / `onRowInsert`), the hover + click readout state, the `--fc-*` theme variables, and the missing-field guidance. The only file `registry.ts` imports |
+| core    | `core/config.ts`               | config self-healing (`resolveStartField` / `resolveEndField` / `resolveTitleField` / `resolveColorField` / `resolveTooltipFields`), `headerToolbar` ⇄ "today button + view buttons", `toFullCalendarView` / `fromFullCalendarView`, `buttonTextFor`. No React                |
+| core    | `core/schema.ts`               | `rowsToEvents` (rows → `EventInput`), `rangeToCells` / `eventToCells` / `selectionToRow` (gesture → cells, **the only ±1 day conversion**), `toISODate` / `addDays`, `readEventRecord` / `readEventReadout`. Only FullCalendar _types_                                       |
+| core    | `core/theme.ts`                | `DataViewThemeTokens` → the `--fc-*` custom properties. No React                                                                                                                                                                                                             |
+| board   | `board/calendar-surface.tsx`   | the `memo`-wrapped `<FullCalendar>`: plugins, locale, `buttonText`, `onApi`, and every event callback. Re-renders only when the config or the data changed                                                                                                                   |
+| board   | `board/event-readout.tsx`      | the hover `Tooltip` and the click `Popover`, both anchored to an invisible fixed `<span>` at the event's rect                                                                                                                                                                |
+| toolbar | `toolbar/calendar-toolbar.tsx` | 字段 / 视图 / 交互 / 显示 panels on the left (via `ViewToolbar`), event count on the right                                                                                                                                                                                   |
+| —       | —                              | no `config-editor.tsx`: the four panels cover every `CalendarViewConfig` key except `timeZone` (pinned to `local` for v1), so the descriptor omits `configEditor`                                                                                                            |
+
+Layering matches the others: `core/*` is pure, `board/*` composes FullCalendar +
+shadcn, `toolbar/*` only reads config and reports `onConfigChange`, and **nothing
+imports `calendar-data-view.tsx`**. Full details in `docs/dataview/calendar.md` §0.
 
 ### UI conventions (applies to every view)
 
@@ -146,8 +172,14 @@ and their registry `configEditor` entries are gone).
 
 A view whose settings are a **form** (a `Select`, a checkbox list, switches)
 takes a `Popover` panel; a list of **commands** takes a `DropdownMenu`. The
-kanban's 分组/卡片/排序/显示 panels are popovers for exactly that reason — a
-menu's roving focus is the wrong tool for a body full of inputs.
+kanban's 分组/卡片/排序/显示 and the calendar's 字段/视图/交互/显示 panels are
+popovers for exactly that reason — a menu's roving focus is the wrong tool for a
+body full of inputs. Both are built from the same three primitives
+(`shared/settings-panel.tsx`: `SettingsPanel` / `PanelSection` / `SwitchRow`,
+plus `CheckboxOptionList`), and both pick a field with
+`shared/field-select.tsx`; a new toolbar panel should reuse them rather than
+hand-roll another popover. `--primary` on a `SettingsPanel` trigger means "this
+group has something set", and nothing else.
 
 The chrome is built from `@workspace/ui` shadcn primitives only — no hand-rolled
 `<select>` / `<input type="checkbox">` / bare floating panels:
@@ -212,21 +244,29 @@ Layout rules to keep:
 
 ## WHERE TO LOOK
 
-| Task                                    | Location                                                                                  |
-| --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Change the shell / routing              | `src/data-view-root.tsx`                                                                  |
-| Add or re-label a view type             | `src/registry.ts` + `src/defaults.ts`                                                     |
-| Tweak default configs                   | `src/defaults.ts`                                                                         |
-| Change how database rows are read       | `src/source/database-source.ts`                                                           |
-| Change the collection projection schema | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                |
-| Cell → text/color/date/number           | `src/source/cell-resolver.ts`                                                             |
-| Implement a view                        | `src/views/<name>/` (replace the placeholder body)                                        |
-| Group rows into lanes / cards           | `src/views/kanban/core/board.ts`                                                          |
-| Kanban config self-heal / lane order    | `src/views/kanban/core/config.ts`                                                         |
-| Kanban drag write-back                  | `src/views/kanban/board/kanban-board.tsx`                                                 |
-| Vendored ReUI board                     | `src/views/kanban/reui/kanban.tsx`                                                        |
-| Host integration                        | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx` |
-| Persisted model                         | `packages/interfaces/src/models/data-view.ts`                                             |
+| Task                                     | Location                                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Change the shell / routing               | `src/data-view-root.tsx`                                                                  |
+| Add or re-label a view type              | `src/registry.ts` + `src/defaults.ts`                                                     |
+| Tweak default configs                    | `src/defaults.ts`                                                                         |
+| Change how database rows are read        | `src/source/database-source.ts`                                                           |
+| Change the collection projection schema  | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                |
+| Cell → text/color/date/number            | `src/source/cell-resolver.ts`                                                             |
+| Implement a view                         | `src/views/<name>/` (replace the placeholder body)                                        |
+| Group rows into lanes / cards            | `src/views/kanban/core/board.ts`                                                          |
+| Kanban config self-heal / lane order     | `src/views/kanban/core/config.ts`                                                         |
+| Kanban drag write-back                   | `src/views/kanban/board/kanban-board.tsx`                                                 |
+| Vendored ReUI board                      | `src/views/kanban/reui/kanban.tsx`                                                        |
+| Rows → calendar events / gesture → cells | `src/views/calendar/core/schema.ts`                                                       |
+| Calendar config self-heal / view names   | `src/views/calendar/core/config.ts`                                                       |
+| Calendar theme (FullCalendar `--fc-*`)   | `src/views/calendar/core/theme.ts`                                                        |
+| The `<FullCalendar>` instance            | `src/views/calendar/board/calendar-surface.tsx`                                           |
+| Calendar hover / click readouts          | `src/views/calendar/board/event-readout.tsx`                                              |
+| In-popover field picker (shared)         | `src/shared/field-select.tsx`                                                             |
+| Settings-panel primitives (shared)       | `src/shared/settings-panel.tsx`                                                           |
+| Contrast text for a colour fill          | `src/shared/color.ts`                                                                     |
+| Host integration                         | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx` |
+| Persisted model                          | `packages/interfaces/src/models/data-view.ts`                                             |
 
 ## DATA FLOW (do not break)
 
@@ -329,12 +369,18 @@ node change).
    every view. **`views/kanban/` is the reference for a DOM view** whose library
    is external source: vendor it under `reui/` unchanged, keep the data model in
    `core/`, compose the library + shadcn in `board/`, and let the shell own the
-   state + write path.
+   state + write path. **`views/calendar/` is the reference for a DOM view built
+   on an npm library** (FullCalendar): `core/` holds the pure config resolution +
+   data mapping + theme, `board/` holds the one `memo`-wrapped library component
+   plus the panels that must be anchored to library-rendered DOM, and the shell
+   owns the write path and the imperative library API. Read its §0 gotchas before
+   wrapping a library that re-renders the world on every prop change.
 2. Only if the view has settings without a dedicated toolbar menu: add
    `config-editor.tsx` (`DataViewConfigEditorProps<XViewConfig>`) and register it
    as `configEditor`. A view whose toolbar covers everything (the table, the
-   kanban) leaves the descriptor's `configEditor` undefined and gets no 视图配置
-   button.
+   kanban, the calendar) leaves the descriptor's `configEditor` undefined and
+   gets no 视图配置 button. Build the panels from `shared/settings-panel.tsx` +
+   `shared/field-select.tsx`.
 3. Add the view's library to `package.json` **as a dynamic import only**; do not
    import it from `registry.ts` or `index.ts`. Top-level imports inside
    `views/<name>/*` are fine — those modules are already behind `React.lazy`.
@@ -482,7 +528,8 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   - **A conditional fill needs a contrasting text colour.** A `填色` rule sets
     only `bgColor`, while the text colour comes from the theme; a pale palette
     swatch under light-on-dark text is unreadable, so the style callback pairs
-    the fill with `contrastTextColor(fill)` (now in `canvas/pill.ts`).
+    the fill with `contrastTextColor(fill)` — now in `shared/color.ts`, because
+    the calendar's event chips need the same maths from a React-free module.
 - **The 字段编辑 form lives inside a `DropdownMenuContent`** (`FieldEditorMenuContent`).
   Radix's menu focuses its own content on open and re-focuses it when the pointer
   leaves an item — which is exactly what happens when 编辑字段 swaps the item list
@@ -583,9 +630,43 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
     lane-internal reorder (kept in local state — nothing persists it), or a
     column reorder (`laneOrder`). `restoreOnCancel` is on, so Escape undoes the
     preview instead of committing it.
+- **The calendar is a FullCalendar surface, and five of its rules are
+  load-bearing** (all verified in a real browser; see `docs/dataview/calendar.md`
+  §0):
+  - **FullCalendar's React wrapper calls `resetOptions` on every re-render.**
+    `componentDidUpdate` hands it the whole prop object; any changed option makes
+    it re-render its preact tree. The shell keeps hover/popover state in React,
+    so `board/calendar-surface.tsx` is `memo`-wrapped and every prop is a
+    primitive, a `useMemo` value or a `useCallback`; the shell reads its live
+    values through a ref. Measured: hovering an event mutates nothing under
+    `.fc` (0 mutations), a config write mutates 44 nodes.
+  - **`multiMonth` ≠ `multiMonthYear`.** The persisted name is `multiMonth`
+    (calendar.md §4) but FullCalendar's `multiMonth` view draws _one_ month in
+    the multi-month layout; the 12-month overview is `multiMonthYear`. The
+    mapping is `toFullCalendarView` / `fromFullCalendarView` in
+    `core/config.ts`, and `headerToolbar` stores the mapped name.
+  - **A Radix `asChild` anchor must be a real DOM element.** The event tooltip /
+    popover anchor to an invisible fixed `<span>` (an event is not a React
+    node); wrapping that span in a component that does not forward the ref makes
+    Floating UI measure `null` and render the panel at the viewport origin
+    (measured: the 打开记录 button sat at `y = -157` and could not be clicked).
+  - **`end` is exclusive; a date cell's end is the last day.** The ±1 day
+    conversion lives only in `core/schema.ts`'s `rangeToCells`, and a one-day
+    range writes `null` (not the start date twice) so 单日 and 两日 stay
+    distinguishable downstream.
+  - **`initialView` is read once.** `config.defaultView` is applied with
+    `api.changeView`, and `datesSet` writes the view the user picked in
+    FullCalendar's own header back into the config — no remount (which would
+    lose the date the user navigated to) and no loop.
+  - Also: the locale is **only** `zh-CN` (the shipped pack) or `en` (core);
+    anything else falls back to `zh-CN`, because an unregistered locale code
+    makes FullCalendar throw while building the initial view.
 - Test infrastructure: **none**, consistent with the rest of the monorepo. The
   table view was verified by driving a temporary `apps/web` page with headless
-  Chromium over CDP (`ListTable` exposes itself as `canvas.__vtable__`), and the
+  Chromium over CDP (`ListTable` exposes itself as `canvas.__vtable__`), the
   kanban the same way (drag, menu move, new card, lane rename/reorder/collapse,
   the four panels, read-only and both guidance states, plus a switch back to the
-  table) — not by an in-repo test suite.
+  table), and the calendar the same way (all five views, drag/resize/框选/双击
+  write-back, the three eventClick modes, hover tooltip, all four panels, both
+  theme modes, read-only and all three guidance states) — not by an in-repo test
+  suite.
