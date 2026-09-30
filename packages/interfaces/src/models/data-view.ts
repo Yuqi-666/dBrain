@@ -101,9 +101,72 @@ export interface TableColumnConfig {
   };
 }
 
+/**
+ * A named column group (字段配置 → 创建编组).
+ *
+ * `config.columns` stays the single authoritative field order; a group names a
+ * set of fields that render under one VTable group header. The table pulls each
+ * group's members together at the position of the group's first member, so a
+ * group is always a contiguous visual block without a second ordering source.
+ */
+export interface TableColumnGroup {
+  id: string;
+  name: string;
+  /** Member field ids, in display order. */
+  fieldIds: string[];
+}
+
+/** One level of the 分组 / 排序 menus. */
+export interface TableCondition {
+  fieldId: string;
+  order: "asc" | "desc";
+}
+
+/** The operators a filter / colour condition offers. */
+export type TableConditionOperator =
+  | "contains"
+  | "equals"
+  | "empty"
+  | "notEmpty";
+
+/**
+ * One filter condition (筛选).
+ *
+ * Persisted inside `TableViewConfig.filterState`; the runtime reader also
+ * accepts the legacy `{ [fieldId]: { operator, value } }` record so a view
+ * saved before the condition list existed keeps working.
+ */
+export interface TableFilterCondition {
+  id: string;
+  fieldId: string;
+  operator: TableConditionOperator;
+  value?: string;
+}
+
+/** Where a conditional colour rule paints (填色 → 单元格 / 行 / 列). */
+export type TableColorTarget = "cell" | "row" | "column";
+
+/**
+ * One conditional-colour rule.
+ *
+ * `fieldId` is both the condition field and — for `target: "cell"` — the column
+ * that gets painted, which is what the 填色 menu offers (one field picker).
+ */
+export interface TableColorRule {
+  id: string;
+  target: TableColorTarget;
+  fieldId: string;
+  operator: TableConditionOperator;
+  value?: string;
+  /** Any CSS colour the canvas understands (hex from the preset palette). */
+  color: string;
+}
+
 export interface TableViewConfig {
   columns: TableColumnConfig[];
   hiddenFieldIds?: string[];
+  /** Named column groups; see {@link TableColumnGroup}. */
+  columnGroups?: TableColumnGroup[];
 
   editable: boolean;
   selectable: boolean;
@@ -116,13 +179,24 @@ export interface TableViewConfig {
   density: "compact" | "comfortable" | "spacious";
   frozenColumnCount: number;
   showRowNumber: boolean;
-  /** Render cap; `undefined` renders every row (ListTable virtualizes). */
-  rowLimit?: number;
   theme: "light" | "dark" | "auto";
 
-  sortState?: { fieldId: string; order: "asc" | "desc" }[];
-  filterState?: Record<string, unknown>;
+  sortState?: TableCondition[];
+  /** Re-apply `sortState` after a data change (排序 → 自动排序). */
+  autoSort?: boolean;
+  /**
+   * The 筛选 conditions, ANDed in order.
+   *
+   * Declared as the condition list, but always *read* defensively: a view saved
+   * before the list existed carries the legacy `{ [fieldId]: { operator,
+   * value } }` record, which `readFilterState` migrates.
+   */
+  filterState?: TableFilterCondition[];
   groupBy?: string[];
+  /** Per-level direction of the `groupBy` fields (分组 → A→Z / Z→A). */
+  groupOrder?: Record<string, "asc" | "desc">;
+  /** Conditional colours; see {@link TableColorRule}. */
+  colorRules?: TableColorRule[];
 }
 
 export interface KanbanViewConfig {

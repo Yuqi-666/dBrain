@@ -18,6 +18,7 @@ export function CalendarDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<CalendarViewConfig>) {
   return (
@@ -38,6 +39,7 @@ export function CalendarDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

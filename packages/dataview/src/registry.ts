@@ -3,9 +3,10 @@
 /**
  * The data view registry — the single place a view type is declared.
  *
- * Adding a view means implementing its renderer + config editor and adding one
- * entry here; `DataViewRoot`, the toolbar and the config panel all read this
- * table and never switch on `DataViewType` themselves (README §6).
+ * Adding a view means implementing its renderer (+ config editor, unless every
+ * setting lives in its toolbar) and adding one entry here; `DataViewRoot` and the
+ * toolbars all read this table and never switch on `DataViewType` themselves
+ * (README §6).
  *
  * Renderers and config editors are `React.lazy` so a view's third-party bundle
  * (VTable, FullCalendar, VChart, …) is only fetched the first time that view is
@@ -51,7 +52,13 @@ export interface DataViewDescriptor {
   /** Host kinds this view may appear on. */
   nodeTypes: DataViewSourceKind[];
   renderer: LazyExoticComponent<DataViewRendererComponent>;
-  configEditor: LazyExoticComponent<DataViewConfigEditorComponent>;
+  /**
+   * The view's generic config editor — **absent when the view configures itself
+   * entirely from its own toolbar** (the table does: 添加记录 / 字段配置 / 筛选 /
+   * 分组 / 排序 / 行高 / 填色 are all dedicated menus, and there is no
+   * 视图配置 popover any more).
+   */
+  configEditor?: LazyExoticComponent<DataViewConfigEditorComponent>;
   defaultConfig: (source: DataViewSource) => DataViewConfig;
 }
 
@@ -91,11 +98,7 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.TableDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"table">(() =>
-      import("./views/table/config-editor").then((module) => ({
-        default: module.TableConfigEditor,
-      })),
-    ),
+    // No `configEditor`: the table's configuration is the toolbar's menus.
     defaultConfig: (source) => createDefaultConfig("table", source),
   },
   kanban: {

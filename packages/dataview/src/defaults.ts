@@ -35,6 +35,9 @@ const TABLE_DEFAULT_CONFIG = (source: DataViewSource): TableViewConfig => ({
     frozen: index === 0,
   })),
   hiddenFieldIds: [],
+  columnGroups: [],
+  colorRules: [],
+
   editable: source.kind === "database",
   selectable: true,
   sortable: true,
@@ -42,10 +45,17 @@ const TABLE_DEFAULT_CONFIG = (source: DataViewSource): TableViewConfig => ({
   resizable: true,
   reorderable: true,
   groupable: true,
+
   density: "comfortable",
   frozenColumnCount: 1,
   showRowNumber: true,
   theme: "auto",
+
+  sortState: [],
+  autoSort: true,
+  filterState: [],
+  groupBy: [],
+  groupOrder: {},
 });
 
 const KANBAN_DEFAULT_CONFIG = (source: DataViewSource): KanbanViewConfig => ({

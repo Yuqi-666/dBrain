@@ -4,3 +4,4 @@ export * from "./data-view-config-placeholder";
 export * from "./theme-tokens";
 export * from "./use-row-filter";
 export * from "./use-row-selection";
+export * from "./view-toolbar";

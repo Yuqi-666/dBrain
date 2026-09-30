@@ -19,7 +19,7 @@ import type { TYPES } from "@visactor/vtable";
 import {
   resolveCanvasFontFamily,
   type DataViewThemeTokens,
-} from "../../shared/theme-tokens";
+} from "../../../shared/theme-tokens";
 
 /** Translucent variant of a `#rrggbb` color, falling back to the raw value. */
 function withAlpha(color: string, alpha: number): string {

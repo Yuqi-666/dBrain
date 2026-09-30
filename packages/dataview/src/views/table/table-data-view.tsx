@@ -11,49 +11,85 @@
  * sort.
  *
  * Rendering never writes: every edit is reported through `onCellChange`, view
- * config changes through `onConfigChange`, and row insert/delete through the row
- * callbacks. The host node-content decides how to persist (README §3.4).
+ * config changes through `onConfigChange`, schema changes through
+ * `onFieldsChange`, and row insert/delete through the row callbacks. The host
+ * node-content decides how to persist (README §3.4).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, Table2 } from "lucide-react";
+import { Eye, Plus, Table2 } from "lucide-react";
 import { ListTable, TYPES } from "@visactor/vtable";
-import type { ListTableConstructorOptions } from "@visactor/vtable";
+import type {
+  ColumnDefine,
+  ListTableConstructorOptions,
+} from "@visactor/vtable";
 import { SearchComponent } from "@visactor/vtable-search";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import type {
+  DatabaseCell,
   DatabaseField,
+  DatabaseFieldOption,
   DataRow,
   TableColumnConfig,
   TableViewConfig,
 } from "@workspace/interfaces";
 
 import { DataViewEmptyState } from "../../shared/empty-state";
-import { useDataViewThemeTokens } from "../../shared/theme-tokens";
+import {
+  resolveCanvasFontFamily,
+  useDataViewThemeTokens,
+} from "../../shared/theme-tokens";
 import type { DataViewRendererProps } from "../../source/types";
-import { createTableEditor } from "./table-editors";
+import { createTableEditor } from "./core/editors";
+import type { AddFieldAnchor, AddFieldRequest } from "./menus/field-menu";
+import { fallbackOptionColor } from "./fields/meta";
+import {
+  PILL_OPEN_ICON,
+  PILL_REMOVE_ICON_PREFIX,
+  optionIdsKey,
+} from "./canvas/pill";
+import {
+  TableSelectMenu,
+  type SelectMenuAnchor,
+  type SelectMenuRequest,
+} from "./menus/select-menu";
 import {
   applyTableFilters,
   readFilterState,
+  sanitizeFilterState,
   type TableFilterState,
-} from "./table-filter";
+} from "./core/filter";
 import {
+  TABLE_ADD_FIELD_COLUMN_ID,
   TABLE_DENSITY_HEADER_HEIGHT,
   TABLE_DENSITY_ROW_HEIGHT,
   TABLE_ROW_ID_FIELD,
+  buildColorLookup,
   buildTableColumns,
   createDataRowId,
+  createDatabaseFieldOptionId,
   effectiveFrozenColumnCount,
   isFieldEditable,
+  isSelectField,
   recordValueToCell,
   reorderTableColumns,
   resolveTableColumns,
   rowsToRecords,
   visibleTableColumns,
+  type TableColorLookup,
   type TableRecord,
-} from "./table-schema";
-import { TableToolbar } from "./table-toolbar";
-import { buildTableTheme } from "./table-theme";
+} from "./core/schema";
+import { TableToolbar, readGroupConditions } from "./toolbar/toolbar";
+import { buildTableTheme } from "./canvas/theme";
+
+/**
+ * The square the trailing column's "+" occupies inside its header cell.
+ *
+ * The column itself is stretched by `autoFillWidth`, so the glyph is centred in
+ * it — and the shell anchors the 新增字段 dropdown to that same square instead
+ * of to the (much wider) header cell.
+ */
+const ADD_FIELD_BUTTON_SIZE = 18;
 
 /** Menu keys the column context menu reports back. */
 const MENU = {
@@ -63,7 +99,49 @@ const MENU = {
   freezeTo: "dv_freeze_to",
   unfreeze: "dv_unfreeze",
   showAll: "dv_show_all",
+  deleteRow: "dv_delete_row",
 } as const;
+
+/**
+ * The select-ish cell the user activated.
+ *
+ * It is the cell whose capsules are showing their "×" affordances, so it is
+ * also the cell whose column config knows how to repaint it: VTable paints the
+ * capsules from the column define, and `updateCellContent(col, row)` is what
+ * makes it re-run `customRender` for one cell when this changes.
+ */
+interface ActiveSelectCell {
+  rowId: string;
+  fieldId: string;
+  col: number;
+  row: number;
+}
+
+/**
+ * The open option dropdown.
+ *
+ * `ids` is the cell's *working* value for as long as the panel is open: every
+ * toggle updates it before the write goes out, so a second click in the same
+ * frame cannot toggle against a value the host has not echoed back yet.
+ */
+interface OpenSelectMenu extends SelectMenuRequest {
+  col: number;
+  row: number;
+  ids: string[];
+}
+
+/** Shared empty list, so a closed panel does not re-seed its memo per render. */
+const NO_IDS: readonly string[] = [];
+
+/** The option ids a VTable record carries for a select-ish field. */
+function recordOptionIds(record: unknown, fieldId: string): string[] {
+  const raw = (record as Record<string, unknown> | undefined)?.[
+    optionIdsKey(fieldId)
+  ];
+  return Array.isArray(raw)
+    ? raw.filter((entry): entry is string => typeof entry === "string")
+    : [];
+}
 
 function asFieldId(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -89,6 +167,71 @@ function rowIdFromArgs(
   return asFieldId(record?.[TABLE_ROW_ID_FIELD]);
 }
 
+/**
+ * Viewport rect of the column-end "+" that 新增字段 hangs off.
+ *
+ * The glyph is painted on the canvas, so there is no DOM node to hang a menu
+ * trigger off: the header cell's rect (offset by the container's position)
+ * stands in for the button, and the menu primitive positions the panel against
+ * that invisible trigger. The pointer is the last resort.
+ *
+ * The rect must be `getCellRelativeRect`, **not** `getCellRect`: the latter is
+ * the cell's position in the table's own unscrolled coordinate space, so on a
+ * horizontally scrolled table (their normal state — the "+" column is off the
+ * right edge until you scroll to it) the anchor stayed a whole `scrollLeft` to
+ * the right of the glyph and Radix, obeying its collision padding, parked the
+ * panel at the window edge instead of under it. Measured with
+ * `scrollLeft = 436`: the glyph sat at x ≈ 890 while the anchor claimed 1317.
+ * `getCellRelativeRect` is the same call the 单选/多选 panel anchors with.
+ */
+function addFieldAnchorFrom(
+  container: HTMLElement | null,
+  table: ListTable,
+  args: {
+    col: number;
+    row: number;
+    event?: MouseEvent | PointerEvent | TouchEvent;
+  },
+): AddFieldAnchor {
+  const cellRect = table.getCellRelativeRect(args.col, args.row);
+  const bounds = container?.getBoundingClientRect();
+  if (bounds && cellRect) {
+    // The glyph is centred in the header cell (`buildAddFieldColumn`), so the
+    // anchor is that square, not the whole stretched cell.
+    const inset = (size: number) =>
+      Math.max(0, size / 2 - ADD_FIELD_BUTTON_SIZE / 2);
+    return {
+      x: bounds.left + cellRect.left + inset(cellRect.width),
+      y: bounds.top + cellRect.top + inset(cellRect.height),
+      width: ADD_FIELD_BUTTON_SIZE,
+      height: ADD_FIELD_BUTTON_SIZE,
+      // The column sits at the far right, so the panel opens leftwards.
+      align: "end",
+    };
+  }
+  const event = args.event;
+  if (event && "clientX" in event) {
+    return { x: event.clientX, y: event.clientY, width: 0, height: 0 };
+  }
+  return {
+    x: bounds?.left ?? 0,
+    y: bounds?.top ?? 0,
+    width: 0,
+    height: 0,
+  };
+}
+
+/** Viewport rect of a real button the shell asked 新增字段 from. */
+function elementAnchorFrom(element: Element): AddFieldAnchor {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 /** The field a cell belongs to, tolerating events that omit it. */
 function fieldIdFromArgs(
   table: ListTable,
@@ -102,16 +245,31 @@ function fieldIdFromArgs(
   return asFieldId(define?.field);
 }
 
+/**
+ * The field behind a visual column, read from the deepest header row.
+ *
+ * Grouped columns have a group header at level 0 and the field header below it,
+ * so the search has to start at the bottom; ungrouped columns answer at level 0.
+ */
+function headerFieldIdAt(table: ListTable, col: number): string | undefined {
+  const levels = Math.max(1, table.columnHeaderLevelCount ?? 1);
+  for (let level = levels - 1; level >= 0; level -= 1) {
+    const define = table.getHeaderDefine(col, level) as
+      | { field?: unknown }
+      | undefined;
+    const fieldId = asFieldId(define?.field);
+    if (fieldId) return fieldId;
+  }
+  return undefined;
+}
+
 /** The field a header or body cell belongs to, resolved either way. */
 function fieldIdAt(
   table: ListTable,
   col: number,
   row: number,
 ): string | undefined {
-  const header = table.getHeaderDefine(col, 0) as
-    | { field?: unknown }
-    | undefined;
-  const fromHeader = asFieldId(header?.field);
+  const fromHeader = headerFieldIdAt(table, col);
   if (fromHeader) return fromHeader;
   const body = table.getBodyColumnDefine(col, row) as
     | { field?: unknown }
@@ -183,16 +341,41 @@ function fromVTableSortState(
   return list.flatMap((entry) => {
     const order = String(entry.order).toLowerCase();
     if (order !== "asc" && order !== "desc") return [];
-    return [{ fieldId: String(entry.field), order }];
+    return [{ fieldId: String(entry.field), order: order as "asc" | "desc" }];
   });
+}
+
+/**
+ * The sort state VTable is given: the grouping levels first (their direction is
+ * what orders the group headers), then the user's own multi-column sort.
+ */
+function buildVTableSortState(
+  config: TableViewConfig,
+  fields: readonly DatabaseField[],
+): TYPES.SortState[] {
+  const groupSorts = readGroupConditions(config, fields)
+    .filter((condition) => condition.fieldId !== "")
+    .map(
+      (condition) =>
+        ({
+          field: condition.fieldId,
+          order: condition.order,
+        }) as TYPES.SortState,
+    );
+  const groupFieldIds = new Set(groupSorts.map((entry) => String(entry.field)));
+  const userSorts = toVTableSortState(config.sortState).filter(
+    (entry) => !groupFieldIds.has(String(entry.field)),
+  );
+  return [...groupSorts, ...userSorts];
 }
 
 /**
  * Reads the visual column order and widths back out of a live table.
  *
  * The header defines are the reliable index: the body column offset shifts when
- * a row-number series is present, whereas `getHeaderDefine(col, 0)` yields one
- * entry per visual column, series included.
+ * a row-number series is present, and a grouped column answers one header row
+ * deeper. Columns the schema does not know (the trailing "+" column) are
+ * skipped by construction.
  */
 function readColumnLayout(
   table: ListTable,
@@ -205,10 +388,7 @@ function readColumnLayout(
   const widths = new Map<string, number>();
 
   for (let col = 0; col < table.colCount; col += 1) {
-    const define = table.getHeaderDefine(col, 0) as
-      | { field?: unknown }
-      | undefined;
-    const fieldId = asFieldId(define?.field);
+    const fieldId = headerFieldIdAt(table, col);
     if (!fieldId || !known.has(fieldId) || order.includes(fieldId)) continue;
     order.push(fieldId);
     const width = table.getColWidth(col);
@@ -225,20 +405,71 @@ function readColumnLayout(
   );
 }
 
+/**
+ * The trailing column that opens 新增字段 (设计稿 §字段: 表格最后一列).
+ *
+ * It is a header-only affordance, drawn as a bare "+" glyph: no chip, no
+ * background, no border — the header band it sits on is already `muted`, so the
+ * glyph is the whole control (`headerStyle.cursor` is what says "clickable").
+ * The whole cell, not just the glyph, is the click target the shell listens
+ * for. Its body cells stay blank so a field-less column never looks like data,
+ * and export blanks it out (`formatExportOutput`).
+ */
+function buildAddFieldColumn(tokens: {
+  mutedForeground: string;
+}): ColumnDefine {
+  const size = ADD_FIELD_BUTTON_SIZE;
+  return {
+    field: TABLE_ADD_FIELD_COLUMN_ID,
+    title: "",
+    width: 44,
+    minWidth: 40,
+    sort: false,
+    showSort: false,
+    dragHeader: false,
+    disableColumnResize: true,
+    headerStyle: {
+      textAlign: "center" as const,
+      cursor: "pointer",
+    },
+    headerCustomRender: (args: {
+      rect: { width: number; height: number };
+    }) => ({
+      renderDefault: false,
+      elements: [
+        {
+          type: "text",
+          x: Math.max(0, (args.rect?.width ?? size) / 2),
+          y: Math.max(0, (args.rect?.height ?? size) / 2),
+          text: "+",
+          fill: tokens.mutedForeground,
+          fontSize: 13,
+          textAlign: "center",
+          textBaseline: "middle",
+        },
+      ],
+    }),
+    style: { textAlign: "center" as const },
+    fieldFormat: () => "",
+  } as unknown as ColumnDefine;
+}
+
 /** The state a `[recreate]` effect keys off — everything but data and sort. */
 function tableStructureKey(
   config: TableViewConfig,
   fields: readonly DatabaseField[],
   readOnly: boolean | undefined,
+  canEditFields: boolean,
 ): string {
   return JSON.stringify({
     readOnly: Boolean(readOnly),
+    canEditFields,
     fields: fields.map(
       (field) =>
         `${field.id}\u0001${field.name}\u0001${field.type}\u0001${(
           field.options ?? []
         )
-          .map((option) => `${option.id}=${option.name}`)
+          .map((option) => `${option.id}=${option.name}=${option.color ?? ""}`)
           .join(",")}`,
     ),
     columns: resolveTableColumns(config, fields).map((column) => ({
@@ -249,6 +480,12 @@ function tableStructureKey(
       emptyText: column.format?.emptyText,
     })),
     hidden: config.hiddenFieldIds ?? [],
+    groups: (config.columnGroups ?? []).map((group) => ({
+      id: group.id,
+      name: group.name,
+      fieldIds: group.fieldIds,
+    })),
+    colors: config.colorRules ?? [],
     editable: config.editable,
     selectable: config.selectable,
     sortable: config.sortable,
@@ -273,6 +510,7 @@ export function TableDataView({
   onRowInsert,
   onRowDelete,
   onRowReorder,
+  onFieldsChange,
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<TableViewConfig>) {
@@ -284,12 +522,20 @@ export function TableDataView({
   const sortStateRef = useRef<TYPES.SortState[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchMatch, setSearchMatch] = useState({ count: 0, index: -1 });
-  const [selectedCount, setSelectedCount] = useState(0);
+  /**
+   * 新增字段 as an anchored dropdown: the shell (the canvas "+", the
+   * empty-state button) hands the 字段配置 menu the rect to hang it off, and the
+   * menu owns the editor state from there.
+   */
+  const [addFieldRequest, setAddFieldRequest] =
+    useState<AddFieldRequest | null>(null);
 
   const filters = useMemo(
-    () => readFilterState(config.filterState),
-    [config.filterState],
+    () =>
+      sanitizeFilterState(readFilterState(config.filterState), source.fields),
+    [config.filterState, source.fields],
   );
 
   const records = useMemo(
@@ -298,20 +544,26 @@ export function TableDataView({
   );
 
   const filteredRecords = useMemo(
-    () => applyTableFilters(records, filters),
-    [records, filters],
+    () => applyTableFilters(records, filters, source.fields),
+    [records, filters, source.fields],
+  );
+
+  /** 填色 evaluated once per record set, not per painted cell. */
+  const colorLookup = useMemo(
+    () => buildColorLookup(filteredRecords, config.colorRules, source.fields),
+    [filteredRecords, config.colorRules, source.fields],
   );
 
   /**
-   * What VTable is actually given: `rowLimit` is a render cap, not a data
-   * filter (table.md §9) — the full row count stays visible in the toolbar.
+   * The canvas font 单选 / 多选 capsules are measured with.
+   *
+   * VTable paints on a canvas, so the capsule renderer cannot inherit the
+   * surrounding CSS; the resolved stack (and the theme's 12px body size) is
+   * handed down instead.
    */
-  const displayRecords = useMemo(
-    () =>
-      config.rowLimit && config.rowLimit > 0
-        ? filteredRecords.slice(0, config.rowLimit)
-        : filteredRecords,
-    [filteredRecords, config.rowLimit],
+  const pillFont = useMemo(
+    () => ({ family: resolveCanvasFontFamily(tokens), size: tokens.fontSize }),
+    [tokens],
   );
 
   const columns = useMemo(
@@ -319,9 +571,240 @@ export function TableDataView({
     [config, source.fields],
   );
 
+  /**
+   * Schema writes need both halves: the host must accept field changes
+   * (`onFieldsChange`) and view-management writes (`onConfigChange`), because
+   * adding a field also adds its column config.
+   */
+  const canEditFields =
+    Boolean(onFieldsChange) && Boolean(onConfigChange) && !readOnly;
+
+  /**
+   * Opens the 新增字段 dropdown anchored at the control that asked for it.
+   *
+   * The request is a fresh object every time, so pressing the same button twice
+   * re-opens the panel after it was dismissed.
+   */
+  const clearAddFieldRequest = useCallback(() => {
+    setAddFieldRequest(null);
+  }, []);
+
+  const requestAddField = useCallback((anchor: AddFieldAnchor) => {
+    setAddFieldRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      anchor,
+    }));
+  }, []);
+
+  /**
+   * The activated capsule cell. Canvas-only state: the pills' "×" and the
+   * chevron are painted by `customRender`, which reads it through
+   * {@link isSelectCellActive}, and every change repaints just the two affected
+   * cells — the React tree (and the toolbar) does not re-render at all.
+   */
+  const activeSelectRef = useRef<ActiveSelectCell | null>(null);
+
+  /**
+   * The open option dropdown.
+   *
+   * Kept both as state (the panel renders from it) and as a ref (a gesture reads
+   * the *current* value without being re-created on every keystroke).
+   */
+  const [selectMenu, setSelectMenu] = useState<OpenSelectMenu | null>(null);
+  const selectMenuRef = useRef<OpenSelectMenu | null>(null);
+
+  const updateSelectMenu = useCallback((next: OpenSelectMenu | null) => {
+    selectMenuRef.current = next;
+    setSelectMenu(next);
+  }, []);
+
+  /** Whether a select-ish cell is the activated one — read by `customRender`. */
+  const isSelectCellActive = useCallback((fieldId: string, rowId: string) => {
+    const active = activeSelectRef.current;
+    return active?.fieldId === fieldId && active.rowId === rowId;
+  }, []);
+
+  /** Activates a capsule cell (or clears it), repainting both cells involved. */
+  const setActiveSelectCell = useCallback((next: ActiveSelectCell | null) => {
+    const previous = activeSelectRef.current;
+    if (
+      previous?.rowId === next?.rowId &&
+      previous?.fieldId === next?.fieldId &&
+      previous?.col === next?.col &&
+      previous?.row === next?.row
+    ) {
+      return;
+    }
+    activeSelectRef.current = next;
+    const table = tableRef.current;
+    if (!table) return;
+    if (previous) table.updateCellContent(previous.col, previous.row);
+    if (next) table.updateCellContent(next.col, next.row);
+  }, []);
+
+  /** The field behind a cell, when it is one this view can edit as options. */
+  const editableSelectFieldAt = useCallback(
+    (table: ListTable, col: number, row: number) => {
+      const fieldId = fieldIdAt(table, col, row);
+      const field = fieldId
+        ? latest.current.source.fields.find((entry) => entry.id === fieldId)
+        : undefined;
+      if (!fieldId || !field || !isSelectField(field)) return undefined;
+      if (
+        !isFieldEditable(field, latest.current.config, latest.current.readOnly)
+      ) {
+        return undefined;
+      }
+      return { field, fieldId };
+    },
+    [],
+  );
+
+  /** Opens the option dropdown for a body cell, anchored under it. */
+  const openSelectMenu = useCallback(
+    (table: ListTable, col: number, row: number) => {
+      const target = editableSelectFieldAt(table, col, row);
+      const rowId = rowIdFromArgs(table, { col, row });
+      if (!target || !rowId) return;
+      // Relative (not absolute) coordinates: the anchor has to be where the cell
+      // is on screen, and the body scrolls under the header.
+      const rect = table.getCellRelativeRect(col, row);
+      const bounds = containerRef.current?.getBoundingClientRect();
+      const anchor: SelectMenuAnchor = {
+        x: (bounds?.left ?? 0) + rect.left,
+        y: (bounds?.top ?? 0) + rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+      const current = selectMenuRef.current;
+      updateSelectMenu({
+        id: (current?.id ?? 0) + 1,
+        rowId,
+        fieldId: target.fieldId,
+        col,
+        row,
+        anchor,
+        ids: recordOptionIds(
+          table.getCellOriginRecord(col, row),
+          target.fieldId,
+        ),
+      });
+    },
+    [editableSelectFieldAt, updateSelectMenu],
+  );
+
+  const closeSelectMenu = useCallback(() => {
+    updateSelectMenu(null);
+  }, [updateSelectMenu]);
+
+  /** Reports one cell write for a select-ish field. */
+  const writeSelectCell = useCallback(
+    (field: DatabaseField, rowId: string, ids: readonly string[]) => {
+      const cell: DatabaseCell =
+        field.type === "select"
+          ? { type: "select", optionId: ids[0] ?? null }
+          : { type: "multiSelect", optionIds: [...ids] };
+      latest.current.onCellChange?.(rowId, field.id, cell);
+    },
+    [],
+  );
+
+  /**
+   * A pick in the dropdown: 多选 toggles and stays open, 单选 sets and closes.
+   */
+  const handleSelectOption = useCallback(
+    (optionId: string) => {
+      const open = selectMenuRef.current;
+      if (!open) return;
+      const field = latest.current.source.fields.find(
+        (entry) => entry.id === open.fieldId,
+      );
+      if (!field) return;
+      const multi = field.type === "multiSelect";
+      const ids = multi
+        ? open.ids.includes(optionId)
+          ? open.ids.filter((id) => id !== optionId)
+          : [...open.ids, optionId]
+        : [optionId];
+      writeSelectCell(field, open.rowId, ids);
+      updateSelectMenu(multi ? { ...open, ids } : null);
+    },
+    [updateSelectMenu, writeSelectCell],
+  );
+
+  /**
+   * 查找或创建选项: the typed name becomes a new option of the field *and* the
+   * cell's value.
+   *
+   * Two writes go out, in this order on purpose. The host merges the patches of
+   * one gesture into a single upsert and the later `rows` patch wins, so the
+   * schema half has to be reported first — and the domain rejects a cell that
+   * references an option its field does not declare, which is exactly what the
+   * intermediate state would be if it were the other way round.
+   */
+  const handleCreateOption = useCallback(
+    (name: string) => {
+      const open = selectMenuRef.current;
+      if (!open) return;
+      const current = latest.current;
+      const field = current.source.fields.find(
+        (entry) => entry.id === open.fieldId,
+      );
+      if (
+        !field ||
+        current.readOnly ||
+        !current.onFieldsChange ||
+        !current.onConfigChange
+      ) {
+        return;
+      }
+      const option: DatabaseFieldOption = {
+        id: createDatabaseFieldOptionId(),
+        name,
+        color: fallbackOptionColor(field.options?.length ?? 0),
+      };
+      current.onFieldsChange(
+        current.source.fields.map((entry) =>
+          entry.id === field.id
+            ? { ...entry, options: [...(entry.options ?? []), option] }
+            : entry,
+        ),
+      );
+      const multi = field.type === "multiSelect";
+      const ids = multi ? [...open.ids, option.id] : [option.id];
+      writeSelectCell(field, open.rowId, ids);
+      updateSelectMenu(multi ? { ...open, ids } : null);
+    },
+    [updateSelectMenu, writeSelectCell],
+  );
+
+  /**
+   * The "×" inside a capsule: drop that one option from the cell.
+   *
+   * The ids come from the VTable record rather than from `source`, because the
+   * record is what the painted capsules were built from.
+   */
+  const removeSelectOption = useCallback(
+    (table: ListTable, col: number, row: number, optionId: string) => {
+      const target = editableSelectFieldAt(table, col, row);
+      const rowId = rowIdFromArgs(table, { col, row });
+      if (!target || !rowId) return;
+      const ids = recordOptionIds(
+        table.getCellOriginRecord(col, row),
+        target.fieldId,
+      ).filter((id) => id !== optionId);
+      writeSelectCell(target.field, rowId, ids);
+      const open = selectMenuRef.current;
+      if (open && open.rowId === rowId && open.fieldId === target.fieldId) {
+        updateSelectMenu({ ...open, ids });
+      }
+    },
+    [editableSelectFieldAt, updateSelectMenu, writeSelectCell],
+  );
+
   const structureKey = useMemo(
-    () => tableStructureKey(config, source.fields, readOnly),
-    [config, source.fields, readOnly],
+    () => tableStructureKey(config, source.fields, readOnly, canEditFields),
+    [config, source.fields, readOnly, canEditFields],
   );
 
   /**
@@ -333,6 +816,8 @@ export function TableDataView({
     source,
     readOnly,
     filters,
+    colorLookup,
+    canEditFields,
     resolveNodeTitle,
     onCellChange,
     onOpenRecord,
@@ -341,6 +826,8 @@ export function TableDataView({
     onRowInsert,
     onRowDelete,
     onRowReorder,
+    onFieldsChange,
+    requestAddField,
   });
   useEffect(() => {
     latest.current = {
@@ -348,6 +835,8 @@ export function TableDataView({
       source,
       readOnly,
       filters,
+      colorLookup,
+      canEditFields,
       resolveNodeTitle,
       onCellChange,
       onOpenRecord,
@@ -356,6 +845,8 @@ export function TableDataView({
       onRowInsert,
       onRowDelete,
       onRowReorder,
+      onFieldsChange,
+      requestAddField,
     };
   });
 
@@ -370,8 +861,8 @@ export function TableDataView({
   /** The records VTable currently owns, so a rejected edit can be reverted. */
   const filteredRecordsRef = useRef<TableRecord[]>([]);
   useEffect(() => {
-    filteredRecordsRef.current = displayRecords;
-  }, [displayRecords]);
+    filteredRecordsRef.current = filteredRecords;
+  }, [filteredRecords]);
 
   /** Re-pushes the records VTable owns, undoing a rejected in-place edit. */
   const restoreRecords = useCallback(() => {
@@ -387,6 +878,9 @@ export function TableDataView({
       nextConfig: TableViewConfig,
       nextSource: typeof source,
       nextReadOnly: boolean | undefined,
+      nextColorLookup: TableColorLookup,
+      showAddField: boolean,
+      canDeleteRows: boolean,
     ): ListTableConstructorOptions => {
       const density = nextConfig.density;
       const editable = !nextReadOnly && nextConfig.editable;
@@ -396,6 +890,10 @@ export function TableDataView({
         readOnly: nextReadOnly,
         resolveEditor: createTableEditor,
         interactiveColor: tokens.primary,
+        colorLookup: nextColorLookup,
+        pillFont,
+        isSelectCellActive,
+        selectCellChevronColor: tokens.mutedForeground,
       });
       const fieldById = new Map(
         nextSource.fields.map((field) => [field.id, field]),
@@ -417,9 +915,44 @@ export function TableDataView({
         ];
       };
 
+      /**
+       * The body-cell menu is the column menu plus 删除行.
+       *
+       * Row deletion lives here because a selection-driven toolbar button made
+       * the toolbar's function group jump: it appeared/disappeared with the
+       * selection and its label grew per selected row, dragging every control
+       * in that group around on each `selected_changed` event of a drag. A
+       * context menu item is always present, so nothing about the toolbar
+       * depends on the selection any more.
+       */
+      const bodyMenu = (
+        table: ListTable,
+        fieldId: string | undefined,
+        col: number,
+        row: number,
+      ): TYPES.MenuListItem[] => {
+        const items = columnMenu(fieldId);
+        const clicked = rowIdFromArgs(table, { col, row });
+        if (!items.length || !canDeleteRows || !clicked) return items;
+        // Right-clicking inside a multi-row selection acts on the whole
+        // selection; anywhere else deletes just the row under the cursor.
+        const selected = selectedRowIds(table);
+        const count = selected.includes(clicked) ? selected.length : 1;
+        return [
+          ...items,
+          { type: "split" },
+          {
+            text: count > 1 ? `删除选中的 ${count} 行` : "删除此行",
+            menuKey: MENU.deleteRow,
+          },
+        ];
+      };
+
       const groupBy = (nextConfig.groupBy ?? []).filter((fieldId) =>
         fieldById.has(fieldId),
       );
+
+      if (showAddField) columnsDefine.push(buildAddFieldColumn(tokens));
 
       return {
         container: containerRef.current,
@@ -458,7 +991,7 @@ export function TableDataView({
               },
             }
           : {}),
-        sortState: toVTableSortState(nextConfig.sortState),
+        sortState: buildVTableSortState(nextConfig, nextSource.fields),
         multipleSort: true,
         ...(editable
           ? { editCellTrigger: "doubleclick" as const }
@@ -491,29 +1024,41 @@ export function TableDataView({
         dragOrder: {
           dragHeaderMode: nextConfig.reorderable ? "all" : "none",
         },
+        // Right-clicking inside a multi-row selection deletes the selection,
+        // so the menu needs the selected cells reported alongside the target.
+        eventOptions: { contextmenuReturnAllSelectedCells: true },
         menu: {
           renderMode: "html",
           contextMenuItems: (field, row, col, table) => {
+            const listTable = table ? asListTable(table) : undefined;
             const fieldId =
               asFieldId(field) ??
-              (table ? fieldIdAt(asListTable(table), col, row) : undefined);
-            return columnMenu(fieldId);
+              (listTable ? fieldIdAt(listTable, col, row) : undefined);
+            if (!listTable) return columnMenu(fieldId);
+            return bodyMenu(listTable, fieldId, col, row);
           },
           defaultHeaderMenuItems: (args) =>
             columnMenu(fieldIdAt(asListTable(args.table), args.col, args.row)),
         },
         emptyTip: {
-          text: "暂无数据，点击「新增行」开始录入",
+          text: "暂无数据，点击「添加记录」开始录入",
         },
       } as ListTableConstructorOptions;
     },
-    [tokens],
+    [isSelectCellActive, pillFont, tokens],
   );
 
-  /** Persist the live sort state into the view config. */
+  /** Persist the live sort state into the view config (group levels excluded). */
   const persistSortState = useCallback((table: ListTable) => {
-    const next = fromVTableSortState(table.sortState ?? null);
-    sortStateRef.current = toVTableSortState(next);
+    const groupFieldIds = new Set(
+      (latest.current.config.groupBy ?? []).filter(Boolean),
+    );
+    const next = fromVTableSortState(table.sortState ?? null).filter(
+      (entry) => !groupFieldIds.has(entry.fieldId),
+    );
+    sortStateRef.current = fromVTableSortState(table.sortState ?? null).map(
+      (entry) => ({ field: entry.fieldId, order: entry.order }),
+    );
     latest.current.onConfigChange?.({
       ...latest.current.config,
       sortState: next,
@@ -575,13 +1120,84 @@ export function TableDataView({
       });
 
       table.on("click_cell", (args) => {
-        if (args.cellLocation !== "body") return;
         const fieldId = fieldIdFromArgs(table, args);
-        if (!fieldId) return;
+
+        // The trailing "+" opens the 新增字段 dropdown, anchored to the glyph the
+        // user pressed. VTable's inline header select would also select the
+        // column's rows on the way in, so the affordance clears the selection it
+        // never meant to make.
+        if (
+          fieldId === TABLE_ADD_FIELD_COLUMN_ID &&
+          args.cellLocation === "columnHeader"
+        ) {
+          table.clearSelected();
+          latest.current.requestAddField(
+            addFieldAnchorFrom(containerRef.current, table, args),
+          );
+          return;
+        }
+
+        if (args.cellLocation !== "body") {
+          setActiveSelectCell(null);
+          closeSelectMenu();
+          return;
+        }
+        // A tap on a capsule's "×" or on the cell's chevron is a custom-render
+        // icon: it arrives here first (VTable reports it through `targetIcon`)
+        // and then again as `icon_click`, which owns the behaviour.
+        if (args.targetIcon) return;
+
+        if (!fieldId) {
+          setActiveSelectCell(null);
+          return;
+        }
         const field = latest.current.source.fields.find(
           (entry) => entry.id === fieldId,
         );
-        if (field?.type !== "relation") return;
+
+        /**
+         * 单选 / 多选 cells are capsules with their own gesture:
+         *
+         * - a click on a cell that is not the activated one activates it — the
+         *   capsules gain their "×" and the cell gains its chevron;
+         * - a click on the activated cell (or on its chevron) opens the option
+         *   dropdown.
+         *
+         * Every other cell deactivates whatever was active, so the "×" never
+         * lingers on a cell the user has moved on from.
+         */
+        if (field && isSelectField(field)) {
+          if (
+            isFieldEditable(
+              field,
+              latest.current.config,
+              latest.current.readOnly,
+            )
+          ) {
+            const rowId = rowIdFromArgs(table, args);
+            if (rowId && isSelectCellActive(fieldId, rowId)) {
+              openSelectMenu(table, args.col, args.row);
+              return;
+            }
+            if (rowId) {
+              setActiveSelectCell({
+                rowId,
+                fieldId,
+                col: args.col,
+                row: args.row,
+              });
+              closeSelectMenu();
+              return;
+            }
+          }
+          setActiveSelectCell(null);
+          closeSelectMenu();
+          return;
+        }
+
+        setActiveSelectCell(null);
+        closeSelectMenu();
+        if (!field || field.type !== "relation") return;
         const rowId = rowIdFromArgs(table, args);
         const cell = rowId
           ? latest.current.source.rows.find((row) => row.id === rowId)?.cells[
@@ -590,6 +1206,41 @@ export function TableDataView({
           : undefined;
         const [nodeId] = cell?.type === "relation" ? (cell.nodeIds ?? []) : [];
         if (nodeId) latest.current.onOpenNode?.(nodeId);
+      });
+
+      /**
+       * The canvas glyphs VTable turns into clickable icons: the "×" a capsule
+       * shows while its cell is active, and the chevron that opens the dropdown.
+       */
+      table.on("icon_click", (args) => {
+        const name = args.name;
+        if (!name) return;
+        if (name.startsWith(PILL_REMOVE_ICON_PREFIX)) {
+          removeSelectOption(
+            table,
+            args.col,
+            args.row,
+            name.slice(PILL_REMOVE_ICON_PREFIX.length),
+          );
+          return;
+        }
+        if (name === PILL_OPEN_ICON) openSelectMenu(table, args.col, args.row);
+      });
+
+      /**
+       * The panel is anchored to where the cell was when it opened, and Radix
+       * cannot follow a scroll that happens *inside* VTable's canvas — so a user
+       * scroll dismisses it. Only gestures qualify: VTable fires `scroll` for its
+       * own bookkeeping too (the `setRecords` after a write re-stamps the same
+       * position, ten event-less `scroll`s at a time), and closing on those made
+       * the 多选 panel vanish after every pick.
+       */
+      table.on("scroll", (args) => {
+        if (args.event) closeSelectMenu();
+      });
+      table.on("selected_clear", () => {
+        setActiveSelectCell(null);
+        closeSelectMenu();
       });
 
       table.on("dblclick_cell", (args) => {
@@ -619,8 +1270,8 @@ export function TableDataView({
 
       /**
        * Drag-reordering rows only makes sense against the complete row set: a
-       * filter or `rowLimit` hides rows the user cannot see, and reporting a
-       * partial order would silently move the hidden ones.
+       * filter hides rows the user cannot see, and reporting a partial order
+       * would silently move the hidden ones.
        */
       const persistRowOrder = () => {
         const current = latest.current;
@@ -646,12 +1297,10 @@ export function TableDataView({
         else persistLayout();
       });
 
-      const refreshSelection = () =>
-        setSelectedCount(selectedRowIds(table).length);
-      table.on("selected_cell", refreshSelection);
-      table.on("selected_changed", refreshSelection);
-      table.on("selected_clear", refreshSelection);
-      table.on("drag_select_end", refreshSelection);
+      // No selection bookkeeping here: the toolbar no longer shows a
+      // selection-driven control (the 删除选中 button is gone), so tracking the
+      // count in state would only re-render the tree — and shift the function
+      // group — on every `selected_changed` event of a drag.
 
       table.on("dropdown_menu_click", (args) => {
         const fieldId = fieldIdAt(table, args.col, args.row);
@@ -663,6 +1312,22 @@ export function TableDataView({
         ).map((column) => column.fieldId);
 
         switch (args.menuKey) {
+          case MENU.deleteRow: {
+            const clickedRowId = rowIdFromArgs(table, args);
+            if (!clickedRowId) return;
+            // Right-clicking inside a multi-row selection acts on the whole
+            // selection; right-clicking anywhere else deletes just that row.
+            // (The old toolbar button was the only entry point before — it had
+            // to go: it appeared with the selection and shifted every control
+            // in the toolbar's function group as the selection grew.)
+            const selected = selectedRowIds(table);
+            const rowIds = selected.includes(clickedRowId)
+              ? selected
+              : [clickedRowId];
+            latest.current.onRowDelete?.(rowIds);
+            table.clearSelected();
+            return;
+          }
           case MENU.sortAsc:
             table.updateSortState({ field: fieldId, order: "asc" });
             persistSortState(table);
@@ -697,7 +1362,16 @@ export function TableDataView({
         }
       });
     },
-    [patchConfig, persistSortState, restoreRecords],
+    [
+      closeSelectMenu,
+      isSelectCellActive,
+      openSelectMenu,
+      patchConfig,
+      persistSortState,
+      removeSelectOption,
+      restoreRecords,
+      setActiveSelectCell,
+    ],
   );
 
   // —— create / release the imperative table ——
@@ -707,10 +1381,22 @@ export function TableDataView({
     const current = latest.current;
     const table = new ListTable(
       container,
-      buildOptions(current.config, current.source, current.readOnly),
+      buildOptions(
+        current.config,
+        current.source,
+        current.readOnly,
+        current.colorLookup,
+        current.canEditFields,
+        !current.readOnly &&
+          current.config.editable &&
+          Boolean(current.onRowDelete),
+      ),
     );
     tableRef.current = table;
-    sortStateRef.current = toVTableSortState(current.config.sortState);
+    sortStateRef.current = buildVTableSortState(
+      current.config,
+      current.source.fields,
+    );
     attachListeners(table);
 
     const observer = new ResizeObserver(() => table.resize());
@@ -720,17 +1406,25 @@ export function TableDataView({
       observer.disconnect();
       searchRef.current = null;
       tableRef.current = null;
+      // The cell the user activated belonged to the instance being thrown away;
+      // its column define (and the "×" it paints) goes with it.
+      activeSelectRef.current = null;
+      updateSelectMenu(null);
       // VTable leaks canvas/scene-graph state without an explicit release.
       table.release();
     };
-  }, [structureKey, buildOptions, attachListeners]);
+  }, [structureKey, buildOptions, attachListeners, updateSelectMenu]);
 
   // —— data ———
   useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
-    table.setRecords(displayRecords, { sortState: sortStateRef.current });
-  }, [displayRecords, structureKey]);
+    const autoSort = latest.current.config.autoSort !== false;
+    table.setRecords(filteredRecords, {
+      // 自动排序 off: keep VTable's own sort state instead of re-stamping ours.
+      sortState: autoSort ? sortStateRef.current : undefined,
+    });
+  }, [filteredRecords, structureKey]);
 
   // —— search ——
   const ensureSearch = useCallback((): SearchComponent | null => {
@@ -754,16 +1448,22 @@ export function TableDataView({
       return;
     }
     const search = ensureSearch();
-    if (!search) return;
+    // No table to search: the schema went empty (or every column was hidden)
+    // while the box was open. Reset the counter rather than leaving the previous
+    // table's numbers on screen.
+    if (!search) {
+      setSearchMatch({ count: 0, index: -1 });
+      return;
+    }
     const result = search.search(searchQuery);
     setSearchMatch({
       count: result.results.length,
       index: result.results.length > 0 ? result.index : -1,
     });
-    // `displayRecords` is in the deps so a data change re-runs the highlight
+    // `filteredRecords` is in the deps so a data change re-runs the highlight
     // pass over the freshly rendered cells; `structureKey` covers the table
     // being rebuilt underneath the query.
-  }, [searchQuery, displayRecords, structureKey, ensureSearch]);
+  }, [searchQuery, filteredRecords, structureKey, ensureSearch]);
 
   const handleSearchStep = useCallback((direction: 1 | -1) => {
     const search = searchRef.current;
@@ -781,21 +1481,19 @@ export function TableDataView({
     latest.current.onRowInsert?.(row);
   }, []);
 
-  const handleDeleteSelected = useCallback(() => {
-    const table = tableRef.current;
-    if (!table) return;
-    const rowIds = selectedRowIds(table);
-    if (rowIds.length === 0) return;
-    latest.current.onRowDelete?.(rowIds);
-    table.clearSelected();
-    setSelectedCount(0);
-  }, []);
-
   // —— export ———
   const handleExport = useCallback(async (format: "csv" | "excel") => {
     const table = tableRef.current;
     if (!table) return;
     const name = `dataview-${Date.now().toString(36)}`;
+    // The trailing "+" column is an affordance, not data — blank it out.
+    const blankAffordance = {
+      formatExportOutput: (info: { col: number; table: unknown }) =>
+        fieldIdAt(info.table as ListTable, info.col, 0) ===
+        TABLE_ADD_FIELD_COLUMN_ID
+          ? ""
+          : undefined,
+    };
     try {
       const {
         exportVTableToCsv,
@@ -804,10 +1502,17 @@ export function TableDataView({
         downloadExcel,
       } = await import("@visactor/vtable-export");
       if (format === "csv") {
-        const csv = exportVTableToCsv(table, { exportAllData: true });
+        const csv = exportVTableToCsv(table, {
+          exportAllData: true,
+          ...blankAffordance,
+        });
         await downloadCsv(csv, `${name}.csv`);
       } else {
-        const buffer = await exportVTableToExcel(table, {}, true);
+        const buffer = await exportVTableToExcel(
+          table,
+          { ...blankAffordance },
+          true,
+        );
         await downloadExcel(buffer, `${name}.xlsx`);
       }
     } catch (error) {
@@ -817,9 +1522,7 @@ export function TableDataView({
 
   const handleFiltersChange = useCallback(
     (next: TableFilterState) => {
-      patchConfig({
-        filterState: next as TableViewConfig["filterState"],
-      });
+      patchConfig({ filterState: next });
     },
     [patchConfig],
   );
@@ -828,73 +1531,140 @@ export function TableDataView({
     patchConfig({ hiddenFieldIds: [] });
   }, [patchConfig]);
 
+  /** The field the open option dropdown belongs to (absent when it is closed). */
+  const selectMenuField = useMemo(
+    () =>
+      selectMenu
+        ? source.fields.find((field) => field.id === selectMenu.fieldId)
+        : undefined,
+    [selectMenu, source.fields],
+  );
+
   const fieldCount = source.fields.length;
-
-  if (fieldCount === 0) {
-    return (
-      <DataViewEmptyState
-        icon={Table2}
-        title="这个数据表还没有字段"
-        description="先在节点里添加字段，表格视图就会显示对应的列。"
-        className={className}
-      />
-    );
-  }
-
-  if (columns.length === 0) {
-    return (
-      <DataViewEmptyState
-        icon={Eye}
-        title="所有列都被隐藏了"
-        description="在配置面板或列头菜单里重新显示至少一列。"
-        className={className}
-      >
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={handleShowAllColumns}
-        >
-          显示全部列
-        </Button>
-      </DataViewEmptyState>
-    );
-  }
+  const noFields = fieldCount === 0;
+  const noVisibleColumns = !noFields && columns.length === 0;
 
   return (
+    /**
+     * `overflow-hidden` is load-bearing, not decoration — see the container's
+     * note below. The view fills the pane it is given and never lets its own
+     * canvas rounding push a scrollbar onto an ancestor.
+     */
     <div
       data-dataview-table
-      className={cn("flex h-full min-h-0 w-full flex-col", className)}
+      className={cn(
+        "flex h-full min-h-0 w-full flex-col overflow-hidden",
+        className,
+      )}
     >
       <TableToolbar
         config={config}
         fields={source.fields}
+        rows={source.rows}
         readOnly={readOnly}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         searchMatchCount={searchMatch.count}
         searchIndex={Math.max(0, searchMatch.index)}
         onSearchStep={handleSearchStep}
+        searchOpen={searchOpen}
+        onSearchOpenChange={setSearchOpen}
         filters={filters}
         onFiltersChange={handleFiltersChange}
-        visibleRowCount={displayRecords.length}
+        visibleRowCount={filteredRecords.length}
         totalRowCount={records.length}
-        selectedCount={selectedCount}
         canInsertRow={
           !readOnly && config.editable && Boolean(onRowInsert) && fieldCount > 0
         }
         onInsertRow={handleInsertRow}
-        onDeleteSelected={handleDeleteSelected}
         onExport={(format) => {
           void handleExport(format);
         }}
+        addFieldRequest={addFieldRequest}
+        onAddFieldDismiss={clearAddFieldRequest}
         onConfigChange={onConfigChange}
+        onFieldsChange={onFieldsChange}
       />
 
-      <div
-        ref={containerRef}
-        data-dataview-table-canvas
-        className="min-h-0 w-full flex-1"
+      {noFields ? (
+        <DataViewEmptyState
+          icon={Table2}
+          title="这个数据表还没有字段"
+          description="添加第一个字段后，表格就会显示对应的列。"
+          className="flex-1"
+        >
+          {canEditFields && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={(event) =>
+                requestAddField(elementAnchorFrom(event.currentTarget))
+              }
+            >
+              <Plus className="size-3.5" />
+              新增字段
+            </Button>
+          )}
+        </DataViewEmptyState>
+      ) : noVisibleColumns ? (
+        <DataViewEmptyState
+          icon={Eye}
+          title="所有列都被隐藏了"
+          description="在字段配置里重新显示至少一列。"
+          className="flex-1"
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleShowAllColumns}
+          >
+            显示全部列
+          </Button>
+        </DataViewEmptyState>
+      ) : (
+        /**
+         * The VTable box.
+         *
+         * `overflow-hidden` is a **correctness requirement**, not styling.
+         * VTable stamps its own rounded pixel size on the `.vtable` element it
+         * creates here (`style.width = parentElement.offsetWidth`), so whenever
+         * that parent measures a fractional size — any browser zoom, any HiDPI
+         * window, `80vh`-sized dialogs — the child is up to a pixel larger than
+         * the box it sits in. With the shell's renderer wrapper being
+         * `overflow: auto`, that hairline spill made the wrapper show **both**
+         * scrollbars; the scrollbars took 10px off each axis, which shrank this
+         * container to 774×579, which re-wrapped the toolbar (its height is a
+         * function of the width), which changed the spill again — `.vtable`'s
+         * inline size flipped between two values 10px apart, forever, and the
+         * toolbar was visibly dragged along with it.
+         *
+         * Clipping here (and on the view root) keeps the canvas — and the
+         * rounded pixel size VTable derives from us — inside the pane. Nothing
+         * the table draws needs to escape: HTML menus/tooltips VTable renders
+         * are confined to the same box by VTable itself (`confine: true`), and
+         * every menu the view owns is a Radix portal on `document.body`.
+         */
+        <div
+          ref={containerRef}
+          data-dataview-table-canvas
+          className="min-h-0 w-full flex-1 overflow-hidden"
+        />
+      )}
+
+      {/**
+       * The 单选 / 多选 dropdown. It is a portal, so it lives outside the
+       * clipped canvas box while being anchored to the cell inside it.
+       */}
+      <TableSelectMenu
+        request={selectMenu}
+        field={selectMenuField}
+        selectedIds={selectMenu?.ids ?? NO_IDS}
+        canCreateOption={canEditFields && Boolean(config.editable)}
+        onDismiss={closeSelectMenu}
+        onSelectOption={handleSelectOption}
+        onCreateOption={handleCreateOption}
       />
     </div>
   );

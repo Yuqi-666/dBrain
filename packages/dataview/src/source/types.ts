@@ -9,6 +9,7 @@
  */
 import type {
   DatabaseCell,
+  DatabaseField,
   DataRow,
   DataView,
   DataViewConfig,
@@ -75,6 +76,14 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   onRowDelete?: (rowIds: readonly string[]) => void;
   /** Reorder rows into the given id order (database hosts). */
   onRowReorder?: (rowIds: readonly string[]) => void;
+  /**
+   * Replace the schema (database hosts): add / rename / retype / reorder /
+   * group / delete a field. `rows` accompanies `fields` when the schema change
+   * also rewrites cells — dropping a deleted field's cells, reseeding a retyped
+   * or default-valued one — and the two are written atomically. Absent on
+   * read-only projections, which therefore offer no field management.
+   */
+  onFieldsChange?: (fields: DatabaseField[], rows?: DataRow[]) => void;
   /**
    * Resolve a `relation` node id to its title for display. The host supplies it
    * because node titles live in the data store, which this package does not

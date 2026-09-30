@@ -18,6 +18,7 @@ export function KanbanDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<KanbanViewConfig>) {
   return (
@@ -34,6 +35,7 @@ export function KanbanDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

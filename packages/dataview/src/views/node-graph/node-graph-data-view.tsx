@@ -18,6 +18,7 @@ export function NodeGraphDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<NodeGraphViewConfig>) {
   return (
@@ -30,6 +31,7 @@ export function NodeGraphDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

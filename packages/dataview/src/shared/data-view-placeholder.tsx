@@ -10,8 +10,9 @@ import type {
 } from "@workspace/interfaces";
 
 import { DataViewEmptyState } from "./empty-state";
+import { ViewConfigMenu, ViewToolbar } from "./view-toolbar";
 
-export interface DataViewPlaceholderProps {
+export interface DataViewPlaceholderProps<C extends DataViewConfig> {
   type: DataViewType;
   icon: LucideIcon;
   /** Human label, e.g. "表格视图". */
@@ -20,8 +21,10 @@ export interface DataViewPlaceholderProps {
   /** Libraries this view is planned to be built on (README §9.1). */
   plannedDependencies?: string[];
   source: DataViewSource;
-  config: DataViewConfig;
+  config: C;
   readOnly?: boolean;
+  /** Absent when the host does not allow view management. */
+  onConfigChange?: (config: C) => void;
   className?: string;
 }
 
@@ -33,8 +36,12 @@ export interface DataViewPlaceholderProps {
  * props contract — this placeholder exists so the shell, registry, routing and
  * host integration can be built and reviewed independently of the eight
  * heavyweight libraries the views will eventually pull in.
+ *
+ * It still carries a real view toolbar: config on the left (the registered
+ * config editor, in a popover — there is no side panel any more), status on the
+ * right, which keeps the toolbar contract identical for every view type.
  */
-export function DataViewPlaceholder({
+export function DataViewPlaceholder<C extends DataViewConfig>({
   type,
   icon: Icon,
   label,
@@ -43,57 +50,76 @@ export function DataViewPlaceholder({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
-}: DataViewPlaceholderProps) {
+}: DataViewPlaceholderProps<C>) {
   return (
     <div
       data-dataview-placeholder={type}
-      className={cn(
-        "flex h-full min-h-0 w-full flex-col gap-3 overflow-auto p-4",
-        className,
-      )}
+      className={cn("flex h-full min-h-0 w-full flex-col", className)}
     >
-      <header className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="secondary" className="font-medium">
-          {label}
-        </Badge>
-        <Badge variant="outline" className="border-dashed">
-          占位未实现
-        </Badge>
-        <span className="tabular-nums">
-          {source.rows.length} 行 · {source.fields.length} 字段 · 数据源{" "}
-          {source.kind}
-        </span>
-        {readOnly && <Badge variant="muted">只读</Badge>}
-      </header>
+      <ViewToolbar
+        actions={
+          <>
+            <Badge variant="muted" className="tabular-nums">
+              {source.rows.length} 行 · {source.fields.length} 字段
+            </Badge>
+            {readOnly && <Badge variant="outline">只读</Badge>}
+            <Badge variant="outline" className="border-dashed">
+              占位未实现
+            </Badge>
+          </>
+        }
+      >
+        <ViewConfigMenu
+          type={type}
+          config={config}
+          source={source}
+          readOnly={readOnly}
+          // The registry pairs each view type with its own config editor, so
+          // the editor can only ever hand back this view's config shape.
+          onConfigChange={
+            onConfigChange as ((next: DataViewConfig) => void) | undefined
+          }
+        />
+      </ViewToolbar>
 
-      <DataViewEmptyState
-        icon={Icon}
-        title={`${label}尚未实现`}
-        description={description}
-      />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
+        <header className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="font-medium">
+            {label}
+          </Badge>
+          <span>数据源 {source.kind}</span>
+        </header>
 
-      {plannedDependencies && plannedDependencies.length > 0 && (
-        <div className="mx-auto flex max-w-xl flex-wrap justify-center gap-1.5">
-          {plannedDependencies.map((dependency) => (
-            <code
-              key={dependency}
-              className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-            >
-              {dependency}
-            </code>
-          ))}
-        </div>
-      )}
+        <DataViewEmptyState
+          icon={Icon}
+          title={`${label}尚未实现`}
+          description={description}
+        />
 
-      <details className="rounded-lg border border-border bg-card/40">
-        <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-          当前视图配置（只读预览）
-        </summary>
-        <pre className="max-h-64 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground">
-          {JSON.stringify(config, null, 2)}
-        </pre>
-      </details>
+        {plannedDependencies && plannedDependencies.length > 0 && (
+          <div className="mx-auto flex max-w-xl flex-wrap justify-center gap-1.5">
+            {plannedDependencies.map((dependency) => (
+              <code
+                key={dependency}
+                className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              >
+                {dependency}
+              </code>
+            ))}
+          </div>
+        )}
+
+        <details className="rounded-lg border border-border bg-card/40">
+          <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
+            当前视图配置（只读预览）
+          </summary>
+          <pre className="max-h-64 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground">
+            {JSON.stringify(config, null, 2)}
+          </pre>
+        </details>
+      </div>
     </div>
   );
 }

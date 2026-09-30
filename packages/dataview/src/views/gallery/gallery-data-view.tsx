@@ -18,6 +18,7 @@ export function GalleryDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<GalleryViewConfig>) {
   return (
@@ -30,6 +31,7 @@ export function GalleryDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

@@ -18,8 +18,9 @@ export interface DataViewConfigPlaceholderProps {
  *
  * The real editors (field pickers, aggregation pickers, theme options, …) are
  * deliberately not implemented yet; each view's `config-editor.tsx` is a thin
- * wrapper that will grow into one. Until then the panel shows the live config
- * so the shell's read/write path is observable.
+ * wrapper that will grow into one. Until then the body shows the live config so
+ * the shell's read/write path is observable. It is rendered inside the view
+ * toolbar's 视图配置 popover — there is no side panel.
  */
 export function DataViewConfigPlaceholder({
   type,
@@ -34,7 +35,7 @@ export function DataViewConfigPlaceholder({
     >
       <DataViewEmptyState
         icon={Settings2}
-        title="配置面板尚未实现"
+        title="配置项尚未实现"
         description={
           readOnly
             ? "当前视图只读，配置不可编辑。"

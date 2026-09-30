@@ -17,6 +17,7 @@ export function GanttDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<GanttViewConfig>) {
   return (
@@ -29,6 +30,7 @@ export function GanttDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

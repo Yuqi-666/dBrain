@@ -1,22 +1,6 @@
 "use client";
 
-import { Copy, MoreHorizontal, PanelRight, Star, Trash2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { Button } from "@workspace/ui/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/ui/dropdown-menu";
-import { Toggle } from "@workspace/ui/components/ui/toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@workspace/ui/components/ui/tooltip";
 import type {
   DataView,
   DataViewId,
@@ -25,14 +9,11 @@ import type {
 } from "@workspace/interfaces";
 
 import { ViewSwitcher } from "./view-switcher";
-import { createDataViewId } from "../defaults";
 
 export interface DataViewToolbarProps {
   views: DataView[];
   activeView: DataView;
   source: DataViewSource;
-  configPanelOpen: boolean;
-  onToggleConfigPanel: () => void;
   onViewsChange?: (views: DataView[]) => void;
   onCreateView?: (type: DataViewType) => void;
   onActiveViewChange?: (id: DataViewId) => void;
@@ -40,24 +21,24 @@ export interface DataViewToolbarProps {
 }
 
 /**
- * View tabs (renamed inline on the tab), "new view" menu, per-view actions and
- * the config panel toggle — the whole top strip of `<DataViewRoot />`
- * (README §3.1).
+ * The view *switcher* strip: the tabs (renamed inline on the tab) and the "new
+ * view" menu. Nothing else.
  *
- * The toolbar owns no name field: a rename arrives as `onRenameView` from the
- * tab strip, and every mutation produces a new `DataView[]` handed to
- * `onViewsChange`; the toolbar never persists anything itself.
+ * View configuration does **not** live here — the design change moved it into
+ * each view's own toolbar as buttons + dropdown menus
+ * (`docs/propmt/dataview-table-1.md`) — and neither do the per-view actions
+ * (设为默认 / 复制 / 删除): 更多 renders inside the view toolbar's function
+ * group now, so the strip is pure navigation and its right edge holds no
+ * buttons that could appear or move.
  *
- * It is one 36px strip: navigation on the left (a segmented track), view-level
- * actions on the right. Only the *pressed* state of the panel toggle and the
- * active tab carry any emphasis.
+ * The toolbar owns no name field: a rename arrives from the tab strip, and
+ * every mutation produces a new `DataView[]` handed to `onViewsChange`; the
+ * toolbar never persists anything itself.
  */
 export function DataViewToolbar({
   views,
   activeView,
   source,
-  configPanelOpen,
-  onToggleConfigPanel,
   onViewsChange,
   onCreateView,
   onActiveViewChange,
@@ -76,112 +57,21 @@ export function DataViewToolbar({
     );
   };
 
-  const duplicateActiveView = () => {
-    if (!onViewsChange) return;
-    const copy: DataView = {
-      ...activeView,
-      id: createDataViewId(),
-      name: `${activeView.name} 副本`,
-      isDefault: false,
-    };
-    onViewsChange([...views, copy]);
-    onActiveViewChange?.(copy.id);
-  };
-
-  const deleteActiveView = () => {
-    if (!onViewsChange || views.length <= 1) return;
-    const remaining = views.filter((view) => view.id !== activeView.id);
-    // Never leave the node without a default view.
-    if (activeView.isDefault && remaining[0]) {
-      remaining[0] = { ...remaining[0], isDefault: true };
-    }
-    onViewsChange(remaining);
-    onActiveViewChange?.(remaining[0]?.id ?? "");
-  };
-
-  const setActiveViewAsDefault = () => {
-    if (!onViewsChange) return;
-    onViewsChange(
-      views.map((view) => ({
-        ...view,
-        isDefault: view.id === activeView.id,
-      })),
-    );
-  };
-
   return (
-    <TooltipProvider delayDuration={400}>
-      <div
-        className={cn(
-          "flex min-h-9 shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-1",
-          className,
-        )}
-      >
-        <ViewSwitcher
-          views={views}
-          activeViewId={activeView.id}
-          source={source}
-          onCreateView={canEditViews ? onCreateView : undefined}
-          onActiveViewChange={onActiveViewChange}
-          onRenameView={canEditViews ? renameView : undefined}
-        />
-
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                size="sm"
-                aria-label="配置面板"
-                aria-pressed={configPanelOpen}
-                pressed={configPanelOpen}
-                className="size-7 min-w-7 text-muted-foreground data-[state=on]:text-foreground"
-                onPressedChange={onToggleConfigPanel}
-              >
-                <PanelRight className="size-3.5" />
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">视图配置</TooltipContent>
-          </Tooltip>
-
-          {canEditViews && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  className="size-7 text-muted-foreground"
-                  aria-label="视图操作"
-                >
-                  <MoreHorizontal className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem
-                  onSelect={setActiveViewAsDefault}
-                  disabled={activeView.isDefault}
-                >
-                  <Star className="size-4" />
-                  设为默认视图
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={duplicateActiveView}>
-                  <Copy className="size-4" />
-                  复制视图
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={deleteActiveView}
-                  disabled={views.length <= 1}
-                >
-                  <Trash2 className="size-4" />
-                  删除视图
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
-    </TooltipProvider>
+    <div
+      className={cn(
+        "flex min-h-9 shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-1",
+        className,
+      )}
+    >
+      <ViewSwitcher
+        views={views}
+        activeViewId={activeView.id}
+        source={source}
+        onCreateView={canEditViews ? onCreateView : undefined}
+        onActiveViewChange={onActiveViewChange}
+        onRenameView={canEditViews ? renameView : undefined}
+      />
+    </div>
   );
 }

@@ -9,11 +9,6 @@ export { DataViewRoot } from "./data-view-root";
 export type { DataViewRootProps } from "./data-view-root";
 
 export {
-  DataViewConfigPanel,
-  type DataViewConfigPanelProps,
-} from "./config-panel/data-view-config-panel";
-
-export {
   DataViewToolbar,
   type DataViewToolbarProps,
 } from "./toolbar/data-view-toolbar";

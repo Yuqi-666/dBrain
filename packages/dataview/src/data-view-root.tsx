@@ -6,6 +6,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import type {
   DatabaseCell,
+  DatabaseField,
   DataRow,
   DataView,
   DataViewConfig,
@@ -14,7 +15,6 @@ import type {
   DataViewType,
 } from "@workspace/interfaces";
 
-import { DataViewConfigPanel } from "./config-panel/data-view-config-panel";
 import { createDefaultDataView, seedDataViewId } from "./defaults";
 import { getDataViewDescriptor, isDataViewTypeAllowed } from "./registry";
 import { DataViewEmptyState } from "./shared/empty-state";
@@ -23,6 +23,7 @@ import {
   type RowFilterCondition,
 } from "./shared/use-row-filter";
 import { DataViewToolbar } from "./toolbar/data-view-toolbar";
+import { ViewActionsMenu, ViewActionsProvider } from "./toolbar/view-actions";
 
 /** The view a node gets when it has none yet. */
 const DEFAULT_VIEW_TYPE_BY_KIND: Record<DataViewSource["kind"], DataViewType> =
@@ -50,8 +51,6 @@ export interface DataViewRootProps {
    * `onViewsChange` is supplied.
    */
   readOnly?: boolean;
-  /** Config panel visibility on first render. */
-  defaultConfigPanelOpen?: boolean;
   /** Cross-view row filter applied before the renderer sees the source. */
   rowFilter?: RowFilterCondition[];
 
@@ -69,6 +68,13 @@ export interface DataViewRootProps {
   onRowDelete?: (rowIds: readonly string[]) => void;
   /** Reorder the host's rows into the given id order (database hosts only). */
   onRowReorder?: (rowIds: readonly string[]) => void;
+  /**
+   * Replace the schema — add / rename / retype / reorder / group / delete a
+   * field (database hosts only). `rows` is present when the schema change also
+   * rewrites cells (dropping a deleted field's cells, reseeding a retyped or
+   * defaulted one); together they are one atomic content write.
+   */
+  onFieldsChange?: (fields: DatabaseField[], rows?: DataRow[]) => void;
   /** Resolve a relation node id to its title for display. */
   resolveNodeTitle?: (nodeId: string) => string | undefined;
 
@@ -116,17 +122,18 @@ function resolveInitialState(
 /**
  * The single public entry point of the data view component (README §3.2).
  *
- * It composes the three blocks — toolbar, active renderer, config panel — and
- * owns nothing but view-level UI state. Persisting a view change is the host's
- * job (`onViewsChange` → `NodeService.upsert`), and writing data is reported
- * upward through `onCellChange`; renderers never touch the store.
+ * It composes the two blocks — the view tab strip and the active renderer —
+ * and owns nothing but view-level UI state. Each renderer renders its own
+ * toolbar (config on the left, functions on the right); there is no side config
+ * panel (docs/propmt/dataview-table-1.md). Persisting a view change is the
+ * host's job (`onViewsChange` → `NodeService.upsert`), and writing data is
+ * reported upward through `onCellChange`; renderers never touch the store.
  */
 export function DataViewRoot({
   source,
   views: viewsProp,
   activeViewId: activeViewIdProp,
   readOnly,
-  defaultConfigPanelOpen = false,
   rowFilter,
   onViewsChange,
   onActiveViewChange,
@@ -136,6 +143,7 @@ export function DataViewRoot({
   onRowInsert,
   onRowDelete,
   onRowReorder,
+  onFieldsChange,
   resolveNodeTitle,
   className,
 }: DataViewRootProps) {
@@ -145,9 +153,6 @@ export function DataViewRoot({
   const [views, setViews] = useState<DataView[]>(initial.views);
   const [activeViewId, setActiveViewId] = useState<DataViewId>(
     initial.activeViewId,
-  );
-  const [configPanelOpen, setConfigPanelOpen] = useState(
-    defaultConfigPanelOpen,
   );
 
   /**
@@ -213,66 +218,90 @@ export function DataViewRoot({
 
   const ActiveRenderer = getDataViewDescriptor(activeView.type).renderer;
 
+  /**
+   * The shell's 更多 menu, rendered by the active view's own toolbar.
+   *
+   * View management belongs to the toolbar's function group now (design change
+   * in `docs/propmt/dataview-table-1.md`), so the actions are published as a
+   * slot and `ViewToolbar` / `TableToolbar` place them; the tab strip above
+   * stays pure navigation.
+   */
+  const viewActions = canManageViews ? (
+    <ViewActionsMenu
+      views={views}
+      activeView={activeView}
+      onViewsChange={handleViewsChange}
+      onActiveViewChange={handleActiveViewChange}
+    />
+  ) : undefined;
+
   return (
-    <div
-      data-dataview-root={source.kind}
-      className={cn(
-        "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
-        className,
-      )}
-    >
-      <DataViewToolbar
-        views={views}
-        activeView={activeView}
-        source={source}
-        configPanelOpen={configPanelOpen}
-        onToggleConfigPanel={() => setConfigPanelOpen((open) => !open)}
-        onViewsChange={canManageViews ? handleViewsChange : undefined}
-        onCreateView={canManageViews ? handleCreateView : undefined}
-        onActiveViewChange={handleActiveViewChange}
-      />
-
-      <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto bg-background">
-          <Suspense
-            fallback={
-              <div className="flex flex-col gap-2 p-4">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-40 w-full" />
-              </div>
-            }
-          >
-            <ActiveRenderer
-              source={filteredSource}
-              config={activeView.config}
-              readOnly={readOnly}
-              onCellChange={onCellChange}
-              onOpenRecord={onOpenRecord}
-              onOpenNode={onOpenNode}
-              onConfigChange={
-                canManageViews
-                  ? (config) => handleConfigChange(activeView.id, config)
-                  : undefined
-              }
-              onRowInsert={onRowInsert}
-              onRowDelete={onRowDelete}
-              onRowReorder={onRowReorder}
-              resolveNodeTitle={resolveNodeTitle}
-              className="h-full"
-            />
-          </Suspense>
-        </div>
-
-        {configPanelOpen && (
-          <DataViewConfigPanel
-            view={activeView}
-            source={filteredSource}
-            readOnly={readOnly}
-            onConfigChange={canManageViews ? handleConfigChange : undefined}
-            onClose={() => setConfigPanelOpen(false)}
-          />
+    <ViewActionsProvider actions={viewActions}>
+      <div
+        data-dataview-root={source.kind}
+        className={cn(
+          "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
+          className,
         )}
+      >
+        <DataViewToolbar
+          views={views}
+          activeView={activeView}
+          source={source}
+          onViewsChange={canManageViews ? handleViewsChange : undefined}
+          onCreateView={canManageViews ? handleCreateView : undefined}
+          onActiveViewChange={handleActiveViewChange}
+        />
+
+        <div className="flex min-h-0 flex-1">
+          {/**
+           * The renderer box: fixed size, **never a scroll container**.
+           *
+           * Each renderer owns its own scrolling (the table's VTable canvas
+           * scrolls itself; the placeholders carry an inner `overflow-auto`).
+           * With `overflow: auto` here, a renderer that fills the pane exactly —
+           * as every one of them does — could push the box 1px past its own
+           * height, and the scrollbar that appeared stole 10px off the renderer
+           * in *both* axes (10px in a HiDPI window). A canvas library that
+           * stamps its own rounded pixel size (VTable does:
+           * `style.width = parentElement.offsetWidth`, which rounds a
+           * fractional box up) then re-measured a smaller box, re-wrapped its
+           * toolbar, re-overflowed, … and the table's size visibly flickered
+           * between two values 10px apart. Keeping this box `overflow: hidden`
+           * means a renderer's own spill can never resize it.
+           */}
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
+            <Suspense
+              fallback={
+                <div className="flex flex-col gap-2 p-4">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-40 w-full" />
+                </div>
+              }
+            >
+              <ActiveRenderer
+                source={filteredSource}
+                config={activeView.config}
+                readOnly={readOnly}
+                onCellChange={onCellChange}
+                onOpenRecord={onOpenRecord}
+                onOpenNode={onOpenNode}
+                onConfigChange={
+                  canManageViews
+                    ? (config) => handleConfigChange(activeView.id, config)
+                    : undefined
+                }
+                onRowInsert={onRowInsert}
+                onRowDelete={onRowDelete}
+                onRowReorder={onRowReorder}
+                onFieldsChange={onFieldsChange}
+                resolveNodeTitle={resolveNodeTitle}
+                className="h-full"
+              />
+            </Suspense>
+          </div>
+        </div>
       </div>
-    </div>
+    </ViewActionsProvider>
   );
 }

@@ -18,6 +18,7 @@ export function ChartDataView({
   source,
   config,
   readOnly,
+  onConfigChange,
   className,
 }: DataViewRendererProps<ChartViewConfig>) {
   return (
@@ -30,6 +31,7 @@ export function ChartDataView({
       source={source}
       config={config}
       readOnly={readOnly}
+      onConfigChange={onConfigChange}
       className={className}
     />
   );

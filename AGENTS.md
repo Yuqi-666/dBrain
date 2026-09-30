@@ -43,22 +43,23 @@ dBrain/
 
 ## WHERE TO LOOK
 
-| Task                     | Location                                     | Notes                                |
-| ------------------------ | -------------------------------------------- | ------------------------------------ |
-| UI components            | packages/ui/src/components                   | shadcn/ui + custom                   |
-| Graph                  | packages/graph/src                        | d3-force (worker); flow mode is a placeholder shell — see dedicated section below |
-| Data views             | packages/dataview/src                     | Multi-shape data browsing for database/collection nodes; the table view is implemented and the other six are placeholders — see dedicated section below |
-| Rich text editor         | packages/editor/                             | Tiptap Pro + Yjs, Notion-like editor |
-| Type definitions         | packages/interfaces/src                      | Models, nodes, API types             |
-| State management         | packages/store/src                           | Zustand v5                           |
-| Service layer            | packages/services/src/graph/                 | Optimistic upsert/delete/sync        |
-| Desktop app              | apps/desktop/src                             | Tauri + Next.js                      |
-| Web app                  | apps/web/src                                 | Next.js 16, React 19                 |
-| Backend domain           | backend/domain/src                           | Entities, VOs, repository interfaces |
-| Backend infra            | backend/infrastructure/src                   | PocketBase repos, mappers, event bus  |
-| Backend adapter          | backend/adapter-back/src                     | DAOs, DI factory                     |
+| Task             | Location                     | Notes                                                                                                                                                   |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI components    | packages/ui/src/components   | shadcn/ui + custom                                                                                                                                      |
+| Graph            | packages/graph/src           | d3-force (worker); flow mode is a placeholder shell — see dedicated section below                                                                       |
+| Data views       | packages/dataview/src        | Multi-shape data browsing for database/collection nodes; the table view is implemented and the other six are placeholders — see dedicated section below |
+| Rich text editor | packages/editor/             | Tiptap Pro + Yjs, Notion-like editor                                                                                                                    |
+| Type definitions | packages/interfaces/src      | Models, nodes, API types                                                                                                                                |
+| State management | packages/store/src           | Zustand v5                                                                                                                                              |
+| Service layer    | packages/services/src/graph/ | Optimistic upsert/delete/sync                                                                                                                           |
+| Desktop app      | apps/desktop/src             | Tauri + Next.js                                                                                                                                         |
+| Web app          | apps/web/src                 | Next.js 16, React 19                                                                                                                                    |
+| Backend domain   | backend/domain/src           | Entities, VOs, repository interfaces                                                                                                                    |
+| Backend infra    | backend/infrastructure/src   | PocketBase repos, mappers, event bus                                                                                                                    |
+| Backend adapter  | backend/adapter-back/src     | DAOs, DI factory                                                                                                                                        |
 
 **Per-package AGENTS.md** with deeper conventions exist at:
+
 - `packages/services/AGENTS.md` — service API (upsert/delete/sync)
 - `packages/editor/AGENTS.md` — Tiptap setup
 - `packages/dataview/AGENTS.md` — data view shell, registry, adapters
@@ -80,7 +81,7 @@ dBrain/
 - **Tailwind content scanning:** only `packages/ui/src`, `apps/**` and the paths
   explicitly listed in `packages/ui/src/styles/globals.css` are scanned. A
   workspace package reaches the app through a symlink in `node_modules`, which
-  Tailwind's automatic detection skips — a class used *only* in that package is
+  Tailwind's automatic detection skips — a class used _only_ in that package is
   silently missing from the stylesheet. Add an `@source` line for it (`dataview`
   has one); never widen a glob to `apps/**`, which drags in `.next` and stalls
   the dev-server compile.
@@ -191,25 +192,25 @@ src/
 
 ### Worker boot / message protocol (4 raw channels + Comlink RPC)
 
-| Channel | Direction | Message | Notes |
-|---|---|---|---|
-| `__READY__` | worker → main | `{ type: "\_\_READY\_\_" }` | Posted at worker boot (`force.worker.ts:70`); main awaits it with a 5s timeout (`ForceGraph.tsx:187`). |
-| `__SET_CANVAS__` | main → worker | `{ type: "\_\_SET_CANVAS\_\_", canvas: OffscreenCanvas, width, height }` | Sent via raw `postMessage` with the canvas in the transfer list — Comlink v4 cannot transfer OffscreenCanvas by default. |
-| `__PING__` / `__PONG__` | both | health check | Worker is exposed on `self` for direct call; `WorkerOutbound` is declared but not currently used. |
-| `__FRAME__` | worker → main | `{ type: "\_\_FRAME\_\_", bitmap: ImageBitmap }` | Sent via raw `postMessage` with the bitmap in the transfer list. `ImageBitmap` is not a default Comlink Transferable. Main thread calls `bitmap.close()` after `drawImage` to release GPU memory. |
-| Comlink RPC | both | everything else | `Comlink.expose(api)` on worker; `Comlink.wrap<WorkerInbound>(worker)` on main. Event sink registered with `Comlink.proxy(onWorkerEvent)`. |
+| Channel                 | Direction     | Message                                                                  | Notes                                                                                                                                                                                             |
+| ----------------------- | ------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__READY__`             | worker → main | `{ type: "\_\_READY\_\_" }`                                              | Posted at worker boot (`force.worker.ts:70`); main awaits it with a 5s timeout (`ForceGraph.tsx:187`).                                                                                            |
+| `__SET_CANVAS__`        | main → worker | `{ type: "\_\_SET_CANVAS\_\_", canvas: OffscreenCanvas, width, height }` | Sent via raw `postMessage` with the canvas in the transfer list — Comlink v4 cannot transfer OffscreenCanvas by default.                                                                          |
+| `__PING__` / `__PONG__` | both          | health check                                                             | Worker is exposed on `self` for direct call; `WorkerOutbound` is declared but not currently used.                                                                                                 |
+| `__FRAME__`             | worker → main | `{ type: "\_\_FRAME\_\_", bitmap: ImageBitmap }`                         | Sent via raw `postMessage` with the bitmap in the transfer list. `ImageBitmap` is not a default Comlink Transferable. Main thread calls `bitmap.close()` after `drawImage` to release GPU memory. |
+| Comlink RPC             | both          | everything else                                                          | `Comlink.expose(api)` on worker; `Comlink.wrap<WorkerInbound>(worker)` on main. Event sink registered with `Comlink.proxy(onWorkerEvent)`.                                                        |
 
 **Frame coalescing** uses `queueMicrotask` (not `requestAnimationFrame`) — see `api.ts:80-82`. This is deliberate, since rAF is unreliable inside workers.
 
 ### d3-force configuration (defaults from `styleConfig.ts:175-182`)
 
-| Force | Default | Notes |
-|---|---|---|
-| `forceLink` | `linkDistance: 80` | `.id(d => d.id)` — source/target resolve as NodeId strings |
-| `forceManyBody` | `strength: -300` | Negative = repulsion |
-| `forceCollide` | `collisionRadius: 12` | Per-node radius: `weight + 4` (weight defaults to 8) |
-| `forceCenter` | `centerX/Y = dims/2` | Updated on init + resize |
-| Simulation | `alphaMin: 0.001, alphaDecay: 0.0228, velocityDecay: 0.4` | |
+| Force           | Default                                                   | Notes                                                      |
+| --------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
+| `forceLink`     | `linkDistance: 80`                                        | `.id(d => d.id)` — source/target resolve as NodeId strings |
+| `forceManyBody` | `strength: -300`                                          | Negative = repulsion                                       |
+| `forceCollide`  | `collisionRadius: 12`                                     | Per-node radius: `weight + 4` (weight defaults to 8)       |
+| `forceCenter`   | `centerX/Y = dims/2`                                      | Updated on init + resize                                   |
+| Simulation      | `alphaMin: 0.001, alphaDecay: 0.0228, velocityDecay: 0.4` |                                                            |
 
 **Hit-test** uses `d3-quadtree` when `nodes.length >= 2000`, brute-force linear scan otherwise (threshold hard-coded in `simulation.ts:138`).
 
@@ -238,20 +239,21 @@ Schema: `NodeData.stateData.client.position: Array<{ viewId, x, y, mode }>` (an 
 Values: `default | hover | selected | active | neighborActive | inactive | disabled`. Order is significant — `force/styleConfig.ts` keys the `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records off it.
 
 Used in:
+
 - `force/styleConfig.ts` — `NODE_STATE_STYLES` and `EDGE_STATE_STYLES` records (both byte-identical)
 - `force/transform.ts` — `defaultState?: UiState` option for seed generation
 - `force/worker/simulation.ts` — worker-internal `SimNode.ui` / `SimLink.ui` field; `recomputeUiStates()` mirrors the active selection / hover into per-node state on every tick
 
 ### Cross-package contract map (graph → workspace)
 
-| Workspace package | Symbols used | Notes |
-|---|---|---|
-| `@workspace/interfaces` | All NodeData/EdgeData/View types (type-only imports only) | `verbatimModuleSyntax` → `import type` mandatory |
-| `@workspace/store` | `useDataStore`, `useUIStore` | Treat as read+command bus via `.getState()`; do NOT call as React selector in render path. `useDataStore.subscribe` + `state.clearDiff()` is the one-shot diff pattern. Mutations are immutable (`new Map(state.x)`). |
-| `@workspace/ui` | `GraphContextMenu`, `GraphContextMenuProps` (only from `@workspace/ui/components/graph-context-menu/graph-context-menu`) | `@workspace/ui` has no `.` export — use explicit subpaths. Component is client-only. |
-| `@workspace/utils` | `filterByViewFilterConfig`, `debounce` | `filterByViewFilterConfig` returns NEW Map instances. `debounce` is trailing-edge only, no `cancel`/`flush`, loses `this`. |
-| `@workspace/hooks` | `useGraph()` (from `eventHandler.ts:28` only) | Client-only. `onCreateEdge` requires a caller-supplied `setContextMenu` (5th arg). All mutators swallow errors with `console.error`. |
-| `@workspace/services` | `NodeService` (used in `force/ForceGraph.tsx:71`) | Declared in `package.json`. The flow-mode `NodeService`/`EdgeService` usage was removed with the flow refactor. |
+| Workspace package       | Symbols used                                                                                                             | Notes                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@workspace/interfaces` | All NodeData/EdgeData/View types (type-only imports only)                                                                | `verbatimModuleSyntax` → `import type` mandatory                                                                                                                                                                      |
+| `@workspace/store`      | `useDataStore`, `useUIStore`                                                                                             | Treat as read+command bus via `.getState()`; do NOT call as React selector in render path. `useDataStore.subscribe` + `state.clearDiff()` is the one-shot diff pattern. Mutations are immutable (`new Map(state.x)`). |
+| `@workspace/ui`         | `GraphContextMenu`, `GraphContextMenuProps` (only from `@workspace/ui/components/graph-context-menu/graph-context-menu`) | `@workspace/ui` has no `.` export — use explicit subpaths. Component is client-only.                                                                                                                                  |
+| `@workspace/utils`      | `filterByViewFilterConfig`, `debounce`                                                                                   | `filterByViewFilterConfig` returns NEW Map instances. `debounce` is trailing-edge only, no `cancel`/`flush`, loses `this`.                                                                                            |
+| `@workspace/hooks`      | `useGraph()` (from `eventHandler.ts:28` only)                                                                            | Client-only. `onCreateEdge` requires a caller-supplied `setContextMenu` (5th arg). All mutators swallow errors with `console.error`.                                                                                  |
+| `@workspace/services`   | `NodeService` (used in `force/ForceGraph.tsx:71`)                                                                        | Declared in `package.json`. The flow-mode `NodeService`/`EdgeService` usage was removed with the flow refactor.                                                                                                       |
 
 ### Latent issues / gotchas
 
@@ -284,41 +286,79 @@ No `build` / `dev` / `test` scripts exist.
 `<DataViewRoot />` that takes one normalized `DataViewSource` (`fields` +
 `rows`) and renders it through switchable views:
 
-- **Shell — implemented:** `<DataViewRoot />` (toolbar, view tabs, new/rename/
-  duplicate/delete/default actions, lazily-loaded renderer routing, collapsible
-  config panel), the source adapters (`databaseToDataViewSource`,
-  `collectionToDataViewSource`), `CellResolver`, the view registry, and default
-  config builders.
+- **Shell — implemented:** `<DataViewRoot />` (view tab strip with new/rename,
+  the per-view 更多 actions — default/duplicate/delete — published to the view
+  toolbar, lazily-loaded renderer routing), the source adapters
+  (`databaseToDataViewSource`, `collectionToDataViewSource`), `CellResolver`, the
+  view registry, and default config builders.
+- **Config lives in the view toolbar, not a side panel.** Each renderer draws a
+  `ViewToolbar` strip — **configuration left, functions right**, every control a
+  button or dropdown menu. The strip itself never wraps: the configuration group
+  wraps _inside_ its own box while the function group stays pinned to the right,
+  so the right-hand buttons cannot jump between lines as the window is resized.
+  The table uses _only_ dedicated menus (添加记录 /
+  字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色), so it has no generic 视图配置
+  popover and registers no `configEditor`; `ViewConfigMenu` in
+  `shared/view-toolbar.tsx` remains for views that have no dedicated menu yet.
+- **View actions (更多) live in that function group too**, not on the tab strip:
+  the shell (`toolbar/view-actions.tsx`) publishes 设为默认/复制/删除视图 through a
+  slot context, `ViewToolbar` appends it, and a view with its own toolbar (the
+  table) calls `useViewActions()` and puts it last — so the tab strip is pure
+  navigation. **Every function-group control must be fixed-size and always
+  present**: the group is right-anchored, so a control that resizes or
+  appears/disappears on re-render pushes itself and its left-hand neighbours
+  around (that was the visible toolbar jitter: the 删除选中 button that appeared
+  with a selection, and the search field whose inner counter/addon changed on
+  every keystroke). Variable-width readouts sit at the left end of the group, and
+  input-like controls get their own row — the table's search is a **button** in the
+  toolbar with a `TableSearchBar` row that opens underneath it.
 - **Table view — implemented:** `@visactor/vtable` `ListTable` with cell editing
-  (input / date / select / multiSelect / checkbox), header + context-menu
-  sorting, per-column quick filters, `groupBy`, search, CSV/Excel export, row
-  insert/delete/drag-reorder, theme mapping and a full config editor. Files under
-  `views/table/` (`table-schema.ts`, `table-editors.ts`, `table-theme.ts`,
-  `table-filter.ts`, `table-toolbar.tsx`, `table-data-view.tsx`,
-  `config-editor.tsx`).
+  (input / date / checkbox; 单选/多选 are edited from their own option dropdown
+  rather than in place), header + context-menu
+  sorting, a condition-list 筛选 menu, multi-level 分组, search, CSV/Excel export,
+  row insert/delete (从单元格右键菜单：删除此行 / 删除选中的 N 行)/
+  drag-reorder, **field CRUD (a trailing "+" column and
+  字段配置 → 新增字段, both opening the 字段编辑 form as the body of a shadcn
+  `DropdownMenu`; 编辑字段 reuses the row's own "…" menu, so the form lands exactly
+  where that menu was, with
+  标题/字段类型/选项内容/默认值, 字段配置 with search/collapsible group
+  blocks/drag/hide/delete), column groups (VTable group headers), 单选/多选
+  colour capsules whose active cell grows a per-capsule "×" and a chevron that
+  opens a 查找或创建选项 dropdown (单选 closes on a pick, 多选 stays open), and
+  conditional 填色 (cell/row/column)**, plus 行高. `views/table/` is itself split by
+  responsibility — `table-data-view.tsx` (the shell, the only entry the registry
+  imports) plus `core/` (pure logic: `schema`, `column-ops`, `filter`,
+  `editors`), `canvas/` (`theme`, `pill`), `toolbar/` (`toolbar`, `search-bar`),
+  `menus/` (`field-menu`, `filter-menu`, `condition-menu`,
+  `condition-controls`, `color-menu`, `select-menu`) and `fields/` (`meta`,
+  `picker`, `editor`); `core/` and `canvas/` import no React, and nothing inside
+  the folder imports the shell.
 - **UI shell + table chrome are shadcn-composed:** every picker is a `Select`,
   every setting a `Switch`/`Checkbox`/`ToggleGroup`, every chip a `Badge`, the
-  search box an `InputGroup`; `--primary` is reserved for state the user engaged
-  (active filter/group, checked control, selection). The canvas theme mirrors the
-  same tokens (`shared/theme-tokens.ts` → `table-theme.ts`). Full conventions in
-  `packages/dataview/AGENTS.md` § *UI conventions*.
+  search box an `InputGroup` and the searchable field list a `Command`; `--primary`
+  is reserved for state the user engaged (active filter/group/sort/colour, checked
+  control, selection). The canvas theme mirrors the same tokens
+  (`shared/theme-tokens.ts` → `canvas/theme.ts`). Full conventions in
+  `packages/dataview/AGENTS.md` § _UI conventions_.
 - **The other 6 view renderers + config editors — placeholder only:** `kanban`,
   `calendar`, `gantt`, `gallery`, `chart`, `nodeGraph`. Each renders
-  `<DataViewPlaceholder />` and names the library it is planned to use.
+  `<DataViewPlaceholder />` and names the library it is planned to use (their
+  placeholder toolbars still carry the generic 视图配置 popover, since they have
+  no dedicated menus yet).
 
 ### Top-level structure
 
 ```
 src/
 ├── index.ts          # Public API — <DataViewRoot /> + types + adapters
-├── data-view-root.tsx # toolbar + lazy renderer + config panel
+├── data-view-root.tsx # view tab strip + lazy renderer
 ├── registry.ts       # DATA_VIEW_REGISTRY (type → descriptor, React.lazy renderers)
 ├── defaults.ts       # createDefaultConfig / createDefaultDataView / seedDataViewId
-├── toolbar/ config-panel/   # UI shell blocks
+├── toolbar/          # view tab strip + new-view menu, 更多 actions slot (view-actions.tsx)
 ├── source/           # types (re-export), database/collection adapters, cell-resolver, field-utils
-├── shared/           # placeholders, empty-state, theme-tokens, row filter/selection
-└── views/<name>/     # <name>-data-view.tsx + config-editor.tsx
-                      #   table/ = implemented (+ table-schema/editors/theme/filter/toolbar)
+├── shared/           # view-toolbar (ViewToolbar/ViewConfigMenu), placeholders, empty-state, theme-tokens, row filter/selection
+└── views/<name>/     # <name>-data-view.tsx (+ config-editor.tsx when the view needs one)
+                      #   table/ = implemented, itself split into core/ canvas/ toolbar/ menus/ fields/; no config-editor
                       #   the other six = placeholders
 ```
 
@@ -332,22 +372,29 @@ src/
    host node-content persists (today `NodeService.upsert`). The same applies to
    view config edited on the canvas (header sort, column resize): it goes through
    `onConfigChange`, which the root only forwards when the host passed
-   `onViewsChange`.
+   `onViewsChange`. **Schema changes follow the same rule** through
+   `onFieldsChange(fields, rows?)` — the renderer reconciles rows with
+   `reconcileRowsForFields` and the host writes both halves in one upsert.
 3. **`readOnly` = data is read-only, not views are frozen.** View management is
    enabled by the host passing `onViewsChange`; a read-only collection
-   projection still supports adding/renaming/configuring views.
-4. **The registry is the single dispatch table** — the root, toolbar and config
-   panel never `switch` on `DataViewType`. `descriptor.nodeTypes` encodes the
-   capability matrix (nodeGraph is collection-only).
+   projection still supports adding/renaming/configuring views and still allows
+   column hide/reorder/group/sort/filter/colour. Field CRUD additionally needs
+   `onFieldsChange`, so a collection offers no 新增字段 and no column-end "+".
+4. **The registry is the single dispatch table** — the root, the toolbar and the
+   config menus never `switch` on `DataViewType`. `descriptor.nodeTypes` encodes
+   the capability matrix (nodeGraph is collection-only).
 5. **Lazy by construction** — every renderer/config editor is `React.lazy`;
    view libraries must only be reachable through those dynamic imports.
+6. **Config is in the view toolbar, never a side panel** — one strip per view,
+   configuration controls left, function controls right
+   (`docs/propmt/dataview-table-1.md`).
 
 ### Host integration
 
-| Host | File | Behaviour |
-|---|---|---|
-| `database` | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })`; also supplies `onRowInsert` / `onRowDelete` / `onRowReorder` and a lazy `resolveNodeTitle` |
-| `collection` | `.../content/collection-node-content.tsx` | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)`; no row callbacks, so the table offers no editing |
+| Host         | File                                                                         | Behaviour                                                                                                                                                                             |
+| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `database`   | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })`; also supplies `onRowInsert` / `onRowDelete` / `onRowReorder` / `onFieldsChange` and a lazy `resolveNodeTitle`      |
+| `collection` | `.../content/collection-node-content.tsx`                                    | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)`; no row/field callbacks, so the table offers no editing and no field CRUD |
 
 `node-content-editor.tsx` routes `case "database"` / `case "collection"`.
 Hosts must mount with `key={node.id}` (the root seeds its view state once per
@@ -357,14 +404,14 @@ mount).
 
 `content.views` is persisted end to end (README §5.2). The chain, top to bottom:
 
-| Layer | Where | Shape |
-|---|---|---|
-| column | `pb/pb_migrations/1700000000_initial_schema.js` | `nodes.views` (json), shared by `database` + `collection`, alongside `fields`/`rows`/`filterConfig` |
-| domain | `backend/domain/.../value-objects.ts` | `CollectionContent` / `DatabaseContent` carry `views`; `normalizeViews` is the validation boundary (unique ids, non-empty `name`, `type` ∈ `DATA_VIEW_TYPES`, object `config`); `withFilter` / `withViews` and `DatabaseNode.rebuildContent` are the only sanctioned rebuilds |
-| app | `node-command.service.ts` | `filterConfig` and `views` are **independent halves**: a patch naming one leaves the other alone |
-| DTO | `dto/node-dto.mapper.ts` | both content literals name `views` explicitly — anything unnamed there is dropped |
-| infra | `database/mappers/node.mapper.ts` | `views` column ↔ `content.views` (a missing column reads as `[]`) |
-| API | `adapter-front/.../router/node.ts` | `views` declared on both content schemas as `z.array(z.custom<DataView>(…))` |
+| Layer  | Where                                           | Shape                                                                                                                                                                                                                                                                         |
+| ------ | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| column | `pb/pb_migrations/1700000000_initial_schema.js` | `nodes.views` (json), shared by `database` + `collection`, alongside `fields`/`rows`/`filterConfig`                                                                                                                                                                           |
+| domain | `backend/domain/.../value-objects.ts`           | `CollectionContent` / `DatabaseContent` carry `views`; `normalizeViews` is the validation boundary (unique ids, non-empty `name`, `type` ∈ `DATA_VIEW_TYPES`, object `config`); `withFilter` / `withViews` and `DatabaseNode.rebuildContent` are the only sanctioned rebuilds |
+| app    | `node-command.service.ts`                       | `filterConfig` and `views` are **independent halves**: a patch naming one leaves the other alone                                                                                                                                                                              |
+| DTO    | `dto/node-dto.mapper.ts`                        | both content literals name `views` explicitly — anything unnamed there is dropped                                                                                                                                                                                             |
+| infra  | `database/mappers/node.mapper.ts`               | `views` column ↔ `content.views` (a missing column reads as `[]`)                                                                                                                                                                                                             |
+| API    | `adapter-front/.../router/node.ts`              | `views` declared on both content schemas as `z.array(z.custom<DataView>(…))`                                                                                                                                                                                                  |
 
 Two traps when touching this:
 
@@ -386,10 +433,10 @@ delete `pb/pb_data` to rebuild, or writes fail with `unknown field`.
 The **table** view is real; **the other six views are still placeholders** — no
 `kanban` / `calendar` / `gantt` / `gallery` / `chart` / `nodeGraph` renderer
 draws data yet. Within the table view, relation cells are read-only (clicking one
-opens the referenced node instead of offering a picker), there is no entry point
-for adding/editing *fields* (the renderer has no field-level host callback), and
-`TableColumnConfig.format.dateFormat` / `numberFormat` and `cellTypeOverride`
-have no config-panel UI yet. See `docs/dataview/table.md` §9/§10.
+opens the referenced node instead of offering a picker), bulk field edits are not
+implemented, column groups do not nest, and `TableColumnConfig.format.dateFormat`
+/ `numberFormat` and `cellTypeOverride` have no UI yet. See
+`docs/dataview/table.md` §9/§10.
 
 ### Commands (dataview only)
 
