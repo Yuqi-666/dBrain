@@ -11,6 +11,18 @@ export class PocketBaseClient {
   constructor(config: PocketBaseClientConfig) {
     this.base = config.url;
     this.pb = new PocketBase(config.url);
+    /**
+     * Auto-cancellation stays OFF for the server-side client.
+     *
+     * The SDK keys in-flight requests by `requestKey` (the repositories pass the
+     * entity id, so two updates of the *same* record share it) and aborts the
+     * previous request. That is a browser-side convenience for a client that
+     * owns the requests; here one instance is shared by every concurrent API
+     * request, so it silently turns a legitimate second write into
+     * `ClientResponseError: The request was aborted (most likely autocancelled
+     * ...)` and loses the first one. `cancelAllRequests()` still works.
+     */
+    this.pb.autoCancellation(false);
   }
 
   get baseUrl(): string {

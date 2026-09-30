@@ -61,17 +61,31 @@ cd backend/infrastructure && pnpm format     # Prettier format
 ## POCKETBASE CLIENT
 
 ```typescript
-import { createPocketBaseClient, getPocketBaseClient } from '@workspace/infrastructure';
+import {
+  createPocketBaseClient,
+  getPocketBaseClient,
+} from "@workspace/infrastructure";
 
 // Initialize (call once at app startup)
-createPocketBaseClient({ url: 'http://127.0.0.1:8090' });
+createPocketBaseClient({ url: "http://127.0.0.1:8090" });
 
 // Use in repositories
 const pb = getPocketBaseClient();
-pb.collection('nodes').getOne(id);
+pb.collection("nodes").getOne(id);
 ```
 
+**Auto-cancellation is OFF** (`PocketBaseClient`'s constructor calls
+`this.pb.autoCancellation(false)`). The SDK keys in-flight requests by
+`requestKey` and aborts the previous one; our repositories pass the entity id, so
+two updates of the same record would cancel each other. In a browser that is a
+convenience for a client that owns its requests — here a single client instance
+is shared by every concurrent API request, so it silently aborts a legitimate
+write (`ClientResponseError: The request was aborted (most likely
+autocancelled…)`) and loses data. `cancelAllRequests()` still works for explicit
+shutdown.
+
 **Collections:**
+
 - `nodes` — all 9 node types
 - `edges` — graph relationships
 - `views` — graph view configurations
@@ -95,22 +109,22 @@ pb.collection('nodes').getOne(id);
 
 ```typescript
 // Get single record
-const record = await pb.collection('nodes').getOne(id);
+const record = await pb.collection("nodes").getOne(id);
 
 // Paginated list
-const result = await pb.collection('nodes').getList(page, pageSize, {
-  filter: pb.filter('title ~ {:search}', { search: term }),
-  sort: '-created',
+const result = await pb.collection("nodes").getList(page, pageSize, {
+  filter: pb.filter("title ~ {:search}", { search: term }),
+  sort: "-created",
 });
 
 // Create
-const record = await pb.collection('nodes').create(data);
+const record = await pb.collection("nodes").create(data);
 
 // Update
-const record = await pb.collection('nodes').update(id, data);
+const record = await pb.collection("nodes").update(id, data);
 
 // Delete
-await pb.collection('nodes').delete(id);
+await pb.collection("nodes").delete(id);
 ```
 
 ## ANTI-PATTERNS
