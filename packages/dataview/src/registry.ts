@@ -111,11 +111,8 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.KanbanDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"kanban">(() =>
-      import("./views/kanban/config-editor").then((module) => ({
-        default: module.KanbanConfigEditor,
-      })),
-    ),
+    // No `configEditor`: the kanban's four settings panels (分组 / 卡片 / 排序 /
+    // 显示) are its toolbar, exactly like the table's seven menus.
     defaultConfig: (source) => createDefaultConfig("kanban", source),
   },
   calendar: {

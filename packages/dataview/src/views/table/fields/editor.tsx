@@ -53,7 +53,7 @@ import {
   OPTION_COLORS,
   fieldHasOptions,
   resolveOptionColor,
-} from "./meta";
+} from "../../../shared/field-meta";
 import {
   createDatabaseFieldId,
   createDatabaseFieldOptionId,

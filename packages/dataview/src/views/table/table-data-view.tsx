@@ -42,7 +42,7 @@ import {
 import type { DataViewRendererProps } from "../../source/types";
 import { createTableEditor } from "./core/editors";
 import type { AddFieldAnchor, AddFieldRequest } from "./menus/field-menu";
-import { fallbackOptionColor } from "./fields/meta";
+import { fallbackOptionColor } from "../../shared/field-meta";
 import {
   PILL_OPEN_ICON,
   PILL_REMOVE_ICON_PREFIX,

@@ -27,7 +27,7 @@ import {
 } from "@workspace/ui/components/ui/popover";
 import type { DatabaseField } from "@workspace/interfaces";
 
-import { FieldTypeIcon, filterFieldsByQuery } from "./meta";
+import { FieldTypeIcon, filterFieldsByQuery } from "../../../shared/field-meta";
 
 export interface TableFieldPickerProps {
   fields: readonly DatabaseField[];

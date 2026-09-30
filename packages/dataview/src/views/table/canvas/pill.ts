@@ -24,7 +24,7 @@
  */
 import type { DatabaseField } from "@workspace/interfaces";
 
-import { resolveOptionColor } from "../fields/meta";
+import { resolveOptionColor } from "../../../shared/field-meta";
 
 /** Record key prefix carrying a select-ish cell's raw option ids. */
 const OPTION_IDS_PREFIX = "__optionIds_";

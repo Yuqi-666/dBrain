@@ -1,6 +1,7 @@
 # 数据展示组件（DataView）设计文档
 
-> 状态：外壳已实现；表格视图已实现（`packages/dataview/src/views/table/`），其余六个视图仍为占位
+> 状态：外壳已实现；表格视图已实现（`packages/dataview/src/views/table/`），看板视图已实现
+> （`packages/dataview/src/views/kanban/`，见 kanban.md），其余五个视图仍为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -69,7 +70,7 @@ DataView 是一个「多视图数据展示组件」。它接收一份结构化�
 >
 > 再一轮反馈：**视图级操作（更多：设为默认 / 复制 / 删除）也从页签条移进了视图工具条的
 > 功能区**，页签条只做导航（页签 + 新建视图）。外壳用 `toolbar/view-actions.tsx` 的槽位
-> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图（含六个占位视图）
+> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图（含五个占位视图）
 > 都自动带上它。功能区因此必须只放**固定尺寸、常驻**的控件：宽度会变的控件（搜索输入框、
 > 随选中出现的按钮）会把右对齐行里它左侧的邻居一起推开。
 
@@ -365,7 +366,7 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
   功能组最左端，输入类控件另起一行。
 - `<ViewConfigMenu type source config onConfigChange />` 是通用兜底：它按 `type` 从注册表取
   该视图的懒加载 `configEditor`，渲染进 Popover；该视图没有注册 `configEditor` 时它直接不渲染。
-  没有专属菜单的配置项放这里（六个占位视图目前只有它）。
+  没有专属菜单的配置项放这里（五个占位视图目前只有它）。
 - 渲染器如果为全部配置都做了专属菜单（表格：添加记录/字段配置/筛选/分组/排序/行高/填色），
   就不要再用通用弹层兜底 —— 表格既不注册 `configEditor`，也不渲染 `ViewConfigMenu`。
 - **配置控件内不要留占位空态**：下拉菜单里不放「还没有条件…」这类虚线占位块，空菜单只留标题 +
@@ -386,6 +387,7 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 | @visactor/vchart + @visactor/react-vchart                                         | 图表                      | chart     |
 | @fullcalendar/react + core + daygrid + timegrid + list + multimonth + interaction | 日历                      | calendar  |
 | @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities                            | 看板拖拽（REUI 看板依赖） | kanban    |
+| radix-ui（已由 @workspace/ui 引入）                                               | REUI 源码的 `Slot`        | kanban    |
 | @workspace/graph                                                                  | 节点图复用 <Graph />      | nodeGraph |
 | @workspace/ui（shadcn 基础）、interfaces、store、utils                            | 基础依赖                  | 全部      |
 
@@ -401,7 +403,7 @@ packages/ui/src/components/dialog/editor/content/ 下：
 
 ---
 
-## 10. 目录结构（建议）
+## 10. 目录结构
 
 ```text
 packages/dataview/src/
@@ -418,9 +420,11 @@ packages/dataview/src/
 │   ├── database-source.ts
 │   ├── collection-source.ts
 │   ├── cell-resolver.ts     # 单元格值解析器（数据转换中枢）
+│   ├── row-utils.ts         # createDataRowId / emptyCellForField / createEmptyDataRow
 │   └── field-utils.ts       # 主列/日期/数字/选项字段选择器
 ├── shared/
 │   ├── view-toolbar.tsx     # ViewToolbar 骨架 +（可选）ViewConfigMenu 通用配置弹层
+│   ├── field-meta.tsx       # 字段类型标签/图标、选项与填色色板、字段搜索（各视图共用的字段词汇表）
 │   ├── use-row-filter.ts
 │   ├── use-row-selection.ts
 │   ├── theme-tokens.ts      # 浅/深色 → 各库主题映射
@@ -433,8 +437,13 @@ packages/dataview/src/
     │                ├── menus/    field-menu.tsx + filter-menu.tsx
     │                │              + condition-menu.tsx + condition-controls.tsx
     │                │              + color-menu.tsx + select-menu.tsx
-    │                └── fields/   meta.tsx + picker.tsx + editor.tsx
-    ├── kanban/      …
+    │                └── fields/   picker.tsx + editor.tsx
+    ├── kanban/      kanban-data-view.tsx     # 壳（唯一入口，无 config-editor）
+    │                ├── reui/     kanban.tsx          # vendor 的 REUI 看板原语
+    │                ├── core/     board.ts + config.ts
+    │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
+    │                ├── fields/   field-select.tsx
+    │                └── toolbar/  kanban-toolbar.tsx
     ├── calendar/    …
     ├── gantt/       …
     ├── gallery/     …
@@ -454,7 +463,7 @@ packages/dataview/src/
 | M2.5 工具栏化改造 | 删除配置侧栏，配置并入视图 toolbar（配置左 / 功能右）；视图级「更多」也进视图 toolbar 功能区，页签条只留导航；功能组只放固定尺寸常驻控件 | M2 ✅ 已实现 |
 | M3 核心视图-日历  | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + config 面板（核心，全功能）                                                               | M1           |
 | M4 图表           | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出                                                                                        | M1           |
-| M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回                                                                                                     | M1           |
+| M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
 | M6 画廊           | 自研卡片/网格/虚拟滚动（database 自定义卡片 + collection 复用预览）                                                                      | M1           |
 | M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回                                                                                                   | M1           |
 | M8 节点图         | collection 内嵌 <Graph view={…filterConfig} />                                                                                           | M1 + graph   |

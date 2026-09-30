@@ -1,42 +1,213 @@
 "use client";
 
+/**
+ * Kanban data view — rows grouped into lanes by a 单选/多选 field, one card per
+ * row, draggable between lanes (kanban.md).
+ *
+ * The shell owns three things and nothing else:
+ *
+ * - **the board value** (`columns`), seeded from the source and re-seeded
+ *   whenever the source or the config changes. Re-seeding during render (rather
+ *   than in an effect) is React's documented "adjust state when a prop changes"
+ *   pattern: it keeps the board and the source from ever showing two different
+ *   truths for a frame, which for a drag is the difference between a card
+ *   staying put and flashing back.
+ * - **the write path**: a lane change — by drag *or* by the card menu's 移动到 —
+ *   becomes one `onCellChange(rowId, groupField, cell)`. Lane-internal order is
+ *   never written (no storage for it; kanban.md §8), and a lane reorder is a
+ *   config write. The renderer still persists nothing itself (README §3.4).
+ * - **the gates** derived from host capabilities: dragging needs cell writes,
+ *   new cards need row inserts, renaming a lane needs schema writes, and a
+ *   `multiSelect` grouping disables dragging outright (a card lives in several
+ *   lanes, so "which option does this drop replace?" has no answer).
+ *
+ * The board only renders when a group field resolves; otherwise the body is the
+ * guidance that says which field to pick (or which field to add).
+ */
+import { useMemo, useState } from "react";
 import { SquareKanban } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
 
-import { DataViewPlaceholder } from "../../shared/data-view-placeholder";
+import { createEmptyDataRow } from "../../source/row-utils";
+import { DataViewEmptyState } from "../../shared/empty-state";
 import type {
   DataViewRendererProps,
   KanbanViewConfig,
 } from "../../source/types";
+import { KanbanBoard } from "./board/kanban-board";
+import {
+  KANBAN_UNASSIGNED_LANE_ID,
+  buildKanbanBoard,
+  countCards,
+  moveCardToLane,
+  type KanbanCard,
+} from "./core/board";
+import { cellForLane, groupableFields, patchFieldOption } from "./core/config";
+import { KanbanToolbar } from "./toolbar/kanban-toolbar";
 
-/**
- * Kanban data view — placeholder.
- *
- * Planned implementation: shadcn kanban lanes with @dnd-kit/core,
- * @dnd-kit/sortable and @dnd-kit/utilities.
- */
 export function KanbanDataView({
   source,
   config,
   readOnly,
+  onCellChange,
+  onOpenRecord,
+  onOpenNode,
   onConfigChange,
+  onRowInsert,
+  onFieldsChange,
+  resolveNodeTitle,
   className,
 }: DataViewRendererProps<KanbanViewConfig>) {
+  const model = useMemo(
+    () => buildKanbanBoard(source, config, resolveNodeTitle),
+    [source, config, resolveNodeTitle],
+  );
+
+  const [columns, setColumns] = useState(model.columns);
+  const [builtModel, setBuiltModel] = useState(model);
+  if (builtModel !== model) {
+    // A new source (the host's write landed, or a filter changed) or a new
+    // config: rebuild the board in the same render that sees it.
+    setBuiltModel(model);
+    setColumns(model.columns);
+  }
+
+  const groupField = model.groupField;
+  const canEditData = !readOnly && Boolean(onCellChange);
+  const canInsertRow = !readOnly && Boolean(onRowInsert);
+  const canEditOptions = !readOnly && Boolean(onFieldsChange);
+
+  const canDragCards =
+    canEditData && config.allowDrag && Boolean(groupField) && !model.multiValue;
+  const canCreateCard =
+    canInsertRow && config.allowCreate && Boolean(groupField);
+  const canReorderLanes = Boolean(onConfigChange) && Boolean(groupField);
+  // A collection row *is* a graph node; a database row has no destination in
+  // this app yet, so its cards simply are not clickable.
+  const canOpenCard =
+    source.kind === "collection" ? Boolean(onOpenNode) : Boolean(onOpenRecord);
+
+  const handleCardLaneChange = (card: KanbanCard, laneId: string) => {
+    if (!groupField) return;
+    onCellChange?.(
+      card.rowId,
+      groupField.id,
+      cellForLane(groupField, laneId, KANBAN_UNASSIGNED_LANE_ID),
+    );
+    // Optimistic: the host's write returns as a new source a tick later.
+    setColumns((current) => moveCardToLane(current, card.key, laneId));
+  };
+
+  const handleCardOpen = (card: KanbanCard) => {
+    if (source.kind === "collection") {
+      if (card.nodeId) onOpenNode?.(card.nodeId);
+      return;
+    }
+    onOpenRecord?.(card.rowId, source);
+  };
+
+  const handleCreateCard = (laneId: string) => {
+    if (!groupField || !onRowInsert) return;
+    onRowInsert(
+      createEmptyDataRow(source.fields, {
+        fieldId: groupField.id,
+        cell: cellForLane(groupField, laneId, KANBAN_UNASSIGNED_LANE_ID),
+      }),
+    );
+  };
+
+  const handleOptionSave = (
+    optionId: string,
+    patch: { name: string; color?: string },
+  ) => {
+    if (!groupField || !onFieldsChange) return;
+    // Renaming / recolouring an option leaves every cell valid (cells store the
+    // option id), so no rows travel with the schema write.
+    onFieldsChange(
+      patchFieldOption(source.fields, groupField.id, optionId, patch),
+    );
+  };
+
+  const body = groupField ? (
+    <KanbanBoard
+      model={model}
+      columns={columns}
+      onColumnsChange={setColumns}
+      onCardLaneChange={canEditData ? handleCardLaneChange : undefined}
+      onLaneOrderChange={
+        onConfigChange
+          ? (laneOrder) => onConfigChange({ ...config, laneOrder })
+          : undefined
+      }
+      onCardOpen={canOpenCard ? handleCardOpen : undefined}
+      onCreateCard={canCreateCard ? handleCreateCard : undefined}
+      onOptionSave={canEditOptions ? handleOptionSave : undefined}
+      canDragCards={canDragCards}
+      canReorderLanes={canReorderLanes}
+      compact={config.compact}
+      showCardCount={config.showCardCount}
+    />
+  ) : (
+    <KanbanGuidance
+      fieldCount={source.fields.length}
+      groupableCount={groupableFields(source.fields).length}
+    />
+  );
+
   return (
-    <DataViewPlaceholder
-      type="kanban"
+    <div
+      data-dataview-kanban
+      className={cn(
+        // The shell's renderer box never scrolls; this view clips itself and
+        // lets the lane strip scroll horizontally (dataview/AGENTS.md gotchas).
+        "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
+        className,
+      )}
+    >
+      <KanbanToolbar
+        source={source}
+        config={config}
+        cardCount={countCards(columns)}
+        laneCount={model.lanes.length}
+        canConfigure={Boolean(onConfigChange)}
+        canEditData={canEditData}
+        canInsertRow={canInsertRow}
+        onConfigChange={onConfigChange}
+      />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{body}</div>
+    </div>
+  );
+}
+
+/** What to do when there is no usable group field. */
+function KanbanGuidance({
+  fieldCount,
+  groupableCount,
+}: {
+  fieldCount: number;
+  groupableCount: number;
+}) {
+  if (fieldCount === 0) {
+    return (
+      <DataViewEmptyState
+        icon={SquareKanban}
+        title="这张表还没有字段"
+        description="先在表格视图中添加字段，再回来按某个「单选」字段分列。"
+      />
+    );
+  }
+
+  return (
+    <DataViewEmptyState
       icon={SquareKanban}
-      label="看板视图"
-      description="计划基于 shadcn 看板与 dnd-kit 实现分组泳道与拖拽；当前仅渲染占位。"
-      plannedDependencies={[
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
-      ]}
-      source={source}
-      config={config}
-      readOnly={readOnly}
-      onConfigChange={onConfigChange}
-      className={className}
+      title={
+        groupableCount > 0 ? "还没有选择分组字段" : "看板需要一个单选或多选字段"
+      }
+      description={
+        groupableCount > 0
+          ? "在上方工具条的「分组」里选择用于分列的字段，卡片就会按它的选项落到各列。"
+          : "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。"
+      }
     />
   );
 }

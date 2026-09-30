@@ -1,12 +1,15 @@
 "use client";
 
 /**
- * Shared field metadata for the table's toolbar menus: type labels and icons,
- * the palettes used by option dots and 填色 rules, and the query matcher behind
- * every "search a field" dropdown.
+ * The workspace's field vocabulary: type labels and icons, the palettes behind
+ * option dots and 填色 rules, and the query matcher behind every "search a
+ * field" dropdown.
  *
- * Keeping one copy here is what lets 字段配置 / 筛选 / 分组 / 排序 / 填色 all
- * speak the same field vocabulary.
+ * It lives in `shared/` (not in `views/table/fields/`) because it is not the
+ * table's private chrome: the table's 字段配置 / 筛选 / 分组 / 排序 / 填色 menus
+ * and the kanban's lane/option editors all speak the same field vocabulary, and
+ * "the colour of an option" must mean one thing across views. Nothing here
+ * imports React state or a third-party library, so any view may use it.
  */
 import {
   Calendar,

@@ -93,7 +93,7 @@ import {
   FieldTypeIcon,
   filterFieldsByQuery,
   matchesText,
-} from "../fields/meta";
+} from "../../../shared/field-meta";
 
 /**
  * Viewport rect of the control the shell asked 新增字段 from.

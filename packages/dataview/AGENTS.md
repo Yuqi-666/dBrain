@@ -12,16 +12,21 @@
 (table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
 own config.
 
-**Current status: shell + the table view.** `<DataViewRoot />` (view tab strip,
-routing, view CRUD), the source adapters, the cell resolver and **the `table`
-view** (VTable `ListTable`: rendering, editing, sorting, filtering, grouping,
-search, export, row CRUD/reorder, **field CRUD with column groups,
+**Current status: shell + the table and kanban views.** `<DataViewRoot />` (view
+tab strip, routing, view CRUD), the source adapters, the cell resolver, **the
+`table` view** (VTable `ListTable`: rendering, editing, sorting, filtering,
+grouping, search, export, row CRUD/reorder, **field CRUD with column groups,
 conditional colouring, and 单选/多选 capsule cells whose options are picked from
-an anchored dropdown**) are implemented. The other **six view renderers and
-config editors are still placeholders** that render `<DataViewPlaceholder>` /
+an anchored dropdown**) and **the `kanban` view** (vendored ReUI board on
+`@dnd-kit`: lanes from a 单选/多选 field, cross-lane drag write-back, lane
+reorder/rename/collapse, new-card and card menu, four toolbar panels) are
+implemented. The other **five view renderers and config editors are still
+placeholders** that render `<DataViewPlaceholder>` /
 `<DataViewConfigPlaceholder>`, and their libraries (FullCalendar, VChart,
-dnd-kit, @workspace/graph) are not dependencies yet — each view pulls its library
-only when it is implemented.
+@workspace/graph) are not dependencies yet — each view pulls its library only
+when it is implemented. The kanban's own deps (`@dnd-kit/core` +
+`@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui` for the vendored
+`Slot`) are installed.
 
 **There is no side config panel.** The design change in
 `docs/propmt/dataview-table-1.md` moved view configuration into each view's own
@@ -50,10 +55,12 @@ src/
 │   ├── database-source.ts       # DatabaseContent → DataViewSource
 │   ├── collection-source.ts     # node projection → DataViewSource (fixed __schema)
 │   ├── cell-resolver.ts         # DatabaseCell → text/scalar/date/number/color/node ids
+│   ├── row-utils.ts             # createDataRowId / emptyCellForField / createEmptyDataRow
 │   └── field-utils.ts           # primary/date/number/select field pickers
 ├── shared/
 │   ├── view-toolbar.tsx         # ViewToolbar strip + ViewConfigMenu popover (config-in-toolbar)
-│   ├── data-view-placeholder.tsx        # placeholder body the six unimplemented views render
+│   ├── field-meta.tsx           # field-type labels/icons, option + fill palettes, field search
+│   ├── data-view-placeholder.tsx        # placeholder body the five unimplemented views render
 │   ├── data-view-config-placeholder.tsx # placeholder body their config editors render
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
@@ -66,8 +73,12 @@ src/
     │                ├── toolbar/  toolbar.tsx + search-bar.tsx
     │                ├── menus/    field-menu.tsx + filter-menu.tsx + condition-menu.tsx
     │                │              + condition-controls.tsx + color-menu.tsx + select-menu.tsx
-    │                └── fields/   meta.tsx + picker.tsx + editor.tsx
-    ├── kanban/      kanban-data-view.tsx + config-editor.tsx    (placeholder)
+    │                └── fields/   picker.tsx + editor.tsx
+    ├── kanban/      kanban-data-view.tsx + reui/kanban.tsx     (implemented — see below)
+    │                ├── core/     board.ts + config.ts
+    │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
+    │                ├── fields/   field-select.tsx
+    │                └── toolbar/  kanban-toolbar.tsx
     ├── calendar/    calendar-data-view.tsx + config-editor.tsx  (placeholder)
     ├── gantt/       gantt-data-view.tsx + config-editor.tsx     (placeholder)
     ├── gallery/     gallery-data-view.tsx + config-editor.tsx   (placeholder)
@@ -94,17 +105,35 @@ src/
 | menus   | `menus/color-menu.tsx`         | 填色 dropdown: colour + target (cell/row/column) + condition                                                                                                                                                                                           |
 | menus   | `menus/select-menu.tsx`        | the 单选/多选 option dropdown: 查找或创建选项 search + capsule rows + 创建 row; 单选 closes on a pick, 多选 stays open                                                                                                                                 |
 | menus   | `menus/condition-controls.tsx` | shared condition controls: type-aware value input, order toggle                                                                                                                                                                                        |
-| fields  | `fields/meta.tsx`              | field-type labels/icons, option + fill palettes, field search matching                                                                                                                                                                                 |
 | fields  | `fields/picker.tsx`            | searchable field dropdown shared by 筛选/分组/排序/填色                                                                                                                                                                                                |
 | fields  | `fields/editor.tsx`            | the 标题 / 字段类型 / 选项内容 / 默认值 form, plus `FieldEditorMenuContent` — the form as a `DropdownMenuContent` body (no rect maths)                                                                                                                 |
 | —       | —                              | the table has **no** `config-editor.tsx`: its configuration is its toolbar                                                                                                                                                                             |
 
 **The grouping is a dependency order, not a label.** `core/*` and `canvas/*` import
 no React (only VTable _types_) and are pure functions/data; `canvas/*` may reach
-into `fields/meta.tsx` for the palettes; `menus/*` and `fields/*` may import
+into `shared/field-meta.tsx` for the palettes; `menus/*` and `fields/*` may import
 `core/*` + `canvas/*`; `toolbar/*` wires the menus; **nothing inside the folder
 imports `table-data-view.tsx`** — the shell only assembles. Keep it that way: a
 `core/*` file that starts importing a `.tsx` component has broken the layer.
+
+### kanban view internals
+
+| Group   | File                           | Responsibility                                                                                                                                                                                                    |
+| ------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `kanban-data-view.tsx`         | the shell: board state (re-seeded from the source during render), the write path (lane change → `onCellChange`), host-capability gates, and the missing-group-field guidance. The only file `registry.ts` imports |
+| vendor  | `reui/kanban.tsx`              | the vendored ReUI board primitives (`Kanban` / `KanbanBoard` / `KanbanColumn` / `KanbanColumnHandle` / `KanbanColumnContent` / `KanbanItem` / `KanbanItemHandle` / `KanbanOverlay`). Keep it close to upstream    |
+| core    | `core/board.ts`                | `buildKanbanBoard` (rows + group field → lanes/cards), `moveCardToLane`, `findCardByKey`, `cardKey`, `countCards`. No React                                                                                       |
+| core    | `core/config.ts`               | config self-healing (`resolveGroupField` / `resolveTitleField` / `resolveCardFields`), `orderLaneOptions`, `optionColor`, `cellForLane`, `patchFieldOption`. No React                                             |
+| board   | `board/kanban-board.tsx`       | `<Kanban>` root + lane strip + overlay; maps REUI's `onValueCommit` onto "cross-lane = write, same-lane = local order, column = `laneOrder`"                                                                      |
+| board   | `board/kanban-card.tsx`        | the card body (title + chips + meta rows) and the card menu (打开 / 移动到). Also what the drag overlay renders                                                                                                   |
+| board   | `board/lane-option-editor.tsx` | 编辑选项: rename + recolour one option (mounted per popover open, so its draft state re-seeds)                                                                                                                    |
+| fields  | `fields/field-select.tsx`      | the field picker: one shadcn `Select` over a field list (all three pickers live inside a popover, so a plain Select beats popover+Command here)                                                                   |
+| toolbar | `toolbar/kanban-toolbar.tsx`   | 分组 / 卡片 / 排序 / 显示 panels on the left (via `ViewToolbar`), lane/card count on the right                                                                                                                    |
+| —       | —                              | no `config-editor.tsx`: the four panels cover every `KanbanViewConfig` key, so the descriptor omits `configEditor`                                                                                                |
+
+Layering matches the table's: `core/*` is pure, `board/*` composes REUI + shadcn,
+`toolbar/*` only reads config and reports `onConfigChange`, and **nothing imports
+`kanban-data-view.tsx`**.
 
 ### UI conventions (applies to every view)
 
@@ -112,8 +141,13 @@ imports `table-data-view.tsx`** — the shell only assembles. Keep it that way: 
 `ViewToolbar` strip with **configuration on the left and functions on the
 right**; every control is a button or a dropdown menu. Do not add a side panel
 back, and do not add a generic "视图配置" catch-all to a view whose settings all
-have dedicated menus (the table's did, so its button and its registry
-`configEditor` are gone).
+have dedicated menus (the table's and the kanban's did, so both views' buttons
+and their registry `configEditor` entries are gone).
+
+A view whose settings are a **form** (a `Select`, a checkbox list, switches)
+takes a `Popover` panel; a list of **commands** takes a `DropdownMenu`. The
+kanban's 分组/卡片/排序/显示 panels are popovers for exactly that reason — a
+menu's roving focus is the wrong tool for a body full of inputs.
 
 The chrome is built from `@workspace/ui` shadcn primitives only — no hand-rolled
 `<select>` / `<input type="checkbox">` / bare floating panels:
@@ -187,6 +221,10 @@ Layout rules to keep:
 | Change the collection projection schema | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                |
 | Cell → text/color/date/number           | `src/source/cell-resolver.ts`                                                             |
 | Implement a view                        | `src/views/<name>/` (replace the placeholder body)                                        |
+| Group rows into lanes / cards           | `src/views/kanban/core/board.ts`                                                          |
+| Kanban config self-heal / lane order    | `src/views/kanban/core/config.ts`                                                         |
+| Kanban drag write-back                  | `src/views/kanban/board/kanban-board.tsx`                                                 |
+| Vendored ReUI board                     | `src/views/kanban/reui/kanban.tsx`                                                        |
 | Host integration                        | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx` |
 | Persisted model                         | `packages/interfaces/src/models/data-view.ts`                                             |
 
@@ -284,14 +322,19 @@ node change).
 
 1. Replace the body of `src/views/<name>/<name>-data-view.tsx` with the real
    renderer, keeping the `DataViewRendererProps<XViewConfig>` signature.
-   **`views/table/` is the reference implementation** — copy its split
-   (`core/` pure logic, `canvas/` theme + custom render, `toolbar/`, `menus/`,
-   `fields/`, and the lifecycle shell at the view root) rather than growing one
-   file; the layering rule in § _table view internals_ applies to every view.
+   **`views/table/` is the reference implementation** for a _canvas_ view — copy
+   its split (`core/` pure logic, `canvas/` theme + custom render, `toolbar/`,
+   `menus/`, `fields/`, and the lifecycle shell at the view root) rather than
+   growing one file; the layering rule in § _table view internals_ applies to
+   every view. **`views/kanban/` is the reference for a DOM view** whose library
+   is external source: vendor it under `reui/` unchanged, keep the data model in
+   `core/`, compose the library + shadcn in `board/`, and let the shell own the
+   state + write path.
 2. Only if the view has settings without a dedicated toolbar menu: add
    `config-editor.tsx` (`DataViewConfigEditorProps<XViewConfig>`) and register it
-   as `configEditor`. A view whose toolbar covers everything (the table) leaves
-   the descriptor's `configEditor` undefined and gets no 视图配置 button.
+   as `configEditor`. A view whose toolbar covers everything (the table, the
+   kanban) leaves the descriptor's `configEditor` undefined and gets no 视图配置
+   button.
 3. Add the view's library to `package.json` **as a dynamic import only**; do not
    import it from `registry.ts` or `index.ts`. Top-level imports inside
    `views/<name>/*` are fine — those modules are already behind `React.lazy`.
@@ -514,7 +557,35 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   tokens carry `"inherit"` as a sentinel and `buildTableTheme` resolves it through
   `resolveCanvasFontFamily()` (`shared/theme-tokens.ts`), which reads the computed
   stack off `<body>` (that is how `next/font`'s family reaches the canvas).
+- **The kanban is a vendored board over `@dnd-kit`, and four of its rules are
+  load-bearing** (all verified in a real browser; see `docs/dataview/kanban.md`
+  §0):
+  - **Item ids are `laneId + "::" + rowId`.** ReUI requires item ids that are
+    unique across _all_ columns and distinct from column ids; a `multiSelect`
+    grouping legitimately puts one row in several lanes. Never recover the row id
+    by parsing the key — read it off the card (`findCardByKey`).
+  - **The drag activator is the handle, not the item.** `KanbanItem` carries the
+    ARIA attributes, `KanbanItemHandle` carries the pointer/keyboard listeners.
+    "Not draggable" therefore means **rendering no handle**, not `disabled`:
+    ReUI greys a disabled item out (`disabled && "opacity-50"`), and a read-only
+    collection board should not look broken. The card's "…" menu is a _sibling_
+    of the handle (absolutely positioned over the card) so a press on it never
+    starts a drag — dnd-kit v6's pointer sensor does not exclude nested buttons.
+  - **`DndContext` needs a stable `id`.** dnd-kit builds the id behind
+    `aria-describedby` from a module-level counter unless the context is given
+    one, and a counter differs between the server render and hydration: React
+    keeps the server's `aria-describedby` and logs a mismatch, so the drag
+    instructions point at an id that does not exist. The board passes React's
+    `useId()`; that is the one behavioural change to the vendored source.
+  - **`onValueCommit` is how a drop is classified.** In ReUI's default mode
+    `dragOver` already moved the card in the value, so only the commit's
+    `activeContainer` / `overContainer` say whether this was a cross-lane write, a
+    lane-internal reorder (kept in local state — nothing persists it), or a
+    column reorder (`laneOrder`). `restoreOnCancel` is on, so Escape undoes the
+    preview instead of committing it.
 - Test infrastructure: **none**, consistent with the rest of the monorepo. The
   table view was verified by driving a temporary `apps/web` page with headless
-  Chromium over CDP (`ListTable` exposes itself as `canvas.__vtable__`), not by
-  an in-repo test suite.
+  Chromium over CDP (`ListTable` exposes itself as `canvas.__vtable__`), and the
+  kanban the same way (drag, menu move, new card, lane rename/reorder/collapse,
+  the four panels, read-only and both guidance states, plus a switch back to the
+  table) — not by an in-repo test suite.

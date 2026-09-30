@@ -33,7 +33,7 @@ import type {
 
 import { ConditionValueInput } from "./condition-controls";
 import { TableFieldPicker } from "../fields/picker";
-import { DEFAULT_FILL_COLOR, FILL_COLORS } from "../fields/meta";
+import { DEFAULT_FILL_COLOR, FILL_COLORS } from "../../../shared/field-meta";
 import {
   TABLE_FILTER_OPERATOR_LABELS,
   filterOperatorsForField,

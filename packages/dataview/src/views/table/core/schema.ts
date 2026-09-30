@@ -29,6 +29,13 @@ import {
   type PillFont,
 } from "../canvas/pill";
 
+/**
+ * Row-level helpers live in `source/` because every view that creates a row
+ * needs them; they are re-exported here so the table's existing call sites
+ * (`createDataRowId` from the shell and `column-ops`) keep their import path.
+ */
+export { createDataRowId, emptyCellForField } from "../../../source/row-utils";
+
 /** The hidden record key that carries `DatabaseRow.id` back to the source row. */
 export const TABLE_ROW_ID_FIELD = "__rowId";
 
@@ -382,15 +389,6 @@ export function isFieldEditable(
  */
 export function isSelectField(field: Pick<DatabaseField, "type">): boolean {
   return field.type === "select" || field.type === "multiSelect";
-}
-
-/** A fresh row id for an inserted row. */
-export function createDataRowId(): string {
-  const globalCrypto = globalThis.crypto;
-  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
-    return `row_${globalCrypto.randomUUID()}`;
-  }
-  return `row_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /**
@@ -906,29 +904,6 @@ export function createDatabaseFieldId(): string {
     return `fld_${globalCrypto.randomUUID()}`;
   }
   return `fld_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/** The empty cell a field carries when it has no value. */
-export function emptyCellForField(field: DatabaseField): DatabaseCell {
-  switch (field.type) {
-    case "number":
-      return { type: "number", number: null };
-    case "select":
-      return { type: "select", optionId: null };
-    case "multiSelect":
-      return { type: "multiSelect", optionIds: [] };
-    case "date":
-      return { type: "date", date: null };
-    case "checkbox":
-      return { type: "checkbox", checked: false };
-    case "url":
-      return { type: "url", url: null };
-    case "relation":
-      return { type: "relation", nodeIds: [] };
-    case "text":
-    default:
-      return { type: "text", text: "" };
-  }
 }
 
 /**
