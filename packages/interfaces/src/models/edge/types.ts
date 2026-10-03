@@ -1,6 +1,10 @@
 import type { NodeId } from "../node/base";
 
-export type EdgeDirection = "forward" | "reverse" | "bidirectional" | "undirected";
+export type EdgeDirection =
+  | "forward"
+  | "reverse"
+  | "bidirectional"
+  | "undirected";
 
 export type EdgeType = "hierarchy" | "flow" | "association" | "interaction";
 
@@ -54,4 +58,4 @@ export interface EdgeBase {
   updatedAt: string;
 }
 
-export interface EdgeData extends EdgeBase { }
+export interface EdgeData extends EdgeBase {}

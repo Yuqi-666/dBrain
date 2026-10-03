@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   DatabaseCell,
   DatabaseContent,
@@ -9,7 +9,12 @@ import type {
   DataRow,
   DataView,
 } from "@workspace/interfaces";
-import { DataViewRoot, databaseToDataViewSource } from "@workspace/dataview";
+import {
+  DataViewRoot,
+  RecordEditor,
+  databaseToDataViewSource,
+  type OpenRecordOptions,
+} from "@workspace/dataview";
 import { NodeService } from "@workspace/services";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
@@ -26,6 +31,11 @@ interface DatabaseNodeContentProps {
  * only adapts it into a `DataViewSource` and persists what the data views
  * report back. Every write goes through `NodeService.upsert`, i.e. the same
  * optimistic path the rest of the app uses — data views never touch the store.
+ *
+ * It also renders the **record editing page** (`<RecordEditor>`), which the data
+ * views ask for through `DataViewRoot`'s `onOpenRecord`: the page needs this
+ * component's live data and write path, so it lives with the node content rather
+ * than inside the data view shell.
  *
  * Two rules make that persistence safe, and both are load-bearing:
  *
@@ -129,6 +139,28 @@ export function DatabaseNodeContent({
     useUIStore.getState().handleNodeEdit(nodeId);
   }, []);
 
+  /**
+   * The record editing page.
+   *
+   * It belongs to the host, not to `@workspace/dataview`: a record's data and
+   * its write path are right here (the data views only report what happened), so
+   * `DataViewRoot` merely reports *which* record the user opened and this
+   * component renders `<RecordEditor>` with the live callbacks. `hiddenFieldIds`
+   * are the fields the calling view does not surface; the editor folds them into
+   * its 隐藏字段 block.
+   */
+  const [openRecord, setOpenRecord] = useState<{
+    rowId: string;
+    hiddenFieldIds: readonly string[];
+  } | null>(null);
+
+  const handleOpenRecord = useCallback(
+    (rowId: string, options?: OpenRecordOptions) => {
+      setOpenRecord({ rowId, hiddenFieldIds: options?.hiddenFieldIds ?? [] });
+    },
+    [],
+  );
+
   const handleRowInsert = useCallback(
     (row: DataRow) => {
       patchContent({ rows: [...liveContent().rows, row] });
@@ -187,21 +219,65 @@ export function DatabaseNodeContent({
     [],
   );
 
+  /**
+   * Node lookup for views that draw a node itself: the gallery's cover field
+   * may be a `relation`, and a cover drawn from the referenced node needs the
+   * node, not just its title. Same lazy `getState()` read as above.
+   */
+  const resolveNode = useCallback(
+    (nodeId: string) => useDataStore.getState().nodes.get(nodeId),
+    [],
+  );
+
   return (
-    <div className={cn("h-full min-h-0 w-full p-4", className)}>
-      <DataViewRoot
-        // Remount per node so the view/active-view state re-seeds.
-        key={node.id}
+    <div
+      className={cn(
+        "relative h-full min-h-0 w-full overflow-hidden",
+        className,
+      )}
+    >
+      {/**
+       * The record page covers this box rather than the viewport (node-content is
+       * mounted either full-screen or inside the node editor's dialog window), so
+       * the view underneath goes `inert` while it is open: the page is not a
+       * modal, and this is what keeps Tab from walking into a covered table.
+       */}
+      <div
+        className="h-full min-h-0 w-full p-4"
+        inert={openRecord ? true : undefined}
+      >
+        <DataViewRoot
+          // Remount per node so the view/active-view state re-seeds.
+          key={node.id}
+          source={source}
+          views={content.views}
+          onViewsChange={handleViewsChange}
+          onCellChange={handleCellChange}
+          onOpenRecord={handleOpenRecord}
+          onOpenNode={handleOpenNode}
+          onRowInsert={handleRowInsert}
+          onRowDelete={handleRowDelete}
+          onRowReorder={handleRowReorder}
+          onFieldsChange={handleFieldsChange}
+          resolveNodeTitle={resolveNodeTitle}
+          resolveNode={resolveNode}
+        />
+      </div>
+      <RecordEditor
+        open={openRecord !== null}
+        rowId={openRecord?.rowId ?? null}
+        hiddenFieldIds={openRecord?.hiddenFieldIds}
         source={source}
-        views={content.views}
-        onViewsChange={handleViewsChange}
+        editable
         onCellChange={handleCellChange}
-        onOpenNode={handleOpenNode}
         onRowInsert={handleRowInsert}
         onRowDelete={handleRowDelete}
-        onRowReorder={handleRowReorder}
         onFieldsChange={handleFieldsChange}
+        onOpenNode={handleOpenNode}
         resolveNodeTitle={resolveNodeTitle}
+        onOpenChange={(next) => {
+          if (!next) setOpenRecord(null);
+        }}
       />
     </div>
   );

@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * The searchable field dropdown every table menu uses to pick a field
- * (筛选 / 分组 / 排序 / 填色).
+ * The searchable field dropdown a condition row picks its field with
+ * (the table's 筛选 / 分组 / 排序 / 填色 and the kanban's 排序).
  *
  * The design asks for "点击选择字段则出现带搜索的字段列表下拉菜单": a button
  * showing the current field, opening a `Command` list with a search box. The
- * table view is lazy, so pulling `cmdk` (via `@workspace/ui/components/ui/command`)
- * in here does not touch the shell's static import graph.
+ * compact `FieldSelect` next to it is the other picker: this one trades a click
+ * for search, which is what a row inside a settings popover needs when the schema
+ * is long. It lives in `shared/` because two views draw it now.
  */
 import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
@@ -27,9 +28,9 @@ import {
 } from "@workspace/ui/components/ui/popover";
 import type { DatabaseField } from "@workspace/interfaces";
 
-import { FieldTypeIcon, filterFieldsByQuery } from "../../../shared/field-meta";
+import { FieldTypeIcon, filterFieldsByQuery } from "./field-meta";
 
-export interface TableFieldPickerProps {
+export interface FieldPickerButtonProps {
   fields: readonly DatabaseField[];
   value?: string;
   onValueChange: (fieldId: string) => void;
@@ -42,7 +43,7 @@ export interface TableFieldPickerProps {
   triggerClassName?: string;
 }
 
-export function TableFieldPicker({
+export function FieldPickerButton({
   fields,
   value,
   onValueChange,
@@ -50,7 +51,7 @@ export function TableFieldPicker({
   disabled,
   className,
   triggerClassName,
-}: TableFieldPickerProps) {
+}: FieldPickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = fields.find((field) => field.id === value);

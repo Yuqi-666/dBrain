@@ -20,12 +20,12 @@ import type {
 } from "@workspace/interfaces";
 
 import {
+  cardFieldIds,
   dateFieldIds,
   firstGroupableFieldId,
   firstNumberFieldId,
   firstUrlFieldId,
   primaryFieldId,
-  selectFieldIds,
 } from "./source/field-utils";
 
 const TABLE_DEFAULT_CONFIG = (source: DataViewSource): TableViewConfig => ({
@@ -58,16 +58,22 @@ const TABLE_DEFAULT_CONFIG = (source: DataViewSource): TableViewConfig => ({
   groupOrder: {},
 });
 
-const KANBAN_DEFAULT_CONFIG = (source: DataViewSource): KanbanViewConfig => ({
-  groupByField: firstGroupableFieldId(source.fields) ?? "",
-  titleField: primaryFieldId(source.fields) ?? "",
-  cardFields: [],
-  showCardCount: true,
-  showUnassigned: true,
-  allowDrag: source.kind === "database",
-  allowCreate: source.kind === "database",
-  compact: false,
-});
+const KANBAN_DEFAULT_CONFIG = (source: DataViewSource): KanbanViewConfig => {
+  const groupByField = firstGroupableFieldId(source.fields) ?? "";
+  const titleField = primaryFieldId(source.fields) ?? "";
+  return {
+    groupByField,
+    titleField,
+    // The same smart default the gallery uses — chips for the 单选/多选 fields
+    // plus the first 详情 text — minus the grouping field: its value *is* the lane
+    // the card sits in, so a chip for it would say the same thing twice.
+    cardFields: cardFieldIds(source.fields, titleField).filter(
+      (fieldId) => fieldId !== groupByField,
+    ),
+    compact: false,
+    showUnassigned: true,
+  };
+};
 
 const CALENDAR_DEFAULT_CONFIG = (
   source: DataViewSource,
@@ -84,16 +90,7 @@ const CALENDAR_DEFAULT_CONFIG = (
       right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
     },
     firstDay: 1,
-    locale: "zh-CN",
     timeZone: "local",
-    editable: source.kind === "database",
-    selectable: false,
-    eventClick: "open",
-    eventLimit: true,
-    height: "auto",
-    showWeekends: true,
-    nowIndicator: true,
-    theme: "auto",
   };
 };
 
@@ -113,18 +110,17 @@ const GANTT_DEFAULT_CONFIG = (source: DataViewSource): GanttViewConfig => {
   };
 };
 
-const GALLERY_DEFAULT_CONFIG = (source: DataViewSource): GalleryViewConfig => ({
-  titleField: primaryFieldId(source.fields) ?? "",
-  coverField: firstUrlFieldId(source.fields),
-  badgeFields: selectFieldIds(source.fields),
-  metaFields: [],
-  layout: "grid",
-  cardSize: "medium",
-  columns: 4,
-  showEmptyCover: true,
-  selectable: true,
-  virtualized: true,
-});
+const GALLERY_DEFAULT_CONFIG = (source: DataViewSource): GalleryViewConfig => {
+  const titleField = primaryFieldId(source.fields) ?? "";
+  return {
+    titleField,
+    coverField: firstUrlFieldId(source.fields),
+    cardFields: cardFieldIds(source.fields, titleField),
+    compact: false,
+    layout: "grid",
+    cardSize: "medium",
+  };
+};
 
 const CHART_DEFAULT_CONFIG = (source: DataViewSource): ChartViewConfig => {
   const numberField = firstNumberFieldId(source.fields);

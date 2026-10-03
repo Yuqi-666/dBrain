@@ -9,7 +9,7 @@
  * - **It is `memo`-wrapped on purpose.** FullCalendar's React wrapper applies
  *   `resetOptions` on *every* re-render (`componentDidUpdate`), and a changed
  *   option makes FullCalendar re-render its whole preact tree. The shell holds
- *   the hover readout / click popover in React state, so without the memo a
+ *   the hover readout in React state, so without the memo a
  *   mouse move over an event would re-render the calendar. Every prop here is
  *   therefore either a primitive, a memoized array/object, or a `useCallback`
  *   the shell keeps stable; the surface then only re-renders when the config or
@@ -39,6 +39,7 @@ import type {
   EventClickArg,
   EventDropArg,
   EventHoveringArg,
+  EventMountArg,
   LocaleInput,
   PluginDef,
 } from "@fullcalendar/core";
@@ -73,13 +74,20 @@ export interface CalendarSurfaceProps {
   headerToolbar: CalendarViewConfig["headerToolbar"];
   firstDay: number;
   locale: string;
-  /** `"auto"` fills the pane; a number is a fixed pixel height. */
-  height: "auto" | number;
+  /** Cell writes are allowed (a drag writes the date back). */
   editable: boolean;
+  /** Row inserts are allowed (a drag over blank days creates one). */
   selectable: boolean;
-  showWeekends: boolean;
-  nowIndicator: boolean;
-  dayMaxEvents: boolean | number;
+  /**
+   * A right-click on an event element.
+   *
+   * It is a mount hook rather than `eventContent` because FullCalendar's event
+   * element is not a React node: a Radix context-menu trigger rendered *inside*
+   * the event never sees the gesture (the browser's `contextmenu` target is the
+   * library's own `<a class="fc-event">`, not the content we rendered into it).
+   * The shell wires this to the shell-level record menu instead.
+   */
+  onEventContextMenu?: (rowId: string, point: { x: number; y: number }) => void;
 
   /** Reports the live `CalendarApi` (and `null` on unmount). */
   onApi: (api: CalendarApi | null) => void;
@@ -93,18 +101,36 @@ export interface CalendarSurfaceProps {
   onDatesSet: (arg: DatesSetArg) => void;
 }
 
+/**
+ * Hangs the unified record menu off one event element.
+ *
+ * FullCalendar owns the event DOM and the browser's `contextmenu` target is the
+ * library's own `<a class="fc-event">`, so a Radix trigger rendered into
+ * `eventContent` never fires; a native listener here does. Kept at module scope
+ * so the JSX stays a one-line prop.
+ */
+function attachEventContextMenu(
+  arg: EventMountArg,
+  onContextMenu: (rowId: string, point: { x: number; y: number }) => void,
+): void {
+  const extended = arg.event.extendedProps as { rowId?: string };
+  const rowId =
+    typeof extended.rowId === "string" ? extended.rowId : arg.event.id;
+  arg.el.addEventListener("contextmenu", (event: MouseEvent) => {
+    event.preventDefault();
+    onContextMenu(rowId, { x: event.clientX, y: event.clientY });
+  });
+}
+
 export const CalendarSurface = memo(function CalendarSurface({
   events,
   initialView,
   headerToolbar,
   firstDay,
   locale,
-  height,
   editable,
   selectable,
-  showWeekends,
-  nowIndicator,
-  dayMaxEvents,
+  onEventContextMenu,
   onApi,
   onEventDrop,
   onEventResize,
@@ -128,9 +154,9 @@ export const CalendarSurface = memo(function CalendarSurface({
       plugins={PLUGINS}
       initialView={toFullCalendarView(initialView)}
       headerToolbar={headerToolbar}
-      // `"auto"` means "the pane's height": the shell hands the surface a box
-      // of exactly that size, so 100% is what "automatic" is here.
-      height={height === "auto" ? "100%" : height}
+      // The calendar fills the pane the shell hands it (`CALENDAR_FIXED.height`
+      // is "auto"), so 100% is what "automatic" means here.
+      height="100%"
       locale={resolveLocale(locale)}
       buttonText={buttonTextFor(locale)}
       firstDay={firstDay}
@@ -138,12 +164,20 @@ export const CalendarSurface = memo(function CalendarSurface({
       editable={editable}
       selectable={selectable}
       selectMirror
-      weekends={showWeekends}
-      nowIndicator={nowIndicator}
-      dayMaxEvents={dayMaxEvents}
+      // The rest is presentation and fixed (see `CALENDAR_FIXED`): weekend
+      // columns, the "now" line, and folding a busy day behind "+N more".
+      weekends
+      nowIndicator
+      dayMaxEvents
       navLinks={false}
       dayHeaders
       events={events}
+      {...(onEventContextMenu
+        ? {
+            eventDidMount: (arg: EventMountArg) =>
+              attachEventContextMenu(arg, onEventContextMenu),
+          }
+        : {})}
       eventDrop={onEventDrop}
       eventResize={onEventResize}
       select={onSelectRange}

@@ -24,6 +24,15 @@ export function createDataRowId(): string {
   return `row_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** A fresh field id for an added column / a field created in the record editor. */
+export function createDatabaseFieldId(): string {
+  const globalCrypto = globalThis.crypto;
+  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+    return `fld_${globalCrypto.randomUUID()}`;
+  }
+  return `fld_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** A fresh option id (a new 单选/多选 option the user just typed). */
 export function createDatabaseFieldOptionId(): string {
   const globalCrypto = globalThis.crypto;
@@ -70,4 +79,141 @@ export function createEmptyDataRow(
   for (const field of fields) cells[field.id] = emptyCellForField(field);
   if (seed) cells[seed.fieldId] = seed.cell;
   return { id: createDataRowId(), cells };
+}
+
+/**
+ * Keeps a cell only when it still fits its field.
+ *
+ * A retyped field, a shrunk option list or a deleted field must not leave a
+ * cell the domain rejects (`DatabaseContent` throws on a cell whose `type`
+ * disagrees with its field, on an orphan field key, and on an unknown option
+ * id), so everything that no longer fits is dropped here.
+ */
+function coerceCellToField(
+  cell: DatabaseCell,
+  field: DatabaseField,
+): DatabaseCell | undefined {
+  if (!cell || cell.type !== field.type) return undefined;
+  if (cell.type === "select") {
+    if (cell.optionId === null) return cell;
+    return field.options?.some((option) => option.id === cell.optionId)
+      ? cell
+      : undefined;
+  }
+  if (cell.type === "multiSelect") {
+    const optionIds = cell.optionIds.filter((optionId) =>
+      field.options?.some((option) => option.id === optionId),
+    );
+    return optionIds.length === cell.optionIds.length
+      ? cell
+      : { type: "multiSelect", optionIds };
+  }
+  return cell;
+}
+
+/**
+ * Reconciles every row against a new field list.
+ *
+ * Drops the cells of deleted fields and any cell that no longer matches its
+ * field, then seeds `seed` into the rows that have no value yet (the field
+ * editor's 默认值). Returns the *same* array when nothing changed, so the caller
+ * can tell whether a row rewrite needs to accompany the schema write.
+ *
+ * Shared by the table's 字段配置 and the record editor, so a field deleted in
+ * either place leaves the same cells behind.
+ */
+export function reconcileRowsForFields(
+  rows: readonly DataRow[],
+  nextFields: readonly DatabaseField[],
+  seed?: { fieldId: string; cell: DatabaseCell },
+): { rows: DataRow[]; changed: boolean } {
+  const fieldById = new Map(nextFields.map((field) => [field.id, field]));
+  let changed = false;
+
+  const next = rows.map((row) => {
+    let rowChanged = false;
+    const cells: Record<string, DatabaseCell> = {};
+    for (const [fieldId, cell] of Object.entries(row.cells ?? {})) {
+      const field = fieldById.get(fieldId);
+      if (!field) {
+        rowChanged = true;
+        continue;
+      }
+      const coerced = coerceCellToField(cell, field);
+      if (!coerced) {
+        rowChanged = true;
+        continue;
+      }
+      cells[fieldId] = coerced;
+    }
+    if (seed && !cells[seed.fieldId] && fieldById.has(seed.fieldId)) {
+      cells[seed.fieldId] = seed.cell;
+      rowChanged = true;
+    }
+    if (!rowChanged) return row as DataRow;
+    changed = true;
+    return { ...row, cells };
+  });
+
+  return { rows: next, changed };
+}
+
+/**
+ * The **schema half** of a field edit — shared by every 字段配置 surface.
+ *
+ * `field` may be new or an edited version of an existing one; `seed` is the
+ * editor's 默认值. `rows` comes back only when cells actually had to change, so
+ * the caller can send the leanest possible content write.
+ *
+ * Adding a field to a source that has **no rows at all** also mints one empty
+ * row (carrying the 默认值 when there is one): an empty table with a schema but
+ * nothing to type into reads as "the table did not appear", because VTable can
+ * only draw headers. Callers that own a per-field config (the table's columns,
+ * a card's `cardFields`) use `isNew` to append that entry.
+ */
+export function editFieldSchema(
+  fields: readonly DatabaseField[],
+  rows: readonly DataRow[],
+  field: DatabaseField,
+  seed?: { fieldId: string; cell: DatabaseCell },
+): { fields: DatabaseField[]; rows?: DataRow[]; isNew: boolean } {
+  const existingIndex = fields.findIndex((entry) => entry.id === field.id);
+  const nextFields =
+    existingIndex >= 0
+      ? fields.map((entry) => (entry.id === field.id ? field : entry))
+      : [...fields, field];
+
+  const isNew = existingIndex < 0;
+  const mintRow = isNew && rows.length === 0;
+  const baseRows: DataRow[] = mintRow
+    ? [
+        {
+          id: createDataRowId(),
+          cells: seed ? { [seed.fieldId]: seed.cell } : {},
+        },
+      ]
+    : [...rows];
+
+  const reconciled = reconcileRowsForFields(baseRows, nextFields, seed);
+  return {
+    fields: nextFields,
+    isNew,
+    // A minted row carries no cells, so `reconcileRowsForFields` reports no
+    // change for it — the row itself is the change.
+    ...(reconciled.changed || mintRow ? { rows: reconciled.rows } : {}),
+  };
+}
+
+/**
+ * The schema half of 删除字段: removes the field and drops every cell that
+ * pointed at it (the domain rejects orphan field keys).
+ */
+export function deleteFieldSchema(
+  fields: readonly DatabaseField[],
+  rows: readonly DataRow[],
+  fieldId: string,
+): { fields: DatabaseField[]; rows: DataRow[] } {
+  const nextFields = fields.filter((field) => field.id !== fieldId);
+  const reconciled = reconcileRowsForFields(rows, nextFields);
+  return { fields: nextFields, rows: reconciled.rows };
 }

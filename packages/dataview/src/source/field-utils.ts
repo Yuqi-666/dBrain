@@ -67,3 +67,24 @@ export function selectFieldIds(fields: readonly DatabaseField[]): string[] {
     .filter((field) => field.type === "select" || field.type === "multiSelect")
     .map((field) => field.id);
 }
+
+/**
+ * The default **card** fields for a card-shaped view: every 单选/多选 (they draw
+ * as chips) plus the first ordinary text field other than the title — the
+ * "详情 / 摘要" line a card wants under its badges.
+ *
+ * One list for both the kanban and the gallery, so the two views' cards start
+ * out identical (dataview/AGENTS.md § _UI conventions_).
+ */
+export function cardFieldIds(
+  fields: readonly DatabaseField[],
+  titleFieldId: string | undefined,
+): string[] {
+  const detail = fields.find(
+    (field) => field.type === "text" && field.id !== titleFieldId,
+  );
+  const chipIds = selectFieldIds(fields).filter(
+    (fieldId) => fieldId !== titleFieldId,
+  );
+  return detail ? [...chipIds, detail.id] : chipIds;
+}

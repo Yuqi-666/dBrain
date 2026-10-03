@@ -9,8 +9,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import type {
@@ -171,10 +169,6 @@ export function ViewSwitcher({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-              新建视图
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
             {creatableDescriptors.map((descriptor) => {
               const Icon = descriptor.icon;
               return (

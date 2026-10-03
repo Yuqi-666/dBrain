@@ -1,8 +1,11 @@
 # 数据展示组件（DataView）设计文档
 
-> 状态：外壳已实现；表格视图已实现（`packages/dataview/src/views/table/`），看板视图已实现
+> 状态：外壳已实现；**统一记录编辑页与统一记录右键菜单已实现**（见 §3.5 / §3.6）；表格视图已实现
+> （`packages/dataview/src/views/table/`），看板视图已实现
 > （`packages/dataview/src/views/kanban/`，见 kanban.md），日历视图已实现
-> （`packages/dataview/src/views/calendar/`，见 calendar.md），其余四个视图仍为占位
+> （`packages/dataview/src/views/calendar/`，见 calendar.md），画廊视图已实现并**重构**
+> （`packages/dataview/src/views/gallery/`，见 gallery.md），其余三个视图（甘特图 / 图表 /
+> 节点图）仍为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -71,9 +74,48 @@ DataView 是一个「多视图数据展示组件」。它接收一份结构化�
 >
 > 再一轮反馈：**视图级操作（更多：设为默认 / 复制 / 删除）也从页签条移进了视图工具条的
 > 功能区**，页签条只做导航（页签 + 新建视图）。外壳用 `toolbar/view-actions.tsx` 的槽位
-> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图（含五个占位视图）
+> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图（含占位视图）
 > 都自动带上它。功能区因此必须只放**固定尺寸、常驻**的控件：宽度会变的控件（搜索输入框、
 > 随选中出现的按钮）会把右对齐行里它左侧的邻居一起推开。
+>
+> 第六轮又收了一轮：**菜单/面板里不再有说明性文字** —— 下拉菜单的标题行（设置行高 /
+> 导出为 / 设置分组条件 / 设置筛选条件 / 设置填色条件 / 新建视图）和面板里的 hint 段落
+> 全部删除（只保留「先添加字段，才能设置条件。」这类空态/禁用态提示）：触发器已经说了
+> 这个菜单是什么，菜单项自己会说话。同时**同一件事在不同视图里的按钮长得一样**：
+> 表格的「分组 / 排序」改成看板的样子（中性无高亮 + 显示当前字段名，图标也用同一套
+> `Columns3` / `ArrowUpDown`），日历的「字段配置」用表格的 `FolderTree` 触发器，
+> 表格的「添加记录」与其它按钮同为 `text-muted-foreground`。
+>
+> 第七轮把**角色从字段行的「…」菜单里拿出来，统一成配置项**：看板/画廊的「卡片配置」有
+> `标题` / `封面` 两个配置项，日历的「字段配置」有 `开始日期` / `结束日期` / `标题` / `颜色`
+> 四个配置项 —— 都是「一个 `PanelSection` + 一个 `FieldSelect`」，同一件事在任何视图里
+> 都在同一个位置、用同一个控件设置。字段列表退化成「哪些字段在上面」（眼睛）+ 字段增删改，
+> 行尾只**标注**角色（开始 / 结束 / 标题 / 颜色 / 封面 + 标题/开始上的锁），
+> `shared/field-config-list.tsx` 的 `fieldItems` 因此被删除（没有任何调用方了）。
+> 日历的「视图」面板同时去掉 `今天按钮` 开关：按钮固定为 `prev,next today`
+> （`writeCalendarToolbarLayout` 不再接受这个决定，旧配置读入时被归一化）。
+>
+> 随后一轮补回三件事：① **筛选 / 分组 / 排序 / 填色 四个面板的标题行回来了**（`设置…条件`，
+> `清除` 就在这一行）—— 说明性的 hint 段落仍然不写，但四个同形菜单需要一个标题把自己和别人
+> 区分开；② **看板的「排序」就是表格的排序菜单**（同一个 `shared/condition-menu.tsx`：
+> 同样的触发器、同样的 `字段 + 方向` 条件行、`添加条件` / 拖动排优先级 / `清除`），因此
+> `KanbanViewConfig` 新增多级 `sortState`（旧 `sortBy` 仍被读取）；③ 修掉表格「排序不生效」：
+> 排序面板只写了 `config.sortState`，而 `structureKey` 故意不含排序、表格不会因此重建，
+> 所以配置必须由 `updateSortState` 显式推给活的 VTable。搜索 / 分组 / 排序 / 填色的字段选择器
+> （`shared/field-picker.tsx`）与条件菜单（`shared/condition-menu.tsx`）因此都搬进了 `shared/`。
+>
+> 本轮把**记录编辑页的所有权交给宿主 node-content**：`DataViewRoot` 不再自己挂那份 Sheet，
+> 只把「打开了哪条记录 + 该视图没展示哪些字段」上报给宿主（`onOpenRecord(rowId, { hiddenFieldIds })`），
+> 由 `database-node-content.tsx` / `collection-node-content.tsx` 渲染 `<RecordEditor>`
+> ——记录的数据、写路径和它本来就都在 node-content，编辑页因此和节点内容同层，而不是叠在
+> 数据视图外壳里。`RecordEditor` 因此改成 props 驱动（`source` / `editable` / 各回调都从
+> props 进，不再读 `useRecordActions`），记录**右键菜单**仍然归外壳（它是记录上的铬，不是页面）。
+> 顺带清掉渲染器契约里那条从未被调用过的 `onOpenRecord`（表格/日历只是把它塞进 `latest` ref）。
+> 紧接着又修掉这页在**对话窗口模式下的越界**：它原来是 `fixed` + portal 到 body 的 Sheet，
+> 于是 node-content 挂在 1200×80vh 的节点编辑对话窗里时，记录页却从屏幕顶贯到屏幕底（实测
+> 1000px 视口 / 800px 对话窗，页面高 1000 而不是 728）。现在它是宿主 `relative` 盒子里的一列
+> （`absolute inset-y-0 right-0` + 遮罩），被盖住的数据视图标 `inert`，Esc 用 `window` capture
+> 拦下来——否则 Radix 挂在 `document` 的 capture 监听会把宿主对话窗一起关掉。
 
 ### 3.2 组件接口
 
@@ -153,6 +195,106 @@ export interface DataViewRendererProps<C = DataViewConfig> {
 并且**同一条记录的写入必须串行 + 合并** —— PocketBase SDK 会按 `requestKey`（记录 id）取消上一个
 未完成请求，并发写同一条记录会 abort 掉前一个（症状：新行闪一下又消失，控制台报
 `The request was aborted (most likely autocancelled…)`）。
+
+---
+
+### 3.5 统一记录编辑页（右侧弹出）
+
+各视图「点击记录」统一打开**同一个**记录编辑页：视图只调用
+`useRecordActions().openRecord(rowId, { hiddenFieldIds })`
+（`packages/dataview/src/shared/record-actions.tsx` 的 context），外壳把它上报给宿主
+（`DataViewRoot` 的 `onOpenRecord`），**由宿主 node-content 渲染**一份 `<RecordEditor>`
+（`absolute inset-y-0 right-0` 的一列 + 一层点击关闭的遮罩）——记录的数据与写路径都在 node-content
+（`database-node-content.tsx` / `collection-node-content.tsx`），编辑页因此和节点内容同层，
+不由外壳自己挂。外壳仍然持有**记录右键菜单**（§3.6，它是记录上的「铬」而不是页面）。
+
+```text
+┌──────────────────────── RecordEditor（node-content 容器内右侧一列）──────────────────────┐
+│  记录标题（主列的值）                              [复制] [删除] [×]                    │
+│  数据库记录 / 图谱节点                                                                  │
+│  ────────────────────────────────────────────────────────────────────────────────────  │
+│  字段图标 + 名称     │  该字段的编辑控件（FieldInput：文本 / 数字 / 勾选 / 单选多选 / 日期）│
+│  …（当前视图已展示的字段在前）                                                          │
+│  ⌄ 共 N 个隐藏字段                                                                     │
+│  ────────────────────────────────────────────────────────────────────────────────────  │
+│  + 新增字段（宿主允许 schema 写入时才有）                                               │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- `hiddenFieldIds` 是**该视图没有展示**的字段（表格未显示的列、看板卡片字段之外的字段…），
+  它们折进「隐藏字段」折叠块；这与参考截图一致。
+- 编辑仍然只冒泡：控件的每一次写入都走 `onCellChange`，字段增删改走 `onFieldsChange`
+  （内部用 `reconcileRowsForFields` 同步重写单元格），删除记录走 `onRowDelete`，复制记录走
+  `onRowInsert`。渲染器/编辑页都不落库（§3.4 的所有权约定不变）——宿主把**自己的**回调
+  当 props 交给编辑页（`RecordEditorProps`），所以这条路径和节点内容写入是同一条。
+- 只读投影（collection）打开的是同一个页面，只是所有控件降级为只读显示；集合的「打开节点」
+  是右键菜单里的另一项。
+- 宿主没传 `onOpenRecord` 时，外壳只渲染视图本身：点记录不会有页面弹出（记录编辑页不再是
+  外壳的内置能力）。
+- **记录页在宿主的容器内排版，不是视口级浮层**：它是 `absolute inset-y-0 right-0` 的一列 +
+  一层点击即关闭的遮罩，宿主必须给它一个 `relative` 的盒子，并在页面打开时把被覆盖的那块标成
+  `inert`（页面不是模态，没有焦点陷阱，`inert` 才是 Tab 不进被盖住的表格的原因）。node-content
+  既可能全屏（`mainViewType === "editor"`，旁边还可能有属性侧栏）也可能挂在节点编辑器的
+  对话窗口里（`"graph"`，1200×80vh），所以任何 `fixed`/portal 到 body 的抽屉都会跑出它所属的
+  窗口。
+- **Esc 归记录页自己**：Radix 的对话窗关闭逻辑是挂在 `document` 的 **capture** 监听，记录页
+  因此把 Esc 监听挂在 `window` 的 capture 阶段（事件路径上更早，可以拦住它），且只在焦点在页面
+  自己身上时才关页——日期选择器 / 下拉 / `字段编辑` 弹窗这些 portal 出去的浮层各有各的 Esc。
+  `字段编辑` 表单仍是真正的模态（`DialogContent`，居中、`sm:max-w-md`）。
+
+### 3.6 统一记录右键菜单
+
+`packages/dataview/src/shared/record-menu.tsx` 定义一份条目模型和三个渲染面：
+
+| 渲染面                | 用在哪                                                 | 形态                                  |
+| --------------------- | ------------------------------------------------------ | ------------------------------------- |
+| `RecordContextMenu`   | 看板卡片、画廊卡片                                     | shadcn `ContextMenu` 包住记录元素     |
+| `RecordMenuItems`     | `RecordMenuAtPoint` 的下拉体                           | 同一份条目渲染成 `DropdownMenuItem`   |
+| `RecordMenuAtPoint`   | 日历事件（FullCalendar 自己画的 DOM，不是 React 节点） | 在指针位置受控弹出一个 `DropdownMenu` |
+| `buildRecordSections` | 表格（VTable 菜单只能渲染 `{text, menuKey}`）          | 映射成 VTable 菜单项 + `menuKey` 分发 |
+
+**通用项**：打开记录 / 打开节点（collection）/ 复制记录 / 删除记录。
+**各视图独有项**通过 `sections` 追加：看板的「移动到」子菜单、画廊的「选择 / 删除选中」等。
+卡片上**没有**右上角「…」按钮：卡片整体是记录，左键打开、右键出菜单，选择靠手势（Space /
+Ctrl-Cmd 点击 / Shift 连选 / Ctrl+A / Esc），只有必须落点的批量动作才出现在右键菜单里。
+宿主能力决定条目是否出现（只读数据没有复制/删除，没有 `onRowInsert` 就没有复制）。
+
+### 3.7 统一字段显示与编辑组件
+
+- **显示**：`shared/field-value.tsx`。单选 / 多选统一是染色的 shadcn `Badge`（`OptionBadge`），
+  日期是本地化文本，勾选是 `Check`，链接是 `<a>`，关联是 chip。看板卡片、画廊卡片、
+  记录编辑页、日历 readout 全部走它；**唯一的例外是表格画布**（canvas 不能挂 React，
+  `views/table/canvas/pill.ts` 用画布原语镜像同一套规则）。
+- **编辑**：`shared/field-input.tsx` 按字段类型分发；日期用 shadcn `Calendar`
+  （`shared/date-picker.tsx`，`Popover` + `Calendar`），单选/多选用
+  `shared/option-picker.tsx`（`Popover` + `Command`，支持「查找或创建选项」），
+  文本/数字/链接是回车或失焦提交的输入框，勾选是 `Switch`。
+- 两个入口都依赖同一份字段词汇表 `shared/field-meta.tsx`，所以同一个选项在表格、看板、画廊
+  和记录页里是同一个颜色。
+
+### 3.8 统一卡片与卡片配置（看板 + 画廊）
+
+看板和画廊画的是同一张卡片，所以卡片本身和它的配置菜单都只有一份：
+
+| 关注点       | 落点                                                      | 说明                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 卡片本体     | `shared/card.tsx`（`DataCard` + `shared/card-cover.tsx`） | 封面 + 标题 + 每个单选/多选一个染色 `Badge` + 每个其它字段**一行值**（值不写字段名，字段名是该行的 tooltip）。`layout` 决定排布：`grid` 固定高度、`masonry` 按图片自身比例、`list` 缩略图 + 右列、`board` 固定比例封面。`cover` 三态：`undefined` = **完全不画封面区**（没有封面来源：database 没配封面字段 / 该字段解析不出来），`null` = 有封面来源但这一行空着 → 首字占位；看板与画廊同一条规则 |
+| 卡片数据     | `shared/card-ops.ts`                                      | 纯函数：`readCardSettings`（含旧画廊 `badgeFields`/`metaFields` 迁移）、标题/封面/字段解析、`cardCoverEnabled`（这张卡要不要画封面区）、`cardFieldValues`（空值不上卡）、`resolveRowCover`（collection 用节点预览）                                                                                                                                                                                |
+| 卡片配置菜单 | `shared/card-config.tsx`（`卡片配置`）                    | **角色是配置项、列表只是字段**：`标题` / `封面` 各是一个 `PanelSection` + `FieldSelect`（与日历的 `字段配置` 同一套「一个角色一个配置项」形状），列表只回答「哪些字段在卡上」（眼睛）+ 编辑/删除/新增字段。**角色绝不在字段行的「…」菜单里设置**，行尾只**标注**该字段当前的角色（`标题` / `封面` 注解，标题带锁）。封面不是字段角色时（collection 用节点预览）控件保留但置灰并说明来源            |
+| 卡片上的控件 | 无                                                        | 卡片上不放复选框、也不放「…」按钮：整张卡片是记录本身（左键打开、右键出菜单），选择是手势而不是卡上的控件；唯一的批量动作（删除选中）跟着右键菜单走                                                                                                                                                                                                                                                |
+| 持久化片段   | `interfaces` 的 `DataCardConfig`                          | 看板与画廊的 config 都继承它：`titleField` / `coverField` / `cardFields` / `compact`；各自的 `layout`、`cardSize`、`groupByField` 等留在自己的 config 里                                                                                                                                                                                                                                           |
+
+字段列表本身是共享的：`shared/field-config-list.tsx` 就是表格 `字段配置` 的列表（搜索框、类型图标、
+眼睛、行尾角色注解、每行「…」菜单、`新增字段`），只是没有列编组。日历的 `字段配置` 面板也用它：
+「单选/多选」的显隐换成「是否出现在悬浮提示」，行尾注解换成四个角色（开始 / 结束 / 标题 / 颜色），
+而**角色的设置是列表上方的配置项**（看板/画廊的 `标题`・`封面`），不在行的「…」里 ——
+列表行只标注、不设置。
+
+**一个必须知道的坑：长列表要用固定高度（`h-72`），不能只写 `max-h-72`。** Radix `ScrollArea` 的
+viewport 是 `h-full`，在一个高度 auto 的根上会退化成 `auto`，于是 viewport 长到内容那么高、溢出被
+`max-h` 夹住的根约一行的高度，最后几行就画在下面的 `新增字段` 按钮上（实测：按钮中心
+`elementFromPoint` 命中的是最后一行的 `span`，按钮点不动）。表格的 `字段配置` 与共享列表都按
+「行数 > 7 就 `h-72`」处理。
 
 ---
 
@@ -323,15 +465,15 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 
 ## 7. 能力矩阵（节点类型 × 视图类型）
 
-| 视图             | database | collection | 数据源依赖                                            | 技术方案                               |
-| ---------------- | :------: | :--------: | ----------------------------------------------------- | -------------------------------------- |
-| 表格 table       |    ✅    |     ✅     | fields/rows                                           | VTable + editors/export/search/plugins |
-| 看板 kanban      |    ✅    |     ✅     | 需 select/multiSelect 分组字段                        | REUI shadcn 看板（dnd-kit）二次开发    |
-| 日历 calendar    |    ✅    |     ✅     | 需 date 字段（collection 用 **createdAt/**updatedAt） | FullCalendar 二次开发                  |
-| 甘特图 gantt     |    ✅    |     ⚠️     | 需 date 起止字段                                      | VTable（@visactor/vtable-gantt）       |
-| 画廊 gallery     |    ✅    |     ✅     | 需主列/封面字段（collection 复用节点预览）            | 自研（shadcn + 现有 previews）         |
-| 图表 chart       |    ✅    |     ✅     | 需维度/度量字段                                       | VChart 全类型                          |
-| 节点图 nodeGraph |    ❌    |     ✅     | 仅 filterConfig（复用 @workspace/graph）              | 复用 <Graph />                         |
+| 视图             | database | collection | 数据源依赖                                            | 技术方案                                  |
+| ---------------- | :------: | :--------: | ----------------------------------------------------- | ----------------------------------------- |
+| 表格 table       |    ✅    |     ✅     | fields/rows                                           | VTable + editors/export/search/plugins    |
+| 看板 kanban      |    ✅    |     ✅     | 需 select/multiSelect 分组字段                        | REUI shadcn 看板（dnd-kit）二次开发       |
+| 日历 calendar    |    ✅    |     ✅     | 需 date 字段（collection 用 **createdAt/**updatedAt） | FullCalendar 二次开发                     |
+| 甘特图 gantt     |    ✅    |     ⚠️     | 需 date 起止字段                                      | VTable（@visactor/vtable-gantt）          |
+| 画廊 gallery     |    ✅    |     ✅     | 需主列；封面字段可选（collection 用节点预览）         | 自研（shadcn + ui 的 `NodePreviewCover`） |
+| 图表 chart       |    ✅    |     ✅     | 需维度/度量字段                                       | VChart 全类型                             |
+| 节点图 nodeGraph |    ❌    |     ✅     | 仅 filterConfig（复用 @workspace/graph）              | 复用 <Graph />                            |
 
 - ✅ 完整支持；⚠️ 支持但依赖字段可用性（缺少日期字段时给出引导）。
 - 节点图视图只在 collection 出现：database 的行不是图谱节点，无图可画；nodeGraph 描述符 nodeTypes 为 ["collection"]。
@@ -342,18 +484,20 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 
 以下能力不随视图类型变化，放在 DataViewRoot / 共享 hook 层，各视图按需消费：
 
-| 能力               | 说明                                   | 归属                                                                                   |
-| ------------------ | -------------------------------------- | -------------------------------------------------------------------------------------- |
-| 行级过滤           | 对 rows 施加字段条件过滤               | DataViewRoot → 过滤后的 source 下发；表格视图另有 `筛选` 菜单                          |
-| 排序               | 对 rows 排序                           | 视图内局部态（写回视图 config）                                                        |
-| 选择与批量操作     | 多选行 → 批量删除/导出/改字段          | 各视图各自实现，共享 useRowSelection                                                   |
-| 打开记录/节点      | 行 → 详情浮层 / 关联节点               | onOpenRecord / onOpenNode 冒泡                                                         |
-| 导出               | 当前视图导出 CSV/Excel/PNG             | 各视图（table 用 vtable-export，chart 用 vchart 导出）                                 |
-| 主题               | 浅/深色跟随 next-themes                | 共享 themeTokens → 各库 theme 映射                                                     |
-| 只读               | collection 投影只读；database 可编辑   | readOnly prop 逐视图传导                                                               |
-| 空态/字段缺失引导  | 无数据、缺必需字段时的引导 UI          | 各视图 + 共享 EmptyState                                                               |
-| 视图配置入口       | 每个视图自己的工具栏（配置左、功能右） | `shared/view-toolbar.tsx`：ViewToolbar（+ 可选的 ViewConfigMenu 兜底）                 |
-| 视图级操作（更多） | 每个视图工具条功能区的末尾             | `toolbar/view-actions.tsx`：槽位 context + `ViewActionsMenu`（设为默认/复制/删除视图） |
+| 能力               | 说明                                   | 归属                                                                                           |
+| ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 行级过滤           | 对 rows 施加字段条件过滤               | DataViewRoot → 过滤后的 source 下发；表格视图另有 `筛选` 菜单                                  |
+| 排序               | 对 rows 排序                           | 视图内局部态（写回视图 config）                                                                |
+| 选择与批量操作     | 多选行 → 批量删除/导出/改字段          | 各视图各自实现，共享 useRowSelection                                                           |
+| 打开记录/节点      | 行 → 统一记录编辑页（容器内右侧一列）  | 宿主 node-content 在 `relative` 容器里渲染 `<RecordEditor>`；外壳只上报 `onOpenRecord`（§3.5） |
+| 记录右键菜单       | 通用项 + 视图独有项                    | `shared/record-menu.tsx`（§3.6）                                                               |
+| 字段显示/编辑      | 单选多选 → Badge；日期 → Calendar      | `shared/field-value.tsx` / `shared/field-input.tsx`（§3.4b）                                   |
+| 导出               | 当前视图导出 CSV/Excel/PNG             | 目前只有表格（vtable-export）；画廊的 CSV 导出已移除，卡片墙没有自己的功能项                   |
+| 主题               | 浅/深色跟随 next-themes                | 共享 themeTokens → 各库 theme 映射                                                             |
+| 只读               | collection 投影只读；database 可编辑   | readOnly prop 逐视图传导                                                                       |
+| 空态/字段缺失引导  | 无数据、缺必需字段时的引导 UI          | 各视图 + 共享 EmptyState                                                                       |
+| 视图配置入口       | 每个视图自己的工具栏（配置左、功能右） | `shared/view-toolbar.tsx`：ViewToolbar（+ 可选的 ViewConfigMenu 兜底）                         |
+| 视图级操作（更多） | 每个视图工具条功能区的末尾             | `toolbar/view-actions.tsx`：槽位 context + `ViewActionsMenu`（设为默认/复制/删除视图）         |
 
 ### 8.1 视图工具栏约定（所有视图）
 
@@ -367,11 +511,18 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
   功能组最左端，输入类控件另起一行。
 - `<ViewConfigMenu type source config onConfigChange />` 是通用兜底：它按 `type` 从注册表取
   该视图的懒加载 `configEditor`，渲染进 Popover；该视图没有注册 `configEditor` 时它直接不渲染。
-  没有专属菜单的配置项放这里（五个占位视图目前只有它）。
+  没有专属菜单的配置项放这里（剩下的占位视图目前只有它）。
 - 渲染器如果为全部配置都做了专属菜单（表格：添加记录/字段配置/筛选/分组/排序/行高/填色），
   就不要再用通用弹层兜底 —— 表格既不注册 `configEditor`，也不渲染 `ViewConfigMenu`。
 - **配置控件内不要留占位空态**：下拉菜单里不放「还没有条件…」这类虚线占位块，空菜单只留标题 +
   底部「添加条件」；字段/条件选择器未选时统一显示「选择字段」。
+- **各视图工具条现状（同一套设计语言）**：
+  表格 `添加记录 / 字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色`；看板 `分组 / 卡片配置 / 排序`；
+  画廊 `添加记录 / 卡片配置 / 布局`；日历 `字段配置 / 视图` —— 三个视图右侧的功能区都只剩「更多」。
+  设置类按钮一律是中性样式：**不给触发器加高亮**（哪些设置已生效在面板里就能看到，染色只会让人猜
+  「这个颜色是什么意思」）。
+  右侧功能组**不再放数据状态读数**（「N 张卡片」「N 事件」「N 泳道」）：卡片和事件本身就在画面上，
+  读数只会随数据和选择变化而改变宽度（见上一条）。
 
 ---
 
@@ -381,16 +532,18 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 
 仿照 @workspace/graph / @workspace/editor，把 DataView 做成独立包，隔离重量级依赖：
 
-| 依赖                                                                              | 用途                      | 视图      |
-| --------------------------------------------------------------------------------- | ------------------------- | --------- |
-| @visactor/vtable + vtable-editors + vtable-export + vtable-search                 | 表格                      | table     |
-| @visactor/vtable-gantt                                                            | 甘特图                    | gantt     |
-| @visactor/vchart + @visactor/react-vchart                                         | 图表                      | chart     |
-| @fullcalendar/react + core + daygrid + timegrid + list + multimonth + interaction | 日历                      | calendar  |
-| @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities                            | 看板拖拽（REUI 看板依赖） | kanban    |
-| radix-ui（已由 @workspace/ui 引入）                                               | REUI 源码的 `Slot`        | kanban    |
-| @workspace/graph                                                                  | 节点图复用 <Graph />      | nodeGraph |
-| @workspace/ui（shadcn 基础）、interfaces、store、utils                            | 基础依赖                  | 全部      |
+| 依赖                                                                              | 用途                                  | 视图          |
+| --------------------------------------------------------------------------------- | ------------------------------------- | ------------- |
+| @visactor/vtable + vtable-editors + vtable-export + vtable-search                 | 表格                                  | table         |
+| @visactor/vtable-gantt                                                            | 甘特图                                | gantt         |
+| @visactor/vchart + @visactor/react-vchart                                         | 图表                                  | chart         |
+| @fullcalendar/react + core + daygrid + timegrid + list + multimonth + interaction | 日历                                  | calendar      |
+| @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities                            | 看板拖拽（REUI 看板依赖）             | kanban        |
+| radix-ui（已由 @workspace/ui 引入）                                               | REUI 源码的 `Slot`                    | kanban        |
+| @workspace/graph                                                                  | 节点图复用 <Graph />                  | nodeGraph     |
+| 无（自研：@workspace/ui shadcn + `NodePreviewCover`）                             | 卡片墙 / 窗口化                       | gallery       |
+| react-day-picker（经 `@workspace/ui` 的 `calendar`）                              | 统一的日期编辑控件（shadcn Calendar） | 各视图 DOM 面 |
+| @workspace/ui（shadcn 基础）、interfaces、store、utils                            | 基础依赖                              | 全部          |
 
 上述第三方库全部懒加载（React.lazy + 动态 import），只有切到对应视图时才加载其 bundle。
 
@@ -422,8 +575,22 @@ packages/dataview/src/
 │   ├── collection-source.ts
 │   ├── cell-resolver.ts     # 单元格值解析器（数据转换中枢）
 │   ├── row-utils.ts         # createDataRowId / emptyCellForField / createEmptyDataRow
-│   └── field-utils.ts       # 主列/日期/数字/选项字段选择器
+│   │                        #   + editFieldSchema / deleteFieldSchema（各视图字段增删改的 schema 半边）
+│   └── field-utils.ts       # 主列/日期/数字/选项字段选择器（+ cardFieldIds：卡片默认字段）
 ├── shared/
+│   ├── card.tsx             # 统一卡片本体 DataCard（封面 + 标题 + 标签 + 值行；四种排布）
+│   ├── card-cover.tsx       # 统一卡片封面盒（cell 地址 / 节点预览 / 首字占位）
+│   ├── card-ops.ts          # 卡片的纯逻辑：settings 归一化、标题/封面/字段解析、取值、封面来源
+│   ├── card-config.tsx      # 统一的「卡片配置」菜单（标题/封面配置项 + 展示模式 + 卡片字段列表）
+│   ├── field-config-list.tsx# 统一的字段列表（搜索 + 眼睛 + 行尾角色注解 + 每行「…」+ 新增字段）
+│   ├── field-value.tsx      # 统一的只读字段渲染（OptionBadge / FieldValue / 日期助手）
+│   ├── field-input.tsx      # 统一的字段编辑控件（按类型分发）
+│   ├── option-picker.tsx    # 单选/多选编辑：Popover + Command（查找或创建选项）
+│   ├── date-picker.tsx      # 日期编辑：shadcn Calendar + Popover
+│   ├── field-editor.tsx     # 字段增删改表单（表格下拉与记录页对话框共用）
+│   ├── record-actions.tsx   # 记录面 context：openRecord / openRecordMenu + 菜单条目类型
+│   ├── record-menu.tsx      # 统一记录菜单：三个渲染面 + buildRecordSections + duplicateRow
+│   ├── record-editor.tsx    # 统一记录编辑页（props 驱动；宿主 node-content 在自己的容器里渲染它的一列）
 │   ├── view-toolbar.tsx     # ViewToolbar 骨架 +（可选）ViewConfigMenu 通用配置弹层
 │   ├── field-meta.tsx       # 字段类型标签/图标、选项与填色色板、字段搜索（各视图共用的字段词汇表）
 │   ├── field-select.tsx     # 弹层内的字段选择器（shadcn Select；看板与日历共用）
@@ -439,20 +606,22 @@ packages/dataview/src/
     │                ├── canvas/   theme.ts + pill.ts
     │                ├── toolbar/  toolbar.tsx + search-bar.tsx
     │                ├── menus/    field-menu.tsx + filter-menu.tsx
-    │                │              + condition-menu.tsx + condition-controls.tsx
-    │                │              + color-menu.tsx + select-menu.tsx
-    │                └── fields/   picker.tsx + editor.tsx
+    │                │              + condition-controls.tsx + color-menu.tsx + select-menu.tsx
     ├── kanban/      kanban-data-view.tsx     # 壳（唯一入口，无 config-editor）
     │                ├── reui/     kanban.tsx          # vendor 的 REUI 看板原语
     │                ├── core/     board.ts + config.ts
     │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
-    │                └── toolbar/  kanban-toolbar.tsx
+    │                └── toolbar/  kanban-toolbar.tsx  # 分组 / 卡片配置（共享）/ 排序（与表格同一个菜单）
     ├── calendar/    calendar-data-view.tsx   # 壳（唯一入口，无 config-editor）
     │                ├── core/     config.ts + schema.ts + theme.ts
     │                ├── board/    calendar-surface.tsx + event-readout.tsx
-    │                └── toolbar/  calendar-toolbar.tsx
+    │                └── toolbar/  calendar-toolbar.tsx # 字段配置 / 视图
+    ├── gallery/     gallery-data-view.tsx        # 壳（唯一入口，无 config-editor）
+    │                ├── core/     config.ts + layout.ts + schema.ts
+    │                ├── board/    gallery-board.tsx + gallery-card.tsx
+    │                │              + use-gallery-scroll.ts + use-gallery-focus.ts
+    │                └── toolbar/  gallery-toolbar.tsx   # 添加记录 / 卡片配置（共享）/ 布局
     ├── gantt/       …
-    ├── gallery/     …
     ├── chart/       …
     └── node-graph/  node-graph-data-view.tsx
 ```
@@ -470,7 +639,7 @@ packages/dataview/src/
 | M3 核心视图-日历  | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + 工具栏四面板（核心，全功能）                                                              | M1 ✅ 已实现 |
 | M4 图表           | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出                                                                                        | M1           |
 | M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
-| M6 画廊           | 自研卡片/网格/虚拟滚动（database 自定义卡片 + collection 复用预览）                                                                      | M1           |
+| M6 画廊           | 自研卡片墙：网格/瀑布流/列表 + 自研窗口化/增量分页 + 多选与批量删除（collection 借 `NodePreviewCover` 复用节点预览）                     | M1 ✅ 已实现 |
 | M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回                                                                                                   | M1           |
 | M8 节点图         | collection 内嵌 <Graph view={…filterConfig} />                                                                                           | M1 + graph   |
 

@@ -11,12 +11,17 @@
  *   render so a deleted field degrades into guidance instead of a crash;
  * - **the write path**: a drop, a resize, a 框选 or a double-click becomes
  *   `onCellChange` / `onRowInsert` calls, with FullCalendar's exclusive `end`
- *   converted to "the last day" in `core/schema.ts` and nowhere else;
- * - **the two readouts**: the hover tooltip and the click popover, which are the
- *   only React state here — and the reason the FullCalendar surface is
- *   `memo`-wrapped (see `board/calendar-surface.tsx`);
- * - **the theme**: the view's `theme` token set is published as `--fc-*`
- *   variables on the calendar's own wrapper.
+ *   converted to "the last day" in `core/schema.ts` and nowhere else. Whether a
+ *   write is possible at all is the host's capability (`canEditData` /
+ *   `canInsertRow`) — the 交互 panel is gone, so there is no second switch to
+ *   consult;
+ * - **the readout**: the hover tooltip, which is the only React state here — and
+ *   the reason the FullCalendar surface is `memo`-wrapped (see
+ *   `board/calendar-surface.tsx`). A click on an event opens the shared record
+ *   editor, like every other view;
+ * - **the presentation defaults**: locale / height / weekends / "now" line /
+ *   day folding / theme come from `CALENDAR_FIXED` (`core/config.ts`), published
+ *   as `--fc-*` variables on the calendar's own wrapper.
  *
  * The calendar only renders once a start date field resolves; otherwise the body
  * is the guidance that says which field to pick (or which field to add).
@@ -39,25 +44,24 @@ import type {
 
 import { DataViewEmptyState } from "../../shared/empty-state";
 import { useDataViewThemeTokens } from "../../shared/theme-tokens";
+import { useRecordActions } from "../../shared/record-actions";
 import type {
   CalendarViewConfig,
   DataViewRendererProps,
 } from "../../source/types";
-import {
-  EventDetailPopover,
-  EventHoverReadout,
-  type EventAnchor,
-} from "./board/event-readout";
+import { EventHoverReadout, type EventAnchor } from "./board/event-readout";
 import { CalendarSurface } from "./board/calendar-surface";
 import {
-  colorableFields,
+  CALENDAR_FIXED,
   dateFields,
   fromFullCalendarView,
   isCalendarViewName,
   type CalendarViewName,
+  readCalendarToolbarLayout,
   resolveEndField,
   resolveStartField,
   toFullCalendarView,
+  writeCalendarToolbarLayout,
 } from "./core/config";
 import {
   eventToCells,
@@ -83,7 +87,7 @@ function rectOf(element: HTMLElement): EventAnchor {
   };
 }
 
-/** Hover tooltip or click popover — at most one is mounted at a time. */
+/** The hover tooltip's anchor + content — at most one is mounted. */
 interface ReadoutState {
   rect: EventAnchor;
   readout: CalendarEventReadout;
@@ -94,14 +98,14 @@ export function CalendarDataView({
   config,
   readOnly,
   onCellChange,
-  onOpenRecord,
   onOpenNode,
   onConfigChange,
   onRowInsert,
+  onFieldsChange,
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<CalendarViewConfig>) {
-  const tokens = useDataViewThemeTokens(config.theme);
+  const tokens = useDataViewThemeTokens(CALENDAR_FIXED.theme);
   const themeVars = useMemo(() => buildCalendarThemeVars(tokens), [tokens]);
 
   // The host may pass these as fresh closures on every render; the events memo
@@ -115,14 +119,52 @@ export function CalendarDataView({
     () => dateFields(source.fields),
     [source.fields],
   );
-  const colorFieldList = useMemo(
-    () => colorableFields(source.fields),
-    [source.fields],
-  );
 
   const canEditData = !readOnly && Boolean(onCellChange);
   const canInsertRow = !readOnly && Boolean(onRowInsert);
   const canConfigure = Boolean(onConfigChange);
+  /**
+   * The header toolbar the surface actually gets: the persisted layout
+   * normalized so the 今天 button is always there (the 视图 panel no longer
+   * offers that switch — see `core/config.ts`).
+   */
+  const headerToolbar = useMemo(
+    () =>
+      writeCalendarToolbarLayout(
+        readCalendarToolbarLayout(config.headerToolbar),
+      ),
+    [config.headerToolbar],
+  );
+  /** The shell's record surface: opening an event opens the record editor. */
+  const recordActions = useRecordActions();
+
+  /**
+   * What the calendar already shows (the mapped date/title/colour fields and
+   * the tooltip fields) is not repeated at the top of the record editor.
+   */
+  const hiddenFieldIds = useMemo(() => {
+    const shown = new Set<string>(
+      [
+        config.startField,
+        config.endField,
+        config.titleField,
+        config.colorField,
+        ...(config.tooltipFields ?? []),
+      ].filter((fieldId): fieldId is string => Boolean(fieldId)),
+    );
+    return source.fields
+      .filter((field) => !shown.has(field.id))
+      .map((field) => field.id);
+  }, [
+    config.startField,
+    config.endField,
+    config.titleField,
+    config.colorField,
+    config.tooltipFields,
+    source.fields,
+  ]);
+  const hiddenFieldIdsRef = useRef<readonly string[]>(hiddenFieldIds);
+  hiddenFieldIdsRef.current = hiddenFieldIds;
 
   const events = useMemo(
     () =>
@@ -142,27 +184,24 @@ export function CalendarDataView({
     config,
     readOnly,
     onCellChange,
-    onOpenRecord,
     onOpenNode,
     onConfigChange,
     onRowInsert,
+    recordActions,
   });
   latest.current = {
     source,
     config,
     readOnly,
     onCellChange,
-    onOpenRecord,
     onOpenNode,
     onConfigChange,
     onRowInsert,
+    recordActions,
   };
 
   const apiRef = useRef<CalendarApi | null>(null);
   const [hover, setHover] = useState<ReadoutState | null>(null);
-  const [pinned, setPinned] = useState<ReadoutState | null>(null);
-  const pinnedRef = useRef(false);
-  pinnedRef.current = pinned !== null;
 
   const handleApi = useCallback((api: CalendarApi | null) => {
     apiRef.current = api;
@@ -194,14 +233,29 @@ export function CalendarDataView({
     return { startField: start?.id ?? "", endField: end?.id };
   }, []);
 
+  /** 打开记录: the shell's unified record editor, on every host kind. */
   const openReadout = useCallback((readout: CalendarEventReadout) => {
-    const { source: liveSource, onOpenRecord, onOpenNode } = latest.current;
-    if (liveSource.kind === "collection") {
-      if (readout.nodeId) onOpenNode?.(readout.nodeId);
-      return;
-    }
-    onOpenRecord?.(readout.rowId, liveSource);
+    latest.current.recordActions.openRecord(readout.rowId, {
+      hiddenFieldIds: hiddenFieldIdsRef.current,
+    });
   }, []);
+
+  /**
+   * A right-click on an event opens the shell's unified record menu.
+   *
+   * The trigger cannot live inside the event: FullCalendar owns that DOM, and
+   * the browser's `contextmenu` target is the library's `<a class="fc-event">`,
+   * so a Radix trigger wrapping our content never sees the gesture. The surface
+   * therefore reports the raw event and the shell shows the menu at the pointer.
+   */
+  const handleEventContextMenu = useCallback(
+    (rowId: string, point: { x: number; y: number }) => {
+      latest.current.recordActions.openRecordMenu(point, rowId, {
+        hiddenFieldIds: hiddenFieldIdsRef.current,
+      });
+    },
+    [],
+  );
 
   const handleEventDrop = useCallback(
     (arg: EventDropArg | EventResizeDoneArg) => {
@@ -258,28 +312,23 @@ export function CalendarDataView({
     [writeConfig],
   );
 
+  /**
+   * A click on an event opens the record — the same gesture every other view
+   * has, and the old 交互 panel's 点击事件 choice (弹出详情 / 不响应) is gone with
+   * it. A right-click still opens the shared record menu.
+   */
   const handleEventClick = useCallback(
     (arg: EventClickArg) => {
-      const { config: liveConfig } = latest.current;
-      if (liveConfig.eventClick === "none") return;
-      const readout = readEventReadout(arg.event, liveConfig.locale);
       setHover(null);
-      if (liveConfig.eventClick === "open") {
-        openReadout(readout);
-        return;
-      }
-      setPinned({ rect: rectOf(arg.el), readout });
+      openReadout(readEventReadout(arg.event, CALENDAR_FIXED.locale));
     },
     [openReadout],
   );
 
   const handleEventMouseEnter = useCallback((arg: EventHoveringArg) => {
-    // The click popover already shows everything the tooltip would.
-    if (pinnedRef.current) return;
-    const { config: liveConfig } = latest.current;
     setHover({
       rect: rectOf(arg.el),
-      readout: readEventReadout(arg.event, liveConfig.locale),
+      readout: readEventReadout(arg.event, CALENDAR_FIXED.locale),
     });
   }, []);
 
@@ -300,15 +349,12 @@ export function CalendarDataView({
     <CalendarSurface
       events={events}
       initialView={safeView}
-      headerToolbar={config.headerToolbar}
+      headerToolbar={headerToolbar}
       firstDay={config.firstDay}
-      locale={config.locale}
-      height={config.height}
-      editable={config.editable && canEditData}
-      selectable={config.selectable && canInsertRow}
-      showWeekends={config.showWeekends}
-      nowIndicator={config.nowIndicator}
-      dayMaxEvents={config.eventLimit}
+      locale={CALENDAR_FIXED.locale}
+      editable={canEditData}
+      selectable={canInsertRow}
+      onEventContextMenu={handleEventContextMenu}
       onApi={handleApi}
       onEventDrop={handleEventDrop}
       onEventResize={handleEventDrop}
@@ -334,21 +380,16 @@ export function CalendarDataView({
       <CalendarToolbar
         source={source}
         config={config}
-        eventCount={events.length}
         canConfigure={canConfigure}
-        canEditData={canEditData}
-        canInsertRow={canInsertRow}
         dateFields={dateFieldList}
-        colorableFields={colorFieldList}
         onConfigChange={onConfigChange}
+        onFieldsChange={onFieldsChange}
       />
       <div
         className={cn(
-          "min-h-0 flex-1 p-2",
-          // "auto" fills the pane, so the calendar scrolls internally (a time
-          // grid does this on its own); a fixed height may exceed the pane, and
-          // then the pane scrolls instead.
-          config.height === "auto" ? "overflow-hidden" : "overflow-auto",
+          // The calendar fills the pane and scrolls internally (a time grid does
+          // this on its own), so the pane itself never scrolls.
+          "min-h-0 flex-1 overflow-hidden p-2",
         )}
       >
         <div className="h-full w-full" style={themeVars}>
@@ -363,23 +404,6 @@ export function CalendarDataView({
         </div>
       </div>
       {hover && <EventHoverReadout rect={hover.rect} readout={hover.readout} />}
-      {pinned && (
-        <EventDetailPopover
-          rect={pinned.rect}
-          readout={pinned.readout}
-          canOpen={
-            source.kind === "collection"
-              ? Boolean(onOpenNode)
-              : Boolean(onOpenRecord)
-          }
-          openLabel={source.kind === "collection" ? "打开节点" : "打开记录"}
-          onOpen={() => {
-            openReadout(pinned.readout);
-            setPinned(null);
-          }}
-          onClose={() => setPinned(null)}
-        />
-      )}
     </div>
   );
 }

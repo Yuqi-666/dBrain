@@ -14,7 +14,8 @@ Shared UI component library for all dBrain applications. Combines shadcn/ui prim
 components/
 ├── ui/              # Base shadcn components (DO NOT modify)
 ├── header/          # App headers (graph-header, editor-header)
-├── preview-block/    # Node preview renderers
+├── preview-block/    # Node preview renderers (PreviewBlock hover panel +
+│                     #   NodePreviewCover, the media-only cover the gallery reuses)
 ├── video-player/     # HLS-aware <VideoPlayer> (hls.js, loaded lazily)
 ├── footer/          # App footers
 └── *.tsx            # Custom components (KnowledgeGraph, etc.)
@@ -26,10 +27,12 @@ styles/
 └── globals.css      # Global Tailwind styles
 ```
 
-`components/ui/` currently ships: alert, badge, button, card, checkbox,
-collapsible, command, dialog, dropdown-menu, input, input-group, label, popover,
-scroll-area, select, separator, sheet, sidebar, skeleton, slider, switch, tabs,
-textarea, toggle, toggle-group, tooltip. All are built on the single `radix-ui`
+`components/ui/` currently ships: alert, badge, button, calendar, card, checkbox,
+collapsible, command, context-menu, dialog, dropdown-menu, input, input-group,
+label, popover, scroll-area, select, separator, sheet, sidebar, skeleton, slider,
+switch, tabs, textarea, toggle, toggle-group, tooltip. `calendar` wraps
+`react-day-picker` (the shadcn default) and is the date editor every dataview DOM
+surface uses. All are built on the single `radix-ui`
 package (not per-primitive `@radix-ui/react-*`), so a new primitive is a local
 file importing `{ X as XPrimitive } from "radix-ui"`.
 
@@ -45,7 +48,7 @@ silently disappears.
 | Base shadcn       | components/ui/            | Add custom variants, don't modify originals |
 | Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)      |
 | Header variants   | components/header/        | Graph and editor header bars                |
-| Preview blocks    | components/preview-block/ | Node content renderers                      |
+| Preview blocks    | components/preview-block/ | Node content renderers; `NodePreviewCover` is the cover-only slice the dataview gallery imports by path |
 | Video playback    | components/video-player/  | `<VideoPlayer>` — HLS via hls.js, falls back to the progressive source |
 | Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source |
 | Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes         |

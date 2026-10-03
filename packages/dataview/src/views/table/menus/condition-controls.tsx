@@ -1,8 +1,10 @@
 "use client";
 
 /**
- * The small controls the 筛选 / 分组 / 排序 / 填色 menus share: a type-aware value
- * input and the two-state order switch the design shows as `A → Z | Z → A`.
+ * The small controls the 筛选 / 填色 menus share: a type-aware value input.
+ *
+ * The `字段 + 方向` condition row (and its order switch) is not here — it serves
+ * two views, so it lives in `shared/condition-menu.tsx`.
  */
 import { cn } from "@workspace/ui/lib/utils";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -13,83 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/ui/select";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@workspace/ui/components/ui/toggle-group";
-import type { DatabaseField, DatabaseFieldType } from "@workspace/interfaces";
+import type { DatabaseField } from "@workspace/interfaces";
 
 import type { TableFilterOperator } from "../core/filter";
 
 /** Radix `Select` rejects an empty item value, so "not set" needs a sentinel. */
 const NONE = "__none__";
-
-/**
- * The two labels an order switch shows for a field type.
- *
- * The design's 排序 screenshot uses 选项顺序 / 选项倒序 for a select field; the
- * wording follows the data so "ascending" always reads naturally.
- */
-export function orderLabelsForField(
-  type: DatabaseFieldType | undefined,
-): [string, string] {
-  switch (type) {
-    case "select":
-    case "multiSelect":
-      return ["选项顺序", "选项倒序"];
-    case "number":
-      return ["1 → 9", "9 → 1"];
-    case "date":
-      return ["最早优先", "最晚优先"];
-    case "checkbox":
-      return ["未勾选优先", "已勾选优先"];
-    default:
-      return ["A → Z", "Z → A"];
-  }
-}
-
-export function ConditionOrderToggle({
-  type,
-  value,
-  disabled,
-  onChange,
-  className,
-}: {
-  type: DatabaseFieldType | undefined;
-  value: "asc" | "desc";
-  disabled?: boolean;
-  onChange: (order: "asc" | "desc") => void;
-  className?: string;
-}) {
-  const [ascLabel, descLabel] = orderLabelsForField(type);
-  return (
-    <ToggleGroup
-      type="single"
-      value={value}
-      disabled={disabled}
-      aria-label="排序方向"
-      className={cn("rounded-md border border-border p-0.5", className)}
-      onValueChange={(next) => {
-        if (next) onChange(next as "asc" | "desc");
-      }}
-    >
-      <ToggleGroupItem
-        value="asc"
-        size="xs"
-        className="h-6 min-w-16 rounded-[calc(var(--radius)-4px)] px-2 text-[11px] text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:shadow-xs"
-      >
-        {ascLabel}
-      </ToggleGroupItem>
-      <ToggleGroupItem
-        value="desc"
-        size="xs"
-        className="h-6 min-w-16 rounded-[calc(var(--radius)-4px)] px-2 text-[11px] text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:shadow-xs"
-      >
-        {descLabel}
-      </ToggleGroupItem>
-    </ToggleGroup>
-  );
-}
 
 /** Enum-ish values compare by equality, so the input becomes a picker. */
 function optionValuesFor(field: DatabaseField | undefined): string[] | null {

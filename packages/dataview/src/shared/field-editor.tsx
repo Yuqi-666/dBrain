@@ -1,20 +1,21 @@
 "use client";
 
 /**
- * The field editor — the form behind both 添加字段 and 字段项的"编辑"
- * (`docs/propmt/dataview-table-1.md` §字段).
+ * The field editor — the form behind 添加字段 / 字段项的"编辑" and the record
+ * editor's 新增字段 / 编辑字段 (`docs/propmt/dataview-table-1.md` §字段).
  *
  * It edits a *draft* only: nothing is persisted until 确定, which hands the
- * finished field (plus an optional default cell) back to the shell. The shell
+ * finished field (plus an optional default cell) back to the caller. The caller
  * reconciles the rows and reports the whole thing upward through
  * `onFieldsChange`; this component never touches data.
  *
- * The form is shown as the body of a **dropdown menu**
- * ({@link FieldEditorMenuContent}), never in a hand-positioned floating panel:
- * the menu primitive does the anchoring, so the editor lands exactly where the
- * menu it replaced was (字段项的"…" → 编辑字段) or off the button that opened it
- * (新增字段), and it follows its trigger on scroll and resize like every other
- * menu in the view.
+ * Two hosts render it: the table's 字段配置 menu (through
+ * {@link FieldEditorMenuContent}) and the record editor's dialog. The table
+ * shows it as the body of a **dropdown menu**, never in a hand-positioned
+ * floating panel: the menu primitive does the anchoring, so the editor lands
+ * exactly where the menu it replaced was (字段项的"…" → 编辑字段) or off the
+ * button that opened it (新增字段), and it follows its trigger on scroll and
+ * resize like every other menu in the view.
  *
  * 标题 / 字段类型 / 选项内容 / 默认值 are the four blocks the design asks for.
  * The option list is drag-reorderable and colour-taggable, and a select-ish
@@ -53,11 +54,11 @@ import {
   OPTION_COLORS,
   fieldHasOptions,
   resolveOptionColor,
-} from "../../../shared/field-meta";
+} from "./field-meta";
 import {
   createDatabaseFieldId,
   createDatabaseFieldOptionId,
-} from "../core/schema";
+} from "../source/row-utils";
 
 const FIELD_TYPES: DatabaseFieldType[] = [
   "text",
@@ -216,7 +217,7 @@ export interface FieldEditResult {
   seed?: DatabaseCell;
 }
 
-export interface TableFieldEditorProps {
+export interface FieldEditorProps {
   /** The field being edited; absent when adding. */
   field?: DatabaseField;
   /** Existing schema — used to prefill option defaults and validate names. */
@@ -227,13 +228,13 @@ export interface TableFieldEditorProps {
   className?: string;
 }
 
-export function TableFieldEditor({
+export function FieldEditor({
   field,
   fields,
   onCancel,
   onSubmit,
   className,
-}: TableFieldEditorProps) {
+}: FieldEditorProps) {
   const [draft, setDraft] = useState<Draft>(() => draftFromField(field));
   const [draggingOptionId, setDraggingOptionId] = useState<string | null>(null);
   const isNew = !field;
@@ -659,7 +660,7 @@ export function FieldEditorMenuContent({
       <span className="px-0.5 text-xs font-medium">
         {field ? "编辑字段" : "新增字段"}
       </span>
-      <TableFieldEditor
+      <FieldEditor
         key={field?.id ?? "new"}
         field={field}
         fields={fields}

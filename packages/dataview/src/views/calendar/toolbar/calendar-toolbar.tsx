@@ -6,25 +6,46 @@
  * Layout contract (same as every view): **configuration on the left, functions
  * on the right**, every control a button or a popover panel. The shell's 更多
  * menu is appended to the function group by `ViewToolbar`, so the tab strip
- * stays pure navigation.
+ * stays pure navigation — and the event count lives on the calendar itself
+ * (every day cell shows its events), so the function group holds only 更多.
  *
- * The calendar has no `configEditor` in the registry: the four panels here
- * (字段 / 视图 / 交互 / 显示) cover every `CalendarViewConfig` key except
- * `timeZone`, which calendar.md §9 pins to `local` for v1 — a control for it
- * would be a select with one option.
+ * The calendar has no `configEditor` in the registry: 字段配置 / 视图 cover every
+ * key of `CalendarViewConfig` a user can decide. There is no 交互 panel and no
+ * 显示 panel any more — how much may be written is the host's capability
+ * (dragging needs cell writes, creating a row needs row inserts) and the
+ * presentation is the fixed default set in `core/config.ts`
+ * (`CALENDAR_FIXED`), so both panels were switches whose default was always the
+ * answer.
+ *
+ * **字段配置 is the table's field list, not four dropdowns.** A calendar field is
+ * a *role* (开始日期 / 结束日期 / 标题 / 颜色) plus "show it in the hover readout",
+ * so the panel is the shared `FieldConfigList`
+ * (`shared/field-config-list.tsx`) — the same search box, type-icon rows,
+ * visibility eye, per-field "…" menu and 新增字段 footer the table's 字段配置
+ * uses — with the roles as this view's own "…" items. That also gives the
+ * calendar field CRUD for free, which the four pickers never had. Its trigger is
+ * the table's: `[FolderTree] 字段配置`, neutral, with no value readout.
+ *
+ * **Roles are config items; the field list is the fields.** 开始日期 / 结束日期 /
+ * 标题 / 颜色 are four labelled `PanelSection`s with a `FieldSelect` each, and the
+ * list below only carries the eye (悬浮提示 membership) plus the shared
+ * 编辑字段 / 删除字段 / 新增字段 tail. A role is **never** set from a field row's
+ * "…" menu — the rows annotate the role a field holds (行尾的 开始 / 结束 / 标题 /
+ * 颜色 注解，开始日期带锁), which is how the mapping stays readable at a glance.
+ * The same "one config item per role" shape is what the kanban's and the gallery's
+ * 卡片配置 use for 标题 / 封面.
+ *
+ * 视图 keeps the two decisions the panel still owns — which view buttons appear
+ * and 一周起始. The 今天 button is **fixed chrome** (`prev,next today`): its switch
+ * was one more option whose default was the only right answer, so it is normalized
+ * into the toolbar the surface gets rather than configured (`core/config.ts`).
  *
  * Each panel is a `Popover` rather than a `DropdownMenu` because its body is a
- * *form* (selects, a checkbox list, switches) rather than a list of commands.
+ * *form* (selects, a field list, toggles) rather than a list of commands. No panel
+ * carries a caption, and the only prose left is the guidance a control needs when
+ * it cannot work (no date field, no select field to colour by).
  */
-import {
-  CalendarDays,
-  CalendarRange,
-  MousePointerClick,
-  SlidersHorizontal,
-} from "lucide-react";
-import { Badge } from "@workspace/ui/components/ui/badge";
-import { Checkbox } from "@workspace/ui/components/ui/checkbox";
-import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
+import { CalendarDays, FolderTree } from "lucide-react";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import {
   Select,
@@ -39,23 +60,32 @@ import {
 } from "@workspace/ui/components/ui/toggle-group";
 import type {
   CalendarViewConfig,
-  DataViewSource,
   DatabaseField,
+  DataRow,
+  DataViewSource,
 } from "@workspace/interfaces";
 
+import {
+  FieldConfigList,
+  type FieldConfigRow,
+} from "../../../shared/field-config-list";
+import type { FieldEditResult } from "../../../shared/field-editor";
 import { FieldSelect } from "../../../shared/field-select";
-import { FieldTypeIcon } from "../../../shared/field-meta";
 import {
   CheckboxOptionList,
   PanelSection,
   SettingsPanel,
-  SwitchRow,
 } from "../../../shared/settings-panel";
 import { ViewToolbar } from "../../../shared/view-toolbar";
+import { deleteFieldSchema, editFieldSchema } from "../../../source/row-utils";
 import {
   CALENDAR_VIEW_OPTIONS,
-  type CalendarToolbarLayout,
+  colorableFields,
   readCalendarToolbarLayout,
+  resolveColorField,
+  resolveEndField,
+  resolveStartField,
+  resolveTitleField,
   writeCalendarToolbarLayout,
 } from "../core/config";
 
@@ -66,143 +96,116 @@ const FIRST_DAY_OPTIONS = [
   { value: 6, label: "周六" },
 ];
 
-const LOCALE_OPTIONS = [
-  { value: "zh-CN", label: "简体中文" },
-  { value: "en", label: "English" },
-];
-
-const HEIGHT_OPTIONS = [
-  { value: "auto", label: "铺满可用空间" },
-  { value: "480", label: "480 px" },
-  { value: "600", label: "600 px" },
-  { value: "720", label: "720 px" },
-  { value: "900", label: "900 px" },
-];
-
-/** `config.eventLimit` (boolean | number) as the panel's four choices. */
-type EventLimitChoice = "auto" | "none" | "2" | "3" | "5";
-
-function readEventLimit(eventLimit: boolean | number): EventLimitChoice {
-  if (eventLimit === false) return "none";
-  if (eventLimit === true) return "auto";
-  if (eventLimit >= 5) return "5";
-  if (eventLimit >= 3) return "3";
-  return "2";
-}
-
-function writeEventLimit(choice: EventLimitChoice): boolean | number {
-  if (choice === "none") return false;
-  if (choice === "auto") return true;
-  return Number(choice);
-}
-
-const EVENT_CLICK_OPTIONS: ReadonlyArray<{
-  value: CalendarViewConfig["eventClick"];
-  label: string;
-}> = [
-  { value: "open", label: "打开记录" },
-  { value: "popover", label: "弹出详情" },
-  { value: "none", label: "不响应" },
-];
-
-/** 提示字段 checkbox list (the extra readout on hover / in the popover). */
-function TooltipFieldsList({
-  fields,
-  selected,
-  onChange,
-}: {
-  fields: readonly DatabaseField[];
-  selected: readonly string[];
-  onChange: (fieldIds: string[]) => void;
-}) {
-  if (fields.length === 0) {
-    return (
-      <span className="text-[11px] text-muted-foreground">
-        没有可展示的其它字段
-      </span>
-    );
-  }
-  const chosen = new Set(selected);
-  return (
-    <ScrollArea className="max-h-52 rounded-md border border-border">
-      <div className="flex flex-col gap-0.5 p-1">
-        {fields.map((field) => (
-          <label
-            key={field.id}
-            className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-accent/60"
-          >
-            <Checkbox
-              checked={chosen.has(field.id)}
-              aria-label={field.name}
-              onCheckedChange={(checked) =>
-                onChange(
-                  checked
-                    ? [...selected, field.id]
-                    : selected.filter((fieldId) => fieldId !== field.id),
-                )
-              }
-            />
-            <FieldTypeIcon
-              type={field.type}
-              className="size-3.5 shrink-0 text-muted-foreground"
-            />
-            <span className="min-w-0 flex-1 truncate">{field.name}</span>
-          </label>
-        ))}
-      </div>
-    </ScrollArea>
-  );
-}
-
 export interface CalendarToolbarProps {
   source: DataViewSource;
-  config: CalendarViewConfig;
-  /** Rows the calendar actually drew (rows without a start date are skipped). */
-  eventCount: number;
   /** The host allows view management → every config write needs this. */
   canConfigure: boolean;
-  /** The host allows cell writes → 允许拖拽改期 is meaningful. */
-  canEditData: boolean;
-  /** The host allows row inserts → 允许框选新建 is meaningful. */
-  canInsertRow: boolean;
+  /** Every `date` field in the schema (for the missing-field guidance). */
   dateFields: readonly DatabaseField[];
-  colorableFields: readonly DatabaseField[];
+  config: CalendarViewConfig;
   onConfigChange?: (config: CalendarViewConfig) => void;
+  /** Schema write → 字段配置 offers field CRUD (database hosts). */
+  onFieldsChange?: (fields: DatabaseField[], rows?: DataRow[]) => void;
   className?: string;
 }
 
 export function CalendarToolbar({
   source,
-  config,
-  eventCount,
   canConfigure,
-  canEditData,
-  canInsertRow,
   dateFields,
-  colorableFields,
+  config,
   onConfigChange,
+  onFieldsChange,
   className,
 }: CalendarToolbarProps) {
   const patch = (next: Partial<CalendarViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
-  const startField =
-    source.fields.find((field) => field.id === config.startField) ?? null;
+  const startField = resolveStartField(source.fields, config.startField);
+  const endField = resolveEndField(
+    source.fields,
+    config.endField,
+    config.startField,
+  );
+  const titleField = resolveTitleField(source.fields, config.titleField);
+  const colorChoices = colorableFields(source.fields);
+  const colorField = resolveColorField(source.fields, config.colorField);
 
   const layout = readCalendarToolbarLayout(config.headerToolbar);
-  const patchLayout = (next: Partial<CalendarToolbarLayout>) =>
-    patch({
-      headerToolbar: writeCalendarToolbarLayout({ ...layout, ...next }),
-    });
 
-  const mappedFieldIds = new Set(
-    [
-      config.startField,
-      config.endField,
-      config.titleField,
-      config.colorField,
-    ].filter((fieldId): fieldId is string => Boolean(fieldId)),
-  );
+  const canEditFields = canConfigure && Boolean(onFieldsChange);
+
+  /**
+   * The role a field currently holds, shown as the row's annotation. **The rows
+   * only annotate** — every role is set from its own config item above the list
+   * (开始日期 / 结束日期 / 标题 / 颜色), like the kanban's and the gallery's
+   * 卡片配置. A field can hold several roles (a date field is often also the
+   * title), so the row states the strongest one in role order.
+   */
+  const roleBadge = (field: DatabaseField): string | undefined => {
+    if (field.id === startField?.id) return "开始";
+    if (field.id === endField?.id) return "结束";
+    if (field.id === titleField?.id) return "标题";
+    if (field.id === colorField?.id) return "颜色";
+    return undefined;
+  };
+
+  const rows: FieldConfigRow[] = source.fields.map((field) => ({
+    field,
+    // The eye is 悬浮提示 membership: which extra fields the hover readout
+    // shows.
+    visible: (config.tooltipFields ?? []).includes(field.id),
+    locked: field.id === startField?.id,
+    badge: roleBadge(field),
+  }));
+
+  /**
+   * 新增字段 / 编辑字段: the schema write, plus this view's config — a deleted
+   * field must not stay the start date, and a new date field with no start date
+   * yet becomes it (otherwise the calendar keeps asking for one after the user
+   * just created the field it wanted).
+   */
+  const handleSubmitField = (result: FieldEditResult, isNew: boolean) => {
+    if (!canEditFields) return;
+    const schema = editFieldSchema(
+      source.fields,
+      source.rows,
+      result.field,
+      result.seed ? { fieldId: result.field.id, cell: result.seed } : undefined,
+    );
+    onFieldsChange?.(schema.fields, schema.rows);
+    if (!isNew) return;
+    if (result.field.type === "date" && !config.startField) {
+      patch({ startField: result.field.id });
+    } else if (!config.titleField) {
+      patch({ titleField: result.field.id });
+    }
+  };
+
+  const handleDeleteField = (field: DatabaseField) => {
+    if (!canEditFields) return;
+    const schema = deleteFieldSchema(source.fields, source.rows, field.id);
+    onFieldsChange?.(schema.fields, schema.rows);
+
+    const heldRole =
+      config.startField === field.id ||
+      config.endField === field.id ||
+      config.titleField === field.id ||
+      config.colorField === field.id ||
+      (config.tooltipFields ?? []).includes(field.id);
+    if (heldRole) {
+      patch({
+        startField: config.startField === field.id ? "" : config.startField,
+        endField: config.endField === field.id ? undefined : config.endField,
+        titleField: config.titleField === field.id ? "" : config.titleField,
+        colorField:
+          config.colorField === field.id ? undefined : config.colorField,
+        tooltipFields: (config.tooltipFields ?? []).filter(
+          (fieldId) => fieldId !== field.id,
+        ),
+      });
+    }
+  };
 
   /**
    * Toggles one view button in the calendar header.
@@ -228,24 +231,12 @@ export function CalendarToolbar({
   };
 
   return (
-    <ViewToolbar
-      className={className}
-      actions={
-        <Badge
-          variant="secondary"
-          className="h-6 px-2 text-[11px] font-normal text-muted-foreground tabular-nums"
-        >
-          {eventCount} 事件
-        </Badge>
-      }
-    >
-      {/* ——————— 字段 ——————— */}
+    <ViewToolbar className={className}>
+      {/* ——————— 字段配置 ——————— */}
       <SettingsPanel
-        label="字段"
-        icon={CalendarRange}
-        active={Boolean(startField)}
-        value={startField?.name}
-        width="w-72"
+        label="字段配置"
+        icon={FolderTree}
+        width="w-80"
         disabled={!canConfigure}
       >
         <PanelSection
@@ -258,74 +249,89 @@ export function CalendarToolbar({
         >
           <FieldSelect
             fields={dateFields}
-            value={config.startField}
+            value={startField?.id ?? ""}
             placeholder="选择字段"
-            disabled={dateFields.length === 0}
+            disabled={!canConfigure || dateFields.length === 0}
             onValueChange={(fieldId) =>
               patch({
                 startField: fieldId,
-                // The old end may now equal the new start (or the field the
-                // user just reused); the resolver drops it, but clearing it
-                // keeps the config honest.
+                // The old end may now equal the new start; the resolver drops it,
+                // but clearing it keeps the config honest.
                 endField:
                   config.endField === fieldId ? undefined : config.endField,
               })
             }
           />
         </PanelSection>
-        <PanelSection
-          label="结束日期"
-          hint="搭配「开始日期」形成区间；单日事件不填"
-        >
+
+        <PanelSection label="结束日期">
           <FieldSelect
-            fields={dateFields.filter(
-              (field) => field.id !== config.startField,
-            )}
-            value={config.endField ?? ""}
+            fields={dateFields.filter((field) => field.id !== startField?.id)}
+            value={endField?.id ?? ""}
             placeholder="不使用"
             noneLabel="不使用"
-            disabled={dateFields.length < 2}
+            disabled={!canConfigure || dateFields.length < 2}
             onValueChange={(fieldId) =>
               patch({ endField: fieldId || undefined })
             }
           />
         </PanelSection>
+
         <Separator />
+
         <PanelSection label="标题">
           <FieldSelect
             fields={source.fields}
-            value={config.titleField}
+            value={titleField?.id ?? ""}
             placeholder="选择字段"
-            onValueChange={(fieldId) => patch({ titleField: fieldId })}
+            disabled={!canConfigure}
+            onValueChange={(fieldId) =>
+              patch({ titleField: fieldId || undefined })
+            }
           />
         </PanelSection>
+
         <PanelSection
           label="颜色"
           hint={
-            colorableFields.length === 0
+            colorChoices.length === 0
               ? "需要一个「单选」或「多选」字段，按它的选项颜色着色。"
-              : "按该字段的选项颜色给事件着色。"
+              : undefined
           }
         >
           <FieldSelect
-            fields={colorableFields}
-            value={config.colorField ?? ""}
+            fields={colorChoices}
+            value={colorField?.id ?? ""}
             placeholder="不按字段着色"
             noneLabel="不按字段着色"
-            disabled={colorableFields.length === 0}
+            disabled={!canConfigure || colorChoices.length === 0}
             onValueChange={(fieldId) =>
               patch({ colorField: fieldId || undefined })
             }
           />
         </PanelSection>
+
         <Separator />
-        <PanelSection label="悬浮提示" hint="悬浮事件时额外展示的字段">
-          <TooltipFieldsList
-            fields={source.fields.filter(
-              (field) => !mappedFieldIds.has(field.id),
-            )}
-            selected={config.tooltipFields ?? []}
-            onChange={(fieldIds) => patch({ tooltipFields: fieldIds })}
+
+        <PanelSection label="字段">
+          <FieldConfigList
+            fields={source.fields}
+            rows={rows}
+            searchPlaceholder="搜索字段"
+            onToggleVisible={
+              canConfigure
+                ? (field, visible) => {
+                    const current = config.tooltipFields ?? [];
+                    patch({
+                      tooltipFields: visible
+                        ? [...current, field.id]
+                        : current.filter((fieldId) => fieldId !== field.id),
+                    });
+                  }
+                : undefined
+            }
+            onSubmitField={canEditFields ? handleSubmitField : undefined}
+            onDeleteField={canEditFields ? handleDeleteField : undefined}
           />
         </PanelSection>
       </SettingsPanel>
@@ -365,7 +371,7 @@ export function CalendarToolbar({
           </ToggleGroup>
         </PanelSection>
         <Separator />
-        <PanelSection label="工具栏按钮" hint="日历顶部显示哪些视图切换按钮">
+        <PanelSection label="工具栏按钮">
           <CheckboxOptionList
             options={CALENDAR_VIEW_OPTIONS.map((option) => ({
               value: option.value,
@@ -402,213 +408,6 @@ export function CalendarToolbar({
               ))}
             </SelectContent>
           </Select>
-        </PanelSection>
-        <Separator />
-        <SwitchRow
-          label="今天按钮"
-          checked={layout.showToday}
-          disabled={!canConfigure}
-          onCheckedChange={(checked) => patchLayout({ showToday: checked })}
-        />
-      </SettingsPanel>
-
-      {/* ——————— 交互 ——————— */}
-      <SettingsPanel
-        label="交互"
-        icon={MousePointerClick}
-        active={config.editable || config.selectable}
-        disabled={!canConfigure}
-      >
-        <SwitchRow
-          label="允许拖拽改期"
-          hint={
-            canEditData
-              ? "拖动事件改日期，拖边缘改时长"
-              : "当前数据只读，无法拖拽"
-          }
-          checked={config.editable && canEditData}
-          disabled={!canEditData}
-          onCheckedChange={(checked) => patch({ editable: checked })}
-        />
-        <Separator />
-        <SwitchRow
-          label="允许框选新建"
-          hint={
-            canInsertRow
-              ? "在空白日期上拖拽或双击，新增一行"
-              : "当前数据源不支持新增记录"
-          }
-          checked={config.selectable && canInsertRow}
-          disabled={!canInsertRow}
-          onCheckedChange={(checked) => patch({ selectable: checked })}
-        />
-        <Separator />
-        <PanelSection label="点击事件">
-          <Select
-            value={config.eventClick}
-            disabled={!canConfigure}
-            onValueChange={(next) =>
-              patch({ eventClick: next as CalendarViewConfig["eventClick"] })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label="点击事件"
-              className="w-full text-xs"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {EVENT_CLICK_OPTIONS.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-xs"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PanelSection>
-      </SettingsPanel>
-
-      {/* ——————— 显示 ——————— */}
-      <SettingsPanel
-        label="显示"
-        icon={SlidersHorizontal}
-        disabled={!canConfigure}
-        width="w-72"
-      >
-        <PanelSection
-          label="日历高度"
-          hint="铺满时日历填满面板；固定高度超出则滚动"
-        >
-          <Select
-            value={config.height === "auto" ? "auto" : String(config.height)}
-            disabled={!canConfigure}
-            onValueChange={(next) =>
-              patch({ height: next === "auto" ? "auto" : Number(next) })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label="日历高度"
-              className="w-full text-xs"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {HEIGHT_OPTIONS.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-xs"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PanelSection>
-        <Separator />
-        <PanelSection label="多事件折叠">
-          <Select
-            value={readEventLimit(config.eventLimit)}
-            disabled={!canConfigure}
-            onValueChange={(next) =>
-              patch({ eventLimit: writeEventLimit(next as EventLimitChoice) })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label="多事件折叠"
-              className="w-full text-xs"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto" className="text-xs">
-                自动（+N more）
-              </SelectItem>
-              <SelectItem value="none" className="text-xs">
-                不折叠
-              </SelectItem>
-              <SelectItem value="2" className="text-xs">
-                最多 2 条
-              </SelectItem>
-              <SelectItem value="3" className="text-xs">
-                最多 3 条
-              </SelectItem>
-              <SelectItem value="5" className="text-xs">
-                最多 5 条
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </PanelSection>
-        <Separator />
-        <SwitchRow
-          label="显示周末"
-          checked={config.showWeekends}
-          disabled={!canConfigure}
-          onCheckedChange={(checked) => patch({ showWeekends: checked })}
-        />
-        <SwitchRow
-          label="当前时刻线"
-          hint="周/日视图里标记现在"
-          checked={config.nowIndicator}
-          disabled={!canConfigure}
-          onCheckedChange={(checked) => patch({ nowIndicator: checked })}
-        />
-        <Separator />
-        <PanelSection label="语言">
-          <Select
-            value={config.locale}
-            disabled={!canConfigure}
-            onValueChange={(next) => patch({ locale: next })}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label="语言"
-              className="w-full text-xs"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOCALE_OPTIONS.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-xs"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PanelSection>
-        <PanelSection label="主题">
-          <ToggleGroup
-            type="single"
-            size="sm"
-            variant="outline"
-            value={config.theme}
-            disabled={!canConfigure}
-            onValueChange={(next) => {
-              if (!next) return;
-              patch({ theme: next as CalendarViewConfig["theme"] });
-            }}
-          >
-            <ToggleGroupItem value="auto" className="h-7 px-2 text-xs">
-              跟随
-            </ToggleGroupItem>
-            <ToggleGroupItem value="light" className="h-7 px-2 text-xs">
-              浅色
-            </ToggleGroupItem>
-            <ToggleGroupItem value="dark" className="h-7 px-2 text-xs">
-              深色
-            </ToggleGroupItem>
-          </ToggleGroup>
         </PanelSection>
       </SettingsPanel>
     </ViewToolbar>

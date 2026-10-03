@@ -12,7 +12,6 @@ import type { ColumnDefine, ColumnsDefine } from "@visactor/vtable";
 import type {
   DatabaseCell,
   DatabaseField,
-  DataRow,
   DataViewSource,
   NodeId,
   TableColorRule,
@@ -893,85 +892,12 @@ export function resolveCellColor(
 // Field CRUD helpers (字段配置 / 字段编辑)
 // ============================================================================
 
-/** A fresh field id for an added column. */
-export function createDatabaseFieldId(): string {
-  const globalCrypto = globalThis.crypto;
-  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
-    return `fld_${globalCrypto.randomUUID()}`;
-  }
-  return `fld_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 /**
- * Keeps a cell only when it still fits its field.
- *
- * A retyped field, a shrunk option list or a deleted field must not leave a
- * cell the domain rejects (`DatabaseContent` throws on a cell whose `type`
- * disagrees with its field, on an orphan field key, and on an unknown option
- * id), so everything that no longer fits is dropped here.
+ * The field-CRUD helpers now live in `source/row-utils.ts`, because the record
+ * editor creates / deletes fields too and must reconcile cells the same way.
+ * They stay re-exported here so every existing table import keeps working.
  */
-function coerceCellToField(
-  cell: DatabaseCell,
-  field: DatabaseField,
-): DatabaseCell | undefined {
-  if (!cell || cell.type !== field.type) return undefined;
-  if (cell.type === "select") {
-    if (cell.optionId === null) return cell;
-    return field.options?.some((option) => option.id === cell.optionId)
-      ? cell
-      : undefined;
-  }
-  if (cell.type === "multiSelect") {
-    const optionIds = cell.optionIds.filter((optionId) =>
-      field.options?.some((option) => option.id === optionId),
-    );
-    return optionIds.length === cell.optionIds.length
-      ? cell
-      : { type: "multiSelect", optionIds };
-  }
-  return cell;
-}
-
-/**
- * Reconciles every row against a new field list.
- *
- * Drops the cells of deleted fields and any cell that no longer matches its
- * field, then seeds `seed` into the rows that have no value yet (the field
- * editor's 默认值). Returns the *same* array when nothing changed, so the caller
- * can tell whether a row rewrite needs to accompany the schema write.
- */
-export function reconcileRowsForFields(
-  rows: readonly DataRow[],
-  nextFields: readonly DatabaseField[],
-  seed?: { fieldId: string; cell: DatabaseCell },
-): { rows: DataRow[]; changed: boolean } {
-  const fieldById = new Map(nextFields.map((field) => [field.id, field]));
-  let changed = false;
-
-  const next = rows.map((row) => {
-    let rowChanged = false;
-    const cells: Record<string, DatabaseCell> = {};
-    for (const [fieldId, cell] of Object.entries(row.cells ?? {})) {
-      const field = fieldById.get(fieldId);
-      if (!field) {
-        rowChanged = true;
-        continue;
-      }
-      const coerced = coerceCellToField(cell, field);
-      if (!coerced) {
-        rowChanged = true;
-        continue;
-      }
-      cells[fieldId] = coerced;
-    }
-    if (seed && !cells[seed.fieldId] && fieldById.has(seed.fieldId)) {
-      cells[seed.fieldId] = seed.cell;
-      rowChanged = true;
-    }
-    if (!rowChanged) return row as DataRow;
-    changed = true;
-    return { ...row, cells };
-  });
-
-  return { rows: next, changed };
-}
+export {
+  createDatabaseFieldId,
+  reconcileRowsForFields,
+} from "../../../source/row-utils";

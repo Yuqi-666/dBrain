@@ -1,18 +1,25 @@
 "use client";
 
 /**
- * The 分组 and 排序 dropdowns share one component: both are an ordered list of
- * `字段 + 方向` conditions with 添加条件 below, exactly as the design shows
- * (`docs/propmt/dataview-table-1.md` §分组 / §排序).
+ * The condition dropdown: an ordered list of `字段 + 方向` levels with 添加条件
+ * below — the design's 分组 / 排序 menu (`docs/propmt/dataview-table-1.md`).
  *
- * A condition starts with no field (`fieldId: ""`), so its picker reads
- * 选择字段 until the user picks one; consumers drop empty levels before use.
+ * It lives in `shared/` because two views draw it: the table uses it for both 分组
+ * and 排序, and the kanban's 排序 is the same control (same trigger, same rows,
+ * same multi-level priority), so one setting looks and behaves the same in both
+ * toolbars.
+ *
+ * A condition starts with no field (`fieldId: ""`), so its picker reads 选择字段
+ * until the user picks one; consumers drop empty levels before use.
+ *
+ * The trigger is neutral chrome showing the live value (`分组 <字段名>`) — never a
+ * tint and never a count badge: the same control looks the same in every toolbar,
+ * and a count badge says "something is set" without saying what.
  */
 import type { LucideIcon } from "lucide-react";
 import { GripVertical, Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Popover,
@@ -20,39 +27,132 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/ui/popover";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
-import type { DatabaseField, TableCondition } from "@workspace/interfaces";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@workspace/ui/components/ui/toggle-group";
+import type {
+  DatabaseField,
+  DatabaseFieldType,
+  TableCondition,
+} from "@workspace/interfaces";
 
-import { ConditionOrderToggle } from "./condition-controls";
-import { TableFieldPicker } from "../fields/picker";
+import { FieldPickerButton } from "./field-picker";
 
-export interface TableConditionMenuProps {
+/**
+ * The two labels an order switch shows for a field type.
+ *
+ * The design's 排序 screenshot uses 选项顺序 / 选项倒序 for a select field; the
+ * wording follows the data so "ascending" always reads naturally.
+ */
+export function orderLabelsForField(
+  type: DatabaseFieldType | undefined,
+): [string, string] {
+  switch (type) {
+    case "select":
+    case "multiSelect":
+      return ["选项顺序", "选项倒序"];
+    case "number":
+      return ["1 → 9", "9 → 1"];
+    case "date":
+      return ["最早优先", "最晚优先"];
+    case "checkbox":
+      return ["未勾选优先", "已勾选优先"];
+    default:
+      return ["A → Z", "Z → A"];
+  }
+}
+
+/** The direction switch of one condition row. */
+export function ConditionOrderToggle({
+  type,
+  value,
+  disabled,
+  onChange,
+  className,
+}: {
+  type: DatabaseFieldType | undefined;
+  value: "asc" | "desc";
+  disabled?: boolean;
+  onChange: (order: "asc" | "desc") => void;
+  className?: string;
+}) {
+  const [ascLabel, descLabel] = orderLabelsForField(type);
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      disabled={disabled}
+      aria-label="排序方向"
+      className={cn("rounded-md border border-border p-0.5", className)}
+      onValueChange={(next) => {
+        if (next) onChange(next as "asc" | "desc");
+      }}
+    >
+      <ToggleGroupItem
+        value="asc"
+        size="xs"
+        className="h-6 min-w-16 rounded-[calc(var(--radius)-4px)] px-2 text-[11px] text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:shadow-xs"
+      >
+        {ascLabel}
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="desc"
+        size="xs"
+        className="h-6 min-w-16 rounded-[calc(var(--radius)-4px)] px-2 text-[11px] text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:shadow-xs"
+      >
+        {descLabel}
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}
+
+/**
+ * The readout a 分组 / 排序 trigger shows: the first level's field name, and a
+ * `+N` tail when further levels follow. Shared so the table and the kanban word
+ * their triggers identically.
+ */
+export function conditionReadout(
+  conditions: readonly TableCondition[],
+  fields: readonly DatabaseField[],
+): string | undefined {
+  const names = conditions
+    .map((condition) => fields.find((f) => f.id === condition.fieldId)?.name)
+    .filter((name): name is string => Boolean(name));
+  if (names.length === 0) return undefined;
+  return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+}
+
+export interface ConditionMenuProps {
   /** Trigger label, e.g. "分组". */
   label: string;
-  icon: LucideIcon;
   /** Panel heading, e.g. "设置分组条件". */
   title: string;
+  icon: LucideIcon;
+  /** The trigger's readout, e.g. the first condition's field name. */
+  value?: string;
   conditions: TableCondition[];
   fields: DatabaseField[];
   disabled?: boolean;
   onChange: (next: TableCondition[]) => void;
-  /** Rendered at the right of the heading (排序's 自动排序 switch). */
+  /** Rendered after the heading (排序's 自动排序 switch). */
   headerExtra?: ReactNode;
   className?: string;
 }
 
-export function TableConditionMenu({
+export function ConditionMenu({
   label,
-  icon: Icon,
   title,
+  icon: Icon,
+  value,
   conditions,
   fields,
   disabled,
   onChange,
   headerExtra,
   className,
-}: TableConditionMenuProps) {
+}: ConditionMenuProps) {
   const fieldById = new Map(fields.map((field) => [field.id, field]));
-  const active = conditions.filter((condition) => condition.fieldId !== "");
 
   const patch = (index: number, next: Partial<TableCondition>) =>
     onChange(
@@ -66,8 +166,7 @@ export function TableConditionMenu({
 
   /**
    * 添加条件 appends an empty level: the picker reads 选择字段 until the user
-   * chooses the field, which is what makes the new row obviously "not set yet"
-   * (and keeps the toolbar badge at zero until it is).
+   * chooses the field, which is what makes the new row obviously "not set yet".
    */
   const add = () => onChange([...conditions, { fieldId: "", order: "asc" }]);
 
@@ -91,37 +190,33 @@ export function TableConditionMenu({
           disabled={disabled}
           className={cn(
             "h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground",
-            active.length > 0 &&
-              "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
             className,
           )}
         >
           <Icon className="size-3.5" />
           {label}
-          {active.length > 0 && (
-            <Badge className="h-4 min-w-4 justify-center rounded-sm px-1 text-[10px] leading-none">
-              {active.length}
-            </Badge>
+          {value && (
+            <span className="max-w-28 truncate text-foreground">{value}</span>
           )}
         </Button>
       </PopoverTrigger>
       {/* `gap-0`: the shadcn panel ships `gap-4`, which doubled every
           explicit margin below and left a hole above 添加条件. */}
       <PopoverContent align="start" className="w-96 gap-0 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex items-center gap-2">
           <span className="text-xs font-medium">{title}</span>
-          {headerExtra ??
-            (conditions.length > 0 && (
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-6 px-1.5 text-[11px] text-muted-foreground"
-                onClick={() => onChange([])}
-              >
-                清除
-              </Button>
-            ))}
+          {headerExtra}
+          {conditions.length > 0 && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
+              onClick={() => onChange([])}
+            >
+              清除
+            </Button>
+          )}
         </div>
 
         {/* With no conditions the list must not leave a hole between the title
@@ -154,7 +249,7 @@ export function TableConditionMenu({
                       conditions.length > 1 ? "cursor-grab" : "opacity-0",
                     )}
                   />
-                  <TableFieldPicker
+                  <FieldPickerButton
                     fields={fields}
                     value={condition.fieldId || undefined}
                     triggerClassName="w-28 shrink-0"

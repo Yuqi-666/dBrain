@@ -15,12 +15,14 @@ import type {
   DataViewConfig,
   DataViewSource,
   DataViewType,
+  NodeData,
 } from "@workspace/interfaces";
 
 export type {
   CalendarViewConfig,
   ChartMeasure,
   ChartViewConfig,
+  DataCardConfig,
   DataRow,
   DataView,
   DataViewBase,
@@ -57,8 +59,6 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   readOnly?: boolean;
   /** A cell (or card / event / task) edit made in a view. */
   onCellChange?: (rowId: string, fieldId: string, cell: DatabaseCell) => void;
-  /** Open the record behind a row. */
-  onOpenRecord?: (rowId: string, source: DataViewSource) => void;
   /** Open the graph node behind a row (collection only). */
   onOpenNode?: (nodeId: string) => void;
   /**
@@ -90,6 +90,14 @@ export interface DataViewRendererProps<C = DataViewConfig> {
    * depend on (dataview/AGENTS.md — kept store-free).
    */
   resolveNodeTitle?: (nodeId: string) => string | undefined;
+  /**
+   * Resolve a graph node id to the node itself (collection hosts).
+   *
+   * The gallery draws a node's own preview as a card cover, which needs the
+   * node — not just its title. Same ownership rule as `resolveNodeTitle`: the
+   * host reads the store, the renderer never does.
+   */
+  resolveNode?: (nodeId: string) => NodeData | undefined;
   className?: string;
 }
 

@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { LayoutGrid } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
@@ -13,11 +20,19 @@ import type {
   DataViewId,
   DataViewSource,
   DataViewType,
+  NodeData,
 } from "@workspace/interfaces";
 
 import { createDefaultDataView, seedDataViewId } from "./defaults";
 import { getDataViewDescriptor, isDataViewTypeAllowed } from "./registry";
 import { DataViewEmptyState } from "./shared/empty-state";
+import {
+  RecordActionsProvider,
+  type OpenRecordOptions,
+  type RecordActionsContextValue,
+  type RecordMenuOptions,
+} from "./shared/record-actions";
+import { RecordMenuAtPoint } from "./shared/record-menu";
 import {
   useRowFilteredSource,
   type RowFilterCondition,
@@ -60,7 +75,17 @@ export interface DataViewRootProps {
 
   // —— data interaction ——
   onCellChange?: (rowId: string, fieldId: string, cell: DatabaseCell) => void;
-  onOpenRecord?: (rowId: string, source: DataViewSource) => void;
+  /**
+   * The user asked to open a record. **The shell only reports it**: the record
+   * editing page is the host's — `database-node-content.tsx` /
+   * `collection-node-content.tsx` render `<RecordEditor>` next to the shell,
+   * because that is where a record's data and write path live. A host that
+   * passes no `onOpenRecord` gets no record page when a record is clicked.
+   *
+   * `options.hiddenFieldIds` are the fields the calling view does *not* surface;
+   * the host folds them into the editor's 隐藏字段 block.
+   */
+  onOpenRecord?: (rowId: string, options?: OpenRecordOptions) => void;
   onOpenNode?: (nodeId: string) => void;
   /** Insert a row into the host's data (database hosts only). */
   onRowInsert?: (row: DataRow, index?: number) => void;
@@ -77,6 +102,12 @@ export interface DataViewRootProps {
   onFieldsChange?: (fields: DatabaseField[], rows?: DataRow[]) => void;
   /** Resolve a relation node id to its title for display. */
   resolveNodeTitle?: (nodeId: string) => string | undefined;
+  /**
+   * Resolve a graph node id to the node itself (collection hosts). The gallery
+   * uses it to draw a node's own preview as a card cover; see the renderer
+   * contract in `source/types.ts`.
+   */
+  resolveNode?: (nodeId: string) => NodeData | undefined;
 
   className?: string;
 }
@@ -145,6 +176,7 @@ export function DataViewRoot({
   onRowReorder,
   onFieldsChange,
   resolveNodeTitle,
+  resolveNode,
   className,
 }: DataViewRootProps) {
   const [initial] = useState(() =>
@@ -154,6 +186,20 @@ export function DataViewRoot({
   const [activeViewId, setActiveViewId] = useState<DataViewId>(
     initial.activeViewId,
   );
+
+  /**
+   * The record menu opened at a viewport point (the imperative path; see
+   * `openRecordMenu`). Only surfaces that cannot wrap their record in a React
+   * element use it — today the calendar's events.
+   */
+  const [recordMenuPoint, setRecordMenuPoint] = useState<{
+    point: { x: number; y: number };
+    rowId: string;
+    options: {
+      hiddenFieldIds?: readonly string[];
+      sections?: RecordMenuOptions["sections"];
+    };
+  } | null>(null);
 
   /**
    * View management (create / rename / delete / configure) is enabled by the
@@ -205,6 +251,59 @@ export function DataViewRoot({
     );
   };
 
+  /**
+   * Opening a record = telling the host, which owns the record page.
+   *
+   * Every view reaches this through `useRecordActions().openRecord`, so "click a
+   * record" still means the same thing in all four views; what it *does* is now
+   * the host's decision (`onOpenRecord`), and the record editor lives in the
+   * node content rather than in this shell.
+   */
+  const handleOpenRecord = useCallback(
+    (rowId: string, options?: OpenRecordOptions) => {
+      onOpenRecord?.(rowId, options);
+    },
+    [onOpenRecord],
+  );
+
+  const handleOpenRecordMenu = useCallback(
+    (
+      point: { x: number; y: number },
+      rowId: string,
+      options?: RecordMenuOptions,
+    ) => {
+      setRecordMenuPoint({ point, rowId, options: options ?? {} });
+    },
+    [],
+  );
+
+  const recordActions = useMemo<RecordActionsContextValue>(
+    () => ({
+      source,
+      editable: !readOnly,
+      onCellChange,
+      onRowInsert,
+      onRowDelete,
+      onFieldsChange,
+      onOpenNode,
+      resolveNodeTitle,
+      openRecord: handleOpenRecord,
+      openRecordMenu: handleOpenRecordMenu,
+    }),
+    [
+      source,
+      readOnly,
+      onCellChange,
+      onRowInsert,
+      onRowDelete,
+      onFieldsChange,
+      onOpenNode,
+      resolveNodeTitle,
+      handleOpenRecord,
+      handleOpenRecordMenu,
+    ],
+  );
+
   if (!activeView) {
     return (
       <DataViewEmptyState
@@ -237,71 +336,89 @@ export function DataViewRoot({
 
   return (
     <ViewActionsProvider actions={viewActions}>
-      <div
-        data-dataview-root={source.kind}
-        className={cn(
-          "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
-          className,
-        )}
-      >
-        <DataViewToolbar
-          views={views}
-          activeView={activeView}
-          source={source}
-          onViewsChange={canManageViews ? handleViewsChange : undefined}
-          onCreateView={canManageViews ? handleCreateView : undefined}
-          onActiveViewChange={handleActiveViewChange}
-        />
+      <RecordActionsProvider value={recordActions}>
+        <div
+          data-dataview-root={source.kind}
+          className={cn(
+            "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
+            className,
+          )}
+        >
+          <DataViewToolbar
+            views={views}
+            activeView={activeView}
+            source={source}
+            onViewsChange={canManageViews ? handleViewsChange : undefined}
+            onCreateView={canManageViews ? handleCreateView : undefined}
+            onActiveViewChange={handleActiveViewChange}
+          />
 
-        <div className="flex min-h-0 flex-1">
-          {/**
-           * The renderer box: fixed size, **never a scroll container**.
-           *
-           * Each renderer owns its own scrolling (the table's VTable canvas
-           * scrolls itself; the placeholders carry an inner `overflow-auto`).
-           * With `overflow: auto` here, a renderer that fills the pane exactly —
-           * as every one of them does — could push the box 1px past its own
-           * height, and the scrollbar that appeared stole 10px off the renderer
-           * in *both* axes (10px in a HiDPI window). A canvas library that
-           * stamps its own rounded pixel size (VTable does:
-           * `style.width = parentElement.offsetWidth`, which rounds a
-           * fractional box up) then re-measured a smaller box, re-wrapped its
-           * toolbar, re-overflowed, … and the table's size visibly flickered
-           * between two values 10px apart. Keeping this box `overflow: hidden`
-           * means a renderer's own spill can never resize it.
-           */}
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
-            <Suspense
-              fallback={
-                <div className="flex flex-col gap-2 p-4">
-                  <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-40 w-full" />
-                </div>
-              }
-            >
-              <ActiveRenderer
-                source={filteredSource}
-                config={activeView.config}
-                readOnly={readOnly}
-                onCellChange={onCellChange}
-                onOpenRecord={onOpenRecord}
-                onOpenNode={onOpenNode}
-                onConfigChange={
-                  canManageViews
-                    ? (config) => handleConfigChange(activeView.id, config)
-                    : undefined
+          <div className="flex min-h-0 flex-1">
+            {/**
+             * The renderer box: fixed size, **never a scroll container**.
+             *
+             * Each renderer owns its own scrolling (the table's VTable canvas
+             * scrolls itself; the placeholders carry an inner `overflow-auto`).
+             * With `overflow: auto` here, a renderer that fills the pane exactly —
+             * as every one of them does — could push the box 1px past its own
+             * height, and the scrollbar that appeared stole 10px off the renderer
+             * in *both* axes (10px in a HiDPI window). A canvas library that
+             * stamps its own rounded pixel size (VTable does:
+             * `style.width = parentElement.offsetWidth`, which rounds a
+             * fractional box up) then re-measured a smaller box, re-wrapped its
+             * toolbar, re-overflowed, … and the table's size visibly flickered
+             * between two values 10px apart. Keeping this box `overflow: hidden`
+             * means a renderer's own spill can never resize it.
+             */}
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
+              <Suspense
+                fallback={
+                  <div className="flex flex-col gap-2 p-4">
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-40 w-full" />
+                  </div>
                 }
-                onRowInsert={onRowInsert}
-                onRowDelete={onRowDelete}
-                onRowReorder={onRowReorder}
-                onFieldsChange={onFieldsChange}
-                resolveNodeTitle={resolveNodeTitle}
-                className="h-full"
-              />
-            </Suspense>
+              >
+                <ActiveRenderer
+                  source={filteredSource}
+                  config={activeView.config}
+                  readOnly={readOnly}
+                  onCellChange={onCellChange}
+                  onOpenNode={onOpenNode}
+                  onConfigChange={
+                    canManageViews
+                      ? (config) => handleConfigChange(activeView.id, config)
+                      : undefined
+                  }
+                  onRowInsert={onRowInsert}
+                  onRowDelete={onRowDelete}
+                  onRowReorder={onRowReorder}
+                  onFieldsChange={onFieldsChange}
+                  resolveNodeTitle={resolveNodeTitle}
+                  resolveNode={resolveNode}
+                  className="h-full"
+                />
+              </Suspense>
+            </div>
           </div>
+
+          {/**
+           * The record *menu* is still the shell's: it is chrome over a record,
+           * not a page. Its 打开记录 item goes through `openRecord`, i.e. out to
+           * the host's `onOpenRecord` — the same path a click on the record
+           * takes.
+           */}
+          {recordMenuPoint && (
+            <RecordMenuAtPoint
+              point={recordMenuPoint.point}
+              rowId={recordMenuPoint.rowId}
+              hiddenFieldIds={recordMenuPoint.options.hiddenFieldIds}
+              sections={recordMenuPoint.options.sections}
+              onClose={() => setRecordMenuPoint(null)}
+            />
+          )}
         </div>
-      </div>
+      </RecordActionsProvider>
     </ViewActionsProvider>
   );
 }

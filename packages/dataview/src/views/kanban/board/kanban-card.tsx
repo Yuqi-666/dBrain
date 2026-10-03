@@ -1,17 +1,20 @@
 "use client";
 
 /**
- * A kanban card: the visual body, and the draggable wrapper around it.
+ * A kanban card: the shared `DataCard`, and the draggable wrapper around it.
  *
- * The wrapper is where the two drag rules from `reui/kanban.tsx` are applied:
+ * The card body is `shared/card.tsx` — the same cover / title / chips / value
+ * lines the gallery draws, configured by the same 卡片配置 menu — so a record
+ * looks the same on a board and on a card wall. This file only adds the board's
+ * own concerns:
  *
  * - **The drag activator is the handle.** `KanbanItem` carries the ARIA
  *   attributes dnd-kit derives from `useSortable` (notably `tabIndex: 0`); the
- *   pointer/keyboard `listeners` live on `KanbanItemHandle`. Since a *nested*
- *   button (the card menu) cannot be excluded by dnd-kit's pointer sensor, the
- *   menu is rendered as a **sibling** of the handle, absolutely positioned over
- *   the card — a press on it never starts a drag, and a 10px press-and-move
- *   anywhere on the body still does.
+ *   pointer/keyboard `listeners` live on `KanbanItemHandle`. A press that barely
+ *   moves opens the record instead of dragging, and there is **no floating
+ *   control on the card** — no "…" button — so the whole body is drag surface
+ *   and the record menu is the right-click one (`RecordContextMenu`), exactly
+ *   like the gallery's.
  * - **A non-draggable board renders no handle at all** rather than `disabled`,
  *   because ReUI greys a disabled item out — and a read-only collection board
  *   should not look disabled, it simply cannot be dragged.
@@ -19,124 +22,66 @@
  * The item's own `tabIndex` is dropped to `-1` so the card has a single tab
  * stop (the handle), which is also the element the keyboard sensor listens on.
  */
-import { ExternalLink, MoreHorizontal, MoveRight } from "lucide-react";
+import { useRef } from "react";
+import { MoveRight } from "lucide-react";
+import type { NodeData, NodeId } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
-import { Button } from "@workspace/ui/components/ui/button";
+
+import { DataCard } from "../../../shared/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/ui/dropdown-menu";
-
+  RecordContextMenu,
+  type RecordMenuSection,
+} from "../../../shared/record-menu";
+import { useRecordActions } from "../../../shared/record-actions";
 import { KanbanItem, KanbanItemHandle } from "../reui/kanban";
-import type { KanbanCard, KanbanCardField, KanbanLane } from "../core/board";
+import type { KanbanCard, KanbanLane } from "../core/board";
 
-/** One extra field's value(s) on a card. */
-function CardFieldRow({
-  field,
-  compact,
-}: {
-  field: KanbanCardField;
+export interface KanbanCardBodyProps {
+  card: KanbanCard;
   compact: boolean;
-}) {
-  if (field.chips && field.chips.length > 0) {
-    return (
-      <div className="flex flex-wrap gap-1">
-        {field.chips.map((chip) => (
-          <span
-            key={chip.optionId}
-            title={`${field.name}：${chip.label}`}
-            className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-          >
-            <span
-              className="size-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: chip.color }}
-            />
-            <span className="truncate">{chip.label}</span>
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  // Compact cards drop the field name: the value alone keeps the card short.
-  if (compact) {
-    return (
-      <p
-        className="truncate text-[11px] text-muted-foreground"
-        title={field.text}
-      >
-        {field.text}
-      </p>
-    );
-  }
-
-  return (
-    <p className="flex items-baseline justify-between gap-2 text-[11px]">
-      <span className="truncate text-muted-foreground">{field.name}</span>
-      <span
-        className="min-w-0 truncate text-right text-foreground/80 tabular-nums"
-        title={field.text}
-      >
-        {field.text}
-      </span>
-    </p>
-  );
+  resolveNode?: (nodeId: string) => NodeData | undefined;
+  resolveNodeTitle?: (nodeId: NodeId) => string | undefined;
+  onOpenNode?: (nodeId: NodeId) => void;
+  className?: string;
 }
 
 /** The card's content box — also what the drag overlay renders. */
 export function KanbanCardBody({
   card,
   compact,
+  resolveNode,
+  resolveNodeTitle,
+  onOpenNode,
   className,
-}: {
-  card: KanbanCard;
-  compact: boolean;
-  className?: string;
-}) {
+}: KanbanCardBodyProps) {
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col rounded-lg border border-border bg-card text-card-foreground shadow-xs transition-colors",
-        compact ? "gap-1 p-2" : "gap-1.5 p-2.5",
-        className,
-      )}
-    >
-      <p
-        className={cn(
-          "pr-5 leading-snug font-medium",
-          compact ? "text-xs" : "text-[13px]",
-        )}
-        title={card.title}
-      >
-        {card.title}
-      </p>
-      {card.fields.length > 0 && (
-        <div className="flex flex-col gap-1">
-          {card.fields.map((field) => (
-            <CardFieldRow key={field.fieldId} field={field} compact={compact} />
-          ))}
-        </div>
-      )}
-    </div>
+    <DataCard
+      layout="board"
+      title={card.title}
+      cover={card.cover}
+      fields={card.fields}
+      compact={compact}
+      resolveNode={resolveNode}
+      resolveNodeTitle={resolveNodeTitle}
+      onOpenNode={onOpenNode}
+      className={cn("w-full shadow-xs transition-colors", className)}
+    />
   );
 }
 
 export interface KanbanCardItemProps {
   card: KanbanCard;
   compact: boolean;
-  /** Drag is possible (editable select board, `allowDrag` on). */
+  /** Drag is possible (the host allows cell writes and the board is single-valued). */
   draggable: boolean;
   /** Lanes offered by 移动到; empty/absent removes the item. */
   moveTargets?: KanbanLane[];
-  onOpen?: (card: KanbanCard) => void;
+  /** Fields the board already surfaces → folded into the record editor. */
+  hiddenFieldIds?: readonly string[];
   onMove?: (card: KanbanCard, laneId: string) => void;
+  resolveNode?: (nodeId: string) => NodeData | undefined;
+  resolveNodeTitle?: (nodeId: NodeId) => string | undefined;
+  onOpenNode?: (nodeId: NodeId) => void;
   /** Overlay sizing, applied by the drag preview. */
   className?: string;
 }
@@ -146,76 +91,92 @@ export function KanbanCardItem({
   compact,
   draggable,
   moveTargets,
-  onOpen,
+  hiddenFieldIds,
   onMove,
+  resolveNode,
+  resolveNodeTitle,
+  onOpenNode,
   className,
 }: KanbanCardItemProps) {
   const targets = moveTargets ?? [];
-  const showMenu = Boolean(onOpen) || (Boolean(onMove) && targets.length > 0);
-  const body = <KanbanCardBody card={card} compact={compact} />;
+  /** The shell's record surface (the card opens it; the menu reads it). */
+  const actions = useRecordActions();
+  /** Where the last press started, so a drag does not also open the record. */
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
-  const menu = showMenu ? (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={`卡片操作：${card.title}`}
-          className={cn(
-            "absolute top-1 right-1 size-6 text-muted-foreground opacity-0 transition-opacity group-hover/card:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
-            // A touch/keyboard user has no hover, so the trigger is always there
-            // on a coarse pointer or while focused.
-            "pointer-coarse:opacity-100",
-          )}
-        >
-          <MoreHorizontal className="size-3.5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        {onOpen && (
-          <DropdownMenuItem onSelect={() => onOpen(card)}>
-            <ExternalLink className="size-4" />
-            打开
-          </DropdownMenuItem>
-        )}
-        {onOpen && onMove && targets.length > 0 && <DropdownMenuSeparator />}
-        {onMove && targets.length > 0 && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <MoveRight className="size-4" />
-              移动到
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-72 w-44 overflow-y-auto">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                移动到泳道
-              </DropdownMenuLabel>
-              {targets.map((lane) => (
-                <DropdownMenuItem
-                  key={lane.id}
-                  onSelect={() => onMove(card, lane.id)}
-                >
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: lane.color }}
-                  />
-                  <span className="truncate">{lane.name}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  ) : null;
+  /**
+   * The board's own menu items — everything else (打开记录 / 打开节点 / 复制 /
+   * 删除) comes from the shared builder, so the card menu, the right-click menu
+   * and every other view's menu stay one list (`shared/record-menu.tsx`).
+   */
+  const sections: RecordMenuSection[] | undefined =
+    onMove && targets.length > 0
+      ? [
+          {
+            id: "kanban",
+            items: [
+              {
+                id: "kanban.move",
+                label: "移动到",
+                icon: MoveRight,
+                items: targets.map((lane) => ({
+                  id: `kanban.move.${lane.id}`,
+                  label: lane.name,
+                  onSelect: () => onMove(card, lane.id),
+                })),
+              },
+            ],
+          },
+        ]
+      : undefined;
+
+  /**
+   * The card body, wrapped in the unified record context menu.
+   *
+   * The wrapper is *inside* `KanbanItemHandle` on purpose: a Radix
+   * `ContextMenuTrigger` needs a native element to clone, and the vendored
+   * `KanbanItem` is a plain function component (no `forwardRef`), so hanging the
+   * trigger on it would drop the ref Radix composes.
+   */
+  const body = (
+    <RecordContextMenu
+      rowId={card.rowId}
+      hiddenFieldIds={hiddenFieldIds}
+      sections={sections}
+    >
+      <div
+        role="button"
+        tabIndex={-1}
+        onPointerDown={(event) => {
+          pointerStart.current = { x: event.clientX, y: event.clientY };
+        }}
+        onClick={(event) => {
+          // A drag ends with a click on the handle; only a press that barely
+          // moved counts as "open the record".
+          const start = pointerStart.current;
+          if (
+            start &&
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4
+          ) {
+            return;
+          }
+          actions.openRecord(card.rowId, { hiddenFieldIds });
+        }}
+        className="block w-full cursor-pointer text-left"
+      >
+        <KanbanCardBody
+          card={card}
+          compact={compact}
+          resolveNode={resolveNode}
+          resolveNodeTitle={resolveNodeTitle}
+          onOpenNode={onOpenNode}
+        />
+      </div>
+    </RecordContextMenu>
+  );
 
   if (!draggable) {
-    return (
-      <div className={cn("group/card relative", className)}>
-        {body}
-        {menu}
-      </div>
-    );
+    return <div className={cn("relative", className)}>{body}</div>;
   }
 
   return (
@@ -223,17 +184,16 @@ export function KanbanCardItem({
       value={card.key}
       // One tab stop per card: the handle below, not the item wrapper.
       tabIndex={-1}
-      className={cn("group/card relative", className)}
+      className={cn("relative", className)}
     >
       <KanbanItemHandle
         tabIndex={0}
         role="button"
         aria-label={`拖动卡片：${card.title}`}
-        className="block cursor-grab rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+        className="block cursor-grab rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
       >
         {body}
       </KanbanItemHandle>
-      {menu}
     </KanbanItem>
   );
 }

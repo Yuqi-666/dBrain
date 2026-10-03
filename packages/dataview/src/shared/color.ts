@@ -89,3 +89,21 @@ export function contrastTextColor(background: string): string {
   const luminance = relativeLuminance(rgb[0], rgb[1], rgb[2]);
   return luminance > 0.5 ? DARK_TEXT : LIGHT_TEXT;
 }
+
+/**
+ * The same colour as a translucent wash, for a surface that sits *on* a themed
+ * background instead of replacing it.
+ *
+ * A card chip wants to be recognisable by hue without shouting: a ~20% wash of
+ * the option colour over `--card` keeps the theme's own text colour readable in
+ * either mode, which a solid fill (the canvas capsule's job, where the text
+ * colour is computed from the fill) cannot promise. Returns `undefined` for a
+ * colour this module cannot parse, so the caller keeps its neutral surface
+ * rather than painting an opaque guess.
+ */
+export function tintColor(color: string, alpha: number): string | undefined {
+  const rgb = parseHex(color) ?? parseHsl(color);
+  if (!rgb) return undefined;
+  const clamped = Math.min(1, Math.max(0, alpha));
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${clamped})`;
+}

@@ -17,6 +17,10 @@
  *    card out of every group is possible; it is the one lane a write clears
  *    (`cellForLane`).
  *
+ * What a card *shows* is the shared card half (`shared/card-ops.ts`) — the same
+ * title / cover / field list the gallery draws and the same 卡片配置 menu
+ * configures.
+ *
  * Pure module: no React, no third-party library.
  */
 import type {
@@ -27,8 +31,19 @@ import type {
 } from "@workspace/interfaces";
 
 import {
+  cardCoverEnabled,
+  cardFieldValues,
+  readCardSettings,
+  resolveCardCoverField,
+  resolveCardFields,
+  resolveCardTitleField,
+  resolveRowCover,
+  type CardCover,
+  type CardFieldValue,
+  type CardSettings,
+} from "../../../shared/card-ops";
+import {
   displayText,
-  findOption,
   sortValue,
   toOptionIds,
 } from "../../../source/cell-resolver";
@@ -36,9 +51,8 @@ import {
   isMultiValueGroup,
   optionColor,
   orderLaneOptions,
-  resolveCardFields,
   resolveGroupField,
-  resolveTitleField,
+  resolveKanbanSort,
 } from "./config";
 
 /**
@@ -54,22 +68,6 @@ export const KANBAN_UNASSIGNED_LANE_NAME = "未分组";
 /** Placeholder title for a row whose title cell is empty. */
 export const KANBAN_UNTITLED = "未命名";
 
-/** One 单选/多选 value rendered as a chip on a card. */
-export interface KanbanCardChip {
-  optionId: string;
-  label: string;
-  color: string;
-}
-
-/** One extra field rendered on a card (`config.cardFields`). */
-export interface KanbanCardField {
-  fieldId: string;
-  name: string;
-  text: string;
-  /** Set for 单选/多选, which render as chips rather than as text. */
-  chips?: KanbanCardChip[];
-}
-
 export interface KanbanCard {
   /** Unique across every lane — see the file header. */
   key: string;
@@ -79,7 +77,13 @@ export interface KanbanCard {
   /** `collection` only: the graph node behind the row. */
   nodeId?: string;
   title: string;
-  fields: KanbanCardField[];
+  /**
+   * `undefined` → the board draws no cover area at all (no cover configured),
+   * matching the shared `DataCard` contract.
+   */
+  cover: CardCover | null | undefined;
+  /** The card fields that carry a value, in card order. */
+  fields: CardFieldValue[];
 }
 
 export interface KanbanLane {
@@ -96,8 +100,8 @@ export interface KanbanBoardModel {
   /** The REUI board value: lane id → cards. */
   columns: Record<string, KanbanCard[]>;
   groupField: DatabaseField | null;
-  titleField: DatabaseField | null;
-  cardFields: DatabaseField[];
+  /** The normalized card settings (title / cover / fields / 展示模式). */
+  settings: CardSettings;
   /** A multiSelect group puts one row in several lanes → drag is off. */
   multiValue: boolean;
 }
@@ -120,54 +124,43 @@ export function findCardByKey(
   return undefined;
 }
 
-function buildCardFields(
-  row: DataRow,
-  fields: readonly DatabaseField[],
-  resolveNodeTitle?: (nodeId: string) => string | undefined,
-): KanbanCardField[] {
-  const values: KanbanCardField[] = [];
-  for (const field of fields) {
-    const cell = row.cells[field.id];
-    const text = displayText(cell, field, resolveNodeTitle);
-    if (field.type === "select" || field.type === "multiSelect") {
-      const chips: KanbanCardChip[] = toOptionIds(cell).map((optionId) => ({
-        optionId,
-        label: findOption(field, optionId)?.name ?? optionId,
-        color: optionColor(field, optionId),
-      }));
-      if (chips.length > 0) {
-        values.push({ fieldId: field.id, name: field.name, chips, text });
-      }
-      continue;
-    }
-    // An empty cell is noise on a card, so it is dropped rather than rendered
-    // as a placeholder.
-    if (text !== "") {
-      values.push({ fieldId: field.id, name: field.name, text });
-    }
-  }
-  return values;
-}
-
-function compareCards(
+/**
+ * Compares two cards by one sort level. The direction is applied to the whole
+ * comparison, so `desc` reverses text and numbers alike.
+ */
+function compareByLevel(
   a: KanbanCard,
   b: KanbanCard,
   rowsById: Map<string, DataRow>,
-  sortField: DatabaseField | null,
+  field: DatabaseField,
   order: "asc" | "desc",
 ): number {
-  if (!sortField) return 0;
   const direction = order === "desc" ? -1 : 1;
-  const left = sortValue(rowsById.get(a.rowId)?.cells[sortField.id], sortField);
-  const right = sortValue(
-    rowsById.get(b.rowId)?.cells[sortField.id],
-    sortField,
-  );
+  const left = sortValue(rowsById.get(a.rowId)?.cells[field.id], field);
+  const right = sortValue(rowsById.get(b.rowId)?.cells[field.id], field);
   if (left === right) return 0;
   if (typeof left === "number" && typeof right === "number") {
     return (left - right) * direction;
   }
   return String(left).localeCompare(String(right)) * direction;
+}
+
+/**
+ * Compares two cards by the configured 排序 levels, in priority order: the first
+ * level decides, and a tie falls through to the next one (the same multi-level
+ * rule the table applies).
+ */
+function compareCards(
+  a: KanbanCard,
+  b: KanbanCard,
+  rowsById: Map<string, DataRow>,
+  levels: readonly { field: DatabaseField; order: "asc" | "desc" }[],
+): number {
+  for (const level of levels) {
+    const result = compareByLevel(a, b, rowsById, level.field, level.order);
+    if (result !== 0) return result;
+  }
+  return 0;
 }
 
 /**
@@ -184,8 +177,13 @@ export function buildKanbanBoard(
   resolveNodeTitle?: (nodeId: string) => string | undefined,
 ): KanbanBoardModel {
   const groupField = resolveGroupField(source.fields, config.groupByField);
-  const titleField = resolveTitleField(source.fields, config.titleField);
-  const cardFields = resolveCardFields(source.fields, config.cardFields);
+  const settings = readCardSettings(config);
+  const titleField = resolveCardTitleField(source.fields, settings);
+  const cardFields = resolveCardFields(source.fields, settings);
+  const coverField = resolveCardCoverField(source.fields, settings);
+  // A collection row *is* a node, so its own preview is the cover; a database
+  // row only has a cover when a field is configured for it.
+  const coverEnabled = cardCoverEnabled(source, coverField);
   const multiValue = isMultiValueGroup(groupField);
 
   const lanes: KanbanLane[] = [];
@@ -248,26 +246,34 @@ export function buildKanbanBoard(
           laneId,
           nodeId: nodeId ?? (source.kind === "collection" ? row.id : undefined),
           title,
-          fields: buildCardFields(row, cardFields, resolveNodeTitle),
+          cover: coverEnabled
+            ? resolveRowCover(source, row, index, coverField)
+            : undefined,
+          fields: cardFieldValues(row, cardFields, resolveNodeTitle),
         });
       }
     });
 
-    const sortField = config.sortBy
-      ? (source.fields.find((field) => field.id === config.sortBy?.fieldId) ??
-        null)
-      : null;
-    if (sortField) {
-      const order = config.sortBy?.order ?? "asc";
+    // The cards keep this order inside every lane: the 排序 menu's levels, first
+    // level first (the same list the table sorts by).
+    const sortLevels = resolveKanbanSort(source.fields, config).flatMap(
+      (level) => {
+        const field = level.fieldId
+          ? source.fields.find((candidate) => candidate.id === level.fieldId)
+          : undefined;
+        return field ? [{ field, order: level.order }] : [];
+      },
+    );
+    if (sortLevels.length > 0) {
       for (const laneId of Object.keys(columns)) {
         columns[laneId]!.sort((a, b) =>
-          compareCards(a, b, rowsById, sortField, order),
+          compareCards(a, b, rowsById, sortLevels),
         );
       }
     }
   }
 
-  return { lanes, columns, groupField, titleField, cardFields, multiValue };
+  return { lanes, columns, groupField, settings, multiValue };
 }
 
 /**
@@ -297,12 +303,4 @@ export function moveCardToLane(
   }
   next[targetLaneId] = [...target, { ...card, laneId: targetLaneId }];
   return next;
-}
-
-/** Total cards on the board (a multiSelect board counts a row once per lane). */
-export function countCards(columns: Record<string, KanbanCard[]>): number {
-  return Object.values(columns).reduce(
-    (total, cards) => total + cards.length,
-    0,
-  );
 }

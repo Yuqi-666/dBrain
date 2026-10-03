@@ -157,11 +157,8 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.GalleryDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"gallery">(() =>
-      import("./views/gallery/config-editor").then((module) => ({
-        default: module.GalleryConfigEditor,
-      })),
-    ),
+    // No `configEditor`: 字段 / 布局 / 显示 are the gallery's own toolbar panels,
+    // exactly like the table's menus, the kanban's four and the calendar's four.
     defaultConfig: (source) => createDefaultConfig("gallery", source),
   },
   chart: {

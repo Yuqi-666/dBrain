@@ -15,10 +15,9 @@ import type {
   TableViewConfig,
 } from "@workspace/interfaces";
 
+import { deleteFieldSchema, editFieldSchema } from "../../../source/row-utils";
 import {
-  createDataRowId,
   orderColumnsByGroups,
-  reconcileRowsForFields,
   resolveTableColumns,
   validColumnGroups,
 } from "./schema";
@@ -266,15 +265,9 @@ export function addField(
 /**
  * Applies the whole field-level edit in one step.
  *
- * `field` may be new or an edited version of an existing one; `seed` is the
- * editor's 默认值. Returns the next config plus the reconciled rows — `rows` is
- * only non-null when cells actually had to change, so the caller can send the
- * leanest possible content write.
- *
- * Adding a field to a table that has **no rows at all** also mints one empty
- * row (carrying the 默认值 when there is one): an empty table with a schema but
- * nothing to type into reads as "the table did not appear", because VTable can
- * only draw headers.
+ * The schema half comes from `editFieldSchema` (shared with the card views'
+ * 卡片配置, so a field added there and a field added here behave identically);
+ * this function adds the table's own half — a new field's column config.
  */
 export function applyFieldEdit(
   config: TableViewConfig,
@@ -283,32 +276,11 @@ export function applyFieldEdit(
   field: DatabaseField,
   seed?: { fieldId: string; cell: DatabaseCell },
 ): { config: TableViewConfig; fields: DatabaseField[]; rows?: DataRow[] } {
-  const existingIndex = fields.findIndex((entry) => entry.id === field.id);
-  const nextFields =
-    existingIndex >= 0
-      ? fields.map((entry) => (entry.id === field.id ? field : entry))
-      : [...fields, field];
-  const nextConfig =
-    existingIndex >= 0 ? config : addField(config, fields, field);
-
-  const isNewField = existingIndex < 0;
-  const mintRow = isNewField && rows.length === 0;
-  const baseRows: DataRow[] = mintRow
-    ? [
-        {
-          id: createDataRowId(),
-          cells: seed ? { [seed.fieldId]: seed.cell } : {},
-        },
-      ]
-    : [...rows];
-
-  const reconciled = reconcileRowsForFields(baseRows, nextFields, seed);
+  const schema = editFieldSchema(fields, rows, field, seed);
   return {
-    config: nextConfig,
-    fields: nextFields,
-    // A minted row carries no cells, so `reconcileRowsForFields` reports no
-    // change for it — the row itself is the change.
-    ...(reconciled.changed || mintRow ? { rows: reconciled.rows } : {}),
+    config: schema.isNew ? addField(config, fields, field) : config,
+    fields: schema.fields,
+    ...(schema.rows ? { rows: schema.rows } : {}),
   };
 }
 
@@ -322,7 +294,7 @@ export function removeField(
   rows: readonly DataRow[],
   fieldId: string,
 ): { config: TableViewConfig; fields: DatabaseField[]; rows: DataRow[] } {
-  const nextFields = fields.filter((field) => field.id !== fieldId);
+  const schema = deleteFieldSchema(fields, rows, fieldId);
   const groups = (config.columnGroups ?? [])
     .map((group) => ({
       ...group,
@@ -332,7 +304,6 @@ export function removeField(
   const columns = resolveTableColumns(config, fields).filter(
     (column) => column.fieldId !== fieldId,
   );
-  const reconciled = reconcileRowsForFields(rows, nextFields);
   return {
     config: {
       ...config,
@@ -342,8 +313,8 @@ export function removeField(
         (entry) => entry !== fieldId,
       ),
     },
-    fields: nextFields,
-    rows: reconciled.rows,
+    fields: schema.fields,
+    rows: schema.rows,
   };
 }
 

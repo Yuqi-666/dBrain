@@ -141,32 +141,28 @@ export function resolveTooltipFields(
 // —— header-toolbar layout ——————————————————————————————————————————————
 
 /**
- * `config.headerToolbar` read as the two decisions it actually encodes.
+ * `config.headerToolbar` read as the one decision it still encodes: which view
+ * buttons appear.
  *
  * The persisted shape is FullCalendar's raw three-segment string triple, which
- * is not a UI: the calendar edits "is the 今天 button there" and "which view
- * buttons appear", and every other button (`prev`, `next`, `title`) is fixed.
- * Reading it back into those two decisions is what lets the config round-trip
- * without the toolbar having to expose FreeText.
+ * is not a UI. The 视图 panel edits "which view buttons appear"; the 今天 button
+ * used to be a second switch there, and since it was removed the button is fixed
+ * chrome (`prev,next today`) — the default was the only sensible answer, and a
+ * config written by the build that could hide it is normalized on the way in.
  */
 export interface CalendarToolbarLayout {
-  showToday: boolean;
   views: CalendarViewName[];
 }
 
 export const DEFAULT_CALENDAR_TOOLBAR_LAYOUT: CalendarToolbarLayout = {
-  showToday: true,
   views: ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek"],
 };
 
-/** Parses a persisted `headerToolbar` into the toolbar's two decisions. */
+/** Parses a persisted `headerToolbar` into the toolbar's one decision. */
 export function readCalendarToolbarLayout(
   headerToolbar: CalendarViewConfig["headerToolbar"] | undefined,
 ): CalendarToolbarLayout {
   if (!headerToolbar) return { ...DEFAULT_CALENDAR_TOOLBAR_LAYOUT };
-  const showToday = (headerToolbar.left ?? "")
-    .split(",")
-    .some((part) => part.trim() === "today");
   const views: CalendarViewName[] = [];
   for (const part of (headerToolbar.right ?? "").split(",")) {
     const view = fromFullCalendarView(part.trim());
@@ -174,15 +170,15 @@ export function readCalendarToolbarLayout(
     // row would then toggle two entries at once.
     if (view && !views.includes(view)) views.push(view);
   }
-  return { showToday, views };
+  return { views };
 }
 
-/** The inverse of {@link readCalendarToolbarLayout}. */
+/** The inverse of {@link readCalendarToolbarLayout}; 今天 is always there. */
 export function writeCalendarToolbarLayout(
   layout: CalendarToolbarLayout,
 ): CalendarViewConfig["headerToolbar"] {
   return {
-    left: layout.showToday ? "prev,next today" : "prev,next",
+    left: "prev,next today",
     center: "title",
     right: layout.views.map(toFullCalendarView).join(","),
   };
@@ -225,3 +221,33 @@ export function buttonTextFor(code: string): Record<string, string> {
     ? { multiMonth: "Multi-month", multiMonthYear: "Multi-month" }
     : { multiMonth: "多月", multiMonthYear: "多月" };
 }
+
+// —— the fixed defaults ——————————————————————————————————————————————————
+
+/**
+ * The calendar's presentation, as constants rather than config.
+ *
+ * These were the 交互 / 显示 panels' settings, and every one of them had exactly
+ * one right answer for this view (a `zh-CN` month grid that fills its pane,
+ * folds a busy day behind "+N more", keeps the weekend columns and marks the
+ * current time). The panels are gone, so the defaults live here where the
+ * renderer reads them — a persisted config that still carries the old keys needs
+ * no migration, because nothing reads them any more.
+ *
+ * `editable` / `selectable` are deliberately **not** here: how much a user may
+ * write is the host's decision, not a taste default. The shell derives both from
+ * its capabilities (`calendar-data-view.tsx`), so a read-only collection cannot
+ * drag a date and a host without row inserts cannot create a row.
+ */
+export const CALENDAR_FIXED = {
+  locale: "zh-CN",
+  /** `"auto"` fills the pane the shell hands the surface. */
+  height: "auto",
+  theme: "auto",
+  showWeekends: true,
+  nowIndicator: true,
+  /** A click on an event opens the shared record editor. */
+  eventClick: "open",
+  /** Fold a day with more events than fit behind "+N more". */
+  eventLimit: true,
+} as const;

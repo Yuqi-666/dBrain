@@ -42,7 +42,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -88,7 +87,10 @@ import {
   type FieldMenuEntry,
   type GroupMenuRow,
 } from "../core/column-ops";
-import { FieldEditorMenuContent, type FieldEditResult } from "../fields/editor";
+import {
+  FieldEditorMenuContent,
+  type FieldEditResult,
+} from "../../../shared/field-editor";
 import {
   FieldTypeIcon,
   filterFieldsByQuery,
@@ -831,7 +833,12 @@ export function TableFieldMenu({
               />
             </InputGroup>
 
-            <ScrollArea className="max-h-72">
+            {/* A **definite** height once the list overflows — see the note in
+                `shared/field-config-list.tsx`: with `max-h-*` the Radix viewport
+                (`h-full` against an auto-height root) grows to its content and
+                the last rows paint over the 新增字段 button, which then cannot be
+                clicked. */}
+            <ScrollArea className={visibleEntries > 7 ? "h-72" : undefined}>
               <div className="flex flex-col gap-1 pr-1">
                 {entries.length > 0 && visibleEntries === 0 && (
                   <p className="px-1.5 py-3 text-center text-[11px] text-muted-foreground">

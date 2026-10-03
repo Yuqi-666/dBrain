@@ -39,6 +39,8 @@ import {
   resolveCanvasFontFamily,
   useDataViewThemeTokens,
 } from "../../shared/theme-tokens";
+import { useRecordActions } from "../../shared/record-actions";
+import { RECORD_MENU_KEYS, duplicateRow } from "../../shared/record-menu";
 import type { DataViewRendererProps } from "../../source/types";
 import { createTableEditor } from "./core/editors";
 import type { AddFieldAnchor, AddFieldRequest } from "./menus/field-menu";
@@ -101,6 +103,26 @@ const MENU = {
   showAll: "dv_show_all",
   deleteRow: "dv_delete_row",
 } as const;
+
+/**
+ * What the record editor should fold into 隐藏字段 for this table: every field
+ * whose column is currently hidden. The table's own column config is the
+ * definition of "surfaced", so `visibleTableColumns` is the only source of
+ * truth here (a field with no column config at all is visible).
+ */
+function recordEditorOptions(
+  config: TableViewConfig,
+  fields: readonly DatabaseField[],
+): { hiddenFieldIds: string[] } {
+  const visible = new Set(
+    visibleTableColumns(config, fields).map((column) => column.fieldId),
+  );
+  return {
+    hiddenFieldIds: fields
+      .filter((field) => !visible.has(field.id))
+      .map((field) => field.id),
+  };
+}
 
 /**
  * The select-ish cell the user activated.
@@ -370,6 +392,19 @@ function buildVTableSortState(
 }
 
 /**
+ * The identity of a sort state, as a string.
+ *
+ * `config.sortState` arrives as a fresh array on every host render, so an effect
+ * keyed on its identity would re-push an equal sort forever; the serialized form
+ * is what makes an equal rewrite a no-op.
+ */
+function sortStateKey(sortState: readonly TYPES.SortState[]): string {
+  return sortState
+    .map((entry) => `${String(entry.field)}:${String(entry.order)}`)
+    .join("|");
+}
+
+/**
  * Reads the visual column order and widths back out of a live table.
  *
  * The header defines are the reliable index: the body column offset shifts when
@@ -504,7 +539,6 @@ export function TableDataView({
   config,
   readOnly,
   onCellChange,
-  onOpenRecord,
   onOpenNode,
   onConfigChange,
   onRowInsert,
@@ -515,11 +549,23 @@ export function TableDataView({
   className,
 }: DataViewRendererProps<TableViewConfig>) {
   const tokens = useDataViewThemeTokens(config.theme);
+  /** The shell's record surface: the table opens the editor / menu through it. */
+  const recordActions = useRecordActions();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableRef = useRef<ListTable | null>(null);
   const searchRef = useRef<SearchComponent | null>(null);
   const sortStateRef = useRef<TYPES.SortState[]>([]);
+  /**
+   * The sort state the live table was last given.
+   *
+   * The 排序 menu writes `config.sortState`, but `structureKey` deliberately
+   * excludes it (a sort must not rebuild the table), so without an effect that
+   * pushes the config into `updateSortState` the menu would persist a sort the
+   * table never applies — the panel looked like it worked and the rows never
+   * moved.
+   */
+  const appliedSortRef = useRef<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -807,6 +853,12 @@ export function TableDataView({
     [config, source.fields, readOnly, canEditFields],
   );
 
+  /** The sort the current config asks for, as the effect's stable key. */
+  const sortKey = useMemo(
+    () => sortStateKey(buildVTableSortState(config, source.fields)),
+    [config, source.fields],
+  );
+
   /**
    * Latest values for the VTable listeners, which are attached once per table
    * instance and would otherwise close over the render that created them.
@@ -820,7 +872,6 @@ export function TableDataView({
     canEditFields,
     resolveNodeTitle,
     onCellChange,
-    onOpenRecord,
     onOpenNode,
     onConfigChange,
     onRowInsert,
@@ -828,6 +879,7 @@ export function TableDataView({
     onRowReorder,
     onFieldsChange,
     requestAddField,
+    recordActions,
   });
   useEffect(() => {
     latest.current = {
@@ -839,7 +891,6 @@ export function TableDataView({
       canEditFields,
       resolveNodeTitle,
       onCellChange,
-      onOpenRecord,
       onOpenNode,
       onConfigChange,
       onRowInsert,
@@ -847,6 +898,7 @@ export function TableDataView({
       onRowReorder,
       onFieldsChange,
       requestAddField,
+      recordActions,
     };
   });
 
@@ -916,14 +968,18 @@ export function TableDataView({
       };
 
       /**
-       * The body-cell menu is the column menu plus 删除行.
+       * The body-cell menu: the unified record actions first, then the column
+       * menu, then row deletion.
        *
-       * Row deletion lives here because a selection-driven toolbar button made
-       * the toolbar's function group jump: it appeared/disappeared with the
-       * selection and its label grew per selected row, dragging every control
-       * in that group around on each `selected_changed` event of a drag. A
-       * context menu item is always present, so nothing about the toolbar
-       * depends on the selection any more.
+       * The record items are the same ones every other view offers through
+       * `shared/record-menu.tsx` — 打开记录 / 打开节点 / 复制记录 / 删除记录 —
+       * and they are dispatched by `menuKey` because a VTable menu cannot call a
+       * React handler. Row deletion lives here because a selection-driven
+       * toolbar button made the toolbar's function group jump: it
+       * appeared/disappeared with the selection and its label grew per selected
+       * row, dragging every control in that group around on each
+       * `selected_changed` event of a drag. A context menu item is always
+       * present, so nothing about the toolbar depends on the selection.
        */
       const bodyMenu = (
         table: ListTable,
@@ -931,21 +987,39 @@ export function TableDataView({
         col: number,
         row: number,
       ): TYPES.MenuListItem[] => {
-        const items = columnMenu(fieldId);
         const clicked = rowIdFromArgs(table, { col, row });
-        if (!items.length || !canDeleteRows || !clicked) return items;
+        if (!clicked) return columnMenu(fieldId);
+        const actions = latest.current.recordActions;
+        const isCollection = latest.current.source.kind === "collection";
+
+        const items: TYPES.MenuListItem[] = [
+          { text: "打开记录", menuKey: RECORD_MENU_KEYS.open },
+        ];
+        if (isCollection && actions.onOpenNode) {
+          items.push({ text: "打开节点", menuKey: RECORD_MENU_KEYS.openNode });
+        }
+        if (!latest.current.readOnly && actions.onRowInsert) {
+          items.push({ text: "复制记录", menuKey: RECORD_MENU_KEYS.duplicate });
+        }
+
+        const columnItems = columnMenu(fieldId);
+        if (columnItems.length > 0) {
+          items.push({ type: "split" }, ...columnItems);
+        }
+
+        if (!canDeleteRows) return items;
         // Right-clicking inside a multi-row selection acts on the whole
         // selection; anywhere else deletes just the row under the cursor.
         const selected = selectedRowIds(table);
         const count = selected.includes(clicked) ? selected.length : 1;
-        return [
-          ...items,
+        items.push(
           { type: "split" },
           {
             text: count > 1 ? `删除选中的 ${count} 行` : "删除此行",
             menuKey: MENU.deleteRow,
           },
-        ];
+        );
+        return items;
       };
 
       const groupBy = (nextConfig.groupBy ?? []).filter((fieldId) =>
@@ -1053,11 +1127,19 @@ export function TableDataView({
     const groupFieldIds = new Set(
       (latest.current.config.groupBy ?? []).filter(Boolean),
     );
-    const next = fromVTableSortState(table.sortState ?? null).filter(
-      (entry) => !groupFieldIds.has(entry.fieldId),
-    );
-    sortStateRef.current = fromVTableSortState(table.sortState ?? null).map(
-      (entry) => ({ field: entry.fieldId, order: entry.order }),
+    const live = fromVTableSortState(table.sortState ?? null);
+    const next = live.filter((entry) => !groupFieldIds.has(entry.fieldId));
+    sortStateRef.current = live.map((entry) => ({
+      field: entry.fieldId,
+      order: entry.order,
+    }));
+    // The table already holds this state, so record it as applied: the config
+    // write that follows must not push the same sort back into the table.
+    appliedSortRef.current = sortStateKey(
+      buildVTableSortState(
+        { ...latest.current.config, sortState: next },
+        latest.current.source.fields,
+      ),
     );
     latest.current.onConfigChange?.({
       ...latest.current.config,
@@ -1244,14 +1326,25 @@ export function TableDataView({
       });
 
       table.on("dblclick_cell", (args) => {
-        // Editable cells consume the double-click to start editing; a
-        // read-only row (collection projection) opens the record instead.
-        if (!latest.current.readOnly) return;
         if (args.cellLocation !== "body") return;
         const rowId = rowIdFromArgs(table, args);
-        if (rowId) {
-          latest.current.onOpenRecord?.(rowId, latest.current.source);
+        if (!rowId) return;
+        // An editable data cell consumes the double-click to start editing; the
+        // row-number cell has nothing to edit, so it opens the record instead —
+        // the table's discoverable way into the record editor.
+        if (
+          !latest.current.readOnly &&
+          !table.isSeriesNumber(args.col, args.row)
+        ) {
+          return;
         }
+        latest.current.recordActions.openRecord(
+          rowId,
+          recordEditorOptions(
+            latest.current.config,
+            latest.current.source.fields,
+          ),
+        );
       });
 
       table.on("after_sort", () => persistSortState(table));
@@ -1312,6 +1405,43 @@ export function TableDataView({
         ).map((column) => column.fieldId);
 
         switch (args.menuKey) {
+          case RECORD_MENU_KEYS.open: {
+            const clickedRowId = rowIdFromArgs(table, args);
+            if (!clickedRowId) return;
+            latest.current.recordActions.openRecord(
+              clickedRowId,
+              recordEditorOptions(
+                latest.current.config,
+                latest.current.source.fields,
+              ),
+            );
+            return;
+          }
+          case RECORD_MENU_KEYS.openNode: {
+            const clickedRowId = rowIdFromArgs(table, args);
+            if (!clickedRowId) return;
+            const index = latest.current.source.rows.findIndex(
+              (row) => row.id === clickedRowId,
+            );
+            const nodeId =
+              latest.current.source.nodeIds?.[index] ?? clickedRowId;
+            latest.current.onOpenNode?.(nodeId);
+            return;
+          }
+          case RECORD_MENU_KEYS.duplicate: {
+            const clickedRowId = rowIdFromArgs(table, args);
+            if (!clickedRowId) return;
+            const rows = latest.current.source.rows;
+            const index = rows.findIndex((row) => row.id === clickedRowId);
+            const row = rows[index];
+            if (!row) return;
+            duplicateRow(
+              row,
+              (next, at) => latest.current.onRowInsert?.(next, at),
+              index,
+            );
+            return;
+          }
           case MENU.deleteRow: {
             const clickedRowId = rowIdFromArgs(table, args);
             if (!clickedRowId) return;
@@ -1397,6 +1527,7 @@ export function TableDataView({
       current.config,
       current.source.fields,
     );
+    appliedSortRef.current = sortStateKey(sortStateRef.current);
     attachListeners(table);
 
     const observer = new ResizeObserver(() => table.resize());
@@ -1425,6 +1556,29 @@ export function TableDataView({
       sortState: autoSort ? sortStateRef.current : undefined,
     });
   }, [filteredRecords, structureKey]);
+
+  // —— sort ——
+  /**
+   * The 排序 menu → the live table.
+   *
+   * `config.sortState` is the *only* thing the menu writes, and a config change
+   * does not rebuild the table (nor should it — that would drop the scroll
+   * position and the selection), so the config has to be pushed into VTable
+   * explicitly. `updateSortState` does not fire `after_sort`, so this cannot
+   * bounce back into `persistSortState`.
+   */
+  useEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+    if (appliedSortRef.current === sortKey) return;
+    const next = buildVTableSortState(
+      latest.current.config,
+      latest.current.source.fields,
+    );
+    appliedSortRef.current = sortKey;
+    sortStateRef.current = next;
+    table.updateSortState(next.length > 0 ? next : null, true);
+  }, [sortKey]);
 
   // —— search ——
   const ensureSearch = useCallback((): SearchComponent | null => {

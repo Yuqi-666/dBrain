@@ -29,7 +29,13 @@ import { SquareKanban } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { createEmptyDataRow } from "../../source/row-utils";
+import {
+  cardSettingsPatch,
+  cardHiddenFieldIds,
+  type CardSettings,
+} from "../../shared/card-ops";
 import { DataViewEmptyState } from "../../shared/empty-state";
+import { useRecordActions } from "../../shared/record-actions";
 import type {
   DataViewRendererProps,
   KanbanViewConfig,
@@ -38,7 +44,6 @@ import { KanbanBoard } from "./board/kanban-board";
 import {
   KANBAN_UNASSIGNED_LANE_ID,
   buildKanbanBoard,
-  countCards,
   moveCardToLane,
   type KanbanCard,
 } from "./core/board";
@@ -50,14 +55,14 @@ export function KanbanDataView({
   config,
   readOnly,
   onCellChange,
-  onOpenRecord,
-  onOpenNode,
   onConfigChange,
   onRowInsert,
   onFieldsChange,
   resolveNodeTitle,
+  resolveNode,
   className,
 }: DataViewRendererProps<KanbanViewConfig>) {
+  const recordActions = useRecordActions();
   const model = useMemo(
     () => buildKanbanBoard(source, config, resolveNodeTitle),
     [source, config, resolveNodeTitle],
@@ -73,19 +78,38 @@ export function KanbanDataView({
   }
 
   const groupField = model.groupField;
+  const settings = model.settings;
   const canEditData = !readOnly && Boolean(onCellChange);
   const canInsertRow = !readOnly && Boolean(onRowInsert);
   const canEditOptions = !readOnly && Boolean(onFieldsChange);
 
-  const canDragCards =
-    canEditData && config.allowDrag && Boolean(groupField) && !model.multiValue;
-  const canCreateCard =
-    canInsertRow && config.allowCreate && Boolean(groupField);
+  // The 显示 panel's three switches were the default every time, so the host's
+  // capabilities are the whole rule now: cell writes make a card draggable, row
+  // inserts make a lane offer "new card" (plus the two structural gates).
+  const canDragCards = canEditData && Boolean(groupField) && !model.multiValue;
+  const canCreateCard = canInsertRow && Boolean(groupField);
   const canReorderLanes = Boolean(onConfigChange) && Boolean(groupField);
-  // A collection row *is* a graph node; a database row has no destination in
-  // this app yet, so its cards simply are not clickable.
-  const canOpenCard =
-    source.kind === "collection" ? Boolean(onOpenNode) : Boolean(onOpenRecord);
+
+  /**
+   * What the board already shows (the lane field, the card's title, cover and
+   * fields) is not repeated at the top of the record editor; the rest folds into
+   * its 隐藏字段 block.
+   */
+  const hiddenFieldIds = useMemo(
+    () =>
+      cardHiddenFieldIds(source.fields, [
+        settings.titleField,
+        settings.coverField,
+        config.groupByField,
+        ...settings.cardFields,
+      ]),
+    [config.groupByField, settings, source.fields],
+  );
+
+  /** 卡片配置 writes back into this view's own config (the card half). */
+  const handleSettingsChange = (next: CardSettings) => {
+    onConfigChange?.({ ...config, ...cardSettingsPatch(next) });
+  };
 
   const handleCardLaneChange = (card: KanbanCard, laneId: string) => {
     if (!groupField) return;
@@ -96,14 +120,6 @@ export function KanbanDataView({
     );
     // Optimistic: the host's write returns as a new source a tick later.
     setColumns((current) => moveCardToLane(current, card.key, laneId));
-  };
-
-  const handleCardOpen = (card: KanbanCard) => {
-    if (source.kind === "collection") {
-      if (card.nodeId) onOpenNode?.(card.nodeId);
-      return;
-    }
-    onOpenRecord?.(card.rowId, source);
   };
 
   const handleCreateCard = (laneId: string) => {
@@ -139,13 +155,14 @@ export function KanbanDataView({
           ? (laneOrder) => onConfigChange({ ...config, laneOrder })
           : undefined
       }
-      onCardOpen={canOpenCard ? handleCardOpen : undefined}
+      hiddenFieldIds={hiddenFieldIds}
       onCreateCard={canCreateCard ? handleCreateCard : undefined}
       onOptionSave={canEditOptions ? handleOptionSave : undefined}
+      resolveNode={resolveNode}
+      resolveNodeTitle={resolveNodeTitle}
+      onOpenNode={recordActions.onOpenNode}
       canDragCards={canDragCards}
       canReorderLanes={canReorderLanes}
-      compact={config.compact}
-      showCardCount={config.showCardCount}
     />
   ) : (
     <KanbanGuidance
@@ -167,12 +184,11 @@ export function KanbanDataView({
       <KanbanToolbar
         source={source}
         config={config}
-        cardCount={countCards(columns)}
-        laneCount={model.lanes.length}
+        settings={settings}
         canConfigure={Boolean(onConfigChange)}
-        canEditData={canEditData}
-        canInsertRow={canInsertRow}
         onConfigChange={onConfigChange}
+        onFieldsChange={onFieldsChange}
+        onSettingsChange={handleSettingsChange}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{body}</div>
     </div>

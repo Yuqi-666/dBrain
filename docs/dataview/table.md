@@ -32,16 +32,14 @@ views/table/
 | toolbar   | `toolbar/search-bar.tsx`       | 工具条下方那一行搜索输入栏（「搜索」按钮按下才出现）：输入框 + 匹配计数 + 上/下一个 + 关闭；回车跳转、Esc 关闭（且不会连带关掉所在的弹窗，§5.3.1） |
 | menus     | `menus/field-menu.tsx`         | **字段配置** 下拉：搜索、字段列表、可折叠编组块、拖动、隐藏、更多菜单、新增字段、创建编组就地命名（§5.3/§8.11）                                    |
 | menus     | `menus/filter-menu.tsx`        | **筛选** 下拉：条件列表 + 添加条件（§5.4）                                                                                                         |
-| menus     | `menus/condition-menu.tsx`     | **分组** / **排序** 下拉（字段 + 方向，多级）（§5.4）                                                                                              |
 | menus     | `menus/color-menu.tsx`         | **填色** 下拉：颜色 + 范围（单元格/行/列）+ 条件（§5.4）                                                                                           |
 | menus     | `menus/select-menu.tsx`        | 单选/多选选项下拉：`查找或创建选项` 搜索框 + 选项胶囊列表 + 创建行；单选选后关闭、多选保持打开（§5.8）                                             |
-| menus     | `menus/condition-controls.tsx` | 条件行共用控件（筛选/分组/排序/填色）：类型感知的值输入、A→Z / Z→A 方向开关                                                                        |
-| fields    | `fields/meta.tsx`              | 字段类型标签/图标、选项色板与填色色板、字段搜索匹配（§5.3）                                                                                        |
-| fields    | `fields/picker.tsx`            | 带搜索的字段选择下拉（筛选/分组/排序/填色共用）                                                                                                    |
-| fields    | `fields/editor.tsx`            | 字段编辑表单：标题 / 字段类型 / 选项内容 / 默认值，以及作为下拉菜单主体的 `FieldEditorMenuContent`（§5.3）                                         |
+| menus     | `menus/condition-controls.tsx` | 筛选 / 填色共用的条件值输入（类型感知）。`字段 + 方向` 那一行两个视图都要用，已移到 `shared/condition-menu.tsx`                                    |
+| shared    | `shared/condition-menu.tsx`    | **分组** / **排序** 下拉（字段 + 方向，多级）；看板的排序是同一个组件（§5.4）                                                                      |
+| shared    | `shared/field-picker.tsx`      | 带搜索的字段选择下拉（筛选/分组/排序/填色 + 看板排序共用）                                                                                         |
 
-依赖方向在目录内是单向的：`fields/`、`menus/` 可以引 `core/` 与 `canvas/`，`core/` 在目录内只引
-`canvas/`，`canvas/` 只引 `fields/meta.tsx`（取色板与图标）；**没有任何文件反向引
+依赖方向在目录内是单向的：`menus/` 可以引 `core/`、`canvas/` 与 `shared/`，`core/` 在目录内只引
+`canvas/`，`canvas/` 只引 `shared/field-meta.tsx`（取色板与图标）；**没有任何文件反向引
 `table-data-view.tsx`**——壳只做装配。（目录外只有三处：`core/schema.ts` 引 `source/cell-resolver`，
 `canvas/theme.ts` 引 `shared/theme-tokens`，`toolbar/toolbar.tsx` 引 `toolbar/view-actions`。）
 `core/` 与 `canvas/` 的 6 个文件不 import React，是纯函数或纯数据；只有 `menus/`、`fields/`、
@@ -373,6 +371,20 @@ VTable 明确要求 style 回调保持廉价，不能在其中做重计算。
 
 - 行高是下拉菜单，三档按设计文档的中文命名显示为 **低 / 中等 / 高**（持久化枚举保持
   `compact | comfortable | spacious`，只改文案）。
+- **分组 / 排序的触发器与看板一致**（第 6 轮）：中性 outline 按钮，读作 `[图标] 分组 <字段名>`，
+  字段名用 `text-foreground`（多级时补一个 `+N`），**不带 primary 高亮、也不带数量徽标** ——
+  高亮与徽标只说「设了东西」却不说设了什么，而看板那两个按钮本来就是「图标 + 字段名」。
+  图标也用同一套（分组 `Columns3`、排序 `ArrowUpDown`）。
+- **四个条件面板有标题行**（本轮补回）：筛选 / 分组 / 排序 / 填色 打开就是 `设置…条件`，
+  `清除`（筛选 / 填色是 `清除全部`）放在同一行右侧，排序面板的 **自动排序** 开关在标题与
+  `清除` 之间。标题行是「这个面板叫什么」的铬件，不是解释；面板里的 hint 段落仍然不写
+  （第 6 轮），只保留空态/禁用态提示（「先添加字段，才能设置条件。」）。行高 / 导出 /
+  新建视图仍然没有标题 —— 它们的触发器本身就是标题。
+- **排序面板写的是 `config.sortState`，而表格不会因排序重建**（`structureKey` 故意不含排序），
+  所以壳里有一个以**序列化后的排序状态**为 key 的 effect 调 `table.updateSortState(next, true)`
+  把它推进活的 VTable（顺序无关的等价写入是 no-op；`persistSortState` 会把已经生效的状态记为
+  「已应用」，因此表头点击的 `after_sort` 不会被再推回去）。没有这个 effect 时，排序面板看起来
+  在写、行序却纹丝不动。
 - 排序菜单右上角是 **自动排序** 开关（`config.autoSort`）：关闭后数据变化不再重新应用
   `sortState`，VTable 保留自身排序态。
 - 排序/分组菜单里的方向开关**按字段类型取名**：select → 选项顺序/选项倒序，number → 1→9/9→1，
@@ -397,7 +409,9 @@ VTable 明确要求 style 回调保持廉价，不能在其中做重计算。
   于是「选中表格元素」和「在搜索框打字」这两个高频动作都会让整条功能区跳位。现在：删除行移入
   单元格右键菜单（见 §6），搜索框移出到下方单独一行，右组只剩 `行数/列数`（最左，宽度变化只
   向左侧空白扩展）、`导出`、`搜索`、`更多` 四个固定尺寸控件。
-- 下拉菜单内不放空占位块：没有条件时只显示标题 + 底部 **添加条件**（分组/排序/筛选/填色一致）；
+- 下拉菜单内不放空占位块：没有条件时只显示底部 **添加条件**（分组/排序/筛选/填色一致），
+  有条件时才在右上角出现 `清除`（分组/排序）或 `清除全部`（筛选/填色）；四个面板的标题行
+  （`设置…条件`）本轮补回 —— 说明性的 hint 段落仍然没有（第 6 轮）。
   字段选择器未选字段时显示 **选择字段**，并在选中前保持该条件不生效。面板本身要显式写 `gap-0`：
   shadcn 的 `PopoverContent` 自带 `gap-4`，会和 `mb-2` / `mt-2` 叠加成一道 24px 的缝。
 - 表里**一个字段都没有**时，筛选/分组/排序菜单里不再放一个点不动的「添加条件」（`disabled` 的 ghost
@@ -409,6 +423,11 @@ VTable 明确要求 style 回调保持廉价，不能在其中做重计算。
 ### 5.4 排序 / 筛选 / 分组 / 聚合
 
 - 点击表头排序（单列切换 asc/desc，可多列叠加），并写回 `config.sortState`。
+- **排序面板**（与看板同一个 `shared/condition-menu.tsx`）：`字段 + 方向` 条件行可多级、可拖动
+  排优先级，写的是同一个 `config.sortState`。因为 `structureKey` 故意不含排序（排序不该重建表格），
+  壳里有一个 effect 以**序列化后的排序状态**为 key 调 `table.updateSortState(next, true)`：配置是
+  唯一来源，等价写入是 no-op，`persistSortState` 会把已生效的状态记为「已应用」所以表头点击
+  （`after_sort`）不会被立刻推回去。缺了这一步，面板写得进去、行序却不动（本轮修的 bug）。
 - 筛选菜单：**条件列表**（字段 + 运算符 + 值，全部 AND），操作符 `包含 / 等于 / 为空 / 不为空`；
   值输入按字段类型切换（select/multiSelect → 选项下拉，checkbox → 是/否，其余 → 文本）。
   `readFilterState` 同时接受旧格式 `{ [fieldId]: { operator, value } }` 并在读取时迁移，

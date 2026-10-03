@@ -1,9 +1,5 @@
 import type { RuleGroupType, Field } from "@workspace/utils";
-import type {
-  NodeId,
-  NodeSemantic,
-  NodeSemanticId,
-} from "./node";
+import type { NodeId, NodeSemantic, NodeSemanticId } from "./node";
 import { NODE_DATA_TYPES } from "./node/types";
 
 export interface FilterConfig {

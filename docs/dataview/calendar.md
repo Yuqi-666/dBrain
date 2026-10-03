@@ -9,46 +9,78 @@
 ## 0. 实现状态（先读这一节）
 
 已经落地的是日历视图的完整交互链路：月/周/日/列表/多月五种视图、字段映射（开始/结束/标题/
-颜色/悬浮提示）、拖拽改期、拖边缘改时长、框选新增行、双击新增行、点击事件（打开记录 / 详情
-弹层 / 不响应）、悬浮提示、键盘可达的 FullCalendar 头部导航、浅深主题、以及「字段 / 视图 /
-交互 / 显示」四个工具栏面板。
+颜色/悬浮提示）、拖拽改期、拖边缘改时长、框选新增行、双击新增行、点击事件（打开记录）、悬浮提示、
+键盘可达的 FullCalendar 头部导航、浅深主题、以及「字段配置 / 视图」两个工具栏面板。
+
+**第五轮：`交互` 与 `显示` 两个面板被删除。** 里面每一项的默认值都是正确答案，所以它们直接变成
+固定行为：可写性由**宿主能力**决定（有 `onCellChange` 才能拖拽改期，有 `onRowInsert` 才能框选/
+双击新建），点击事件恒为「打开记录」（详情弹层随之删除），呈现方式（`zh-CN`、铺满面板、周末列、
+当前时刻线、多事件折叠、跟随主题）集中在 `core/config.ts` 的 `CALENDAR_FIXED`。
 
 与原设计的差异（都是有意的）：
 
-| 原设计                                             | 实际落地                                                                                        | 原因                                                                                                                                                                                          |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| §8.1「自建 CalendarDataView 壳」                   | 壳 + `board/calendar-surface.tsx`（`memo` 包裹的 FullCalendar 实例）+ `board/event-readout.tsx` | 事件不是 React 节点，悬停/点击读数的状态只能放在壳里；而 FullCalendar 的 React 封装**每次 re-render 都会 `resetOptions`**，不隔离就会让一次鼠标移动重绘整个日历（见下「不能破坏的约束」）     |
-| config 面板独立成文（C3「字段映射配置面板」）      | 配置进了**视图工具栏**的四个面板，注册表里**没有** `configEditor`                               | 与表格 / 看板同一条演化路径（M2.5：配置并入工具条，配置左 / 功能右）。所有设置都有专属入口，不留「视图配置」兜底                                                                              |
-| §4 `height: "auto" \| number`                      | `"auto"` = **铺满面板**（`height: "100%"`），数字 = 固定像素高度（超出则面板滚动）              | 外壳给的是一块固定高度的盒子（README §8.1），"auto" 在这里的自然语义就是「用满可用空间」；写成 FullCalendar 的 `height: "auto"` 反而会在一块高盒子里留出空白                                  |
-| §9「v1 固定本地时区」                              | `config.timeZone` 仍然持久化，但**不生效**（永远走 `local`）                                    | 保留字段是为了前向兼容；控件只放一个选项等于占位空态，所以干脆不给控件。date-only 单元格本来也不涉及时区换算                                                                                  |
-| §3.1 `startField` / `endField` 为空                | 与原设计一致，但**空的开始日期是不可达的正常态**：默认配置在无日期字段的表上就是 `""`，渲染引导 | 「还没有选择开始日期」正是这么来的                                                                                                                                                            |
-| §4 `_defaultView_` 只作为初值                      | 用户在日历头部点视图按钮时，**通过 `datesSet` 写回 `config.defaultView`**                       | 与表格「表头排序写回 config」同一条规则（README §8）：视图是声明，用户的选择应当被记住                                                                                                        |
-| §5.4「工具栏：上一页/下一页/今天、视图切换、标题」 | 交给 **FullCalendar 自己的 headerToolbar**，工具栏面板只决定「有哪些按钮」+「几个开关」         | 翻页/标题本来就是日历库的强项；自绘一套会与库内部的日期状态打架。面板把 `headerToolbar` 读成「今天按钮 + 视图按钮列表」两个决定（`readCalendarToolbarLayout` / `writeCalendarToolbarLayout`） |
-| §3.2「end 排他边界减一天」                         | 落在 `core/schema.ts` 的 `rangeToCells`，且**单日区间不写 end**                                 | 写 `end = start` 会让「单日」和「两日」在表格里长得一样；留空才能区分                                                                                                                         |
+| 原设计                                             | 实际落地                                                                                        | 原因                                                                                                                                                                                                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §8.1「自建 CalendarDataView 壳」                   | 壳 + `board/calendar-surface.tsx`（`memo` 包裹的 FullCalendar 实例）+ `board/event-readout.tsx` | 事件不是 React 节点，悬停/点击读数的状态只能放在壳里；而 FullCalendar 的 React 封装**每次 re-render 都会 `resetOptions`**，不隔离就会让一次鼠标移动重绘整个日历（见下「不能破坏的约束」）                                                                        |
+| config 面板独立成文（C3「字段映射配置面板」）      | 配置进了**视图工具栏**的面板（字段配置 / 视图），注册表里**没有** `configEditor`                | 与表格 / 看板同一条演化路径（M2.5：配置并入工具条，配置左 / 功能右）。所有设置都有专属入口，不留「视图配置」兜底                                                                                                                                                 |
+| §4 `height: "auto" \| number`                      | 固定为**铺满面板**（`height: "100%"`）；`CALENDAR_FIXED.height` 是 `"auto"`                     | 外壳给的是一块固定高度的盒子（README §8.1），"auto" 在这里的自然语义就是「用满可用空间」；写成 FullCalendar 的 `height: "auto"` 反而会在一块高盒子里留出空白                                                                                                     |
+| §9「v1 固定本地时区」                              | `config.timeZone` 仍然持久化，但**不生效**（永远走 `local`）                                    | 保留字段是为了前向兼容；控件只放一个选项等于占位空态，所以干脆不给控件。date-only 单元格本来也不涉及时区换算                                                                                                                                                     |
+| §3.1 `startField` / `endField` 为空                | 与原设计一致，但**空的开始日期是不可达的正常态**：默认配置在无日期字段的表上就是 `""`，渲染引导 | 「还没有选择开始日期」正是这么来的                                                                                                                                                                                                                               |
+| §4 `_defaultView_` 只作为初值                      | 用户在日历头部点视图按钮时，**通过 `datesSet` 写回 `config.defaultView`**                       | 与表格「表头排序写回 config」同一条规则（README §8）：视图是声明，用户的选择应当被记住                                                                                                                                                                           |
+| §5.4「工具栏：上一页/下一页/今天、视图切换、标题」 | 交给 **FullCalendar 自己的 headerToolbar**，工具栏面板只决定「有哪些视图按钮」                  | 翻页/标题本来就是日历库的强项；自绘一套会与库内部的日期状态打架。`headerToolbar` 只被读成一个决定 —— 视图按钮列表（`readCalendarToolbarLayout` / `writeCalendarToolbarLayout`）；`今天按钮` 的开关在第六轮删除，按钮固定为 `prev,next today`，旧配置读入时归一化 |
+| §3.2「end 排他边界减一天」                         | 落在 `core/schema.ts` 的 `rangeToCells`，且**单日区间不写 end**                                 | 写 `end = start` 会让「单日」和「两日」在表格里长得一样；留空才能区分                                                                                                                                                                                            |
+
+### 0.3 统一记录编辑页与右键菜单（第三轮）
+
+- **点击事件**：点击事件打开**统一记录编辑页**（`useRecordActions().openRecord` → 宿主 `onOpenRecord`，页面由 node-content 渲染），而不是
+  让视图自己去 `onOpenRecord`。第五轮删掉 `交互` 面板后只剩这一种行为（`CALENDAR_FIXED.eventClick`），
+  原先 `popover` 模式的详情弹层（`EventDetailPopover`）随之删除——打开节点仍然可以从记录右键菜单
+  里选（collection 才有该项）。
+- **右键事件**：事件元素由 FullCalendar 自己渲染，**不是 React 节点**，而且浏览器
+  `contextmenu` 的 target 是库自己的 `<a class="fc-event">`（实测：在 `.fc-event-main-frame`
+  上右键，target 仍是 `A.fc-event`），所以在 `eventContent` 里包一层 Radix `ContextMenu`
+  永远不会触发。日历改为在 `eventDidMount` 里挂原生 `contextmenu` 监听，调用
+  `openRecordMenu(point, rowId)`；外壳用 `RecordMenuAtPoint`（受控 `DropdownMenu` + 1×1
+  fixed 锚点）在指针处渲染同一份记录菜单。**不要把它改回 `eventContent`。**
+- `hiddenFieldIds` 是日历没有展示的字段（开始/结束/标题/颜色/悬浮字段之外的全部）。
 
 ### 文件地图
 
 ```text
 packages/dataview/src/views/calendar/
-├── calendar-data-view.tsx      # 壳：字段映射、写回链路、悬浮/点击读数、主题变量、引导（注册表唯一入口）
+├── calendar-data-view.tsx      # 壳：字段映射、写回链路、悬浮读数、主题变量、引导（注册表唯一入口）
 ├── core/
 │   ├── config.ts               # 配置自愈（开始/结束/标题/颜色/提示字段）、headerToolbar 往返、FullCalendar 视图名映射
 │   ├── schema.ts               # rows → events、event/select → 单元格、事件读数（纯函数，无 React）
 │   └── theme.ts                # DataViewThemeTokens → FullCalendar 的 --fc-* CSS 变量
 ├── board/
 │   ├── calendar-surface.tsx    # memo 包裹的 <FullCalendar>：插件、locale、onApi、全部事件回调
-│   └── event-readout.tsx       # 悬浮提示（Tooltip）+ 点击详情弹层（Popover），锚在事件矩形上
-└── toolbar/calendar-toolbar.tsx  # 字段 / 视图 / 交互 / 显示 四个面板
+│   └── event-readout.tsx       # 悬浮提示（Tooltip），锚在事件矩形上
+└── toolbar/calendar-toolbar.tsx  # 字段配置 / 视图 两个面板
 ```
 
 分层规则与表格 / 看板一致：`core/*` 是纯逻辑（`schema.ts` 只 import FullCalendar 的**类型**），
 `board/*` 组装 FullCalendar 与 shadcn 组件，`toolbar/*` 只读 config 并向上报 `onConfigChange`；
 **没有任何文件 import `calendar-data-view.tsx`**。日历**没有** `config-editor.tsx`。
 
+### 0.4 字段配置（第四轮）
+
+「字段」面板改名为**「字段配置」**，内容也从四个 `Select` 换成**表格 `字段配置` 的那份字段列表**
+（`shared/field-config-list.tsx`：搜索框 + 类型图标 + 眼睛 + 每行「…」菜单 + `新增字段`）。
+
+| 之前                                           | 现在                                                                                                        | 原因                                                                                                                                                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 开始/结束/标题/颜色四个字段下拉                | 每行的「…」菜单：`设为开始日期` / `设为结束日期` / `设为标题` / `设为颜色`（+ 清除结束日期 / 不按字段着色） | 与表格同一套字段列表交互；**第七轮又改了回来**：角色重新成为列表上方的四个配置项（`PanelSection` + `FieldSelect`），行的「…」只剩编辑/删除字段 —— 同一件事在任何视图里都该在同一个位置设置（看板/画廊的 `标题`・`封面` 同理） |
+| 悬浮提示字段是一个「排除已映射字段」的复选列表 | 每行一个**眼睛** =「是否出现在悬浮提示里」，对**所有**字段可用                                              | 一个字段一个可见性开关，映射与提示不再互相排斥                                                                                                                                                                                |
+| 面板没有字段增删改                             | `新增字段` / `编辑字段` / `删除字段`（需要宿主的 `onFieldsChange`）                                         | 与表格一致：字段管理在任何视图里都该做得到；新增的日期字段若还没有开始日期，会**自动设为开始日期**                                                                                                                            |
+| 行上没有角色提示                               | 行尾一行 11px 的角色注解（开始 / 结束 / 标题 / 颜色），开始日期带锁                                         | 一眼看出映射现状，而不是悬停猜                                                                                                                                                                                                |
+
+工具条右侧不再显示「N 事件」：事件就画在日历上，且读数会随数据变宽（AGENTS.md UI 约定）。
+
 ### 四条不能破坏的约束（实现时踩过）
 
 1. **FullCalendar 的 React 封装在每次 re-render 都调用 `resetOptions`。** 它用浅比较找出变化的
-   option，只要有变化就重绘整棵 preact 树；而壳里为了悬浮提示/点击弹层持有 React state，鼠标
+   option，只要有变化就重绘整棵 preact 树；而壳里为了悬浮提示持有 React state，鼠标
    在事件上移动一次就会触发一次 re-render。所以 `<CalendarSurface>` 必须 `memo` 包裹，且它的
    每个 prop 要么是原始值、要么是 `useMemo`/`useCallback` 稳定引用；壳里的最新值一律通过
    `latest` ref 读取（实测：悬停一次对 `.fc` 子树产生 **0 次 DOM 变更**，而一次配置写入产生 44 次）。
@@ -57,10 +89,10 @@ packages/dataview/src/views/calendar/
    概览叫 `multiMonthYear`。映射集中在 `core/config.ts` 的 `toFullCalendarView` /
    `fromFullCalendarView`（实测：用原始名时 `monthCount === 1`，映射后 12）。`headerToolbar`
    里存的也是映射后的名字，读回时反向映射。
-3. **Radix 的 `asChild` 锚点必须是真正的 DOM 元素。** 事件没有 React 节点可用，悬浮提示与点击
-   弹层都渲染一个 `position: fixed` 的隐形 `<span>`（坐标取自 `arg.el.getBoundingClientRect()`）；
-   这个 span **不能**包装在自定义组件里——`asChild` 把 anchor ref 交给直接子元素，不转发 ref 的
-   组件会让 Floating UI 量到 `null`，面板就会渲染到视口原点（实测：「打开记录」按钮落在
+3. **Radix 的 `asChild` 锚点必须是真正的 DOM 元素。** 事件没有 React 节点可用，悬浮提示渲染一个
+   `position: fixed` 的隐形 `<span>`（坐标取自 `arg.el.getBoundingClientRect()`）；这个 span
+   **不能**包装在自定义组件里——`asChild` 把 anchor ref 交给直接子元素，不转发 ref 的组件会让
+   Floating UI 量到 `null`，面板就会渲染到视口原点（实测：删除前的点击弹层里「打开记录」按钮落在
    `y = -157`，点不到）。
 4. **date-only 单元格是「日历日」，不是时间点。** `new Date("2026-05-20")` 是 UTC 午夜，在格林威治
    以西会渲染成 19 日、事件落到错误的格子里；`CellResolver.toDate` 因此对 `YYYY-MM-DD` 走本地
@@ -70,8 +102,8 @@ packages/dataview/src/views/calendar/
 
 与表格 / 看板一致：仓库内**没有**测试基建，日历是通过临时的 `apps/web` 页面 + 无头 Chromium
 （CDP）驱动验证的 —— 月/周/日/列表/多月渲染、拖拽改期、拖边缘改时长、框选新增、双击新增、
-点击打开的三种行为、悬浮提示、四个配置面板的每一项、headerToolbar 按钮增删、只读（无拖拽/
-无框选/开关禁用）、三种引导态、浅深主题与强制主题，以及切回看板的回归。临时页面已删除。
+点击打开、悬浮提示、两个配置面板的每一项（字段角色的增删改、headerToolbar 按钮增删）、只读
+（无拖拽/无框选）、三种引导态、浅深主题，以及切回看板/画廊的回归。临时页面已删除。
 
 ---
 
@@ -201,10 +233,10 @@ function eventToCells(info, config): Array<{ rowId; fieldId; cell }> {
 
 collection 场景 startField 可选 **createdAt / **updatedAt，titleField 用 **title，colorField 用 **nodeType（节点类型哈希取色）；只读（禁用拖拽写回），点击事件经 rowId → nodeIds 触发 onOpenNode。
 
-实际落地：`source.kind === "collection"` 时 `eventClick: "open"` 走 `onOpenNode(record.nodeId)`，
-`"popover"` 的按钮文案变成「打开节点」；`readOnly` 由宿主传入，壳把它与 `onCellChange` /
-`onRowInsert` 一起折算成 `editable` / `selectable`，并向工具栏暴露 `canEditData` / `canInsertRow`
-（开关因此显示为禁用而不是「打开但无效」）。`colorField` 选 `__nodeType` 时不需要任何特殊代码：
+实际落地：点击事件在两种宿主上都打开**统一记录编辑页**（`useRecordActions().openRecord` → 宿主渲染 `RecordEditor`），
+记录右键菜单里 collection 另有「打开节点」；`readOnly` 由宿主传入，壳把它与 `onCellChange` /
+`onRowInsert` 折算成 `editable` / `selectable` —— 第五轮删掉 `交互` 面板后，这两个值**就是**
+宿主能力本身，没有第二层开关。`colorField` 选 `__nodeType` 时不需要任何特殊代码：
 `CellResolver.toColor` 对没有声明颜色的选项按 `字段id:选项id` 求稳定色相。
 
 ---
@@ -229,41 +261,33 @@ export interface CalendarViewConfig {
     | "multiMonth";
   headerToolbar: { left: string; center: string; right: string }; // 工具栏布局
   firstDay: number; // 周起始（0 周日）
-  locale: string; // 语言（zh-cn）
-  timeZone: "local" | string;
-
-  // —— 交互 ——
-  editable: boolean; // 是否允许拖拽改期/改时长（collection 恒 false）
-  selectable: boolean; // 是否允许框选日期新建事件
-  eventClick: "open" | "popover" | "none"; // 点击事件行为
-  eventLimit: boolean | number; // 多事件折叠（+N more）
-
-  // —— 呈现 ——
-  height: "auto" | number; // 日历高度
-  showWeekends: boolean; // 是否显示周末
-  nowIndicator: boolean; // 当前时刻指示线
-  theme: "light" | "dark" | "auto";
+  timeZone: "local" | string; // 仅前向兼容保留，恒按 local 生效
 }
 ```
 
-默认配置（defaultConfig）：startField 取首个 date 字段、titleField 取主列、defaultView dayGridMonth、locale zh-cn、editable = !readOnly。
+配置里**只有**「字段映射 + 视图」两半：第五轮删掉了 `交互` / `显示` 两半的全部键
+（`editable` / `selectable` / `eventClick` / `eventLimit` / `height` / `showWeekends` /
+`nowIndicator` / `locale` / `theme`）。旧 config 里残留的这些键不会再被读取，因此不需要迁移。
+
+默认配置（defaultConfig）：startField 取首个 date 字段、titleField 取主列、defaultView dayGridMonth。
 
 实际落地的默认值还有：`endField` = 第二个 date 字段、`headerToolbar = { left: "prev,next today",
 center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（多月按钮默认不开）、
-`firstDay: 1`、`selectable: false`（新增行需要用户先打开，避免误点空白日期就建记录）、
-`eventClick: "open"`、`eventLimit: true`、`height: "auto"`、`showWeekends: true`、
-`nowIndicator: true`、`theme: "auto"`。
+`firstDay: 1`、`timeZone: "local"`。
+
+固定值集中在 `core/config.ts` 的 `CALENDAR_FIXED`：`locale: "zh-CN"`、`height: "auto"`（铺满面板）、
+`theme: "auto"`（跟随 next-themes）、`showWeekends: true`、`nowIndicator: true`、`eventLimit: true`
+（自动折叠）、`eventClick: "open"`（点击即打开记录编辑页）。可写性不是常量，而是宿主能力：
+`editable = 宿主可写单元格`、`selectable = 宿主可新增行`。
 
 配置面板与字段的对应（`toolbar/calendar-toolbar.tsx`，注册表里没有 `configEditor`）：
 
-| 面板     | 覆盖的配置键                                                                                                                                                  |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **字段** | startField（日期字段）、endField（不使用 / 另一个日期字段）、titleField（任意字段）、colorField（单选/多选）、tooltipFields（复选列表，排除上面已映射的字段） |
-| **视图** | defaultView（月/周/日/列表/多月）、headerToolbar（读成「今天按钮」+「视图按钮列表」）、firstDay                                                               |
-| **交互** | editable、selectable、eventClick                                                                                                                              |
-| **显示** | height、eventLimit（自动 / 不折叠 / 2 / 3 / 5）、showWeekends、nowIndicator、locale（简体中文 / English）、theme                                              |
+| 面板         | 覆盖的配置键                                                                                                                                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **字段配置** | 四个角色**配置项**（开始日期 / 结束日期 / 标题 / 颜色，各一个 `PanelSection` + `FieldSelect`）+ 字段列表（眼睛 = `tooltipFields`、行尾角色注解、编辑/删除/新增字段） |
+| **视图**     | defaultView（月/周/日/列表/多月）、headerToolbar（只读成「视图按钮列表」；`今天` 固定显示）、firstDay                                                                |
 
-`timeZone` 没有控件（v1 恒 `local`，见 §9）。
+两个面板的触发器都是中性按钮（没有高亮态）。`timeZone` 没有控件（v1 恒 `local`，见 §9）。
 
 ---
 
@@ -277,7 +301,7 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 - 列表视图（listWeek）：议程列表，按时间顺序。
 - 多月视图（multimonth）：跨月概览（可选）。
 
-### 5.2 日期交互（database 可编辑）
+### 5.2 日期交互（宿主可写时）
 
 - 拖拽事件改日期（eventDrop → 写回 startField / endField）。
 - 拖拽边缘改时长（eventResize → 写回 endField）。
@@ -286,7 +310,7 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 
 ### 5.3 事件交互
 
-- 点击事件 → 打开记录详情浮层 / 打开关联节点（eventClick）。
+- 点击事件 → 打开统一记录编辑页（宿主 node-content 渲染）；右键 → 统一记录菜单（打开记录 / 打开节点 / 复制 / 删除）。
 - 悬浮提示：标题 + tooltipFields 的字段值。
 - 多事件折叠（+N more）展开。
 - 事件按 colorField 着色，图例可开关（可选）。
@@ -301,15 +325,15 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 
 ## 6. 交互与操作方法
 
-| 操作     | 手势/入口           | 结果                      |
-| -------- | ------------------- | ------------------------- |
-| 切换视图 | 工具栏按钮          | 月/周/日/列表             |
-| 翻页     | 上一页/下一页/今天  | 变更时间范围              |
-| 改日期   | 拖拽事件            | 写回 start/end 字段       |
-| 改时长   | 拖拽事件右/下边缘   | 写回 end 字段             |
-| 新建事件 | 框选日期 / 双击空白 | 新增行 + 起止日期         |
-| 打开记录 | 点击事件            | onOpenRecord / onOpenNode |
-| 详情     | 悬浮事件            | tooltip 字段              |
+| 操作     | 手势/入口           | 结果                       |
+| -------- | ------------------- | -------------------------- |
+| 切换视图 | 工具栏按钮          | 月/周/日/列表              |
+| 翻页     | 上一页/下一页/今天  | 变更时间范围               |
+| 改日期   | 拖拽事件            | 写回 start/end 字段        |
+| 改时长   | 拖拽事件右/下边缘   | 写回 end 字段              |
+| 新建事件 | 框选日期 / 双击空白 | 新增行 + 起止日期          |
+| 打开记录 | 点击事件            | 统一记录编辑页（宿主渲染） |
+| 详情     | 悬浮事件            | tooltip 字段               |
 
 键盘：方向键移动选中事件、Enter 打开、Delete 删除（可编辑时）。
 
@@ -317,11 +341,12 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 
 - 五种视图都可用；多月按钮打开的是 **12 个月概览**（`multiMonthYear` 的映射见 §0 约束 2），在
   面板里仍显示为「多月」。
-- **新建事件有两种手势，且都要求 `selectable`**：在空白日期上**拖拽跨天**（`select`，区间 > 1 天）
+- **新建事件有两种手势，都要求宿主允许新增行**：在空白日期上**拖拽跨天**（`select`，区间 > 1 天）
   或**双击**某个日期（`dateClick`，`jsEvent.detail >= 2`）。单击只高亮不建行 —— 否则误点一下就
   多一条记录。两种手势都经 `selectionToRow` 生成带 `start`/`end` 的新行，落 `onRowInsert`。
-- 「点击事件」的三种行为都实现：`open` 直接打开记录/节点，`popover` 在事件下方弹出详情
-  （标题 + 日期 + `tooltipFields`，带「打开记录/节点」按钮），`none` 不响应。
+- 点击事件只有一种行为：打开统一记录编辑页（`CALENDAR_FIXED.eventClick`）。原先 `popover`
+  详情弹层与 `none` 一起随 `交互` 面板删除——需要「不响应」的场景本来也说不清楚，而记录菜单
+  （右键）已经能给出全部动作。
 - 悬浮提示（Tooltip）显示标题 + 日期区间 + `tooltipFields`（空值行不显示）。它是 Tooltip 而不是
   Popover：只读数、不抢焦点、不常驻。
 - 事件按 `colorField` 着色；**图例未做**（设计里本来就是「可选」，且颜色语义由字段选项自身承载）。
@@ -384,7 +409,10 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 补充（实现后确认的取舍）：
 
 - **`timeZone` 字段存在但不生效**：v1 恒 `local`，工具栏也不给控件（单选项控件等于占位空态）。
-- **`height` 的 `"auto"` 语义是「铺满面板」**，不是 FullCalendar 的 `height: "auto"`（内容高度）。
+- **`height` 固定为「铺满面板」**（`CALENDAR_FIXED.height = "auto"` → `height="100%"`），不是
+  FullCalendar 的 `height: "auto"`（内容高度）。第五轮删掉 `显示` 面板后，固定像素高度也随之消失。
+- **呈现类设置没有 UI**：语言、主题、周末列、当前时刻线、多事件折叠都是常量（`CALENDAR_FIXED`），
+  跟着产品默认走；它们原本是 `显示` 面板里的六个控件，但每一项都只有一个正确答案。
 - **首屏不保活**：切走即销毁，翻到的月份不写回 config（配置里没有 `currentDate` 这个键；
   想要「切回来还在同一个月」需要扩展 config，属于 v2）。
 - **`multiMonth` 只有 12 个月概览一种排版**，没有暴露 `multiMonthMaxColumns` / `multiMonthMinWidth`。
@@ -397,9 +425,9 @@ center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }`（�
 | --- | ------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
 | C1  | calendar-schema.ts  | `rowsToEvents` / `rangeToCells` / `eventToCells` / `selectionToRow` | `core/schema.ts`                                        |
 | C2  | CalendarDataView 壳 | FullCalendar options 映射 + locale + 命令式视图切换                 | `calendar-data-view.tsx` + `board/calendar-surface.tsx` |
-| C3  | 字段映射配置面板    | start / end / title / color / tooltip 选择器                        | `toolbar/calendar-toolbar.tsx`（字段 面板）             |
+| C3  | 字段映射配置面板    | 字段列表 + 角色菜单（开始 / 结束 / 标题 / 颜色）+ 悬浮提示眼睛      | `toolbar/calendar-toolbar.tsx`（字段配置 面板）         |
 | C4  | 拖拽写回            | eventDrop / eventResize / select / dateClick → onCellChange         | `calendar-data-view.tsx` + `core/schema.ts`             |
-| C5  | 事件交互            | eventClick 三种行为 + 悬浮提示 + 点击详情弹层                       | `board/event-readout.tsx`                               |
-| C6  | 主题/周末/今天线    | `--fc-*` 变量注入 + 显示面板 + 高度/折叠/语言                       | `core/theme.ts` + `toolbar/calendar-toolbar.tsx`        |
-| C7  | collection 只读投影 | 复用投影 + 只读禁用拖拽/框选，开关显示为禁用                        | `calendar-data-view.tsx`                                |
+| C5  | 事件交互            | 点击打开记录 + 悬浮提示（详情弹层第五轮删除）                       | `board/event-readout.tsx`                               |
+| C6  | 主题/周末/今天线    | `--fc-*` 变量注入 + `CALENDAR_FIXED` 固定呈现（面板第五轮删除）     | `core/theme.ts` + `core/config.ts`                      |
+| C7  | collection 只读投影 | 复用投影 + 只读即禁用拖拽/框选（宿主能力是唯一开关）                | `calendar-data-view.tsx`                                |
 | C8  | 字段自愈 + 引导态   | 三种缺字段引导、「还没有选择开始日期」可达                          | `core/config.ts` + `calendar-data-view.tsx`             |

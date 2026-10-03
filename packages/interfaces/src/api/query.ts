@@ -6,4 +6,3 @@ export interface SyncQuery {
   syncEdges?: boolean;
   syncViews?: boolean;
 }
-

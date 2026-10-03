@@ -1,7 +1,7 @@
 import type { FilterConfig } from "./filter";
 
 export type ViewId = string;
-export type ViewType = "Force" | "Flow"
+export type ViewType = "Force" | "Flow";
 export interface VisualConfig {
   backgroundColor?: string;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";

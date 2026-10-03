@@ -199,19 +199,71 @@ export interface TableViewConfig {
   colorRules?: TableColorRule[];
 }
 
-export interface KanbanViewConfig {
-  groupByField: string;
-  titleField: string;
+/**
+ * The card presentation the card-shaped views share — **a config fragment, not
+ * a view config**.
+ *
+ * Kanban and gallery both draw records as cards, so both persist the same four
+ * keys and render the same 卡片配置 menu (`shared/card-config.tsx`) over them; a
+ * card therefore looks and configures the same in either view. Everything a
+ * card needs beyond this (lanes, layout, card size) stays on the view's own
+ * config.
+ *
+ * `titleField` / `coverField` are ids into the live schema and self-heal
+ * (`shared/card-ops.ts`): a deleted field degrades instead of throwing.
+ * `compact` is 展示模式 (常规 / 紧凑) — a boolean, so an old config's
+ * `compact: false` stays valid.
+ */
+export interface DataCardConfig {
+  /** The field drawn as the card's title (locked at the top of 卡片配置). */
+  titleField?: string;
+  /** The field whose value becomes the cover; absent → no configured cover. */
+  coverField?: string;
+  /** The fields drawn under the card title, in card order. */
   cardFields?: string[];
-  sortBy?: { fieldId: string; order: "asc" | "desc" };
-  laneOrder?: string[];
-  showCardCount: boolean;
-  showUnassigned: boolean;
-  allowDrag: boolean;
-  allowCreate: boolean;
-  compact: boolean;
+  /** 展示模式: `true` = 紧凑 (tighter spacing, fewer values). */
+  compact?: boolean;
 }
 
+/**
+ * The kanban's own config.
+ *
+ * A card is the shared {@link DataCardConfig} fragment; what is left here is how
+ * rows become lanes. Dragging, creating a card and the lane counts are **not**
+ * configurable any more: they were three switches of the 显示 panel whose
+ * defaults were the right answer every time, so the board now behaves like the
+ * default — cards move whenever the host allows cell writes, a lane offers "new
+ * card" whenever the host allows row inserts, and a lane always states how many
+ * cards it holds.
+ */
+export interface KanbanViewConfig extends DataCardConfig {
+  groupByField: string;
+  /**
+   * The card order, as the same multi-level condition list the table's 排序
+   * writes (first level wins, later levels break its ties).
+   *
+   * A board saved before this list existed carries the legacy single-level
+   * `sortBy`, which the kanban reads as a one-level `sortState`.
+   */
+  sortState?: TableCondition[];
+  /** Legacy single-level sort; superseded by `sortState`. */
+  sortBy?: { fieldId: string; order: "asc" | "desc" };
+  laneOrder?: string[];
+  showUnassigned: boolean;
+}
+
+/**
+ * The calendar's own config.
+ *
+ * A calendar field is a *role* (start / end / title / colour / tooltip), and the
+ * header buttons are the view switcher; those are the only things here. The
+ * 交互 and 显示 panels are gone: a drag writes whenever the host allows cell
+ * writes, a drag over blank days creates a row whenever the host allows row
+ * inserts, an event click opens the record, and the presentation (locale,
+ * height, weekend columns, the "now" line, folding a busy day, theme) is the
+ * fixed default set in `views/calendar/core/config.ts` — every one of those had
+ * exactly one right answer.
+ */
 export interface CalendarViewConfig {
   startField: string;
   endField?: string;
@@ -227,18 +279,8 @@ export interface CalendarViewConfig {
     | "multiMonth";
   headerToolbar: { left: string; center: string; right: string };
   firstDay: number;
-  locale: string;
+  /** Persisted for v1 compatibility; the surface pins it to `local`. */
   timeZone: "local" | string;
-
-  editable: boolean;
-  selectable: boolean;
-  eventClick: "open" | "popover" | "none";
-  eventLimit: boolean | number;
-
-  height: "auto" | number;
-  showWeekends: boolean;
-  nowIndicator: boolean;
-  theme: "light" | "dark" | "auto";
 }
 
 export interface GanttViewConfig {
@@ -258,18 +300,24 @@ export interface GanttViewConfig {
   theme: "light" | "dark" | "auto";
 }
 
-export interface GalleryViewConfig {
-  titleField: string;
-  coverField?: string;
-  badgeFields?: string[];
-  metaFields?: string[];
-
+/**
+ * The gallery's own config.
+ *
+ * A card is a title, a cover and a handful of field values, and that half of it
+ * is the shared {@link DataCardConfig} — the same shape the kanban persists, so
+ * both views render one card component and one 卡片配置 menu. What is left here
+ * is how the wall arranges those cards.
+ *
+ * The first implementation let the user tune more (an explicit column count, a
+ * "virtualize" switch, a "show a placeholder cover" switch, and two separate
+ * field lists for chips and meta rows); each either had one right answer or was
+ * already implied by the layout. Legacy configs (`badgeFields` / `metaFields` /
+ * `columns` / …) are still read by `shared/card-ops.ts`, which folds the old
+ * field lists into `cardFields`.
+ */
+export interface GalleryViewConfig extends DataCardConfig {
   layout: "grid" | "masonry" | "list";
   cardSize: "small" | "medium" | "large";
-  columns: number;
-  showEmptyCover: boolean;
-  selectable: boolean;
-  virtualized: boolean;
 }
 
 export type ChartAggregation = "sum" | "avg" | "count" | "min" | "max";

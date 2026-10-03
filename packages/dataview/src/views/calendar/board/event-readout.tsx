@@ -1,29 +1,26 @@
 "use client";
 
 /**
- * The two event readouts: the hover tooltip and the click popover.
+ * The event readout: the hover tooltip.
  *
- * Both hang off the same problem: a FullCalendar event is **not a React node**
- * (the library renders its own DOM), so there is nothing to hand Radix as a
- * trigger. Each readout therefore renders an invisible, `position: fixed`
- * `<span>` at the event's viewport rect and lets Radix anchor to it — the same
- * technique the table uses for its canvas-anchored panels. The rect is the one
- * FullCalendar hands `eventMouseEnter` / `eventClick` (`arg.el`), and Radix
- * portals both layers to `document.body`, so a transformed ancestor (the node
- * editor dialog's enter animation) cannot capture `position: fixed`.
+ * It hangs off a FullCalendar limitation: an event is **not a React node** (the
+ * library renders its own DOM), so there is nothing to hand Radix as a trigger.
+ * The readout therefore renders an invisible, `position: fixed` `<span>` at the
+ * event's viewport rect and lets Radix anchor to it — the same technique the
+ * table uses for its canvas-anchored panels. The rect is the one FullCalendar
+ * hands `eventMouseEnter` (`arg.el`), and Radix portals the layer to
+ * `document.body`, so a transformed ancestor (the node editor dialog's enter
+ * animation) cannot capture `position: fixed`.
+ *
+ * A click on an event is not a readout any more: it opens the shared record
+ * editor, so the old click popover went with the 交互 panel.
  */
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@workspace/ui/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/ui/tooltip";
-import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 
 import type { CalendarEventReadout } from "../core/schema";
@@ -91,8 +88,8 @@ function DetailRow({
 /**
  * The hover readout: title + date, then the `config.tooltipFields` values.
  *
- * It is a `Tooltip` rather than a `Popover` because it must not take focus or
- * stay open on click — it is a readout, not a layer.
+ * It is a `Tooltip` because it must not take focus or stay open on click — it is
+ * a readout, not a layer.
  */
 export function EventHoverReadout({
   rect,
@@ -137,78 +134,5 @@ export function EventHoverReadout({
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  );
-}
-
-/** The click popover: the same readout plus the "打开记录" action. */
-export function EventDetailPopover({
-  rect,
-  readout,
-  canOpen,
-  openLabel,
-  onOpen,
-  onClose,
-}: {
-  rect: EventAnchor;
-  readout: CalendarEventReadout;
-  canOpen: boolean;
-  openLabel: string;
-  onOpen: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <Popover
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <PopoverAnchor asChild>
-        <span aria-hidden style={anchorStyle(rect)} />
-      </PopoverAnchor>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={6}
-        // A hover-triggered layer must not steal the caret from the editor
-        // behind it; this popover opens from a click on a canvas-drawn event.
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        onCloseAutoFocus={(event) => event.preventDefault()}
-        className="w-64 gap-2 p-3"
-      >
-        <div className="flex flex-col gap-0.5">
-          <p className="text-sm leading-snug font-medium">{readout.title}</p>
-          {readout.dateText && (
-            <p className="text-[11px] text-muted-foreground tabular-nums">
-              {readout.dateText}
-            </p>
-          )}
-        </div>
-        {readout.details.length > 0 && (
-          <div className="flex flex-col gap-1 border-t border-border pt-2">
-            {readout.details.map((detail) => (
-              <DetailRow
-                key={detail.fieldId}
-                name={detail.name}
-                text={detail.text}
-                color={detail.color}
-                className="text-muted-foreground"
-              />
-            ))}
-          </div>
-        )}
-        {canOpen && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 w-full text-xs"
-            onClick={onOpen}
-          >
-            {openLabel}
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }

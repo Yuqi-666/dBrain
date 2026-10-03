@@ -40,7 +40,7 @@ import {
 /** Placeholder title for a row whose title cell is empty. */
 export const CALENDAR_UNTITLED = "未命名";
 
-/** One field readout on the hover tooltip / click popover. */
+/** One field readout on the hover tooltip. */
 export interface CalendarDetail {
   fieldId: string;
   name: string;
@@ -206,10 +206,9 @@ export function readEventRecord(event: EventApi): CalendarEventRecord {
 
 // —— event → hover / click readout ——————————————————————————————————————
 
-/** What the hover tooltip and the click popover show for one event. */
+/** What the hover tooltip shows for one event. */
 export interface CalendarEventReadout {
   rowId: string;
-  nodeId?: string;
   title: string;
   /** `2026-05-20` or `2026-05-20 → 2026-05-22`. */
   dateText: string;
@@ -230,7 +229,7 @@ function formatDay(date: Date, locale: string): string {
 }
 
 /**
- * Describes an event for the two readouts.
+ * Describes an event for the hover readout.
  *
  * FullCalendar's `end` is exclusive, so the last day shown is `end - 1`; a range
  * that covers one day collapses to a single date rather than "20 → 20".
@@ -253,7 +252,6 @@ export function readEventReadout(
 
   return {
     rowId: record.rowId,
-    nodeId: record.nodeId,
     title: event.title,
     dateText,
     details: record.details.filter((detail) => detail.text !== ""),

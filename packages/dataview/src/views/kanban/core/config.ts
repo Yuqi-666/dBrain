@@ -8,6 +8,10 @@
  * *live* thing this id means" and degrades to `null`/`""` instead of throwing
  * (README §5.1); the renderer turns that into the missing-field guidance.
  *
+ * What a **card** shows (title / cover / card fields / 展示模式) is not here: it
+ * is shared with the gallery and lives in `shared/card-ops.ts`. This module is
+ * the board's own half — lanes, their order, and the cells a drag writes.
+ *
  * Pure module: no React, no third-party library.
  */
 import type {
@@ -15,9 +19,34 @@ import type {
   DatabaseField,
   DatabaseFieldOption,
   KanbanViewConfig,
+  TableCondition,
 } from "@workspace/interfaces";
 
 import { resolveOptionColor } from "../../../shared/field-meta";
+
+/**
+ * The card order, as the same condition list the table's 排序 menu writes.
+ *
+ * Self-healing, like every other resolver here: a level whose field is gone is
+ * dropped, but a level the user has not given a field yet is kept so its row
+ * stays visible in the menu. A view saved before the list existed carries the
+ * legacy single-level `sortBy`, which reads as a one-level list.
+ */
+export function resolveKanbanSort(
+  fields: readonly DatabaseField[],
+  config: Pick<KanbanViewConfig, "sortState" | "sortBy">,
+): TableCondition[] {
+  const stored =
+    config.sortState && config.sortState.length > 0
+      ? config.sortState
+      : config.sortBy
+        ? [config.sortBy]
+        : [];
+  const known = new Set(fields.map((field) => field.id));
+  return stored.filter(
+    (level) => Boolean(level) && (!level.fieldId || known.has(level.fieldId)),
+  );
+}
 
 /** Grouping needs a field that carries an option list (单选 / 多选). */
 export function isGroupableField(
@@ -46,31 +75,6 @@ export function resolveGroupField(
 ): DatabaseField | null {
   const field = fields.find((candidate) => candidate.id === groupByField);
   return isGroupableField(field) ? (field ?? null) : null;
-}
-
-/** The live card-title field: the configured one, else the primary column. */
-export function resolveTitleField(
-  fields: readonly DatabaseField[],
-  titleField: string | undefined,
-): DatabaseField | null {
-  return (
-    fields.find((field) => field.id === titleField) ??
-    fields.find((field) => field.type === "text") ??
-    fields[0] ??
-    null
-  );
-}
-
-/** The live card-detail fields (a deleted id silently drops out). */
-export function resolveCardFields(
-  fields: readonly DatabaseField[],
-  cardFields: readonly string[] | undefined,
-): DatabaseField[] {
-  if (!cardFields || cardFields.length === 0) return [];
-  const byId = new Map(fields.map((field) => [field.id, field]));
-  return cardFields
-    .map((fieldId) => byId.get(fieldId))
-    .filter((field): field is DatabaseField => field !== undefined);
 }
 
 /** `true` when the group field holds a set of options rather than one. */

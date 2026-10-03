@@ -12,24 +12,46 @@
 (table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
 own config.
 
-**Current status: shell + the table, kanban and calendar views.** `<DataViewRoot />`
-(view tab strip, routing, view CRUD), the source adapters, the cell resolver, **the
-`table` view** (VTable `ListTable`: rendering, editing, sorting, filtering,
-grouping, search, export, row CRUD/reorder, **field CRUD with column groups,
-conditional colouring, and 单选/多选 capsule cells whose options are picked from
-an anchored dropdown**), **the `kanban` view** (vendored ReUI board on
-`@dnd-kit`: lanes from a 单选/多选 field, cross-lane drag write-back, lane
-reorder/rename/collapse, new-card and card menu, four toolbar panels) and **the
-`calendar` view** (FullCalendar: 月/周/日/列表/多月, field mapping, drag/resize
-date write-back, 框选/双击 row creation, hover tooltip + click popover, four
-toolbar panels) are implemented. The other **four view renderers and config
-editors are still placeholders** that render `<DataViewPlaceholder>` /
-`<DataViewConfigPlaceholder>`, and their libraries (VChart,
-@workspace/graph, @visactor/vtable-gantt) are not dependencies yet — each view
-pulls its library only when it is implemented. The kanban's own deps
+**Current status: shell + the table, kanban, calendar and gallery views + the
+unified record surface and the unified card.** Every view opens the same
+**record editor** (a column of the host's own box, built on the shared field controls) on
+click and the same **record context menu** on right-click; the common items come
+from `shared/record-menu.tsx`, a view appends its own. The page is rendered by the
+**host node-content** (the shell only reports `onOpenRecord`), the menu by the
+shell. Values are rendered by the
+shared `shared/field-value.tsx` (单选/多选 → shadcn `Badge`) and edited by
+`shared/field-input.tsx` (日期 → the shadcn `Calendar` in a `Popover`). The
+kanban and the gallery additionally share **one card** (`shared/card.tsx` +
+`shared/card-cover.tsx` + `shared/card-ops.ts`) and **one 卡片配置 menu**
+(`shared/card-config.tsx`) over the `DataCardConfig` fragment both persist, so a
+record looks and configures the same on a board and on a wall.
+`<DataViewRoot />` (view tab strip, routing, view CRUD), the source adapters, the
+cell resolver, **the `table` view** (VTable `ListTable`: rendering, editing,
+sorting, filtering, grouping, search, export, row CRUD/reorder, **field CRUD with
+column groups, conditional colouring, and 单选/多选 capsule cells whose options
+are picked from an anchored dropdown**), **the `kanban` view** (vendored ReUI
+board on `@dnd-kit`: lanes from a 单选/多选 field, cross-lane drag write-back,
+lane reorder/rename/collapse, new-card, three toolbar panels),
+**the `calendar` view** (FullCalendar: 月/周/日/列表/多月, field mapping,
+drag/resize date write-back, 框选/双击 row creation, hover tooltip, two toolbar
+panels — 字段配置 / 视图 — with the presentation fixed by `CALENDAR_FIXED`) and
+**the `gallery` view** (a self-built card wall, **redesigned**: 网格/瀑布流/列表,
+a card size that owns the minimum tile width — the column count is _measured_ from
+the pane, never configured — a real virtual window for 网格/列表 and incremental
+paging for 瀑布流, keyboard navigation over a roving tabindex with Shift range
+select, the shared record right-click menu, selection with bulk delete, the shared
+`DataCard`, and a toolbar of 添加记录 / 卡片配置 / 布局 with nothing on the right
+but the shell's 更多)
+are implemented. The other **three view renderers and their config editors are
+still placeholders** that render `<DataViewPlaceholder>` /
+`<DataViewConfigPlaceholder>`, and their libraries (VChart, @workspace/graph,
+@visactor/vtable-gantt) are not dependencies yet — each view pulls its library
+only when it is implemented. The kanban's own deps
 (`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui`
 for the vendored `Slot`) and the calendar's (`@fullcalendar/core|react|daygrid|
-timegrid|list|multimonth|interaction`, all `6.1.21`) are installed.
+timegrid|list|multimonth|interaction`, all `6.1.21`) are installed; **the gallery
+added no dependency at all** (the design's optional `react-virtuoso` was not
+needed).
 
 **There is no side config panel.** The design change in
 `docs/propmt/dataview-table-1.md` moved view configuration into each view's own
@@ -37,10 +59,31 @@ toolbar as buttons + dropdown menus, **config left / functions right**; a later
 change moved the shell's view actions (更多: 设为默认 / 复制 / 删除视图) into that
 same function group, so the tab strip above is pure navigation. Every renderer
 draws a `ViewToolbar`, which appends the 更多 slot automatically. `ViewConfigMenu` (the generic "视图配置" popover
-over the registry's lazy `configEditor`) **is not used by the table, kanban or
-calendar** — every one of their controls has a dedicated menu — and only remains
-for views that have no dedicated menu yet; a descriptor may therefore omit
-`configEditor` entirely.
+over the registry's lazy `configEditor`) **is used by none of the four implemented
+views** — every one of their controls has a dedicated menu — and only remains for
+views that have no dedicated menu yet; a descriptor may therefore omit
+`configEditor` entirely. **A view toolbar's function group holds verbs, not
+readouts**: the kanban, the calendar and the gallery all dropped their
+「N 泳道 · N 卡片」/「N 事件」/「N 张卡片」badge, because the board, the day cells and
+the cards themselves say it — and a readout that follows the data would resize the
+right-anchored group (see § _UI conventions_).
+
+**The record surface is shared, not per-view.** `DataViewRoot` renders one
+`RecordMenuAtPoint` and provides `shared/record-actions.tsx`'s context; a renderer
+only calls `useRecordActions().openRecord(rowId, { hiddenFieldIds })` and wraps its
+record element in `<RecordContextMenu rowId hiddenFieldIds sections>`. That is what
+makes "click a record" and "right-click a record" identical in all four views. A
+view adds its own menu items through `sections` (the kanban's 移动到, the gallery's
+选择 + 删除选中). **The record _editing page_ is not the shell's**: `openRecord`
+reports up through `DataViewRoot`'s `onOpenRecord`, and the host node-content
+renders `<RecordEditor>` with its own live callbacks
+(`database-node-content.tsx` / `collection-node-content.tsx`), because a record's
+data and write path live there. The shell is therefore still the one place that
+decides _what_ "open a record" means for every view, while the page itself stays
+host-owned — and out of every lazy view chunk. It is laid out **inside the host's
+box** (`absolute inset-y-0 right-0` + a scrim), because a node-content is mounted
+full-screen _or_ inside the node editor's dialog window; the host marks whatever
+the page covers as `inert`.
 
 ## STRUCTURE
 
@@ -60,14 +103,39 @@ src/
 │   ├── collection-source.ts     # node projection → DataViewSource (fixed __schema)
 │   ├── cell-resolver.ts         # DatabaseCell → text/scalar/date/number/color/node ids
 │   ├── row-utils.ts             # createDataRowId / emptyCellForField / createEmptyDataRow
+│   │                            #   + createDatabaseFieldId / reconcileRowsForFields (shared field CRUD)
 │   └── field-utils.ts           # primary/date/number/select field pickers
 ├── shared/
 │   ├── view-toolbar.tsx         # ViewToolbar strip + ViewConfigMenu popover (config-in-toolbar)
 │   ├── field-meta.tsx           # field-type labels/icons, option + fill palettes, field search
 │   ├── field-select.tsx         # the in-popover field picker (shadcn Select; kanban + calendar)
+│   ├── field-picker.tsx         # the searchable field dropdown a condition row picks with (table + kanban 排序)
+│   ├── condition-menu.tsx       # THE 字段 + 方向 condition menu (table 分组/排序 + kanban 排序) and its
+│   │                            #   order toggle / readout helpers
 │   ├── settings-panel.tsx       # SettingsPanel / PanelSection / SwitchRow / CheckboxOptionList
-│   ├── color.ts                 # contrastTextColor (fill + capsule + calendar event chips)
-│   ├── data-view-placeholder.tsx        # placeholder body the four unimplemented views render
+│   ├── color.ts                 # contrastTextColor + tintColor (chips/fills on a themed surface)
+│   ├── card.tsx                 # THE card body: DataCard (cover + title + tinted chips + value lines,
+│   │                            #   four layouts) — the kanban and the gallery draw the same card
+│   ├── card-cover.tsx           # THE card cover box: a cell URL, a node's preview, or a monogram
+│   ├── card-ops.ts              # pure card layer: settings (incl. the legacy badgeFields/metaFields
+│   │                            #   migration), title/cover/field resolution, cover source, field CRUD
+│   ├── card-config.tsx          # THE 卡片配置 menu (标题/封面 config items / 展示模式 / 卡片字段 list) — kanban + gallery
+│   ├── field-config-list.tsx    # THE field list (search, eye, per-field "…", 新增字段) — the table's
+│   │                            #   字段配置 minus column groups; rows only ANNOTATE a role (badge/lock)
+│   ├── field-value.tsx          # THE read-only value renderer: OptionBadge (tinted shadcn Badge),
+│   │                            #   FieldValue, cellOptionBadges, date helpers — used by every DOM surface
+│   ├── field-input.tsx          # the editable control per field type (quiet inputs, Switch, pickers)
+│   ├── option-picker.tsx        # 单选/多选 editor: Popover + Command (查找或创建选项), badge trigger
+│   ├── date-picker.tsx          # 日期 editor: the shadcn Calendar inside a Popover
+│   ├── field-editor.tsx         # 标题/字段类型/选项内容/默认值 form (+ FieldEditorMenuContent for the
+│   │                            #   table's dropdown); moved out of views/table/fields/editor.tsx
+│   ├── record-actions.tsx       # the record surface's context (openRecord / openRecordMenu) + menu types
+│   ├── record-menu.tsx          # the unified record menu: buildRecordSections, RecordContextMenu,
+│   │                            #   RecordMenuItems (dropdown), RecordMenuAtPoint (imperative) + duplicateRow
+│   ├── record-editor.tsx        # the record page: a column of the HOST's own box (title, field
+│   │                            #   rows, 隐藏字段, 新增字段 + a scrim); props-driven, never a
+│   │                            #   viewport-fixed sheet — the host renders it inside a `relative` box
+│   ├── data-view-placeholder.tsx        # placeholder body the three unimplemented views render
 │   ├── data-view-config-placeholder.tsx # placeholder body their config editors render
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
@@ -78,9 +146,8 @@ src/
     │                ├── core/     schema.ts + column-ops.ts + filter.ts + editors.ts
     │                ├── canvas/   theme.ts + pill.ts
     │                ├── toolbar/  toolbar.tsx + search-bar.tsx
-    │                ├── menus/    field-menu.tsx + filter-menu.tsx + condition-menu.tsx
+    │                ├── menus/    field-menu.tsx + filter-menu.tsx
     │                │              + condition-controls.tsx + color-menu.tsx + select-menu.tsx
-    │                └── fields/   picker.tsx + editor.tsx
     ├── kanban/      kanban-data-view.tsx + reui/kanban.tsx     (implemented — see below)
     │                ├── core/     board.ts + config.ts
     │                ├── board/    kanban-board.tsx + kanban-card.tsx + lane-option-editor.tsx
@@ -89,8 +156,13 @@ src/
     │                ├── core/     config.ts + schema.ts + theme.ts
     │                ├── board/    calendar-surface.tsx + event-readout.tsx
     │                └── toolbar/  calendar-toolbar.tsx
+    ├── gallery/     gallery-data-view.tsx     (implemented — see below)
+    │                ├── core/     config.ts + layout.ts + schema.ts
+    │                ├── board/    gallery-board.tsx + gallery-card.tsx
+    │                │              + use-gallery-scroll.ts
+    │                │              + use-gallery-focus.ts
+    │                └── toolbar/  gallery-toolbar.tsx
     ├── gantt/       gantt-data-view.tsx + config-editor.tsx     (placeholder)
-    ├── gallery/     gallery-data-view.tsx + config-editor.tsx   (placeholder)
     ├── chart/       chart-data-view.tsx + config-editor.tsx     (placeholder)
     └── node-graph/  node-graph-data-view.tsx + config-editor.tsx   (no hyphens in the type: `nodeGraph`)
 ```
@@ -110,34 +182,31 @@ src/
 | toolbar | `toolbar/search-bar.tsx`       | the search row that appears under the toolbar while 搜索 is engaged; owns Esc for its own row (see the capture-phase gotcha)                                                                                                                           |
 | menus   | `menus/field-menu.tsx`         | 字段配置 dropdown: search, list, collapsible group blocks, drag, visibility, per-field menu (opens right), 新增字段; 编辑字段 swaps the same menu body to the editor; 创建编组/重命名编组 expand an inline naming form and take over the caret handoff |
 | menus   | `menus/filter-menu.tsx`        | 筛选 dropdown: condition rows                                                                                                                                                                                                                          |
-| menus   | `menus/condition-menu.tsx`     | 分组 + 排序 dropdowns (field + direction, multi-level)                                                                                                                                                                                                 |
 | menus   | `menus/color-menu.tsx`         | 填色 dropdown: colour + target (cell/row/column) + condition                                                                                                                                                                                           |
 | menus   | `menus/select-menu.tsx`        | the 单选/多选 option dropdown: 查找或创建选项 search + capsule rows + 创建 row; 单选 closes on a pick, 多选 stays open                                                                                                                                 |
-| menus   | `menus/condition-controls.tsx` | shared condition controls: type-aware value input, order toggle                                                                                                                                                                                        |
-| fields  | `fields/picker.tsx`            | searchable field dropdown shared by 筛选/分组/排序/填色                                                                                                                                                                                                |
-| fields  | `fields/editor.tsx`            | the 标题 / 字段类型 / 选项内容 / 默认值 form, plus `FieldEditorMenuContent` — the form as a `DropdownMenuContent` body (no rect maths)                                                                                                                 |
+| menus   | `menus/condition-controls.tsx` | 筛选 / 填色's type-aware value input. The 字段 + 方向 row (and its order switch) serves two views, so it lives in `shared/condition-menu.tsx`                                                                                                          |
 | —       | —                              | the table has **no** `config-editor.tsx`: its configuration is its toolbar                                                                                                                                                                             |
 
 **The grouping is a dependency order, not a label.** `core/*` and `canvas/*` import
 no React (only VTable _types_) and are pure functions/data; `canvas/*` may reach
-into `shared/field-meta.tsx` for the palettes; `menus/*` and `fields/*` may import
-`core/*` + `canvas/*`; `toolbar/*` wires the menus; **nothing inside the folder
+into `shared/field-meta.tsx` for the palettes; `menus/*` may import `core/*` +
+`canvas/*` + `shared/*`; `toolbar/*` wires the menus; **nothing inside the folder
 imports `table-data-view.tsx`** — the shell only assembles. Keep it that way: a
 `core/*` file that starts importing a `.tsx` component has broken the layer.
 
 ### kanban view internals
 
-| Group   | File                           | Responsibility                                                                                                                                                                                                    |
-| ------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —       | `kanban-data-view.tsx`         | the shell: board state (re-seeded from the source during render), the write path (lane change → `onCellChange`), host-capability gates, and the missing-group-field guidance. The only file `registry.ts` imports |
-| vendor  | `reui/kanban.tsx`              | the vendored ReUI board primitives (`Kanban` / `KanbanBoard` / `KanbanColumn` / `KanbanColumnHandle` / `KanbanColumnContent` / `KanbanItem` / `KanbanItemHandle` / `KanbanOverlay`). Keep it close to upstream    |
-| core    | `core/board.ts`                | `buildKanbanBoard` (rows + group field → lanes/cards), `moveCardToLane`, `findCardByKey`, `cardKey`, `countCards`. No React                                                                                       |
-| core    | `core/config.ts`               | config self-healing (`resolveGroupField` / `resolveTitleField` / `resolveCardFields`), `orderLaneOptions`, `optionColor`, `cellForLane`, `patchFieldOption`. No React                                             |
-| board   | `board/kanban-board.tsx`       | `<Kanban>` root + lane strip + overlay; maps REUI's `onValueCommit` onto "cross-lane = write, same-lane = local order, column = `laneOrder`"                                                                      |
-| board   | `board/kanban-card.tsx`        | the card body (title + chips + meta rows) and the card menu (打开 / 移动到). Also what the drag overlay renders                                                                                                   |
-| board   | `board/lane-option-editor.tsx` | 编辑选项: rename + recolour one option (mounted per popover open, so its draft state re-seeds)                                                                                                                    |
-| toolbar | `toolbar/kanban-toolbar.tsx`   | 分组 / 卡片 / 排序 / 显示 panels on the left (via `ViewToolbar`), lane/card count on the right                                                                                                                    |
-| —       | —                              | no `config-editor.tsx`: the four panels cover every `KanbanViewConfig` key, so the descriptor omits `configEditor`                                                                                                |
+| Group   | File                           | Responsibility                                                                                                                                                                                                                                                                                 |
+| ------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `kanban-data-view.tsx`         | the shell: board state (re-seeded from the source during render), the write path (lane change → `onCellChange`), host-capability gates, and the missing-group-field guidance. The only file `registry.ts` imports                                                                              |
+| vendor  | `reui/kanban.tsx`              | the vendored ReUI board primitives (`Kanban` / `KanbanBoard` / `KanbanColumn` / `KanbanColumnHandle` / `KanbanColumnContent` / `KanbanItem` / `KanbanItemHandle` / `KanbanOverlay`). Keep it close to upstream                                                                                 |
+| core    | `core/board.ts`                | `buildKanbanBoard` (rows + group field → lanes/cards, cards ordered by the multi-level 排序 list), `moveCardToLane`, `findCardByKey`, `cardKey`. The card's own content comes from `shared/card-ops.ts` (`readCardSettings` / `cardFieldValues` / `resolveRowCover`). No React                 |
+| core    | `core/config.ts`               | the board's own half: `resolveGroupField`, `orderLaneOptions`, `resolveKanbanSort` (the 排序 condition list, legacy `sortBy` included), `optionColor`, `cellForLane`, `patchFieldOption`. Card settings are not here — see `shared/card-ops.ts`. No React                                      |
+| board   | `board/kanban-board.tsx`       | `<Kanban>` root + lane strip + overlay; maps REUI's `onValueCommit` onto "cross-lane = write, same-lane = local order, column = `laneOrder`"                                                                                                                                                   |
+| board   | `board/kanban-card.tsx`        | the shared `DataCard` wrapped in the drag handle + the shared record context menu (移动到 is one of its items; the card carries **no** floating button). Also what the drag overlay renders                                                                                                    |
+| board   | `board/lane-option-editor.tsx` | 编辑选项: rename + recolour one option (mounted per popover open, so its draft state re-seeds)                                                                                                                                                                                                 |
+| toolbar | `toolbar/kanban-toolbar.tsx`   | 分组 panel + the **shared 卡片配置** + the **shared 排序 menu** (`shared/condition-menu.tsx`, the table's own) on the left (via `ViewToolbar`); nothing on the right — the lanes carry their own counts. No 显示 panel: counts are always shown and drag/create follow the host's capabilities |
+| —       | —                              | no `config-editor.tsx`: the three panels cover every `KanbanViewConfig` key, so the descriptor omits `configEditor`                                                                                                                                                                            |
 
 Layering matches the table's: `core/*` is pure, `board/*` composes REUI + shadcn,
 `toolbar/*` only reads config and reports `onConfigChange`, and **nothing imports
@@ -146,20 +215,45 @@ Layering matches the table's: `core/*` is pure, `board/*` composes REUI + shadcn
 
 ### calendar view internals
 
-| Group   | File                           | Responsibility                                                                                                                                                                                                                                                               |
-| ------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —       | `calendar-data-view.tsx`       | the shell: field mapping resolved against the live schema, the write path (drop / resize / 框选 / 双击 → `onCellChange` / `onRowInsert`), the hover + click readout state, the `--fc-*` theme variables, and the missing-field guidance. The only file `registry.ts` imports |
-| core    | `core/config.ts`               | config self-healing (`resolveStartField` / `resolveEndField` / `resolveTitleField` / `resolveColorField` / `resolveTooltipFields`), `headerToolbar` ⇄ "today button + view buttons", `toFullCalendarView` / `fromFullCalendarView`, `buttonTextFor`. No React                |
-| core    | `core/schema.ts`               | `rowsToEvents` (rows → `EventInput`), `rangeToCells` / `eventToCells` / `selectionToRow` (gesture → cells, **the only ±1 day conversion**), `toISODate` / `addDays`, `readEventRecord` / `readEventReadout`. Only FullCalendar _types_                                       |
-| core    | `core/theme.ts`                | `DataViewThemeTokens` → the `--fc-*` custom properties. No React                                                                                                                                                                                                             |
-| board   | `board/calendar-surface.tsx`   | the `memo`-wrapped `<FullCalendar>`: plugins, locale, `buttonText`, `onApi`, and every event callback. Re-renders only when the config or the data changed                                                                                                                   |
-| board   | `board/event-readout.tsx`      | the hover `Tooltip` and the click `Popover`, both anchored to an invisible fixed `<span>` at the event's rect                                                                                                                                                                |
-| toolbar | `toolbar/calendar-toolbar.tsx` | 字段 / 视图 / 交互 / 显示 panels on the left (via `ViewToolbar`), event count on the right                                                                                                                                                                                   |
-| —       | —                              | no `config-editor.tsx`: the four panels cover every `CalendarViewConfig` key except `timeZone` (pinned to `local` for v1), so the descriptor omits `configEditor`                                                                                                            |
+| Group   | File                           | Responsibility                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `calendar-data-view.tsx`       | the shell: field mapping resolved against the live schema, the write path (drop / resize / 框选 / 双击 → `onCellChange` / `onRowInsert`), the hover + click readout state, the `--fc-*` theme variables, and the missing-field guidance. The only file `registry.ts` imports                                                                                                                            |
+| core    | `core/config.ts`               | config self-healing (`resolveStartField` / `resolveEndField` / `resolveTitleField` / `resolveColorField` / `resolveTooltipFields`), `headerToolbar` ⇄ "which view buttons", `toFullCalendarView` / `fromFullCalendarView`, `buttonTextFor`, and `CALENDAR_FIXED` — the locale / height / theme / weekends / now-line / event-fold / click defaults the removed 交互 + 显示 panels used to set. No React |
+| core    | `core/schema.ts`               | `rowsToEvents` (rows → `EventInput`), `rangeToCells` / `eventToCells` / `selectionToRow` (gesture → cells, **the only ±1 day conversion**), `toISODate` / `addDays`, `readEventRecord` / `readEventReadout`. Only FullCalendar _types_                                                                                                                                                                  |
+| core    | `core/theme.ts`                | `DataViewThemeTokens` → the `--fc-*` custom properties. No React                                                                                                                                                                                                                                                                                                                                        |
+| board   | `board/calendar-surface.tsx`   | the `memo`-wrapped `<FullCalendar>`: plugins, locale, `buttonText`, `onApi`, and every event callback. Re-renders only when the config or the data changed                                                                                                                                                                                                                                              |
+| board   | `board/event-readout.tsx`      | the hover `Tooltip`, anchored to an invisible fixed `<span>` at the event's rect (a click opens the record editor instead of a panel)                                                                                                                                                                                                                                                                   |
+| toolbar | `toolbar/calendar-toolbar.tsx` | 字段配置 / 视图 panels on the left (via `ViewToolbar`); nothing on the right. 字段配置 is four role **config items** (开始日期 / 结束日期 / 标题 / 颜色, each a `PanelSection` + `FieldSelect`) over the shared `FieldConfigList`, where the eye = 悬浮提示 and a row only annotates its role                                                                                                           |
+| —       | —                              | no `config-editor.tsx`: the two panels cover every `CalendarViewConfig` key a user can decide (`timeZone` is pinned to `local` for v1), so the descriptor omits `configEditor`                                                                                                                                                                                                                          |
 
 Layering matches the others: `core/*` is pure, `board/*` composes FullCalendar +
 shadcn, `toolbar/*` only reads config and reports `onConfigChange`, and **nothing
 imports `calendar-data-view.tsx`**. Full details in `docs/dataview/calendar.md` §0.
+
+### gallery view internals
+
+| Group   | File                                                         | Responsibility                                                                                                                                                                                                                                                                                                                       |
+| ------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| —       | `gallery-data-view.tsx`                                      | the shell: `rowsToCards`, the shared `useRowSelection`, the write path (open → `useRecordActions().openRecord`, delete → `onRowDelete`, 添加记录 → `onRowInsert`), host-capability gates, and the empty states. The only file `registry.ts` imports                                                                                  |
+| core    | `core/config.ts`                                             | the wall's own two keys only: 排列方式 / 卡片尺寸 enums + `resolveLayout` / `resolveCardSize`. Everything about a _card_ moved to `shared/card-ops.ts`. No React                                                                                                                                                                     |
+| core    | `core/layout.ts`                                             | card geometry: size → min column width + `gridRowHeight` / `listRowHeight`, `fitColumnCount` (measured, no configured cap), `readRowWindow` / `rowStride` / `totalRowHeight`, and the shrunken `NO_COVER_GRID_ROW_HEIGHT` a coverless 网格 uses. Pure arithmetic, no React                                                           |
+| core    | `core/schema.ts`                                             | `rowsToCards` — the gallery's own row walk over the shared card ops (title / cover / fields / `hiddenFieldIds`). A card carries **field + cell**, never pre-rendered text. No React                                                                                                                                                  |
+| board   | `board/gallery-board.tsx`                                    | the layout engine: 网格 / 列表 through the virtual window, 瀑布流 as `i % columns` column stacks; owns the scroll container, the fixed `gridAutoRows` and the wall's `onKeyDown`                                                                                                                                                     |
+| board   | `board/gallery-card.tsx`                                     | one card: the shared `DataCard` plus one interaction layer — a full-card open button at `z-0` — and the shared `RecordContextMenu` on right-click with a gallery-only 选择 item + 删除选中的 N 条. **No checkbox and no "…" button**: selection is the keyboard / modifier gesture, and the right-click menu is the card's only menu |
+| board   | `board/use-gallery-scroll.ts` + `board/use-gallery-focus.ts` | the row window (网格/列表) + incremental reveal (瀑布流), and the wall's roving tabindex: arrows/Home/End/Page, Shift range, Ctrl+A, Escape                                                                                                                                                                                          |
+| toolbar | `toolbar/gallery-toolbar.tsx`                                | 添加记录 / 卡片配置 (shared) / 布局 on the left, **nothing** on the right but the shell's 更多. No 导出 menu, no 批量操作 button and no count badge: selection is the keyboard / modifier gesture (Ctrl-click / Shift-range / Ctrl+A / Escape), and 删除选中 lives on a selected card's right-click menu                             |
+| —       | —                                                            | no `config-editor.tsx`: the two panels cover every `GalleryViewConfig` key, so the descriptor omits `configEditor`                                                                                                                                                                                                                   |
+
+Layering matches the others: `core/*` is pure, `board/*` composes the card DOM,
+`toolbar/*` only reads config and reports `onConfigChange`, and **nothing imports
+`gallery-data-view.tsx`**. The card itself is not the gallery's any more: the body
+is `shared/card.tsx`, the cover box `shared/card-cover.tsx`, the data/settings
+`shared/card-ops.ts` and the menu `shared/card-config.tsx`, all shared with the
+kanban. The one cross-package reach is
+`@workspace/ui/components/preview-block/node-preview-cover` (from
+`shared/card-cover.tsx`) — imported by path so the hover panel (and its video
+player) stays out of the card's chunk. Full details in `docs/dataview/gallery.md`
+§0.
 
 ### UI conventions (applies to every view)
 
@@ -172,14 +266,32 @@ and their registry `configEditor` entries are gone).
 
 A view whose settings are a **form** (a `Select`, a checkbox list, switches)
 takes a `Popover` panel; a list of **commands** takes a `DropdownMenu`. The
-kanban's 分组/卡片/排序/显示 and the calendar's 字段/视图/交互/显示 panels are
-popovers for exactly that reason — a menu's roving focus is the wrong tool for a
-body full of inputs. Both are built from the same three primitives
+kanban's 分组/卡片配置/排序 and the calendar's 字段配置/视图 panels are popovers for
+exactly that reason — a menu's roving focus is the wrong tool for a body full of
+inputs. Both are built from the same three primitives
 (`shared/settings-panel.tsx`: `SettingsPanel` / `PanelSection` / `SwitchRow`,
 plus `CheckboxOptionList`), and both pick a field with
 `shared/field-select.tsx`; a new toolbar panel should reuse them rather than
-hand-roll another popover. `--primary` on a `SettingsPanel` trigger means "this
-group has something set", and nothing else.
+hand-roll another popover. **A `SettingsPanel` trigger is neutral chrome**: it
+shows the current value next to its label and nothing else. There is no
+"engaged" tint — the panel itself states what is set, and a coloured trigger only
+made the user guess what the colour meant (they were removed on request).
+**A panel carries no explanatory prose**: the trigger already names it and the
+controls speak for themselves. The only prose allowed is what a control needs in
+order to work at all — an empty state ("先添加字段，才能设置条件。"), why a control
+is disabled ("这张表还没有「日期」字段…"), or where a fixed value comes from (a
+collection card's node-preview cover). The hint paragraphs that used to sit under
+a control are gone (on request), and so is the generic 视图配置 popover's copy.
+**A condition panel keeps a heading line** (restored on request): 筛选 / 分组 /
+排序 / 填色 open with `设置…条件`, and that row is where 清除 sits — a titled panel
+is chrome, not explanation, and it is what tells four same-shaped menus apart.
+行高 / 导出 / 新建视图 carry no caption: their trigger already reads as the title.
+**Same control, same look**:
+the table's 分组 / 排序 are the kanban's neutral `[icon] 分组 <字段名>` triggers
+(same `Columns3` / `ArrowUpDown` icons, no tint, no count badge) and the kanban's
+排序 _is_ the table's menu — one component, `shared/condition-menu.tsx`, multi-level
+levels included — the calendar's 字段配置 trigger is the table's `[FolderTree]
+字段配置`, and every 添加记录 button is the same muted outline button.
 
 The chrome is built from `@workspace/ui` shadcn primitives only — no hand-rolled
 `<select>` / `<input type="checkbox">` / bare floating panels:
@@ -193,6 +305,7 @@ The chrome is built from `@workspace/ui` shadcn primitives only — no hand-roll
 | Counts and status chips                         | `badge`                                                          |
 | Search field with inner actions                 | `input-group` (`InputGroupAddon` / `InputGroupButton`)           |
 | Floating panel, menu, tooltip, scroller         | `popover`, `dropdown-menu` (incl. sub), `tooltip`, `scroll-area` |
+| Right-click menu on a card / row                | `context-menu` (the record menu a card shows)                    |
 | Split between control groups                    | `separator` (vertical, `h-4 self-center`)                        |
 
 Layout rules to keep:
@@ -238,35 +351,95 @@ Layout rules to keep:
   assemble a set; typing a name the field does not have offers a 创建 row. These
   cells deliberately register **no** VTable editor, and the activated cell is
   kept in a ref (not state) so repainting it does not re-render the toolbar;
+- **one field, one renderer.** 单选/多选 is always the tinted shadcn `Badge` from
+  `shared/field-value.tsx` (`OptionBadge`), a date is locale text, a checkbox a
+  check glyph, a url a link, a relation a chip. The table is the sole exception —
+  a canvas cannot mount React, so `canvas/pill.ts` mirrors the same rules. Never
+  hand-roll another chip: the kanban card, the gallery card and the record editor
+  all go through `FieldValue`;
+- **one card, two views.** A record drawn as a card is `shared/card.tsx`'s
+  `DataCard` (cover + title + tinted chips + one value line per other field, with
+  `grid` / `masonry` / `list` / `board` arrangements) in the kanban _and_ the
+  gallery, its cover is `shared/card-cover.tsx`, its data + settings are
+  `shared/card-ops.ts` and its config menu is `shared/card-config.tsx`
+  (标题 / 封面 config items + 展示模式 + 卡片字段). A card view never draws its own chip or value
+  row, and never grows a second card-config panel. A value line deliberately
+  carries **no field name** (the name is the line's `title` attribute): the shared
+  default is `cardFieldIds()` (every 单选/多选 as chips + the first non-title text
+  as the 详情 line), and a kanban excludes its grouping field from it because the
+  lane already states that value. **Roles are config items, and the same shape
+  everywhere**: `卡片配置` opens with 标题 / 封面 (`PanelSection` + `FieldSelect`
+  each) and the calendar's `字段配置` with 开始日期 / 结束日期 / 标题 / 颜色 — one
+  labelled control per role, never a setter hidden inside a per-field "…" menu. The
+  field list below annotates the role a row holds (`badge`, `locked`) and owns
+  visibility + CRUD. A coverless card draws **no cover box at all** (no cover field
+  resolves / not a collection): `cover === undefined` drops the region, `null`
+  keeps it with the monogram placeholder — one rule for the kanban and the gallery
+  (`cardCoverEnabled`), and a coverless 网格 shrinks its fixed row so no empty cover
+  area is reserved;
+- **one field list, every 字段配置.** `shared/field-config-list.tsx` is the
+  table's 字段配置 body without column groups: search box, type-icon rows, a
+  visibility eye, a per-field "…" menu (编辑字段 / 删除字段 only) and a 新增字段
+  footer that opens the shared editor. A view owns the meaning of a row
+  (`visible` = on the card / in the tooltip, `badge` = the role _annotation_) and
+  the write path (`onSubmitField` / `onDeleteField`). **A row annotates a role, it
+  never sets one**: there is no `fieldItems` prop any more, because every role is a
+  config item above the list (see the next bullet). The eye is **always visible**
+  here (unlike the table's hover-revealed one) because it is the only thing stating
+  the row's state;
+- **a view never re-states its data in the toolbar.** The kanban / calendar /
+  gallery function groups carry no「N 泳道 · N 卡片」「N 事件」「N 张卡片」readout:
+  lanes, day cells and cards already show it, and a readout that changes with the
+  data (or with the selection) drags the right-anchored group around. Counts
+  belong in a menu label when they are needed (导出 CSV（全部 N 条）);
+- **one field, one editor.** `shared/field-input.tsx` dispatches on the field type
+  — 日期 uses the shadcn `Calendar` in a `Popover` (`shared/date-picker.tsx`),
+  单选/多选 the `Command`-based `OptionPicker`, text/number/url a quiet `Input`
+  that commits on blur/Enter, checkbox a `Switch`. A new editing surface composes
+  `FieldInput` rather than writing a second date picker;
+- **the record surface is shared, not per-view**: click opens
+  `useRecordActions().openRecord(rowId, { hiddenFieldIds })`; right-click wraps the
+  record element in `<RecordContextMenu>`. `hiddenFieldIds` are the fields the view
+  does _not_ show — they fold into the editor's 隐藏字段 block;
 - labels are 12px sentence case, hints 11px `text-muted-foreground`; numbers use
   `tabular-nums`; no ALL-CAPS tracked eyebrows;
 - an empty state is an invitation (muted panel + what to do), not a mood.
 
 ## WHERE TO LOOK
 
-| Task                                     | Location                                                                                  |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Change the shell / routing               | `src/data-view-root.tsx`                                                                  |
-| Add or re-label a view type              | `src/registry.ts` + `src/defaults.ts`                                                     |
-| Tweak default configs                    | `src/defaults.ts`                                                                         |
-| Change how database rows are read        | `src/source/database-source.ts`                                                           |
-| Change the collection projection schema  | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                |
-| Cell → text/color/date/number            | `src/source/cell-resolver.ts`                                                             |
-| Implement a view                         | `src/views/<name>/` (replace the placeholder body)                                        |
-| Group rows into lanes / cards            | `src/views/kanban/core/board.ts`                                                          |
-| Kanban config self-heal / lane order     | `src/views/kanban/core/config.ts`                                                         |
-| Kanban drag write-back                   | `src/views/kanban/board/kanban-board.tsx`                                                 |
-| Vendored ReUI board                      | `src/views/kanban/reui/kanban.tsx`                                                        |
-| Rows → calendar events / gesture → cells | `src/views/calendar/core/schema.ts`                                                       |
-| Calendar config self-heal / view names   | `src/views/calendar/core/config.ts`                                                       |
-| Calendar theme (FullCalendar `--fc-*`)   | `src/views/calendar/core/theme.ts`                                                        |
-| The `<FullCalendar>` instance            | `src/views/calendar/board/calendar-surface.tsx`                                           |
-| Calendar hover / click readouts          | `src/views/calendar/board/event-readout.tsx`                                              |
-| In-popover field picker (shared)         | `src/shared/field-select.tsx`                                                             |
-| Settings-panel primitives (shared)       | `src/shared/settings-panel.tsx`                                                           |
-| Contrast text for a colour fill          | `src/shared/color.ts`                                                                     |
-| Host integration                         | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx` |
-| Persisted model                          | `packages/interfaces/src/models/data-view.ts`                                             |
+| Task                                                           | Location                                                                                                                                                 |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change the shell / routing                                     | `src/data-view-root.tsx`                                                                                                                                 |
+| Add or re-label a view type                                    | `src/registry.ts` + `src/defaults.ts`                                                                                                                    |
+| Tweak default configs                                          | `src/defaults.ts`                                                                                                                                        |
+| Change how database rows are read                              | `src/source/database-source.ts`                                                                                                                          |
+| Change the collection projection schema                        | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                                                                               |
+| Cell → text/color/date/number                                  | `src/source/cell-resolver.ts`                                                                                                                            |
+| Implement a view                                               | `src/views/<name>/` (replace the placeholder body)                                                                                                       |
+| Group rows into lanes / cards                                  | `src/views/kanban/core/board.ts`                                                                                                                         |
+| Kanban config self-heal / lane order                           | `src/views/kanban/core/config.ts`                                                                                                                        |
+| Kanban drag write-back                                         | `src/views/kanban/board/kanban-board.tsx`                                                                                                                |
+| Vendored ReUI board                                            | `src/views/kanban/reui/kanban.tsx`                                                                                                                       |
+| Rows → calendar events / gesture → cells                       | `src/views/calendar/core/schema.ts`                                                                                                                      |
+| Calendar config self-heal / view names / fixed defaults        | `src/views/calendar/core/config.ts` (`CALENDAR_FIXED`)                                                                                                   |
+| Calendar theme (FullCalendar `--fc-*`)                         | `src/views/calendar/core/theme.ts`                                                                                                                       |
+| The `<FullCalendar>` instance                                  | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
+| Calendar hover readout                                         | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
+| Rows → cards (gallery)                                         | `src/views/gallery/core/schema.ts`                                                                                                                       |
+| The card body / cover / settings / menu (kanban + gallery)     | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
+| The shared field list (卡片配置 + 日历字段配置)                | `src/shared/field-config-list.tsx`                                                                                                                       |
+| The unified record editor / context menu                       | `src/shared/record-menu.tsx` + `src/shared/record-actions.tsx` (the menu, shell-owned) + `src/shared/record-editor.tsx` (the page, rendered by the host) |
+| Field display / edit vocabulary (shared)                       | `src/shared/field-value.tsx` + `src/shared/field-input.tsx` (+ `option-picker` / `date-picker`)                                                          |
+| Gallery config self-heal / layout enums                        | `src/views/gallery/core/config.ts`                                                                                                                       |
+| Gallery card geometry / virtual window                         | `src/views/gallery/core/layout.ts` + `src/views/gallery/board/use-gallery-scroll.ts`                                                                     |
+| Gallery keyboard nav                                           | `src/views/gallery/board/use-gallery-focus.ts` + `gallery-card.tsx`                                                                                      |
+| A node's cover media (shared with cards)                       | `packages/ui/src/components/preview-block/node-preview-cover.tsx`                                                                                        |
+| In-popover field picker (shared)                               | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
+| The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序) | `src/shared/condition-menu.tsx`                                                                                                                          |
+| Settings-panel primitives (shared)                             | `src/shared/settings-panel.tsx`                                                                                                                          |
+| Contrast text for a colour fill                                | `src/shared/color.ts`                                                                                                                                    |
+| Host integration                                               | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
+| Persisted model                                                | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
 
 ## DATA FLOW (do not break)
 
@@ -339,6 +512,7 @@ node.content (fields/rows/views)
   onViewsChange={(views) => patchContent({ views })}   // presence enables view CRUD
   // every callback patches the LIVE node, never the render's `content` — see 4
   onCellChange={(rowId, fieldId, cell) => …}
+  onOpenRecord={(rowId, options) => …}   // required for a record page: the HOST renders <RecordEditor>
   onOpenNode={(nodeId) => useUIStore.getState().handleNodeEdit(nodeId)}
   // —— optional, table view (database hosts) ——
   onRowInsert={(row) => …}      // append a row the renderer minted (row.id included)
@@ -346,6 +520,8 @@ node.content (fields/rows/views)
   onRowReorder={(rowIds) => …}  // full row-id order; only emitted with no active filter
   onFieldsChange={(fields, rows) => …}  // schema write; rows present when cells changed too
   resolveNodeTitle={(nodeId) => useDataStore.getState().nodes.get(nodeId)?.title}
+  // —— optional, gallery view (both hosts) ——
+  resolveNode={(nodeId) => useDataStore.getState().nodes.get(nodeId)}  // node covers
 />
 ```
 
@@ -356,7 +532,9 @@ through `onViewsChange` once per mount, so the host can persist it.
 `resolveNodeTitle` exists so `relation` cells can show node titles without this
 package depending on `@workspace/store`; the database host supplies it lazily
 via `getState()` (a store selector would re-render the node on every unrelated
-node change).
+node change). `resolveNode` is the same idea one level up: the gallery needs the
+node _itself_ to draw its preview as a card cover, so both hosts hand over a
+lazy `nodes.get(id)` lookup rather than a map.
 
 ## HOW TO ADD / IMPLEMENT A VIEW
 
@@ -364,7 +542,7 @@ node change).
    renderer, keeping the `DataViewRendererProps<XViewConfig>` signature.
    **`views/table/` is the reference implementation** for a _canvas_ view — copy
    its split (`core/` pure logic, `canvas/` theme + custom render, `toolbar/`,
-   `menus/`, `fields/`, and the lifecycle shell at the view root) rather than
+   `menus/`, `shared/`, and the lifecycle shell at the view root) rather than
    growing one file; the layering rule in § _table view internals_ applies to
    every view. **`views/kanban/` is the reference for a DOM view** whose library
    is external source: vendor it under `reui/` unchanged, keep the data model in
@@ -375,6 +553,16 @@ node change).
    plus the panels that must be anchored to library-rendered DOM, and the shell
    owns the write path and the imperative library API. Read its §0 gotchas before
    wrapping a library that re-renders the world on every prop change.
+   **`views/gallery/` is the reference for a DOM view with no library at all**:
+   `core/` holds the pure mapping + geometry, `board/` holds the layout engine
+   and the card, and the shell owns selection and the write path. Copy its
+   `use-gallery-scroll.ts` when a view needs to mount only what is on screen
+   (mind its fixed-row-height precondition), and `use-gallery-focus.ts` when the
+   view is a grid a keyboard should be able to walk (roving tabindex, focus
+   retried until the virtual window has mounted the target). A view that draws
+   **cards** composes `shared/card.tsx` + `shared/card-config.tsx` over a
+   `DataCardConfig` fragment instead of writing its own card and its own card
+   settings.
 2. Only if the view has settings without a dedicated toolbar menu: add
    `config-editor.tsx` (`DataViewConfigEditorProps<XViewConfig>`) and register it
    as `configEditor`. A view whose toolbar covers everything (the table, the
@@ -441,95 +629,86 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   that box, and clip any new canvas-based renderer the same way. VTable's HTML
   context menu and in-cell editors are unaffected: VTable confines them to the
   table's box (`confine: true`), verified in the browser.
-- **VTable traps the table view already works around** (all verified in a real
-  browser, see `docs/dataview/table.md` §10):
-  - `heightMode: 'adaptive'` re-computes row heights to fill the container, which
-    stretches four rows across a whole pane. The table uses `'standard'` so the
-    density setting is respected; it still fills the pane once content exceeds it.
-  - VTable only triggers its built-in sort from the header **sort icon**, so the
-    view also wires the column context menu (`dropdown_menu_click`).
-  - A row drag started from the row-number handle reports
-    `movingColumnOrRow === undefined`; identify it with
-    `table.isSeriesNumber(source.col, source.row)` — and note that
-    `isSeriesNumber` returns `false` unless **both** col and row are passed.
-  - VTable keeps a 1×1 transparent `input.table-focus-control` in the container;
-    do not mistake it for an open cell editor.
-  - `getCellIcons()` returning an icon does not mean it is clickable where you
-    think: the row drag handle only occupies the left ~18px of the row-number cell.
+- **VTable traps the table view already works around** (every one verified in a
+  real browser; the full write-up is `docs/dataview/table.md` §10):
+  - `heightMode: 'adaptive'` stretches rows to fill the container → the table uses
+    `'standard'` so the density setting holds (content still fills the pane).
+  - VTable sorts only from the header **sort icon** → the view also wires the
+    column context menu (`dropdown_menu_click`).
+  - **`sortState` is a constructor option, so a config write must be pushed in by
+    hand.** `structureKey` deliberately excludes the sort (a sort must not rebuild
+    the table), and `updateSortState` is the only way to apply it afterwards —
+    without that effect the 排序 panel persisted a sort the table never applied
+    (the menu looked like it worked and the rows never moved). Key that effect on
+    the _serialized_ state, not the array identity: `config.sortState` is a fresh
+    array on every host render, and `persistSortState` writes a new one from every
+    `after_sort`. `updateSortState` does not fire `after_sort`, so it cannot bounce
+    back into the write path. Verified end to end in the browser by exporting CSV
+    (the export walks the _display_ order, which is how the row order was read
+    off a canvas).
+  - A row drag from the row-number handle reports `movingColumnOrRow ===
+undefined`; identify it with `table.isSeriesNumber(col, row)`, which is
+    `false` unless **both** are passed.
+  - VTable keeps a 1×1 transparent `input.table-focus-control` in the container —
+    not an open cell editor.
+  - An icon from `getCellIcons()` is not clickable where it looks: the row drag
+    handle occupies only the left ~18px of the row-number cell.
   - **A grouped column has a multi-row header**, so "which field is this visual
-    column" must be resolved from the _deepest_ header row upwards
-    (`headerFieldIdAt`, using `table.columnHeaderLevelCount`) — reading level 0
-    only returns the group define, and column drag/resize write-back silently
-    loses grouped columns.
-  - **The trailing "+" column is synthetic** (`TABLE_ADD_FIELD_COLUMN_ID`, a
-    44px header-only define whose bare "+" glyph is drawn with
-    `headerCustomRender`). It must stay out of `resolveTableColumns`,
-    `readColumnLayout` (guarded by the `known` set), the row-order probe and
-    export (`formatExportOutput` blanks it) — and its header click
-    (`cellLocation === "columnHeader"`) is what opens the 新增字段 dropdown,
-    anchored to the glyph's square (`ADD_FIELD_BUTTON_SIZE`, centred in a cell
-    that `autoFillWidth` stretches to the table's right edge). The glyph is
-    **text only** — no chip, no fill, no stroke: the header band is already
-    `muted`, so a bordered/filled chip was a second surface floating on it, and
-    `headerStyle.cursor` plus the whole-cell hit area are what make it read as a
-    control.
+    column" must come from the _deepest_ header row upwards
+    (`headerFieldIdAt` + `table.columnHeaderLevelCount`); reading level 0 returns
+    the group define and column drag/resize write-back silently loses it.
+  - **The trailing "+" column is synthetic** (`TABLE_ADD_FIELD_COLUMN_ID`: a 44px
+    header-only define drawn with `headerCustomRender`). It must stay out of
+    `resolveTableColumns`, `readColumnLayout` (guarded by its `known` set), the
+    row-order probe and export (`formatExportOutput` blanks it); its header click
+    opens 新增字段, anchored to the glyph's square. The glyph is **text only** —
+    the header band is already `muted`, and cursor + whole-cell hit area are what
+    make it read as a control.
   - **A canvas-anchored floating panel needs a viewport rect and a trigger that
-    outlives the close.** Both panels (`menus/select-menu.tsx`, and
-    `menus/field-menu.tsx`'s 新增字段) hang off a portalled invisible
-    `position: fixed` span, because a canvas cell has no DOM node to trigger
-    from (every other entry point is a real button). Two rules, each of which
-    was a user-visible bug:
-    - take the rect from `getCellRelativeRect` (viewport), **never**
-      `getCellRect` (the table's own unscrolled space) — the entry points are
-      exactly the cells you had to scroll to (the "+" column lives off the right
-      edge until you scroll there), so the anchor landed a whole `scrollLeft`
-      away and Radix's collision padding parked the panel at the window edge
-      instead of under the button (measured: `scrollLeft = 436` → the glyph at
-      x ≈ 890, the anchor claiming 1317);
-    - keep the **last** rect in a ref and render the trigger whenever an anchor
-      is known, not only while the request is live — Radix holds the content
-      mounted through `data-closed:animate-out`, and a trigger that unmounted in
-      the same commit left floating-ui measuring a detached node (all zeros), so
-      the panel flashed in the page's top-left corner (`0,0` / `0,4`) for the
-      ~130 ms fade before vanishing. The leftover span is empty and
-      `aria-hidden`; its coordinates go stale once the table scrolls, but the
-      panel is already closed by then.
-  - **单选/多选 capsules are canvas-drawn** (`canvas/pill.ts` + `customRender`)
-    and get their colours from raw option **ids** stored beside the display names
-    under `optionIdsKey(field.id)` — the record value is the option _name_
-    (that is what search matches), so the id cannot be recovered from it
-    reliably. There is no measurement hook inside `customRender`, so the capsule
-    sizes itself with an offscreen 2D context whose font must come from
+    outlives the close** (`menus/select-menu.tsx`, `menus/field-menu.tsx`): take
+    the rect from `getCellRelativeRect`, **never** `getCellRect` (the entry
+    points are exactly the cells you scrolled to, so the anchor lands a whole
+    `scrollLeft` away); and keep the **last** rect in a ref, rendering the trigger
+    whenever an anchor is known — Radix keeps the content mounted through
+    `data-closed:animate-out`, and a trigger that unmounted in the same commit
+    makes floating-ui measure a detached node and flash the panel at `(0,0)`.
+  - **单选/多选 capsules are canvas-drawn** (`canvas/pill.ts`): their colours come
+    from raw option **ids** stored beside the names under `optionIdsKey(field.id)`
+    (the record value is the option _name_, so the id is unrecoverable from it),
+    and there is no measurement hook in `customRender`, so the capsule measures
+    itself with an offscreen 2D context whose font comes from
     `resolveCanvasFontFamily(tokens)`.
   - **A canvas cell's little buttons must be VTable `icon` elements, not
-    coordinate maths.** `customRender` emitting
-    `{type:"icon", svg, name, clickable:true}` makes VTable create a pickable
-    graphic with `role: "icon-custom"`, and a tap on it fires the table's
-    `icon_click` carrying that `name` (measured: the active capsule cell's
-    `dv_pill_remove:<optionId>` / `dv_pill_open` both arrive). The tap also fires
-    `click_cell` **first**, with `args.targetIcon` already populated — a
-    `click_cell` handler that ignores `targetIcon` is what keeps "delete this
-    option" from also opening the dropdown. The `svg` is a colour-baked string
-    (icons do not inherit `fill`), so each colour gets its own cached SVG and any
-    persisted option colour goes through `sanitizeSvgColor` first.
-  - **`scroll` is fired for VTable's own bookkeeping too.** The `setRecords`
-    after a write re-stamps the same scroll position and emits ten `scroll`
-    events with `dx/dy = 0` and `args.event === undefined`; only a real gesture
-    (wheel / scrollbar drag) carries `args.event`. Closing the option dropdown on
-    every `scroll` made the 多选 panel disappear after each pick, so close it on
-    `args.event` only — Radix cannot follow a scroll that happens inside the
-    canvas anyway.
-  - **"Create this option" is two writes and the order is load-bearing.** It
-    changes the field's `options` _and_ the cell; the host merges the patches of
-    one gesture into a single upsert where the **later** `rows` patch wins, so
-    `onFieldsChange(fields)` must go first and `onCellChange(...)` second —
+    coordinate maths.** `customRender` emitting `{type:"icon", svg, name,
+clickable:true}` yields a pickable graphic whose tap fires `icon_click` with
+    that `name` — and fires `click_cell` **first** with `targetIcon` populated, so
+    a `click_cell` handler must ignore `targetIcon` or "delete this option" also
+    opens the dropdown. Icons do not inherit `fill`: the `svg` is colour-baked
+    (cached per colour, `sanitizeSvgColor`d).
+  - **`scroll` fires for VTable's own bookkeeping too** — the `setRecords` after a
+    write emits ten `scroll` events with `dx/dy = 0` and `args.event ===
+undefined`. Close the option dropdown on `args.event` only, or the 多选 panel
+    vanishes after every pick.
+  - **"Create this option" is two writes and the order is load-bearing**:
+    `onFieldsChange(fields)` first, `onCellChange(...)` second. The host merges a
+    gesture's patches with the **later** `rows` patch winning, and
     `DatabaseContent` rejects a cell referencing an option its field does not
-    declare, which is exactly the intermediate state the other order creates.
-  - **A conditional fill needs a contrasting text colour.** A `填色` rule sets
-    only `bgColor`, while the text colour comes from the theme; a pale palette
-    swatch under light-on-dark text is unreadable, so the style callback pairs
-    the fill with `contrastTextColor(fill)` — now in `shared/color.ts`, because
-    the calendar's event chips need the same maths from a React-free module.
+    declare — exactly the intermediate state the other order creates.
+  - **A conditional fill needs a contrasting text colour**: 填色 sets only
+    `bgColor`, so the style callback pairs it with `contrastTextColor(fill)`
+    (`shared/color.ts`, React-free because the calendar's chips need it too).
+
+- **A `ScrollArea` clamped with `max-h-*` does not clip its content, and the rows
+  paint over the footer below them.** Radix's viewport is `h-full`, which
+  resolves to `auto` against an auto-height root: with `max-h-72` the root is
+  288px but the viewport is as tall as its _content_, so the last rows spill past
+  the clamp and sit on top of the next sibling. The 新增字段 button below the field
+  list therefore could not be clicked at all (measured:
+  `document.elementFromPoint` at the button's centre returned the last row's
+  `span`, and the dropdown never opened). Use a **definite** height once the list
+  is long enough to overflow (`shared/field-config-list.tsx` and
+  `views/table/menus/field-menu.tsx` both switch to `h-72` above 7 visible rows),
+  so the viewport resolves its `h-full` and the list scrolls inside its own box.
 - **The 字段编辑 form lives inside a `DropdownMenuContent`** (`FieldEditorMenuContent`).
   Radix's menu focuses its own content on open and re-focuses it when the pointer
   leaves an item — which is exactly what happens when 编辑字段 swaps the item list
@@ -661,12 +840,150 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   - Also: the locale is **only** `zh-CN` (the shipped pack) or `en` (core);
     anything else falls back to `zh-CN`, because an unregistered locale code
     makes FullCalendar throw while building the initial view.
+- **The record surface has four load-bearing rules** (verified in a real browser):
+  - **The shell owns the _menu_; the host owns the _page_.** `DataViewRoot` renders
+    exactly one `<RecordMenuAtPoint>` and provides `shared/record-actions.tsx`'s
+    callbacks, while `openRecord` only reports upward (`onOpenRecord(rowId, options)`)
+    and the host node-content renders `<RecordEditor>` from the props it already
+    has. A view therefore never mounts its own record page, the editor never lands
+    in a lazy view chunk, and "click a record" means the same thing in every view
+    even though the page lives in `packages/ui`. (Passing `onOpenRecord` was once a
+    notification _alongside_ a built-in sheet; the sheet has since moved out, so a
+    host that omits the prop simply gets no page.)
+  - **The page is a column of the host's box, never a viewport sheet.** It is
+    `absolute inset-y-0 right-0` + a scrim inside a `relative` host box, and the
+    host marks the covered view `inert` — a node-content is mounted both full-screen
+    and inside the node editor's dialog window (and full-screen can have the
+    attributes sidebar next to it), so a hand-rolled viewport-fixed drawer spilled
+    out of the window it belonged to. `packages/ui/src/components/ui/sheet.tsx`
+    wraps its own `SheetPortal` (no `container` prop), which is why the page is
+    plain layout instead of a `Sheet`.
+  - **Escape must be captured on `window`, not `document`.** Radix's dialog
+    dismissal listens for Escape with a **capture** listener on `document`; a page
+    that listens there (or in the bubble phase) closes _the host dialog too_, and
+    `stopPropagation` cannot stop a sibling listener on the same node. Capturing on
+    `window` runs first in the event path and can stop it — but only when the page
+    owns the focus: a nested portaled layer (日期 popover / dropdown / 字段编辑
+    dialog) is outside the page's DOM and keeps its own Escape. The 字段编辑 form is
+    a real modal and stays portaled and viewport-centred.
+  - **`hiddenFieldIds` means "fields this view does NOT show"**, not the reverse.
+    The editor renders those inside the collapsed 隐藏字段 block (table → hidden
+    columns, kanban → anything outside title/group/card fields, calendar → outside
+    the mapped/tooltip fields, gallery → outside title/card fields).
+  - **A Radix trigger needs a native element _inside_ the record.** The kanban
+    wraps its body div _inside_ `KanbanItemHandle` (the vendored `KanbanItem` is
+    not `forwardRef`), and the gallery wraps its card div. Wrapping the outer
+    library component drops the composed ref.
+  - **A library-rendered record cannot be wrapped at all.** FullCalendar's events
+    are not React nodes and the browser's `contextmenu` target is the library's
+    own `<a class="fc-event">` (measured: a right-click over
+    `.fc-event-main-frame` reports `A.fc-event`), so a `<RecordContextMenu>` in
+    `eventContent` never fires. The calendar instead attaches a native listener in
+    `eventDidMount` and calls `openRecordMenu(point, rowId)`; the shell renders
+    `RecordMenuAtPoint` (a controlled `DropdownMenu` over a 1×1 fixed anchor)
+    there. Do not "simplify" this back into `eventContent`.
+- **The gallery is a DOM card wall, and eight of its rules are load-bearing** (all
+  verified in a real browser; see `docs/dataview/gallery.md` §0):
+  - **The virtual window needs a fixed row height**, and it is the same number in
+    two places: `useGalleryScroll` divides `scrollTop` by it and `gridAutoRows`
+    lays the cards out with it. The card root must be `h-full` — otherwise the
+    mounted slice and the scrollbar disagree.
+  - **The 瀑布流 sentinel is conditionally rendered, so its observer is attached
+    from a callback ref.** An effect keyed on the data runs while the sentinel
+    does not exist yet (the 网格 branch) and never re-runs when the layout
+    switches: the wall froze at its first page (measured 40 → 40 at 5000 rows).
+  - **A card's controls are overlay layers** — the full-card open button at
+    `absolute inset-0 z-0`, the checkbox and card menu as `z-10` siblings — which
+    is what keeps "tick the checkbox" from also opening the record.
+  - **`NodePreviewCover` drags `@workspace/api-client` into this package's
+    typecheck** (via `@workspace/ui`, for `resolveFileUrl`), so
+    `packages/dataview/tsconfig.json` mirrors ui's `paths` for api-client _and_
+    its backend deps — without them `tsc` reports "cannot find
+    `@workspace/adapter-front`" from inside api-client. Import the cover by its own
+    path, not the `preview-block` barrel, to keep the hover panel (and hls.js)
+    out of the gallery chunk.
+  - **There is no selection control on a card and none in the toolbar.** The
+    gallery's 勾选框 and its "…" button were both removed: the whole card is the
+    record (click opens, right-click opens the menu), selection is a gesture
+    (`Space` / Ctrl-click / Shift-range / `Ctrl+A` / `Escape`) shown by the card's
+    own `--primary` border, and the one bulk action that needs a surface
+    (删除选中) is an item on the selected card's right-click menu. That is the same
+    rule that removed 删除 N 行 from the table's toolbar and 批量操作 from the
+    gallery's: a control that appears or resizes with the selection drags the
+    right-anchored function group around.
+  - **瀑布流 is `i % columns` column stacks, not CSS `column-count`** (multicol
+    fills column by column, so the second card on screen was the eighth row and
+    the next card was never the one beside it). Each cover also takes the image's
+    own measured ratio (4:5–16:9); without that a uniform-cover wall degenerates
+    into a grid again.
+  - **Keyboard focus is retried, not awaited.** The target card usually does not
+    exist yet, so `use-gallery-focus.ts`'s effect deliberately has **no
+    dependency array**: the first pass only asks the board to mount the row
+    (`ensureIndexMounted`), and that remount re-runs it. With `[activeIndex]` it
+    never re-runs and focus silently never lands.
+  - **A Shift+arrow anchor is the card focused _before_ the move** — falling back
+    to the target makes the first Shift+→ select one card instead of two.
+  - **The column count is measured, never configured.** `fitColumnCount` reads the
+    pane width and the card size's minimum tile width; there is no `columns`
+    config key any more. `shared/card-ops.ts`'s `readCardSettings` is the config's
+    migration boundary: a pre-redesign config's `badgeFields` + `metaFields` are
+    concatenated into `cardFields`, and `columns` / `virtualized` /
+    `showEmptyCover` / `selectable` are simply ignored (the wall is always
+    responsive, always windowed, always draws a placeholder, and always
+    selectable).
+  - **The gallery has no export.** `core/export.ts` was deleted with the toolbar's
+    导出 menu: the wall has no function of its own, and export belongs to the
+    table (`vtable-export`). Reinstating it means reinstating a right-group control
+    whose label carries a count — see the fixed-size rule above.
+  - **`SettingsPanel` triggers are neutral.** There is no `active` prop any more; a
+    tinted trigger made the user guess what the tint meant, and every panel's
+    content already states what is set. An engaged _setting_ is still `--primary`
+    (a checked switch, an active filter chip) — the removal is only about the
+    trigger chrome.
+
+- **The card unification was verified in a browser too** (41 + 20 + 4 checks, 0
+  console errors): the gallery/kanban card body and its toolbar layout, the shared
+  卡片配置 (the 标题 / 封面 config items writing through and the cards re-rendering,
+  the eye round-tripping through the
+  config, drag reordering both the list and the cards' chips, 展示模式, 新增字段
+  landing on the cards), the kanban cover field, and the calendar's 字段配置
+  (设为结束日期 / 设为标题 changing the rendered event titles, months navigated with
+  `.fc-prev-button`). It also caught the `ScrollArea` overlap documented above.
 - Test infrastructure: **none**, consistent with the rest of the monorepo. The
   table view was verified by driving a temporary `apps/web` page with headless
   Chromium over CDP (`ListTable` exposes itself as `canvas.__vtable__`), the
   kanban the same way (drag, menu move, new card, lane rename/reorder/collapse,
-  the four panels, read-only and both guidance states, plus a switch back to the
+  the panels, read-only and both guidance states, plus a switch back to the
   table), and the calendar the same way (all five views, drag/resize/框选/双击
-  write-back, the three eventClick modes, hover tooltip, all four panels, both
-  theme modes, read-only and all three guidance states) — not by an in-repo test
-  suite.
+  write-back, the click-to-open behaviour, hover tooltip, the panels, both theme
+  modes, read-only and all three guidance states), and the gallery the same way
+  (all three layouts, size/column changes, the virtual window over 5000 rows,
+  瀑布流 paging and row-major order, Ctrl-click + Shift range, the whole keyboard
+  set, the right-click menu, bulk delete, all three cover sources, read-only,
+  clean console). **The record-surface
+  refactor was verified the same way** (a temporary `apps/web` page with in-memory
+  mock data, headless Chromium over CDP): 24 checks for the shell + all four views
+  (record editor opens from a gallery card and a kanban card, the 隐藏字段 block
+  expands, the shadcn `Calendar` opens from a date row and renders 35 day buttons,
+  the `OptionPicker` opens on `查找或创建选项`, the record context menu carries the
+  shared items plus the gallery-only 选择, and the calendar's right-click opens the
+  same menu) and 8 more for the write paths (gallery 添加记录 appends a card, a
+  text edit in the editor lands on the card, the kanban and table right-click menus
+  carry their view-specific items, and 打开记录 in the table's VTable menu opens the
+  editor) — all 32 passed with an empty console — not by an in-repo test suite. **Headless Chromium reports
+  `hover: none`, and Tailwind compiles `group-hover:` inside
+  `@media (hover: hover)`**, so launch it with
+  `--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4`
+  or every hover check fails for the wrong reason.
+- **The toolbar/card slim-down was verified in the browser too** (the fifth round,
+  23 checks on one temporary demo page, 0 console errors): the gallery/kanban/calendar
+  toolbars render their remaining controls with **no tinted trigger** and nothing
+  in the function group but 更多; the gallery no longer renders a 导出 button, a
+  card checkbox or a card "…" button (`document.querySelectorAll` on the removed
+  selectors returns 0); a right-click on a card still opens the full record menu
+  with 选择 + 删除选中的 N 条 once the selection holds more than one card; the
+  kanban still drags a card between lanes and still offers 移动到 through that
+  menu; the calendar still drags an event to a new date, still creates a row by
+  dragging across days, and opens the record editor on a click; and the kanban now
+  shows its lane counts with `showCardCount` gone. Adding a field from 卡片配置 and
+  the calendar's role items were re-checked as regression.

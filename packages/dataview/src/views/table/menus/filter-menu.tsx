@@ -27,7 +27,7 @@ import {
 import type { DatabaseField } from "@workspace/interfaces";
 
 import { ConditionValueInput } from "./condition-controls";
-import { TableFieldPicker } from "../fields/picker";
+import { FieldPickerButton } from "../../../shared/field-picker";
 import {
   TABLE_FILTER_OPERATOR_LABELS,
   activeFilterCount,
@@ -113,14 +113,14 @@ export function TableFilterMenu({
       {/* `gap-0`: the shadcn panel ships `gap-4`, which doubled every
           explicit margin below and left a hole above 添加条件. */}
       <PopoverContent align="start" className="w-96 gap-0 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex items-center gap-2">
           <span className="text-xs font-medium">设置筛选条件</span>
           {state.length > 0 && (
             <Button
               type="button"
               size="xs"
               variant="ghost"
-              className="h-6 px-1.5 text-[11px] text-muted-foreground"
+              className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
               onClick={() => onChange([])}
             >
               清除全部
@@ -142,7 +142,7 @@ export function TableFilterMenu({
                 return (
                   <div key={condition.id} className="flex items-center gap-1.5">
                     <GripVertical className="size-3.5 shrink-0 text-muted-foreground/60" />
-                    <TableFieldPicker
+                    <FieldPickerButton
                       fields={fields}
                       value={condition.fieldId || undefined}
                       triggerClassName="w-24 shrink-0"

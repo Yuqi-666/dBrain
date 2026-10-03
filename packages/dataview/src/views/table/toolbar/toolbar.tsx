@@ -17,8 +17,12 @@
  *
  * It is one control row (`min-h-9`, controls `h-7`), quiet (muted-foreground,
  * hairline separators) and `--primary` is spent only on state the user has
- * engaged — an active filter / grouping / sort / colour rule, an open search
- * box — never on plain affordances.
+ * engaged — an active filter / colour rule, an open search box — never on plain
+ * affordances. 分组 and 排序 are deliberately **not** tinted: they read
+ * `[icon] 分组 <字段名>` exactly like the kanban's own 分组 / 排序 triggers
+ * (the count badge they used to carry said "something is set" without saying
+ * what). The 筛选 / 分组 / 排序 / 填色 panels open with a `设置…条件` heading —
+ * that line names the panel and holds 清除, so it is chrome, not explanation.
  *
  * **The function group is fixed-size by construction.** The row is right-anchored
  * (`flex-1` config group + `shrink-0` function group), and in a flex row an
@@ -34,6 +38,8 @@
  */
 import { useMemo } from "react";
 import {
+  ArrowUpDown,
+  Columns3,
   Download,
   FileSpreadsheet,
   FileText,
@@ -42,21 +48,16 @@ import {
   Rows3,
   Rows4,
   Search,
-  SortAsc,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { Separator } from "@workspace/ui/components/ui/separator";
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { TooltipProvider } from "@workspace/ui/components/ui/tooltip";
 import type {
@@ -68,13 +69,15 @@ import type {
 } from "@workspace/interfaces";
 
 import { TableColorMenu } from "../menus/color-menu";
-import { TableConditionMenu } from "../menus/condition-menu";
 import { TableFieldMenu, type AddFieldRequest } from "../menus/field-menu";
 import { TableFilterMenu } from "../menus/filter-menu";
 import { TableSearchBar } from "./search-bar";
 import type { TableFilterState } from "../core/filter";
-import { visibleTableColumns } from "../core/schema";
 import { useViewActions } from "../../../toolbar/view-actions";
+import {
+  ConditionMenu,
+  conditionReadout,
+} from "../../../shared/condition-menu";
 
 /**
  * Row height, as the design names it: 低 / 中等 / 高.
@@ -177,8 +180,6 @@ export function TableToolbar({
   onSearchOpenChange,
   filters,
   onFiltersChange,
-  visibleRowCount,
-  totalRowCount,
   canInsertRow,
   onInsertRow,
   onExport,
@@ -189,10 +190,6 @@ export function TableToolbar({
   className,
 }: TableToolbarProps) {
   const viewActions = useViewActions();
-  const columns = useMemo(
-    () => visibleTableColumns(config, fields),
-    [config, fields],
-  );
   const sortConditions = useMemo(
     () => activeSortConditions(config.sortState, fields),
     [config.sortState, fields],
@@ -228,6 +225,15 @@ export function TableToolbar({
     DENSITY_OPTIONS.find((option) => option.value === config.density)?.label ??
     "中等";
 
+  const groupReadout = useMemo(
+    () => conditionReadout(groupConditions, fields),
+    [groupConditions, fields],
+  );
+  const sortReadout = useMemo(
+    () => conditionReadout(sortConditions, fields),
+    [sortConditions, fields],
+  );
+
   return (
     <TooltipProvider delayDuration={400}>
       <div
@@ -252,7 +258,7 @@ export function TableToolbar({
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 gap-1.5 px-2 text-xs font-normal"
+              className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
               onClick={onInsertRow}
             >
               <Plus className="size-3.5" />
@@ -284,10 +290,11 @@ export function TableToolbar({
 
           {/* —— 分组 —— */}
           {config.groupable && (
-            <TableConditionMenu
+            <ConditionMenu
               label="分组"
               title="设置分组条件"
-              icon={Rows3}
+              icon={Columns3}
+              value={groupReadout}
               conditions={groupConditions}
               fields={fields}
               disabled={!onConfigChange}
@@ -297,10 +304,11 @@ export function TableToolbar({
 
           {/* —— 排序 —— */}
           {config.sortable && (
-            <TableConditionMenu
+            <ConditionMenu
               label="排序"
               title="设置排序条件"
-              icon={SortAsc}
+              icon={ArrowUpDown}
+              value={sortReadout}
               conditions={sortConditions}
               fields={fields}
               disabled={!onConfigChange}
@@ -337,10 +345,6 @@ export function TableToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-36">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                设置行高
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
               {DENSITY_OPTIONS.map(({ value, label, icon: Icon }) => (
                 <DropdownMenuItem
                   key={value}
@@ -392,10 +396,6 @@ export function TableToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                导出为
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => onExport("csv")}>
                 <FileText className="size-4" />
                 CSV 文件

@@ -89,28 +89,31 @@ export function SwitchRow({
 /**
  * A toolbar button that opens a settings panel.
  *
- * The trigger reports engaged state with `--primary` and shows the current value
- * next to its label; the button's width therefore changes with the value, which
- * is fine because every control in a view toolbar's configuration group is
- * left-aligned (`shared/view-toolbar.tsx`).
+ * The trigger is **neutral chrome**: every panel is one button of the same
+ * shape, and a tinted trigger said nothing a user could act on (an engaged
+ * setting is already visible in the panel itself, or in the value next to the
+ * label). Only the current value is shown, and the button's width therefore
+ * changes with it, which is fine because every control in a view toolbar's
+ * configuration group is left-aligned (`shared/view-toolbar.tsx`).
  */
 export function SettingsPanel({
   label,
   icon: Icon,
-  active,
   value,
   disabled,
   width = "w-64",
+  className,
   children,
 }: {
   label: string;
   icon: ComponentType<{ className?: string }>;
-  active?: boolean;
   /** Current value shown next to the label (e.g. the mapped field's name). */
   value?: string;
   disabled?: boolean;
   /** Panel width class; the field-mapping panels need more room than a switch. */
   width?: string;
+  /** Extra classes for the trigger button (a view's own spacing). */
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -123,8 +126,7 @@ export function SettingsPanel({
           disabled={disabled}
           className={cn(
             "h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground",
-            active &&
-              "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+            className,
           )}
         >
           <Icon className="size-3.5" />

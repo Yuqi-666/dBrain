@@ -23,6 +23,7 @@
  */
 import { useCallback, useId, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, GripVertical, Plus } from "lucide-react";
+import type { NodeData, NodeId } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -64,23 +65,25 @@ export interface KanbanBoardProps {
   onCardLaneChange?: (card: KanbanCard, laneId: string) => void;
   /** Lanes were reordered by dragging a lane header. */
   onLaneOrderChange?: (laneOrder: string[]) => void;
-  onCardOpen?: (card: KanbanCard) => void;
+  /** Fields the board already shows → folded into the record editor. */
+  hiddenFieldIds?: readonly string[];
   onCreateCard?: (laneId: string) => void;
   /** Rename / recolour a lane (an option of the group field). */
   onOptionSave?: (
     optionId: string,
     patch: { name: string; color?: string },
   ) => void;
+  /** Host lookup for a node cover / a relation label inside a card. */
+  resolveNode?: (nodeId: string) => NodeData | undefined;
+  resolveNodeTitle?: (nodeId: NodeId) => string | undefined;
+  onOpenNode?: (nodeId: NodeId) => void;
   canDragCards: boolean;
   canReorderLanes: boolean;
-  compact: boolean;
-  showCardCount: boolean;
 }
 
 interface LaneHeaderProps {
   lane: KanbanLane;
   count: number;
-  showCount: boolean;
   canCreate: boolean;
   canReorderLanes: boolean;
   canEditOption: boolean;
@@ -92,7 +95,6 @@ interface LaneHeaderProps {
 function LaneHeader({
   lane,
   count,
-  showCount,
   canCreate,
   canReorderLanes,
   canEditOption,
@@ -143,11 +145,9 @@ function LaneHeader({
           {lane.name}
         </span>
       )}
-      {showCount && (
-        <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground tabular-nums">
-          {count}
-        </span>
-      )}
+      <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground tabular-nums">
+        {count}
+      </span>
       {canCreate && (
         <Button
           type="button"
@@ -180,13 +180,14 @@ export function KanbanBoard({
   onColumnsChange,
   onCardLaneChange,
   onLaneOrderChange,
-  onCardOpen,
+  hiddenFieldIds,
   onCreateCard,
   onOptionSave,
+  resolveNode,
+  resolveNodeTitle,
+  onOpenNode,
   canDragCards,
   canReorderLanes,
-  compact,
-  showCardCount,
 }: KanbanBoardProps) {
   const [collapsedLaneIds, setCollapsedLaneIds] = useState<readonly string[]>(
     [],
@@ -279,11 +280,9 @@ export function KanbanBoard({
                   className="size-2 shrink-0 rounded-full"
                   style={{ backgroundColor: lane.color }}
                 />
-                {showCardCount && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {cards.length}
-                  </span>
-                )}
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {cards.length}
+                </span>
                 <span className="min-h-0 truncate text-xs font-medium [writing-mode:vertical-rl]">
                   {lane.name}
                 </span>
@@ -300,7 +299,6 @@ export function KanbanBoard({
               <LaneHeader
                 lane={lane}
                 count={cards.length}
-                showCount={showCardCount}
                 canCreate={Boolean(onCreateCard)}
                 canReorderLanes={canReorderLanes && lane.optionId !== null}
                 canEditOption={Boolean(onOptionSave) && lane.optionId !== null}
@@ -318,13 +316,16 @@ export function KanbanBoard({
                   <KanbanCardItem
                     key={card.key}
                     card={card}
-                    compact={compact}
+                    compact={model.settings.compact}
                     draggable={canDragCards}
                     moveTargets={model.lanes.filter(
                       (candidate) => candidate.id !== laneId,
                     )}
-                    onOpen={onCardOpen}
+                    hiddenFieldIds={hiddenFieldIds}
                     onMove={onCardLaneChange}
+                    resolveNode={resolveNode}
+                    resolveNodeTitle={resolveNodeTitle}
+                    onOpenNode={onOpenNode}
                   />
                 ))}
                 {cards.length === 0 && (
@@ -346,7 +347,10 @@ export function KanbanBoard({
             <KanbanItem value={card.key}>
               <KanbanCardBody
                 card={card}
-                compact={compact}
+                compact={model.settings.compact}
+                resolveNode={resolveNode}
+                resolveNodeTitle={resolveNodeTitle}
+                onOpenNode={onOpenNode}
                 className="cursor-grabbing shadow-lg"
               />
             </KanbanItem>
