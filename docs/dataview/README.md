@@ -5,7 +5,8 @@
 > （`packages/dataview/src/views/kanban/`，见 kanban.md），日历视图已实现
 > （`packages/dataview/src/views/calendar/`，见 calendar.md），画廊视图已实现并**重构**
 > （`packages/dataview/src/views/gallery/`，见 gallery.md），甘特图视图已实现
-> （`packages/dataview/src/views/gantt/`，见 gantt.md），其余两个视图（图表 / 节点图）仍为占位
+> （`packages/dataview/src/views/gantt/`，见 gantt.md），图表视图已实现
+> （`packages/dataview/src/views/chart/`，见 chart.md），仅剩节点图视图为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -494,7 +495,7 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 | 日历 calendar    |    ✅    |     ✅     | 需 date 字段（collection 用 **createdAt/**updatedAt） | FullCalendar 二次开发                     |
 | 甘特图 gantt     |    ✅    |     ⚠️     | 需 date 起止字段                                      | VTable（@visactor/vtable-gantt）          |
 | 画廊 gallery     |    ✅    |     ✅     | 需主列；封面字段可选（collection 用节点预览）         | 自研（shadcn + ui 的 `NodePreviewCover`） |
-| 图表 chart       |    ✅    |     ✅     | 需维度/度量字段                                       | VChart 全类型                             |
+| 图表 chart       |    ✅    |     ✅     | 需维度/度量字段                                       | VChart（23 种，见 chart.md §0.1）         |
 | 节点图 nodeGraph |    ❌    |     ✅     | 仅 filterConfig（复用 @workspace/graph）              | 复用 <Graph />                            |
 
 - ✅ 完整支持；⚠️ 支持但依赖字段可用性（缺少日期字段时给出引导）。
@@ -649,7 +650,10 @@ packages/dataview/src/
     │                ├── canvas/   theme.ts
     │                ├── board/    gantt-surface.tsx + task-readout.tsx
     │                └── toolbar/  gantt-toolbar.tsx    # 字段配置（5 个角色 + 共享字段列表）/ 视图
-    ├── chart/       …
+    ├── chart/       chart-data-view.tsx           # 壳（唯一入口，无 config-editor）
+    │                ├── core/     config.ts + schema.ts + spec.ts + theme.ts
+    │                ├── board/    chart-surface.tsx + chart-readout.tsx
+    │                └── toolbar/  chart-toolbar.tsx    # 图表（类型）/ 字段配置（角色）/ 视图
     └── node-graph/  node-graph-data-view.tsx
 ```
 
@@ -664,7 +668,7 @@ packages/dataview/src/
 | M2 核心视图-表格  | VTable 集成 + 编辑/排序/筛选/分组/字段增删改/填色/导出 + 工具栏化 config（核心，全功能）                                                 | M1 ✅ 已实现 |
 | M2.5 工具栏化改造 | 删除配置侧栏，配置并入视图 toolbar（配置左 / 功能右）；视图级「更多」也进视图 toolbar 功能区，页签条只留导航；功能组只放固定尺寸常驻控件 | M2 ✅ 已实现 |
 | M3 核心视图-日历  | FullCalendar 集成 + 日期映射/拖拽写回/多视图 + 工具栏四面板（核心，全功能）                                                              | M1 ✅ 已实现 |
-| M4 图表           | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出                                                                                        | M1           |
+| M4 图表           | VChart 集成 + 23 种类型 + 字段编码 + 聚合 + 排序/TopN + 下钻/导出 + 工具栏三面板（全类型按需：3D / map / 统计形状见 chart.md §0.1）      | M1 ✅ 已实现 |
 | M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
 | M6 画廊           | 自研卡片墙：网格/瀑布流/列表 + 自研窗口化/增量分页 + 多选与批量删除（collection 借 `NodePreviewCover` 复用节点预览）                     | M1 ✅ 已实现 |
 | M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回 + 自研分组/今日线/悬浮读数/记录菜单                                                               | M1 ✅ 已实现 |

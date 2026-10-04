@@ -12,8 +12,8 @@
 (table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
 own config.
 
-**Current status: shell + the table, kanban, calendar, gallery and gantt views +
-the unified record surface and the unified card.** Every view opens the same
+**Current status: shell + the table, kanban, calendar, gallery, gantt and chart
+views + the unified record surface and the unified card.** Every view opens the same
 **record editor** (a column of the host's own box, built on the shared field controls) on
 click and the same **record context menu** on right-click; the common items come
 from `shared/record-menu.tsx`, a view appends its own. The page is rendered by the
@@ -44,18 +44,23 @@ select, the shared record right-click menu, selection with bulk delete, the shar
 but the shell's 更多) and **the `gantt` view** (VTable-Gantt: a flat record list
 with 日/周/月 时间轴, drag/resize date write-back, 今日线/周末/行高, self-built
 分组 with folding header rows, a pointer-anchored hover readout, and two toolbar
-panels — 字段配置 / 视图)
-are implemented. The other **two view renderers and their config editors are
-still placeholders** that render `<DataViewPlaceholder>` /
-`<DataViewConfigPlaceholder>`, and their libraries (VChart, @workspace/graph)
-are not dependencies yet — each view pulls its library only when it is
-implemented. The kanban's own deps
+panels — 字段配置 / 视图) and **the `chart` view** (VChart 2.1.7 through
+`@visactor/react-vchart`: 23 types in six groups, a role-driven 字段配置 panel —
+维度 / 系列 / X·Y / 层级 / 来源·目标 / 度量列表 — plus 排序 / Top-N / 图例 / 数据标签 /
+悬浮提示 / 主题 / 色板 / 点击行为 in 视图, view-local 下钻 with a clearable chip, 打开记录
+through the shared record surface, PNG export, and a DOM readout for the single-value
+types whose canvas has no text mark; see `docs/dataview/chart.md`)
+are implemented. The **last view renderer** (nodeGraph) is still a placeholder that
+renders `<DataViewPlaceholder>` / `<DataViewConfigPlaceholder>`, and its library
+(@workspace/graph) is not a dependency yet — each view pulls its library only when
+it is implemented. The kanban's own deps
 (`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui`
 for the vendored `Slot`) and the calendar's (`@fullcalendar/core|react|daygrid|
 timegrid|list|multimonth|interaction`, all `6.1.21`) are installed; **the gallery
 added no dependency at all** (the design's optional `react-virtuoso` was not
-needed), and the gantt added one (`@visactor/vtable-gantt` `^1.26.8`, the same
-version as the table's `@visactor/vtable`, so there is one copy of VTable).
+needed), the gantt added one (`@visactor/vtable-gantt` `^1.26.8`, the same
+version as the table's `@visactor/vtable`, so there is one copy of VTable), and the
+chart added two (`@visactor/vchart` + `@visactor/react-vchart` `^2.1.7`).
 
 **There is no side config panel.** The design change in
 `docs/propmt/dataview-table-1.md` moved view configuration into each view's own
@@ -63,7 +68,7 @@ toolbar as buttons + dropdown menus, **config left / functions right**; a later
 change moved the shell's view actions (更多: 设为默认 / 复制 / 删除视图) into that
 same function group, so the tab strip above is pure navigation. Every renderer
 draws a `ViewToolbar`, which appends the 更多 slot automatically. `ViewConfigMenu` (the generic "视图配置" popover
-over the registry's lazy `configEditor`) **is used by none of the five implemented
+over the registry's lazy `configEditor`) **is used by none of the six implemented
 views** — every one of their controls has a dedicated menu — and only remains for
 views that have no dedicated menu yet; a descriptor may therefore omit
 `configEditor` entirely. **A view toolbar's function group holds verbs, not
@@ -147,8 +152,8 @@ src/
 │   │                            #   viewport-fixed sheet — the host renders it inside a `relative`
 │   │                            #   box; the scrim only dismisses a click it saw a `pointerdown` for
 │   │                            #   (a touch's compatibility click lands on it right after opening)
-│   ├── data-view-placeholder.tsx        # placeholder body the two unimplemented views render
-│   ├── data-view-config-placeholder.tsx # placeholder body their config editors render
+│   ├── data-view-placeholder.tsx        # placeholder body the one unimplemented view renders
+│   ├── data-view-config-placeholder.tsx # placeholder body its config editor renders
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
 │   ├── use-row-filter.ts
@@ -179,7 +184,10 @@ src/
     │                ├── canvas/   theme.ts
     │                ├── board/    gantt-surface.tsx + task-readout.tsx
     │                └── toolbar/  gantt-toolbar.tsx
-    ├── chart/       chart-data-view.tsx + config-editor.tsx     (placeholder)
+    ├── chart/       chart-data-view.tsx        (implemented — see below)
+    │                ├── core/     config.ts + schema.ts + spec.ts + theme.ts
+    │                ├── board/    chart-surface.tsx + chart-readout.tsx
+    │                └── toolbar/  chart-toolbar.tsx
     └── node-graph/  node-graph-data-view.tsx + config-editor.tsx   (no hyphens in the type: `nodeGraph`)
 ```
 
@@ -288,6 +296,27 @@ Layering matches the others: `core/*` and `canvas/*` are pure, `board/*` compose
 the library + shadcn, `toolbar/*` only reads config and reports `onConfigChange`,
 and **nothing imports `gantt-data-view.tsx`**. Full details in
 `docs/dataview/gantt.md` §0.
+
+### chart view internals
+
+| Group   | File                        | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `chart-data-view.tsx`       | the shell: the encoding resolved against the live schema, the data built once for the active type's `shape`, the drill state (re-seeded per encoding), the click policy (不响应 / 下钻筛选 / 打开记录), 导出图片, the DOM readout for single-value types, and the guidance states. **The chart writes nothing** — no `onCellChange` in its contract. The only file `registry.ts` imports                                            |
+| core    | `core/config.ts`            | the type catalogue (`CHART_TYPES`: id / spec type / label / group / `shape` / `roles` / `maxMeasures` / `variant`), self-healing resolution (`resolveDimensionField` / `resolveSeriesField` / `resolveXYMeasures` / `resolveFlowFields` / `resolveHierarchyFields` / `resolveMeasures` / `resolveChartFields`), the palettes and `CHART_FIXED`. No React, no VChart                                                                 |
+| core    | `core/schema.ts`            | one builder per data shape — `buildSeriesData` (long format; **wide** for the 区间 types), `buildScatterData`, `buildHierarchyData`, `buildSankeyData`, `buildSingleData` — plus `aggregateRows` / `niceMax`. Datum keys are human labels, and every datum carries `__rowIds` / `__dim` / `__series` for the click policy. No React, no VChart                                                                                      |
+| core    | `core/spec.ts`              | the only module that speaks VChart's spec vocabulary. `buildChartSpec` starts from one `baseSpec` (type / theme / title / legend / tooltip / palette / variant) and branches by `shape`; it also carries the fixes the library needs (hierarchy `values: [root]`, the heatmap's two band axes + legend title, grouped bars, rose `seriesField = 维度`, sankey `nodeKey`, the 0–1 encoding for single-value types)                   |
+| core    | `core/theme.ts`             | `DataViewThemeTokens` → the partial VChart theme (`type` / `background` / `fontFamily` / `padding`). VChart's own dark theme is only a colour-scheme swap, so these are the three things it cannot know. No React                                                                                                                                                                                                                   |
+| board   | `board/chart-surface.tsx`   | the `memo`-wrapped universal `<VChart spec>`: `onReady` (instance → the export ref), `onClick` (mark datum → the shell), and the module-scope `registerLiquidChart` (水波图 is missing from the library's umbrella build). Keyed by the shell on the chart's _structure_, so a data change updates in place and a type/field change remounts                                                                                        |
+| board   | `board/chart-readout.tsx`   | the value overlay for 仪表 / 水波 / 进度: those series have no `indicator` and no text mark, so the absolute number is DOM chrome over the canvas (the canvas itself encodes only 0–1)                                                                                                                                                                                                                                              |
+| toolbar | `toolbar/chart-toolbar.tsx` | 图表 (the grouped type picker) / 字段配置 (the roles the active type declares: 维度 / 系列 / X·Y / 层级 / 来源·目标 / 度量列表, over the shared `FieldConfigList` with no eye — every field is either encoded or ignored, and a row only annotates its role) / 视图 (标题 / 排序 / 前 N 条 / 点击行为 / 图例 / 数据标签 / 悬浮提示 / 主题 / 色板); 导出图片 in the function group; the active drill is a clearable chip on the left |
+| —       | —                           | no `config-editor.tsx`: the three panels cover every `ChartViewConfig` key a user can decide, so the descriptor omits `configEditor`                                                                                                                                                                                                                                                                                                |
+
+Layering matches the others: `core/*` is pure (VChart appears only as a _type_ in
+`board/`), `board/*` composes the library, `toolbar/*` only reads config and
+reports `onConfigChange`, and **nothing imports `chart-data-view.tsx`**. Full
+details — including the seven library gotchas (hierarchy array, heatmap axes, bar
+stacking, rose series, liquid registration, sankey `nodeKey`, missing
+`indicator`) — in `docs/dataview/chart.md` §0.
 
 ### UI conventions (applies to every view)
 
@@ -441,45 +470,50 @@ Layout rules to keep:
 
 ## WHERE TO LOOK
 
-| Task                                                           | Location                                                                                                                                                 |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Change the shell / routing                                     | `src/data-view-root.tsx`                                                                                                                                 |
-| Add or re-label a view type                                    | `src/registry.ts` + `src/defaults.ts`                                                                                                                    |
-| Tweak default configs                                          | `src/defaults.ts`                                                                                                                                        |
-| Change how database rows are read                              | `src/source/database-source.ts`                                                                                                                          |
-| Change the collection projection schema                        | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                                                                               |
-| Cell → text/color/date/number                                  | `src/source/cell-resolver.ts`                                                                                                                            |
-| Implement a view                                               | `src/views/<name>/` (replace the placeholder body)                                                                                                       |
-| Group rows into lanes / cards                                  | `src/views/kanban/core/board.ts`                                                                                                                         |
-| Kanban config self-heal / lane order                           | `src/views/kanban/core/config.ts`                                                                                                                        |
-| Kanban drag write-back                                         | `src/views/kanban/board/kanban-board.tsx`                                                                                                                |
-| Vendored ReUI board                                            | `src/views/kanban/reui/kanban.tsx`                                                                                                                       |
-| Rows → calendar events / gesture → cells                       | `src/views/calendar/core/schema.ts`                                                                                                                      |
-| Calendar config self-heal / view names / fixed defaults        | `src/views/calendar/core/config.ts` (`CALENDAR_FIXED`)                                                                                                   |
-| Calendar theme (FullCalendar `--fc-*`)                         | `src/views/calendar/core/theme.ts`                                                                                                                       |
-| The `<FullCalendar>` instance                                  | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
-| Calendar hover readout                                         | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
-| Rows → gantt records / drag → date cells                       | `src/views/gantt/core/schema.ts`                                                                                                                         |
-| Gantt config self-heal / 粒度 → scales / fixed defaults        | `src/views/gantt/core/config.ts` (`GANTT_FIXED`)                                                                                                         |
-| The gantt instance (lifecycle, events, `setRecords`)           | `src/views/gantt/board/gantt-surface.tsx`                                                                                                                |
-| Gantt theme (task list `ITableThemeDefine` + canvas colours)   | `src/views/gantt/canvas/theme.ts`                                                                                                                        |
-| Gantt hover readout                                            | `src/views/gantt/board/task-readout.tsx`                                                                                                                 |
-| Rows → cards (gallery)                                         | `src/views/gallery/core/schema.ts`                                                                                                                       |
-| The card body / cover / settings / menu (kanban + gallery)     | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
-| The shared field list (卡片配置 + 日历字段配置)                | `src/shared/field-config-list.tsx`                                                                                                                       |
-| The unified record editor / context menu                       | `src/shared/record-menu.tsx` + `src/shared/record-actions.tsx` (the menu, shell-owned) + `src/shared/record-editor.tsx` (the page, rendered by the host) |
-| Field display / edit vocabulary (shared)                       | `src/shared/field-value.tsx` + `src/shared/field-input.tsx` (+ `option-picker` / `date-picker`)                                                          |
-| Gallery config self-heal / layout enums                        | `src/views/gallery/core/config.ts`                                                                                                                       |
-| Gallery card geometry / virtual window                         | `src/views/gallery/core/layout.ts` + `src/views/gallery/board/use-gallery-scroll.ts`                                                                     |
-| Gallery keyboard nav                                           | `src/views/gallery/board/use-gallery-focus.ts` + `gallery-card.tsx`                                                                                      |
-| A node's cover media (shared with cards)                       | `packages/ui/src/components/preview-block/node-preview-cover.tsx`                                                                                        |
-| In-popover field picker (shared)                               | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
-| The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序) | `src/shared/condition-menu.tsx`                                                                                                                          |
-| Settings-panel primitives (shared)                             | `src/shared/settings-panel.tsx`                                                                                                                          |
-| A pointer-anchored layer (readout / menu-at-point)             | `src/shared/body-layer.tsx` (a fixed anchor must live in `document.body`, not under a transformed ancestor)                                              |
-| Contrast text for a colour fill                                | `src/shared/color.ts`                                                                                                                                    |
-| Host integration                                               | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
-| Persisted model                                                | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
+| Task                                                              | Location                                                                                                                                                 |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change the shell / routing                                        | `src/data-view-root.tsx`                                                                                                                                 |
+| Add or re-label a view type                                       | `src/registry.ts` + `src/defaults.ts`                                                                                                                    |
+| Tweak default configs                                             | `src/defaults.ts`                                                                                                                                        |
+| Change how database rows are read                                 | `src/source/database-source.ts`                                                                                                                          |
+| Change the collection projection schema                           | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                                                                               |
+| Cell → text/color/date/number                                     | `src/source/cell-resolver.ts`                                                                                                                            |
+| Implement a view                                                  | `src/views/<name>/` (replace the placeholder body)                                                                                                       |
+| Group rows into lanes / cards                                     | `src/views/kanban/core/board.ts`                                                                                                                         |
+| Kanban config self-heal / lane order                              | `src/views/kanban/core/config.ts`                                                                                                                        |
+| Kanban drag write-back                                            | `src/views/kanban/board/kanban-board.tsx`                                                                                                                |
+| Vendored ReUI board                                               | `src/views/kanban/reui/kanban.tsx`                                                                                                                       |
+| Rows → calendar events / gesture → cells                          | `src/views/calendar/core/schema.ts`                                                                                                                      |
+| Calendar config self-heal / view names / fixed defaults           | `src/views/calendar/core/config.ts` (`CALENDAR_FIXED`)                                                                                                   |
+| Calendar theme (FullCalendar `--fc-*`)                            | `src/views/calendar/core/theme.ts`                                                                                                                       |
+| The `<FullCalendar>` instance                                     | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
+| Calendar hover readout                                            | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
+| Rows → gantt records / drag → date cells                          | `src/views/gantt/core/schema.ts`                                                                                                                         |
+| Gantt config self-heal / 粒度 → scales / fixed defaults           | `src/views/gantt/core/config.ts` (`GANTT_FIXED`)                                                                                                         |
+| The gantt instance (lifecycle, events, `setRecords`)              | `src/views/gantt/board/gantt-surface.tsx`                                                                                                                |
+| Gantt theme (task list `ITableThemeDefine` + canvas colours)      | `src/views/gantt/canvas/theme.ts`                                                                                                                        |
+| Gantt hover readout                                               | `src/views/gantt/board/task-readout.tsx`                                                                                                                 |
+| The chart type catalogue / roles / palettes                       | `src/views/chart/core/config.ts` (`CHART_TYPES`)                                                                                                         |
+| Rows → chart data (series / scatter / hierarchy / links / single) | `src/views/chart/core/schema.ts`                                                                                                                         |
+| Config + data → VChart spec (the per-type quirks live here)       | `src/views/chart/core/spec.ts`                                                                                                                           |
+| The `<VChart>` instance / click policy / 水波图 registration      | `src/views/chart/board/chart-surface.tsx`                                                                                                                |
+| The single-value DOM readout (仪表 / 水波 / 进度)                 | `src/views/chart/board/chart-readout.tsx`                                                                                                                |
+| Rows → cards (gallery)                                            | `src/views/gallery/core/schema.ts`                                                                                                                       |
+| The card body / cover / settings / menu (kanban + gallery)        | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
+| The shared field list (卡片配置 + 日历字段配置)                   | `src/shared/field-config-list.tsx`                                                                                                                       |
+| The unified record editor / context menu                          | `src/shared/record-menu.tsx` + `src/shared/record-actions.tsx` (the menu, shell-owned) + `src/shared/record-editor.tsx` (the page, rendered by the host) |
+| Field display / edit vocabulary (shared)                          | `src/shared/field-value.tsx` + `src/shared/field-input.tsx` (+ `option-picker` / `date-picker`)                                                          |
+| Gallery config self-heal / layout enums                           | `src/views/gallery/core/config.ts`                                                                                                                       |
+| Gallery card geometry / virtual window                            | `src/views/gallery/core/layout.ts` + `src/views/gallery/board/use-gallery-scroll.ts`                                                                     |
+| Gallery keyboard nav                                              | `src/views/gallery/board/use-gallery-focus.ts` + `gallery-card.tsx`                                                                                      |
+| A node's cover media (shared with cards)                          | `packages/ui/src/components/preview-block/node-preview-cover.tsx`                                                                                        |
+| In-popover field picker (shared)                                  | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
+| The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序)    | `src/shared/condition-menu.tsx`                                                                                                                          |
+| Settings-panel primitives (shared)                                | `src/shared/settings-panel.tsx`                                                                                                                          |
+| A pointer-anchored layer (readout / menu-at-point)                | `src/shared/body-layer.tsx` (a fixed anchor must live in `document.body`, not under a transformed ancestor)                                              |
+| Contrast text for a colour fill                                   | `src/shared/color.ts`                                                                                                                                    |
+| Host integration                                                  | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
+| Persisted model                                                   | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
 
 ## DATA FLOW (do not break)
 

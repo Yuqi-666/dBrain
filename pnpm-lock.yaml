@@ -360,6 +360,12 @@ importers:
       '@fullcalendar/timegrid':
         specifier: 6.1.21
         version: 6.1.21(@fullcalendar/core@6.1.21)
+      '@visactor/react-vchart':
+        specifier: ^2.1.7
+        version: 2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@visactor/vchart':
+        specifier: ^2.1.7
+        version: 2.1.7
       '@visactor/vtable':
         specifier: ^1.26.8
         version: 1.26.8
@@ -4187,8 +4193,23 @@ packages:
   '@upsetjs/venn.js@2.0.0':
     resolution: {integrity: sha512-WbBhLrooyePuQ1VZxrJjtLvTc4NVfpOyKx0sKqioq9bX1C1m7Jgykkn8gLrtwumBioXIqam8DLxp88Adbue6Hw==}
 
+  '@visactor/react-vchart@2.1.7':
+    resolution: {integrity: sha512-kT6Q2L9NApLzGSR+JfxaYTHfpNPc9Z+SYc8Vf3pAxTjmQRHyrH5ZxXJo2ZUsYC9QaLUsc7CBobdF6PbzaQ2/Xw==}
+    peerDependencies:
+      react: '>=16.0.0'
+      react-dom: '>=16.0.0'
+
+  '@visactor/vchart-extension@2.1.7':
+    resolution: {integrity: sha512-NafXsho+vjhdVpWbtMG2dJ0LRQxQ5RzGmXjzuG4MJS16f/AsaLUa0l6BkGe+G46pgRMTnslkCEVTzT7xV+Zlaw==}
+
+  '@visactor/vchart@2.1.7':
+    resolution: {integrity: sha512-/g/t8E+f69djhEHoSC4JsweB1pC2G3DtjoiRL46hVpDp6GnlpaiCyn6GuWNUc6vt7MgCNUked9t0yw2TR+Zfkg==}
+
   '@visactor/vdataset@1.0.24':
     resolution: {integrity: sha512-/qWoUOVYb2KI0LcHchxnoyi8aqIo+oniiXQ6FS670gpsIch1lrXV3GaNUIi3VU1yLJgmI2tv5p2DLsmLQOLp0g==}
+
+  '@visactor/vlayouts@1.0.24':
+    resolution: {integrity: sha512-kfcPf1qjWcGsfqStw2Y8RybNtNb4/y3K+EjkBQEd4IvIuKGe3BMgngYMx41R3AALWVWZ5EbXZu0lwN8lvBKGUQ==}
 
   '@visactor/vrender-animate@1.1.11':
     resolution: {integrity: sha512-GBES37lUpM6HupDVSIAJz6YVkOaH2hNFRPR43+ZggE97KDeOCqQk+JXcEsrHjX18zFDXLJ2GIjwXvK+En5n8Jw==}
@@ -4225,6 +4246,9 @@ packages:
 
   '@visactor/vutils-extension@2.0.22':
     resolution: {integrity: sha512-PRxjplZF1/Qdsflb1hYh9DGGJdblq91yIG7CCC6MIlMMSlDYEAMJzJ9y2clnR1MgWa2AsAtMtuu+MSdG3DctUA==}
+
+  '@visactor/vutils-extension@2.1.7':
+    resolution: {integrity: sha512-lapKEi4hgYXl0byU66iuG/hFzaLDqt1n7lgqbTqfQfrtOKAWjhWC/H5PYsX4um/PwzlytZlxYNiF6vlvtBW1qw==}
 
   '@visactor/vutils@1.0.24':
     resolution: {integrity: sha512-xaKqogNtcordXE81Y/KIuGunP6b2LeQI2Tfhp1n1UEYFAaVMrkdMg+BlHJRCxr6CJvG8IfLVTKOAM4WvLyi57g==}
@@ -6869,6 +6893,9 @@ packages:
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
+
+  react-is@18.3.1:
+    resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
   react-querybuilder@8.14.4:
     resolution: {integrity: sha512-w2bxX8ZMttRCT8kXVb5lXit2SgGfiEFaecuaBpkgsBpLRdjLNyOTPnhox+NL3PbIfssKksqQtNpc0k0lpEemSg==}
@@ -11175,6 +11202,41 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
+  '@visactor/react-vchart@2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@visactor/vchart': 2.1.7
+      '@visactor/vchart-extension': 2.1.7
+      '@visactor/vrender-core': 1.1.11
+      '@visactor/vrender-kits': 1.1.11
+      '@visactor/vutils': 1.0.24
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-is: 18.3.1
+
+  '@visactor/vchart-extension@2.1.7':
+    dependencies:
+      '@visactor/vchart': 2.1.7
+      '@visactor/vdataset': 1.0.24
+      '@visactor/vlayouts': 1.0.24
+      '@visactor/vrender-animate': 1.1.11
+      '@visactor/vrender-components': 1.1.11
+      '@visactor/vrender-core': 1.1.11
+      '@visactor/vrender-kits': 1.1.11
+      '@visactor/vutils': 1.0.24
+
+  '@visactor/vchart@2.1.7':
+    dependencies:
+      '@visactor/vdataset': 1.0.24
+      '@visactor/vlayouts': 1.0.24
+      '@visactor/vrender': 1.1.11
+      '@visactor/vrender-animate': 1.1.11
+      '@visactor/vrender-components': 1.1.11
+      '@visactor/vrender-core': 1.1.11
+      '@visactor/vrender-kits': 1.1.11
+      '@visactor/vscale': 1.0.24
+      '@visactor/vutils': 1.0.24
+      '@visactor/vutils-extension': 2.1.7
+
   '@visactor/vdataset@1.0.24':
     dependencies:
       '@turf/flatten': 6.5.0
@@ -11194,6 +11256,14 @@ snapshots:
       simple-statistics: 7.12.1
       simplify-geojson: 1.0.5
       topojson-client: 3.1.0
+
+  '@visactor/vlayouts@1.0.24':
+    dependencies:
+      '@turf/helpers': 6.5.0
+      '@turf/invariant': 6.5.0
+      '@visactor/vscale': 1.0.24
+      '@visactor/vutils': 1.0.24
+      eventemitter3: 4.0.7
 
   '@visactor/vrender-animate@1.1.11':
     dependencies:
@@ -11274,6 +11344,11 @@ snapshots:
       lodash: 4.17.21
 
   '@visactor/vutils-extension@2.0.22':
+    dependencies:
+      '@visactor/vdataset': 1.0.24
+      '@visactor/vutils': 1.0.24
+
+  '@visactor/vutils-extension@2.1.7':
     dependencies:
       '@visactor/vdataset': 1.0.24
       '@visactor/vutils': 1.0.24
@@ -14263,6 +14338,8 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
 
   react-is@16.13.1: {}
+
+  react-is@18.3.1: {}
 
   react-querybuilder@8.14.4(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1):
     dependencies:

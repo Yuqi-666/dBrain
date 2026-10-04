@@ -170,11 +170,10 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.ChartDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"chart">(() =>
-      import("./views/chart/config-editor").then((module) => ({
-        default: module.ChartConfigEditor,
-      })),
-    ),
+    // No `configEditor`: 图表 / 字段配置 / 视图 cover every `ChartViewConfig` key
+    // a user can decide (the type catalogue, the role encodings, and the
+    // presentation), exactly like the table's seven menus and the gantt's two
+    // panels.
     defaultConfig: (source) => createDefaultConfig("chart", source),
   },
   nodeGraph: {

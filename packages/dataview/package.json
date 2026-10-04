@@ -19,6 +19,8 @@
     "@fullcalendar/multimonth": "6.1.21",
     "@fullcalendar/react": "6.1.21",
     "@fullcalendar/timegrid": "6.1.21",
+    "@visactor/react-vchart": "^2.1.7",
+    "@visactor/vchart": "^2.1.7",
     "@visactor/vtable": "^1.26.8",
     "@visactor/vtable-editors": "^1.26.8",
     "@visactor/vtable-export": "^1.26.8",
