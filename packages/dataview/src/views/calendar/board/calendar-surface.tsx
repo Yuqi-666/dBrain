@@ -24,7 +24,7 @@
  * the core; everything else falls back to `zh-cn`, so a hand-written config can
  * never crash the view with an unregistered locale.
  */
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -69,6 +69,14 @@ function resolveLocale(code: string): LocaleInput | string {
 
 export interface CalendarSurfaceProps {
   events: CalendarEventInput[];
+  /**
+   * The `--fc-*` custom properties the shell puts on the calendar's wrapper.
+   *
+   * The surface needs them a second time: the drag mirror is appended to a host
+   * of ours in `document.body` (see {@link CalendarSurface}'s mirror-host effect),
+   * and that host is outside the wrapper's inheritance chain.
+   */
+  themeVars: Record<string, string>;
   /** Read only at mount; later changes go through `onApi` + `changeView`. */
   initialView: CalendarViewConfig["defaultView"];
   headerToolbar: CalendarViewConfig["headerToolbar"];
@@ -124,6 +132,7 @@ function attachEventContextMenu(
 
 export const CalendarSurface = memo(function CalendarSurface({
   events,
+  themeVars,
   initialView,
   headerToolbar,
   firstDay,
@@ -141,6 +150,52 @@ export const CalendarSurface = memo(function CalendarSurface({
   onEventMouseLeave,
   onDatesSet,
 }: CalendarSurfaceProps) {
+  /**
+   * The body-level host the drag mirror is appended to.
+   *
+   * FullCalendar draws the mirror as a `position: fixed` clone of the event
+   * element and appends it to the closest `.fc` — its own root — unless
+   * `fixedMirrorParent` says otherwise. Inside a **transformed ancestor** that
+   * root *is* the mirror's containing block: the node content is routinely
+   * mounted in the node editor's `-translate-x-1/2 -translate-y-1/2` dialog, so
+   * the dragged chip trailed the pointer by the dialog's own page offset
+   * (measured: panel at `120, 86`, the mirror at `959, 552` where the pointer
+   * asked for `839, 467`; in a plain host it sat exactly on the drag delta). A
+   * host in `document.body` is in the viewport's coordinate space, which is the
+   * space `left`/`top` were computed in.
+   *
+   * It is a host of ours rather than bare `<body>` because the mirror is a clone
+   * of the event chip: a colourless event's fill *is* `--fc-event-bg-color`
+   * (`buildEventUiStyle` writes nothing inline), so the wrapper's `--fc-*`
+   * overrides have to reach the host or the chip turns FullCalendar's built-in
+   * blue for the length of the drag. A zero-size, untransformed box at the
+   * viewport origin carries them without affecting where the mirror lands.
+   */
+  const [mirrorHost, setMirrorHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const host = document.createElement("div");
+    host.dataset.dataviewCalendarMirrorHost = "";
+    host.style.position = "absolute";
+    host.style.top = "0px";
+    host.style.left = "0px";
+    host.style.width = "0px";
+    host.style.height = "0px";
+    document.body.appendChild(host);
+    setMirrorHost(host);
+    return () => {
+      host.remove();
+      setMirrorHost(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mirrorHost) return;
+    for (const [name, value] of Object.entries(themeVars)) {
+      mirrorHost.style.setProperty(name, value);
+    }
+  }, [mirrorHost, themeVars]);
+
   const handleRef = useCallback(
     (instance: FullCalendar | null) => {
       onApi(instance ? instance.getApi() : null);
@@ -172,6 +227,9 @@ export const CalendarSurface = memo(function CalendarSurface({
       navLinks={false}
       dayHeaders
       events={events}
+      // Applied on the calendar's own `resetOptions` after the first commit; a
+      // drag cannot happen before that.
+      {...(mirrorHost ? { fixedMirrorParent: mirrorHost } : {})}
       {...(onEventContextMenu
         ? {
             eventDidMount: (arg: EventMountArg) =>

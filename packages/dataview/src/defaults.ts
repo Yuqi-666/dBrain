@@ -105,8 +105,6 @@ const GANTT_DEFAULT_CONFIG = (source: DataViewSource): GanttViewConfig => {
     rowHeight: 36,
     showTodayLine: true,
     showWeekends: true,
-    editable: source.kind === "database",
-    theme: "auto",
   };
 };
 

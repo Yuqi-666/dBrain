@@ -137,7 +137,19 @@ export function SettingsPanel({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn(width, "p-3")}>
-        <div className="flex flex-col gap-3">{children}</div>
+        {/**
+         * The body scrolls, capped by the height the popover actually has.
+         *
+         * A panel is as tall as its sections plus the field list, and a *field
+         * list* grows with the schema — five role sections plus a dozen fields is
+         * taller than the window, and a popover with `overflow: visible` simply
+         * loses the bottom (measured: a 624px body in a 633px viewport, its
+         * 新增字段 footer unreachable). The cap is Radix's own available height,
+         * so a panel in a short dialog window still scrolls instead of spilling.
+         */}
+        <div className="flex max-h-[min(70vh,var(--radix-popover-content-available-height))] flex-col gap-3 overflow-y-auto">
+          {children}
+        </div>
       </PopoverContent>
     </Popover>
   );

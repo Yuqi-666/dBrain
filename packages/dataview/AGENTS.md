@@ -12,8 +12,8 @@
 (table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
 own config.
 
-**Current status: shell + the table, kanban, calendar and gallery views + the
-unified record surface and the unified card.** Every view opens the same
+**Current status: shell + the table, kanban, calendar, gallery and gantt views +
+the unified record surface and the unified card.** Every view opens the same
 **record editor** (a column of the host's own box, built on the shared field controls) on
 click and the same **record context menu** on right-click; the common items come
 from `shared/record-menu.tsx`, a view appends its own. The page is rendered by the
@@ -41,17 +41,21 @@ the pane, never configured — a real virtual window for 网格/列表 and incre
 paging for 瀑布流, keyboard navigation over a roving tabindex with Shift range
 select, the shared record right-click menu, selection with bulk delete, the shared
 `DataCard`, and a toolbar of 添加记录 / 卡片配置 / 布局 with nothing on the right
-but the shell's 更多)
-are implemented. The other **three view renderers and their config editors are
+but the shell's 更多) and **the `gantt` view** (VTable-Gantt: a flat record list
+with 日/周/月 时间轴, drag/resize date write-back, 今日线/周末/行高, self-built
+分组 with folding header rows, a pointer-anchored hover readout, and two toolbar
+panels — 字段配置 / 视图)
+are implemented. The other **two view renderers and their config editors are
 still placeholders** that render `<DataViewPlaceholder>` /
-`<DataViewConfigPlaceholder>`, and their libraries (VChart, @workspace/graph,
-@visactor/vtable-gantt) are not dependencies yet — each view pulls its library
-only when it is implemented. The kanban's own deps
+`<DataViewConfigPlaceholder>`, and their libraries (VChart, @workspace/graph)
+are not dependencies yet — each view pulls its library only when it is
+implemented. The kanban's own deps
 (`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui`
 for the vendored `Slot`) and the calendar's (`@fullcalendar/core|react|daygrid|
 timegrid|list|multimonth|interaction`, all `6.1.21`) are installed; **the gallery
 added no dependency at all** (the design's optional `react-virtuoso` was not
-needed).
+needed), and the gantt added one (`@visactor/vtable-gantt` `^1.26.8`, the same
+version as the table's `@visactor/vtable`, so there is one copy of VTable).
 
 **There is no side config panel.** The design change in
 `docs/propmt/dataview-table-1.md` moved view configuration into each view's own
@@ -59,7 +63,7 @@ toolbar as buttons + dropdown menus, **config left / functions right**; a later
 change moved the shell's view actions (更多: 设为默认 / 复制 / 删除视图) into that
 same function group, so the tab strip above is pure navigation. Every renderer
 draws a `ViewToolbar`, which appends the 更多 slot automatically. `ViewConfigMenu` (the generic "视图配置" popover
-over the registry's lazy `configEditor`) **is used by none of the four implemented
+over the registry's lazy `configEditor`) **is used by none of the five implemented
 views** — every one of their controls has a dedicated menu — and only remains for
 views that have no dedicated menu yet; a descriptor may therefore omit
 `configEditor` entirely. **A view toolbar's function group holds verbs, not
@@ -72,7 +76,7 @@ right-anchored group (see § _UI conventions_).
 `RecordMenuAtPoint` and provides `shared/record-actions.tsx`'s context; a renderer
 only calls `useRecordActions().openRecord(rowId, { hiddenFieldIds })` and wraps its
 record element in `<RecordContextMenu rowId hiddenFieldIds sections>`. That is what
-makes "click a record" and "right-click a record" identical in all four views. A
+makes "click a record" and "right-click a record" identical in all five views. A
 view adds its own menu items through `sections` (the kanban's 移动到, the gallery's
 选择 + 删除选中). **The record _editing page_ is not the shell's**: `openRecord`
 reports up through `DataViewRoot`'s `onOpenRecord`, and the host node-content
@@ -83,7 +87,10 @@ decides _what_ "open a record" means for every view, while the page itself stays
 host-owned — and out of every lazy view chunk. It is laid out **inside the host's
 box** (`absolute inset-y-0 right-0` + a scrim), because a node-content is mounted
 full-screen _or_ inside the node editor's dialog window; the host marks whatever
-the page covers as `inert`.
+the page covers as `inert`. The scrim dismisses only on a click it also saw a
+`pointerdown` for: the touch that opens the page from a canvas bar/event makes the
+browser dispatch a compatibility `click` **after** the page mounted, which used to
+close it the instant it opened (mouse has no such sequence).
 
 ## STRUCTURE
 
@@ -130,12 +137,17 @@ src/
 │   ├── field-editor.tsx         # 标题/字段类型/选项内容/默认值 form (+ FieldEditorMenuContent for the
 │   │                            #   table's dropdown); moved out of views/table/fields/editor.tsx
 │   ├── record-actions.tsx       # the record surface's context (openRecord / openRecordMenu) + menu types
+│   ├── body-layer.tsx           # ports an interaction layer (hover readout / menu-at-point) into
+│   │                            #   document.body — a fixed anchor inside a transformed ancestor
+│   │                            #   (the node editor dialog) is measured from that ancestor, not the viewport
 │   ├── record-menu.tsx          # the unified record menu: buildRecordSections, RecordContextMenu,
 │   │                            #   RecordMenuItems (dropdown), RecordMenuAtPoint (imperative) + duplicateRow
 │   ├── record-editor.tsx        # the record page: a column of the HOST's own box (title, field
 │   │                            #   rows, 隐藏字段, 新增字段 + a scrim); props-driven, never a
-│   │                            #   viewport-fixed sheet — the host renders it inside a `relative` box
-│   ├── data-view-placeholder.tsx        # placeholder body the three unimplemented views render
+│   │                            #   viewport-fixed sheet — the host renders it inside a `relative`
+│   │                            #   box; the scrim only dismisses a click it saw a `pointerdown` for
+│   │                            #   (a touch's compatibility click lands on it right after opening)
+│   ├── data-view-placeholder.tsx        # placeholder body the two unimplemented views render
 │   ├── data-view-config-placeholder.tsx # placeholder body their config editors render
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
@@ -162,7 +174,11 @@ src/
     │                │              + use-gallery-scroll.ts
     │                │              + use-gallery-focus.ts
     │                └── toolbar/  gallery-toolbar.tsx
-    ├── gantt/       gantt-data-view.tsx + config-editor.tsx     (placeholder)
+    ├── gantt/       gantt-data-view.tsx        (implemented — see below)
+    │                ├── core/     config.ts + schema.ts
+    │                ├── canvas/   theme.ts
+    │                ├── board/    gantt-surface.tsx + task-readout.tsx
+    │                └── toolbar/  gantt-toolbar.tsx
     ├── chart/       chart-data-view.tsx + config-editor.tsx     (placeholder)
     └── node-graph/  node-graph-data-view.tsx + config-editor.tsx   (no hyphens in the type: `nodeGraph`)
 ```
@@ -221,8 +237,8 @@ Layering matches the table's: `core/*` is pure, `board/*` composes REUI + shadcn
 | core    | `core/config.ts`               | config self-healing (`resolveStartField` / `resolveEndField` / `resolveTitleField` / `resolveColorField` / `resolveTooltipFields`), `headerToolbar` ⇄ "which view buttons", `toFullCalendarView` / `fromFullCalendarView`, `buttonTextFor`, and `CALENDAR_FIXED` — the locale / height / theme / weekends / now-line / event-fold / click defaults the removed 交互 + 显示 panels used to set. No React |
 | core    | `core/schema.ts`               | `rowsToEvents` (rows → `EventInput`), `rangeToCells` / `eventToCells` / `selectionToRow` (gesture → cells, **the only ±1 day conversion**), `toISODate` / `addDays`, `readEventRecord` / `readEventReadout`. Only FullCalendar _types_                                                                                                                                                                  |
 | core    | `core/theme.ts`                | `DataViewThemeTokens` → the `--fc-*` custom properties. No React                                                                                                                                                                                                                                                                                                                                        |
-| board   | `board/calendar-surface.tsx`   | the `memo`-wrapped `<FullCalendar>`: plugins, locale, `buttonText`, `onApi`, and every event callback. Re-renders only when the config or the data changed                                                                                                                                                                                                                                              |
-| board   | `board/event-readout.tsx`      | the hover `Tooltip`, anchored to an invisible fixed `<span>` at the event's rect (a click opens the record editor instead of a panel)                                                                                                                                                                                                                                                                   |
+| board   | `board/calendar-surface.tsx`   | the `memo`-wrapped `<FullCalendar>`: plugins, locale, `buttonText`, `onApi`, every event callback, and the body host the drag mirror is appended to (`fixedMirrorParent` + the `--fc-*` vars copied onto it — a `fixed` mirror under a transformed ancestor is measured from that ancestor). Re-renders only when the config or the data changed                                                        |
+| board   | `board/event-readout.tsx`      | the hover `Tooltip`, anchored to an invisible fixed `<span>` at the event's rect and portalled through `shared/body-layer.tsx` (a click opens the record editor instead of a panel)                                                                                                                                                                                                                     |
 | toolbar | `toolbar/calendar-toolbar.tsx` | 字段配置 / 视图 panels on the left (via `ViewToolbar`); nothing on the right. 字段配置 is four role **config items** (开始日期 / 结束日期 / 标题 / 颜色, each a `PanelSection` + `FieldSelect`) over the shared `FieldConfigList`, where the eye = 悬浮提示 and a row only annotates its role                                                                                                           |
 | —       | —                              | no `config-editor.tsx`: the two panels cover every `CalendarViewConfig` key a user can decide (`timeZone` is pinned to `local` for v1), so the descriptor omits `configEditor`                                                                                                                                                                                                                          |
 
@@ -255,6 +271,24 @@ kanban. The one cross-package reach is
 player) stays out of the card's chunk. Full details in `docs/dataview/gallery.md`
 §0.
 
+### gantt view internals
+
+| Group   | File                        | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `gantt-data-view.tsx`       | the shell: the five role resolutions against the live schema, the write path (`change_date_range` → `taskRangeToCells` → `onCellChange`), the fold state (one group field's collapsed keys), the hover readout (derived from the current records, anchored at the pointer) and the guidance states. The only file `registry.ts` imports                                                                                                                                                                                                                               |
+| core    | `core/config.ts`            | role self-healing (`resolveStartField` / `resolveEndField` / `resolveTitleField` / `resolveProgressField` / `resolveGroupField` / `resolveTooltipFields`), `buildTimelineScales` (日/周/月 → two header levels), `timelineColWidth` / `taskBarWidth`, and `GANTT_FIXED`. No React, no library                                                                                                                                                                                                                                                                         |
+| core    | `core/schema.ts`            | `rowsToGanttRecords` (rows → flat records keyed by `__gantt*`, a synthetic `type: "project"` 分组 header row per group, folded members omitted), `taskRangeToCells` (drag → start/end cells, **inclusive end — no ±1 conversion**), `readTaskReadout`, the ISO day helpers. No React, no library                                                                                                                                                                                                                                                                      |
+| canvas  | `canvas/theme.ts`           | `DataViewThemeTokens` → the task list's `ITableThemeDefine` + the literal colours the timeline/grid/task bar/frame options take. No React                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| board   | `board/gantt-surface.tsx`   | the `memo`-wrapped imperative `<Gantt>`: constructed once per `structureKey` (粒度/行高/周末/今日线/主题模式/可写能力), `setRecords` for data, `release()` on cleanup, every library event mapped onto the shell's callbacks. Resolves a task-list row **by index into the applied records** (see the gotchas), keeps the container `relative isolate` (the library's absolute layers _and_ its own `z-index: 100` split line, which otherwise paints over the record page's `z-30` scrim), and draws the 分组/任务 hierarchy with the list column's `style` function |
+| board   | `board/task-readout.tsx`    | the hover `Tooltip`, anchored to an invisible fixed `<span>` at the pointer the library reported and portalled through `shared/body-layer.tsx` (a click opens the record editor instead of a panel)                                                                                                                                                                                                                                                                                                                                                                   |
+| toolbar | `toolbar/gantt-toolbar.tsx` | 字段配置 / 视图 panels on the left (via `ViewToolbar`); nothing on the right. 字段配置 is five role **config items** (开始日期 / 结束日期 / 标题 / 进度 / 分组, each a `PanelSection` + `FieldSelect`) over the shared `FieldConfigList`, where the eye = 悬浮提示 and a row only annotates its role                                                                                                                                                                                                                                                                  |
+| —       | —                           | no `config-editor.tsx`: the two panels cover every `GanttViewConfig` key, so the descriptor omits `configEditor`                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+Layering matches the others: `core/*` and `canvas/*` are pure, `board/*` composes
+the library + shadcn, `toolbar/*` only reads config and reports `onConfigChange`,
+and **nothing imports `gantt-data-view.tsx`**. Full details in
+`docs/dataview/gantt.md` §0.
+
 ### UI conventions (applies to every view)
 
 **Config lives in the view toolbar, not a side panel.** A renderer draws one
@@ -266,8 +300,8 @@ and their registry `configEditor` entries are gone).
 
 A view whose settings are a **form** (a `Select`, a checkbox list, switches)
 takes a `Popover` panel; a list of **commands** takes a `DropdownMenu`. The
-kanban's 分组/卡片配置/排序 and the calendar's 字段配置/视图 panels are popovers for
-exactly that reason — a menu's roving focus is the wrong tool for a body full of
+kanban's 分组/卡片配置/排序, the calendar's 字段配置/视图 and the gantt's
+字段配置/视图 panels are popovers for exactly that reason — a menu's roving focus is the wrong tool for a body full of
 inputs. Both are built from the same three primitives
 (`shared/settings-panel.tsx`: `SettingsPanel` / `PanelSection` / `SwitchRow`,
 plus `CheckboxOptionList`), and both pick a field with
@@ -425,6 +459,11 @@ Layout rules to keep:
 | Calendar theme (FullCalendar `--fc-*`)                         | `src/views/calendar/core/theme.ts`                                                                                                                       |
 | The `<FullCalendar>` instance                                  | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
 | Calendar hover readout                                         | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
+| Rows → gantt records / drag → date cells                       | `src/views/gantt/core/schema.ts`                                                                                                                         |
+| Gantt config self-heal / 粒度 → scales / fixed defaults        | `src/views/gantt/core/config.ts` (`GANTT_FIXED`)                                                                                                         |
+| The gantt instance (lifecycle, events, `setRecords`)           | `src/views/gantt/board/gantt-surface.tsx`                                                                                                                |
+| Gantt theme (task list `ITableThemeDefine` + canvas colours)   | `src/views/gantt/canvas/theme.ts`                                                                                                                        |
+| Gantt hover readout                                            | `src/views/gantt/board/task-readout.tsx`                                                                                                                 |
 | Rows → cards (gallery)                                         | `src/views/gallery/core/schema.ts`                                                                                                                       |
 | The card body / cover / settings / menu (kanban + gallery)     | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
 | The shared field list (卡片配置 + 日历字段配置)                | `src/shared/field-config-list.tsx`                                                                                                                       |
@@ -437,6 +476,7 @@ Layout rules to keep:
 | In-popover field picker (shared)                               | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
 | The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序) | `src/shared/condition-menu.tsx`                                                                                                                          |
 | Settings-panel primitives (shared)                             | `src/shared/settings-panel.tsx`                                                                                                                          |
+| A pointer-anchored layer (readout / menu-at-point)             | `src/shared/body-layer.tsx` (a fixed anchor must live in `document.body`, not under a transformed ancestor)                                              |
 | Contrast text for a colour fill                                | `src/shared/color.ts`                                                                                                                                    |
 | Host integration                                               | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
 | Persisted model                                                | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
@@ -566,7 +606,7 @@ lazy `nodes.get(id)` lookup rather than a map.
 2. Only if the view has settings without a dedicated toolbar menu: add
    `config-editor.tsx` (`DataViewConfigEditorProps<XViewConfig>`) and register it
    as `configEditor`. A view whose toolbar covers everything (the table, the
-   kanban, the calendar) leaves the descriptor's `configEditor` undefined and
+   kanban, the calendar, the gantt) leaves the descriptor's `configEditor` undefined and
    gets no 视图配置 button. Build the panels from `shared/settings-panel.tsx` +
    `shared/field-select.tsx`.
 3. Add the view's library to `package.json` **as a dynamic import only**; do not
@@ -590,6 +630,11 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
 
 ## GOTCHAS
 
+- **A settings panel's body scrolls, capped by Radix's own available height**
+  (`shared/settings-panel.tsx`). A panel is as tall as its sections plus the field
+  list, and the gantt's 字段配置 (five roles + list) measured 624px inside a 633px
+  viewport with `overflow: visible` — the 新增字段 footer was unreachable. Keep
+  the cap on any new panel rather than removing it.
 - **Views are persisted.** `content.views` round-trips through the domain value
   objects, the `nodes.views` JSON column, the DTO mapper and the tRPC schemas —
   see the root `AGENTS.md` § _dataview → Persistence (views)_ before touching any
@@ -629,6 +674,55 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   that box, and clip any new canvas-based renderer the same way. VTable's HTML
   context menu and in-cell editors are unaffected: VTable confines them to the
   table's box (`confine: true`), verified in the browser.
+- **VTable-Gantt traps the gantt view already works around** (all verified in a
+  real browser; `docs/dataview/gantt.md` §0 has the measurements):
+  - **`groupBy` is declared but unimplemented** in 1.26.8, and the nested
+    `children` model it points at turns the task list's `tree` off — so the view's
+    分组 is a synthetic `type: "project"` record per group plus a fold that drops
+    the group's member records.
+  - **A task-list row must be resolved by index into the records you applied, not
+    from the event's `originData`.** After a fold, `originData` still resolves
+    against the array the ListTable was _constructed_ with: clicking the visible
+    「数据层」 row reported 「竞品调研」, a row that was no longer on screen.
+  - **The progress drag handle cannot be grabbed.** It is drawn at
+    `y = barHeight - 3` (12px tall), i.e. below the bar's bottom edge, while the
+    hover group that owns it is hidden the moment the pointer leaves the bar
+    (measured: the cursor stays `col-resize` instead of `ew-resize`, and the press
+    neither moves the bar nor fires `progress_update`). `progressAdjustable` is
+    therefore `false`: the progress _fill_ is a read-out, and progress is edited in
+    the record editor.
+  - The library **mutates the records you pass in** on a drag before firing
+    `change_date_range`; records are rebuilt from the source on every render, so
+    the shell's `onCellChange` write is what makes the change real.
+  - Its end date is **inclusive** (`taskDays = end - start + 1`) — the opposite of
+    FullCalendar's exclusive `end`, so there is no ±1 day conversion anywhere in
+    this view.
+  - `select: { disableSelect: true }` on the task list: nothing there is
+    selectable (a click already opens the record or folds a group), and VTable's
+    own selection paint survives the gantt's theme merge as its default blue.
+  - It registers its own resize observer on the container and `release()` removes
+    its DOM, so the shell must not add one and must always call `release()`.
+  - **The container must be a positioned ancestor (`relative`).** The library
+    appends two absolutely positioned layers — the timeline canvas
+    (`.vtable-gantt { position: absolute }` in its injected stylesheet, pushed
+    right by `element.style.left = <taskListWidth>`) and the split-line handle —
+    and without one they resolve against the page: the two canvases overlapped by
+    the container's own offset and the divider was drawn above the chart
+    (measured: handle at `y = 0` while the chart started at `y = 99`).
+  - **The task list's hierarchy has to be drawn by the view.** The grouping is
+    ours, so nothing tells the library which row is a 分组 header: without help
+    they are identical flat rows distinguished only by the ▸/▾ glyph in the
+    title. The list column's `style` function bolds the header and indents its
+    tasks (`GANTT_FIXED.taskListIndent`), resolving the row with
+    `table.getCellOriginRecord(col, row)` — the _live_ record, unlike the event's
+    cached `originData` above — and skipping the header row so 「任务」 keeps its
+    own inset.
+  - **Both `position: fixed` anchors a canvas view needs must go through
+    `shared/body-layer.tsx`.** A fixed box inside a transformed ancestor (the node
+    editor dialog is centred with `-translate-x-1/2 -translate-y-1/2`) uses that
+    ancestor as its containing block, so the hover readout landed down-right of
+    the pointer by the dialog's own page offset. Radix portals its _content_ to
+    the body, never our anchor.
 - **VTable traps the table view already works around** (every one verified in a
   real browser; the full write-up is `docs/dataview/table.md` §10):
   - `heightMode: 'adaptive'` stretches rows to fill the container → the table uses

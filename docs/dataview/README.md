@@ -4,8 +4,8 @@
 > （`packages/dataview/src/views/table/`），看板视图已实现
 > （`packages/dataview/src/views/kanban/`，见 kanban.md），日历视图已实现
 > （`packages/dataview/src/views/calendar/`，见 calendar.md），画廊视图已实现并**重构**
-> （`packages/dataview/src/views/gallery/`，见 gallery.md），其余三个视图（甘特图 / 图表 /
-> 节点图）仍为占位
+> （`packages/dataview/src/views/gallery/`，见 gallery.md），甘特图视图已实现
+> （`packages/dataview/src/views/gantt/`，见 gantt.md），其余两个视图（图表 / 节点图）仍为占位
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -241,6 +241,18 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   因此把 Esc 监听挂在 `window` 的 capture 阶段（事件路径上更早，可以拦住它），且只在焦点在页面
   自己身上时才关页——日期选择器 / 下拉 / `字段编辑` 弹窗这些 portal 出去的浮层各有各的 Esc。
   `字段编辑` 表单仍是真正的模态（`DialogContent`，居中、`sm:max-w-md`）。
+- **遮罩只在「自己见过 `pointerdown`」时才因 click 关闭。** 画布视图（甘特条形、日历事件）是
+  被一次触摸打开的，浏览器随后会为**同一次**触摸补发一套兼容鼠标事件 —— `mousedown` /
+  `mouseup` / `click`，而且**在派发的那一刻**才做命中测试。页面此时已经挂上了，于是那个「幻影
+  click」砸在遮罩上，页面刚开就被关掉（实测日志：`touchend` 时挂上 `record-scrim`，4ms 后
+  `click` 的 target 就是 `record-scrim`，再 5ms 页面被移除；鼠标路径没有这套兼容事件，所以
+  只有触控会「闪一下就关」）。现在遮罩用一个 ref 记住自己有没有收到过 `pointerdown`：真实的
+  点按（鼠标按下、手指落在遮罩上）一定先有 `pointerdown`，而打开页面的那一次触摸的
+  `pointerdown` 早在遮罩存在之前就打在画布上了。触控点开记录页因此留得住，点遮罩依然能关
+  （两种输入都实测过）。
+- **遮罩要盖得住画布库自己注入的 `z-index`。** 画布容器必须自己建立层叠上下文（甘特图根 div 的
+  `relative isolate`，见 `gantt.md` §0.1 第 11 条）：库塞进容器的分割线写死 `z-index: 100`，
+  容器不隔离时它会盖在 `z-30` 遮罩之上——现象就是「打开记录时分割线不被模糊覆盖」。
 
 ### 3.6 统一记录右键菜单
 
@@ -518,7 +530,8 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
   底部「添加条件」；字段/条件选择器未选时统一显示「选择字段」。
 - **各视图工具条现状（同一套设计语言）**：
   表格 `添加记录 / 字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色`；看板 `分组 / 卡片配置 / 排序`；
-  画廊 `添加记录 / 卡片配置 / 布局`；日历 `字段配置 / 视图` —— 三个视图右侧的功能区都只剩「更多」。
+  画廊 `添加记录 / 卡片配置 / 布局`；日历与甘特图都是 `字段配置 / 视图` —— 五个视图右侧的功能区
+  都只剩「更多」。
   设置类按钮一律是中性样式：**不给触发器加高亮**（哪些设置已生效在面板里就能看到，染色只会让人猜
   「这个颜色是什么意思」）。
   右侧功能组**不再放数据状态读数**（「N 张卡片」「N 事件」「N 泳道」）：卡片和事件本身就在画面上，
@@ -621,7 +634,11 @@ packages/dataview/src/
     │                ├── board/    gallery-board.tsx + gallery-card.tsx
     │                │              + use-gallery-scroll.ts + use-gallery-focus.ts
     │                └── toolbar/  gallery-toolbar.tsx   # 添加记录 / 卡片配置（共享）/ 布局
-    ├── gantt/       …
+    ├── gantt/       gantt-data-view.tsx           # 壳（唯一入口，无 config-editor）
+    │                ├── core/     config.ts + schema.ts
+    │                ├── canvas/   theme.ts
+    │                ├── board/    gantt-surface.tsx + task-readout.tsx
+    │                └── toolbar/  gantt-toolbar.tsx    # 字段配置（5 个角色 + 共享字段列表）/ 视图
     ├── chart/       …
     └── node-graph/  node-graph-data-view.tsx
 ```
@@ -640,7 +657,7 @@ packages/dataview/src/
 | M4 图表           | VChart 全类型 + 字段编码 + 聚合 + 联动过滤 + 导出                                                                                        | M1           |
 | M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
 | M6 画廊           | 自研卡片墙：网格/瀑布流/列表 + 自研窗口化/增量分页 + 多选与批量删除（collection 借 `NodePreviewCover` 复用节点预览）                     | M1 ✅ 已实现 |
-| M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回                                                                                                   | M1           |
+| M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回 + 自研分组/今日线/悬浮读数/记录菜单                                                               | M1 ✅ 已实现 |
 | M8 节点图         | collection 内嵌 <Graph view={…filterConfig} />                                                                                           | M1 + graph   |
 
 表格、日历为核心视图，功能清单与配置 schema 单独成文（table.md / calendar.md）并优先实现。

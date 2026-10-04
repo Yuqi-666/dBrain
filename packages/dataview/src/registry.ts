@@ -140,11 +140,10 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
         default: module.GanttDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"gantt">(() =>
-      import("./views/gantt/config-editor").then((module) => ({
-        default: module.GanttConfigEditor,
-      })),
-    ),
+    // No `configEditor`: 字段配置 / 视图 cover every `GanttViewConfig` key a user
+    // can decide (the five roles as config items, plus 粒度 / 行高 / 今日线 /
+    // 周末), exactly like the table's menus, the kanban's panels and the
+    // calendar's two.
     defaultConfig: (source) => createDefaultConfig("gantt", source),
   },
   gallery: {

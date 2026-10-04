@@ -43,6 +43,7 @@ import {
 import type { DataRow } from "@workspace/interfaces";
 
 import { createDataRowId } from "../source/row-utils";
+import { BodyLayer } from "./body-layer";
 import {
   useRecordActions,
   type RecordMenuOptions,
@@ -297,6 +298,11 @@ export function RecordMenuItems({
  * It is a `DropdownMenu` over a 1×1 fixed anchor rather than a `ContextMenu`,
  * because Radix's context menu can only open from a real `contextmenu` event on
  * its own trigger, and this one is opened programmatically.
+ *
+ * The whole menu goes through {@link BodyLayer}: a `position: fixed` anchor
+ * inside a transformed ancestor — the node editor's centred dialog — is measured
+ * from that ancestor rather than the viewport, which puts the menu somewhere
+ * other than the pointer (`shared/body-layer.tsx`).
  */
 export function RecordMenuAtPoint({
   point,
@@ -312,37 +318,39 @@ export function RecordMenuAtPoint({
   onClose: () => void;
 }) {
   return (
-    <DropdownMenu
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <span
-          aria-hidden
-          style={{
-            position: "fixed",
-            left: point.x,
-            top: point.y,
-            width: 1,
-            height: 1,
-          }}
-        />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        side="bottom"
-        sideOffset={2}
-        className="w-44"
+    <BodyLayer>
+      <DropdownMenu
+        open
+        onOpenChange={(next) => {
+          if (!next) onClose();
+        }}
       >
-        <RecordMenuItems
-          rowId={rowId}
-          hiddenFieldIds={hiddenFieldIds}
-          sections={sections}
-          onDone={onClose}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden
+            style={{
+              position: "fixed",
+              left: point.x,
+              top: point.y,
+              width: 1,
+              height: 1,
+            }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          side="bottom"
+          sideOffset={2}
+          className="w-44"
+        >
+          <RecordMenuItems
+            rowId={rowId}
+            hiddenFieldIds={hiddenFieldIds}
+            sections={sections}
+            onDone={onClose}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </BodyLayer>
   );
 }

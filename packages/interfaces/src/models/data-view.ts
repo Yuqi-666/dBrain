@@ -283,21 +283,44 @@ export interface CalendarViewConfig {
   timeZone: "local" | string;
 }
 
+/**
+ * The gantt's own config.
+ *
+ * A gantt field is a **role** (开始 / 结束 / 标题 / 进度 / 分组), exactly like a
+ * calendar field, and those five roles are the only field decisions here — the
+ * 字段配置 panel sets each one with its own labelled `FieldSelect` over the
+ * shared field list, which also carries 悬浮提示 membership (the hover readout).
+ *
+ * What is **not** here any more (see `docs/dataview/gantt.md` §0): the
+ * `editable` switch (how much may be written is the host's capability — a drag
+ * needs cell writes), the `theme` key (the surface follows `next-themes`, like
+ * the calendar) and the `minDate` / `maxDate` pair (v1 always derives the
+ * timeline range from the tasks it is given). The four remaining presentation
+ * keys — `viewMode` (时间粒度), `rowHeight` (行高) and the two lines (今日线 /
+ * 周末) — are real decisions the 视图 panel offers.
+ */
 export interface GanttViewConfig {
+  /** 开始日期 — the one required role; a `date` field. */
   startField: string;
+  /** 结束日期 — optional; absent → every task is a single day. */
   endField?: string;
+  /** 标题 — the task name. */
   titleField: string;
+  /** 进度 — a `number` field read as 0–1 (the gantt draws it as a percentage). */
   progressField?: string;
+  /** 分组 — a `select` / `multiSelect` field, drawn as group header rows. */
   groupByField?: string;
+  /** The fields the hover readout adds after 起止 / 进度 (the 字段配置 eye). */
+  tooltipFields?: string[];
 
+  /** 时间粒度. */
   viewMode: "day" | "week" | "month";
+  /** Row height in px; the 视图 panel offers 低 / 中 / 高. */
   rowHeight: number;
+  /** 今日线 — the vertical "today" mark line. */
   showTodayLine: boolean;
+  /** 周末 — whether the timeline keeps its weekend columns. */
   showWeekends: boolean;
-  minDate?: string;
-  maxDate?: string;
-  editable: boolean;
-  theme: "light" | "dark" | "auto";
 }
 
 /**

@@ -348,6 +348,7 @@ export function CalendarDataView({
   const surface = (
     <CalendarSurface
       events={events}
+      themeVars={themeVars}
       initialView={safeView}
       headerToolbar={headerToolbar}
       firstDay={config.firstDay}

@@ -54,7 +54,7 @@ packages/dataview/src/views/calendar/
 │   ├── schema.ts               # rows → events、event/select → 单元格、事件读数（纯函数，无 React）
 │   └── theme.ts                # DataViewThemeTokens → FullCalendar 的 --fc-* CSS 变量
 ├── board/
-│   ├── calendar-surface.tsx    # memo 包裹的 <FullCalendar>：插件、locale、onApi、全部事件回调
+│   ├── calendar-surface.tsx    # memo 包裹的 <FullCalendar>：插件、locale、onApi、全部事件回调，以及拖拽镜像的 body 宿主（fixedMirrorParent，见约束 5）
 │   └── event-readout.tsx       # 悬浮提示（Tooltip），锚在事件矩形上
 └── toolbar/calendar-toolbar.tsx  # 字段配置 / 视图 两个面板
 ```
@@ -77,7 +77,7 @@ packages/dataview/src/views/calendar/
 
 工具条右侧不再显示「N 事件」：事件就画在日历上，且读数会随数据变宽（AGENTS.md UI 约定）。
 
-### 四条不能破坏的约束（实现时踩过）
+### 五条不能破坏的约束（实现时踩过）
 
 1. **FullCalendar 的 React 封装在每次 re-render 都调用 `resetOptions`。** 它用浅比较找出变化的
    option，只要有变化就重绘整棵 preact 树；而壳里为了悬浮提示持有 React state，鼠标
@@ -89,14 +89,30 @@ packages/dataview/src/views/calendar/
    概览叫 `multiMonthYear`。映射集中在 `core/config.ts` 的 `toFullCalendarView` /
    `fromFullCalendarView`（实测：用原始名时 `monthCount === 1`，映射后 12）。`headerToolbar`
    里存的也是映射后的名字，读回时反向映射。
-3. **Radix 的 `asChild` 锚点必须是真正的 DOM 元素。** 事件没有 React 节点可用，悬浮提示渲染一个
-   `position: fixed` 的隐形 `<span>`（坐标取自 `arg.el.getBoundingClientRect()`）；这个 span
-   **不能**包装在自定义组件里——`asChild` 把 anchor ref 交给直接子元素，不转发 ref 的组件会让
-   Floating UI 量到 `null`，面板就会渲染到视口原点（实测：删除前的点击弹层里「打开记录」按钮落在
-   `y = -157`，点不到）。
+3. **Radix 的 `asChild` 锚点必须是真正的 DOM 元素，而且必须 portal 到 body。** 事件没有 React 节点
+   可用，悬浮提示渲染一个 `position: fixed` 的隐形 `<span>`（坐标取自
+   `arg.el.getBoundingClientRect()`）；这个 span **不能**包装在自定义组件里——`asChild` 把 anchor
+   ref 交给直接子元素，不转发 ref 的组件会让 Floating UI 量到 `null`，面板就会渲染到视口原点
+   （实测：删除前的点击弹层里「打开记录」按钮落在 `y = -157`，点不到）。**只固定还不够**：节点内容
+   常挂在节点编辑器的 `DialogContent` 里，而它是 `-translate-x-1/2 -translate-y-1/2` 居中的，被固定
+   的元素会以这个祖先为包含块，`left/top` 变成「对话框内的坐标」，读数就落到指针右下角（实测偏
+   移 = 对话框页面的 `128,63`）。整份 tooltip 因此经 `shared/body-layer.tsx` portal 到
+   `document.body`（甘特图读数与 `RecordMenuAtPoint` 同）。
 4. **date-only 单元格是「日历日」，不是时间点。** `new Date("2026-05-20")` 是 UTC 午夜，在格林威治
    以西会渲染成 19 日、事件落到错误的格子里；`CellResolver.toDate` 因此对 `YYYY-MM-DD` 走本地
    分量构造，带时间的 ISO 字符串仍按时间点解析后再取本地日。
+5. **拖拽的镜像（mirror）必须挂到 `document.body` 里的宿主上（`fixedMirrorParent`）。**
+   FullCalendar 把镜像做成事件元素的克隆、`position: fixed`，默认 `appendChild` 到离指针最近的
+   `.fc` 根节点（`EventDragging.handlePointerDown`：`mirror.parentNode = elementClosest(origTarget, '.fc')`）。
+   节点内容挂在 `-translate-x-1/2 -translate-y-1/2` 的节点编辑器对话窗里时，`.fc` 就是被固定元素的
+   包含块，`left/top`（库算的是视口坐标）于是被当成「对话窗内坐标」：实测对话窗面板在 `120,86`，
+   指针要求镜像落在 `839,467`，实际落在 `959,552` —— 偏移正好是面板的页面位置，也就是「拖日程时
+   日程跟随鼠标但整体偏移」。因此 `calendar-surface.tsx` 在 body 里建一个零尺寸宿主、把
+   `--fc-*` 主题变量复制上去，再交给 `fixedMirrorParent`：**不能直接传 `document.body`** ——
+   无颜色的事件（`eventColor` 为空）填充色就是 `--fc-event-bg-color`（`buildEventUiStyle` 不写内联
+   样式，实测 `.fc-event` 的 `style` 属性为空），少了这层变量，拖动中的镜像会掉回 FullCalendar
+   内置的蓝色。修好后镜像顶端 = 原事件矩形 + 指针位移（实测 `639,303 → 839,467`，明暗两套主题
+   下镜像与事件芯片的计算色完全一致）。
 
 ### 验证方式
 

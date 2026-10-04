@@ -8,9 +8,13 @@
  * The readout therefore renders an invisible, `position: fixed` `<span>` at the
  * event's viewport rect and lets Radix anchor to it — the same technique the
  * table uses for its canvas-anchored panels. The rect is the one FullCalendar
- * hands `eventMouseEnter` (`arg.el`), and Radix portals the layer to
- * `document.body`, so a transformed ancestor (the node editor dialog's enter
- * animation) cannot capture `position: fixed`.
+ * hands `eventMouseEnter` (`arg.el`).
+ *
+ * Both ends of that pair travel through {@link BodyLayer}: Radix portals the
+ * *content* to `document.body` itself, but the anchor would stay inside a
+ * transformed ancestor — the node editor's centred dialog — whose transform makes
+ * it the containing block for `position: fixed`, so the readout would be measured
+ * from the dialog instead of the viewport (`shared/body-layer.tsx`).
  *
  * A click on an event is not a readout any more: it opens the shared record
  * editor, so the old click popover went with the 交互 panel.
@@ -23,6 +27,7 @@ import {
 } from "@workspace/ui/components/ui/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { BodyLayer } from "../../../shared/body-layer";
 import type { CalendarEventReadout } from "../core/schema";
 
 /** Viewport rect of the event the readout points at. */
@@ -99,40 +104,42 @@ export function EventHoverReadout({
   readout: CalendarEventReadout;
 }) {
   return (
-    <TooltipProvider>
-      <Tooltip open>
-        <TooltipTrigger asChild>
-          <span aria-hidden style={anchorStyle(rect)} />
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          align="center"
-          sideOffset={6}
-          className="max-w-64 flex-col items-stretch gap-1 text-left"
-        >
-          <span className="flex flex-col gap-0.5">
-            <span className="text-xs font-medium">{readout.title}</span>
-            {readout.dateText && (
-              <span className="text-[11px] text-background/70 tabular-nums">
-                {readout.dateText}
+    <BodyLayer>
+      <TooltipProvider>
+        <Tooltip open>
+          <TooltipTrigger asChild>
+            <span aria-hidden style={anchorStyle(rect)} />
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            align="center"
+            sideOffset={6}
+            className="max-w-64 flex-col items-stretch gap-1 text-left"
+          >
+            <span className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium">{readout.title}</span>
+              {readout.dateText && (
+                <span className="text-[11px] text-background/70 tabular-nums">
+                  {readout.dateText}
+                </span>
+              )}
+            </span>
+            {readout.details.length > 0 && (
+              <span className="flex flex-col gap-0.5 border-t border-background/15 pt-1">
+                {readout.details.map((detail) => (
+                  <DetailRow
+                    key={detail.fieldId}
+                    name={detail.name}
+                    text={detail.text}
+                    color={detail.color}
+                    className="text-background/60"
+                  />
+                ))}
               </span>
             )}
-          </span>
-          {readout.details.length > 0 && (
-            <span className="flex flex-col gap-0.5 border-t border-background/15 pt-1">
-              {readout.details.map((detail) => (
-                <DetailRow
-                  key={detail.fieldId}
-                  name={detail.name}
-                  text={detail.text}
-                  color={detail.color}
-                  className="text-background/60"
-                />
-              ))}
-            </span>
-          )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </BodyLayer>
   );
 }

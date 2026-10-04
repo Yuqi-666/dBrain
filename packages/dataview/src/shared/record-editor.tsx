@@ -120,12 +120,27 @@ export function RecordEditor({
   >(null);
   /** The page itself, focused on open so screen readers land on it. */
   const pageRef = useRef<HTMLElement | null>(null);
+  /**
+   * Whether the scrim has seen a `pointerdown` of its own.
+   *
+   * A tap opens this page from a *canvas* (a gantt bar, a calendar event) and the
+   * browser then dispatches the compatibility mouse sequence for that same tap —
+   * `mousedown`, `mouseup` and a `click`, all hit-tested **at dispatch time**. By
+   * then the page is mounted, so the phantom `click` landed on the scrim and
+   * closed the page the moment it opened (touch only: the mouse path has no
+   * compatibility sequence). A click is therefore a dismissal only if this
+   * element also saw the pointer go down — a real press or tap on the scrim fires
+   * `pointerdown` first, while the tap that *opened* the page fired its own
+   * `pointerdown` on the canvas before the scrim existed.
+   */
+  const scrimArmed = useRef(false);
 
   // A new record starts folded: the "already visible" fields are the point of
   // the panel, the long tail is what the block is for.
   useEffect(() => {
     setShowHidden(false);
     setFieldDraft(null);
+    scrimArmed.current = false;
   }, [rowId]);
 
   // The page is not a modal (no focus trap), so it takes focus itself.
@@ -333,7 +348,18 @@ export function RecordEditor({
             aria-hidden
             data-slot="record-scrim"
             className="absolute inset-0 z-30 bg-black/10 supports-backdrop-filter:backdrop-blur-xs"
-            onClick={() => onOpenChange(false)}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget)
+                scrimArmed.current = true;
+            }}
+            onClick={(event) => {
+              // See `scrimArmed`: a click with no press of its own is the
+              // compatibility event of the tap that opened the page.
+              if (event.target !== event.currentTarget) return;
+              if (!scrimArmed.current) return;
+              scrimArmed.current = false;
+              onOpenChange(false);
+            }}
           />
           <aside
             ref={pageRef}

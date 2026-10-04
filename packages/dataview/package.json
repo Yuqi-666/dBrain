@@ -22,6 +22,7 @@
     "@visactor/vtable": "^1.26.8",
     "@visactor/vtable-editors": "^1.26.8",
     "@visactor/vtable-export": "^1.26.8",
+    "@visactor/vtable-gantt": "^1.26.8",
     "@visactor/vtable-search": "^1.26.8",
     "@workspace/interfaces": "workspace:*",
     "@workspace/ui": "workspace:*",
