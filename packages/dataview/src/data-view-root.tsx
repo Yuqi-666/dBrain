@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { LayoutGrid } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -22,6 +23,7 @@ import type {
   DataViewType,
   NodeData,
 } from "@workspace/interfaces";
+import { normalizeDataViewType } from "@workspace/interfaces";
 
 import { createDefaultDataView, seedDataViewId } from "./defaults";
 import { getDataViewDescriptor, isDataViewTypeAllowed } from "./registry";
@@ -108,6 +110,17 @@ export interface DataViewRootProps {
    * contract in `source/types.ts`.
    */
   resolveNode?: (nodeId: string) => NodeData | undefined;
+  /**
+   * Host chrome pinned to the right end of the view tab strip.
+   *
+   * The strip is navigation (view tabs + 新建视图); this slot is where the
+   * **host's** own node-level actions sit — today the collection host's
+   * 编辑过滤, which opens the filter editor for the `filterConfig` its whole
+   * projection comes from. The host owns the control, the dialog and the write;
+   * the shell only reserves the spot, so no renderer knows host chrome exists
+   * (README §3.4). Keep it to fixed-size, always-present controls.
+   */
+  tabActions?: ReactNode;
 
   className?: string;
 }
@@ -124,11 +137,20 @@ function resolveInitialState(
   viewsProp: DataView[] | undefined,
   activeViewIdProp: DataViewId | undefined,
 ): InitialDataViewState {
-  // Self-heal: a view type that is not allowed on this host kind (e.g.
-  // nodeGraph on a database) is dropped rather than rendered.
-  const allowed = (viewsProp ?? []).filter((view) =>
-    isDataViewTypeAllowed(view.type, source.kind),
-  );
+  // Self-heal, in two steps:
+  //
+  // 1. **Resolve the persisted type** through the canonical normalizer, which
+  //    maps a legacy alias (`nodeGraph` → `graph`, the view's old name) onto the
+  //    live list. The domain rewrites such a payload on its next write; this is
+  //    what keeps a node that has not been written since the rename renderable
+  //    instead of throwing on an unknown registry key.
+  // 2. **Drop what this host kind may not host** (the graph view on a database:
+  //    database rows are not graph nodes).
+  const allowed = (viewsProp ?? []).flatMap((view) => {
+    const type = normalizeDataViewType(view.type);
+    if (!type || !isDataViewTypeAllowed(type, source.kind)) return [];
+    return [type === view.type ? view : ({ ...view, type } as DataView)];
+  });
 
   if (allowed.length > 0) {
     const active =
@@ -177,6 +199,7 @@ export function DataViewRoot({
   onFieldsChange,
   resolveNodeTitle,
   resolveNode,
+  tabActions,
   className,
 }: DataViewRootProps) {
   const [initial] = useState(() =>
@@ -351,6 +374,7 @@ export function DataViewRoot({
             onViewsChange={canManageViews ? handleViewsChange : undefined}
             onCreateView={canManageViews ? handleCreateView : undefined}
             onActiveViewChange={handleActiveViewChange}
+            tabActions={tabActions}
           />
 
           <div className="flex min-h-0 flex-1">

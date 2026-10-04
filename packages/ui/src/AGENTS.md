@@ -43,15 +43,16 @@ silently disappears.
 
 ## WHERE TO LOOK
 
-| Task              | Location                  | Notes                                       |
-| ----------------- | ------------------------- | ------------------------------------------- |
-| Base shadcn       | components/ui/            | Add custom variants, don't modify originals |
-| Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)      |
-| Header variants   | components/header/        | Graph and editor header bars                |
-| Preview blocks    | components/preview-block/ | Node content renderers; `NodePreviewCover` is the cover-only slice the dataview gallery imports by path |
-| Video playback    | components/video-player/  | `<VideoPlayer>` — HLS via hls.js, falls back to the progressive source |
-| Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source |
-| Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes         |
+| Task              | Location                  | Notes                                                                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base shadcn       | components/ui/            | Add custom variants, don't modify originals                                                                                                                                                                                                                                                 |
+| Custom components | components/\*.tsx         | App-specific UI (KnowledgeGraph, etc.)                                                                                                                                                                                                                                                      |
+| Header variants   | components/header/        | Graph and editor header bars                                                                                                                                                                                                                                                                |
+| Collection filter | components/dialog/        | `collection-filter-dialog.tsx` — the **collection node content's** 编辑过滤 dialog (节点多选 + 条件), opened from the control it passes into `DataViewRoot`'s `tabActions` slot (right end of the view tab strip); `node-selection-list.tsx` is the picker it shares with `view-dialog.tsx` |
+| Preview blocks    | components/preview-block/ | Node content renderers; `NodePreviewCover` is the cover-only slice the dataview gallery imports by path                                                                                                                                                                                     |
+| Video playback    | components/video-player/  | `<VideoPlayer>` — HLS via hls.js, falls back to the progressive source                                                                                                                                                                                                                      |
+| Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source                                                                                                                                                                                                                     |
+| Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes                                                                                                                                                                                                                                                         |
 
 ## CONVENTIONS
 

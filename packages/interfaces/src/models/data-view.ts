@@ -53,7 +53,7 @@ export interface DataViewSource {
   nodeTitle?: string;
   fields: DatabaseField[];
   rows: DataRow[];
-  /** Only `collection`: the host filter config, read by the nodeGraph view. */
+  /** Only `collection`: the host filter config, read by the graph view. */
   filterConfig?: FilterConfig;
   /** Only `collection`: node id for each row, index-aligned with `rows`. */
   nodeIds?: NodeId[];
@@ -78,10 +78,38 @@ export const DATA_VIEW_TYPES = [
   "gantt",
   "gallery",
   "chart",
-  "nodeGraph",
+  "graph",
 ] as const;
 
 export type DataViewType = (typeof DATA_VIEW_TYPES)[number];
+
+/**
+ * Type names an earlier build persisted under a different key.
+ *
+ * `nodeGraph` was the name this view carried while it was a placeholder; the
+ * view is now `graph`, because it integrates `@workspace/graph` directly. Views
+ * live inside node content, so the rename has to survive old `pb_data` — a
+ * stored `nodeGraph` view would otherwise be an "unknown data view type" that
+ * makes every later write to that node fail validation.
+ */
+export const DATA_VIEW_TYPE_ALIASES: Readonly<Record<string, DataViewType>> = {
+  nodeGraph: "graph",
+};
+
+/**
+ * Resolves a *persisted* view type string — including a legacy alias — to the
+ * current {@link DataViewType}, or `undefined` when nothing recognises it.
+ *
+ * This is the one place a stored type is mapped onto the live list, so the
+ * domain validator, the API schema and the view registry all accept exactly the
+ * same set (and the registry never indexes itself with a stale key).
+ */
+export function normalizeDataViewType(type: string): DataViewType | undefined {
+  if ((DATA_VIEW_TYPES as readonly string[]).includes(type)) {
+    return type as DataViewType;
+  }
+  return DATA_VIEW_TYPE_ALIASES[type];
+}
 
 export interface DataViewBase {
   id: DataViewId;
@@ -396,12 +424,34 @@ export interface ChartViewConfig {
   clickAction: "filter" | "open" | "none";
 }
 
-export interface NodeGraphViewConfig {
+/**
+ * The graph view's own config.
+ *
+ * This is the one view that draws no `fields` / `rows` at all: a collection's
+ * rows *are* graph nodes, so the view hands the host's `filterConfig` straight
+ * to `@workspace/graph`'s `<Graph />` and the library filters the workspace's
+ * nodes and edges itself (see `docs/dataview/graph.md`). All the view decides is
+ * therefore *how the graph is drawn*.
+ *
+ * Two keys the first draft carried are deliberately gone:
+ *
+ * - **`name`** — the graph view's internal name follows the collection node
+ *   (`DataViewSource.nodeTitle`, like the gantt's 表头), and the tab already
+ *   names the view; a second, unsurfaced name was dead weight.
+ * - **`showFilterEntry`** — whether the 编辑过滤 entry exists is the *host's*
+ *   business: the collection node content owns that control and pins it into the
+ *   data view shell's tab-strip slot (`tabActions`), not into this view. A view
+ *   cannot decide it, so no key.
+ *
+ * `filterConfig` deliberately has **no** copy here either: the collection's
+ * content is its single writer, the view only reads it, and the entry that edits
+ * it belongs to the host — a data view renders data.
+ */
+export interface GraphViewConfig {
   /** Graph layout mode — `Flow` is still a placeholder shell in @workspace/graph. */
   viewType: ViewType;
+  /** The graph's own visual config (background / grid; see the graph package). */
   visualConfig: VisualConfig;
-  name?: string;
-  showFilterEntry: boolean;
 }
 
 /** Discriminated on `type`; narrowing yields the matching config shape. */
@@ -412,7 +462,7 @@ export type DataView =
   | (DataViewBase & { type: "gantt"; config: GanttViewConfig })
   | (DataViewBase & { type: "gallery"; config: GalleryViewConfig })
   | (DataViewBase & { type: "chart"; config: ChartViewConfig })
-  | (DataViewBase & { type: "nodeGraph"; config: NodeGraphViewConfig });
+  | (DataViewBase & { type: "graph"; config: GraphViewConfig });
 
 /** Config of a specific data view type, for generic helpers. */
 export type DataViewConfigOf<T extends DataViewType> = Extract<

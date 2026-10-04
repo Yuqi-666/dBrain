@@ -26,6 +26,7 @@
     "@visactor/vtable-export": "^1.26.8",
     "@visactor/vtable-gantt": "^1.26.8",
     "@visactor/vtable-search": "^1.26.8",
+    "@workspace/graph": "workspace:*",
     "@workspace/interfaces": "workspace:*",
     "@workspace/ui": "workspace:*",
     "@workspace/utils": "workspace:*",

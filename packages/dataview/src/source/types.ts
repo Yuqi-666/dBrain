@@ -35,13 +35,13 @@ export type {
   DataViewType,
   GalleryViewConfig,
   GanttViewConfig,
+  GraphViewConfig,
   KanbanViewConfig,
-  NodeGraphViewConfig,
   TableColumnConfig,
   TableViewConfig,
 } from "@workspace/interfaces";
 
-export { DATA_VIEW_TYPES } from "@workspace/interfaces";
+export { DATA_VIEW_TYPES, normalizeDataViewType } from "@workspace/interfaces";
 
 /**
  * Props every view renderer receives.

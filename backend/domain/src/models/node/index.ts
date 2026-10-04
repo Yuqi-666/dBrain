@@ -28,6 +28,7 @@ export {
   CollectionContent,
   RichTextContent,
   DATA_VIEW_TYPES,
+  normalizeDataViewType,
   DATABASE_FIELD_TYPES,
   DatabaseFieldOption,
   DatabaseField,

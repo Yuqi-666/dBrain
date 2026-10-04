@@ -14,8 +14,8 @@ import type {
   DataViewType,
   GalleryViewConfig,
   GanttViewConfig,
+  GraphViewConfig,
   KanbanViewConfig,
-  NodeGraphViewConfig,
   TableViewConfig,
 } from "@workspace/interfaces";
 
@@ -141,12 +141,14 @@ const CHART_DEFAULT_CONFIG = (source: DataViewSource): ChartViewConfig => {
   };
 };
 
-const NODE_GRAPH_DEFAULT_CONFIG = (): NodeGraphViewConfig => ({
-  // Flow mode is still a placeholder shell in @workspace/graph.
+const GRAPH_DEFAULT_CONFIG = (): GraphViewConfig => ({
+  // Flow mode is still a placeholder shell in @workspace/graph, and
+  // `views/graph/core/config.ts` self-heals anything but Force.
   viewType: "Force",
-  visualConfig: { backgroundStyle: "grid", showMinimap: true },
-  name: "节点图",
-  showFilterEntry: true,
+  // Only `backgroundStyle` is a decision: the colours come from the app's
+  // light/dark tokens at render time (`core/config.ts`), so a theme switch
+  // repaints the canvas without rewriting the config.
+  visualConfig: { backgroundStyle: "grid" },
 });
 
 /** Builds the default config for `type` against a concrete source. */
@@ -167,8 +169,8 @@ export function createDefaultConfig(
       return GALLERY_DEFAULT_CONFIG(source);
     case "chart":
       return CHART_DEFAULT_CONFIG(source);
-    case "nodeGraph":
-      return NODE_GRAPH_DEFAULT_CONFIG();
+    case "graph":
+      return GRAPH_DEFAULT_CONFIG();
   }
 }
 

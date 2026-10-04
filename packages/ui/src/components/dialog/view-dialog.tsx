@@ -12,9 +12,8 @@ import {
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
 import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
-import { cn } from "@workspace/ui/lib/utils";
+import { NodeSelectionList } from "./node-selection-list";
 import { useDataStore, useUIStore, useWorkspaceStore } from "@workspace/store";
 import { ViewService } from "@workspace/services";
 import {
@@ -27,7 +26,6 @@ import {
   type View,
 } from "@workspace/interfaces";
 import type { RuleGroupType } from "@workspace/utils";
-import { Check, Search } from "lucide-react";
 
 const VIEW_NAME_MAX_LENGTH = 50;
 
@@ -134,7 +132,6 @@ export function ViewDialogContent({
     new Set(),
   );
   const [ruleGroup, setRuleGroup] = useState<RuleGroupType>(EMPTY_RULE_GROUP);
-  const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -144,7 +141,6 @@ export function ViewDialogContent({
     setName(editingView?.name ?? "");
     setSelectedNodeIds(new Set(editingView?.filterConfig?.selectedNodes ?? []));
     setRuleGroup(editingView?.filterConfig?.ruleGroup ?? EMPTY_RULE_GROUP);
-    setSearch("");
     setIsSubmitting(false);
     setError(null);
   }, [open, editingView]);
@@ -153,37 +149,6 @@ export function ViewDialogContent({
     () => buildNodeFilterFields(nodeSemantics),
     [nodeSemantics],
   );
-
-  const visibleNodes = useMemo(() => {
-    const list = Array.from(nodes.values());
-    const term = search.trim().toLowerCase();
-    if (!term) return list;
-    return list.filter(
-      (node) =>
-        node.title.toLowerCase().includes(term) ||
-        nodeSemantics.get(node.semanticId)?.name.toLowerCase().includes(term),
-    );
-  }, [nodes, nodeSemantics, search]);
-
-  const toggleNode = useCallback((nodeId: NodeId) => {
-    setSelectedNodeIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  }, []);
-
-  const selectAll = useCallback(() => {
-    setSelectedNodeIds(new Set(visibleNodes.map((node) => node.id)));
-  }, [visibleNodes]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedNodeIds(new Set());
-  }, []);
 
   const hasRules = (ruleGroup.rules?.length ?? 0) > 0;
 
@@ -263,104 +228,14 @@ export function ViewDialogContent({
             />
           </div>
 
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="view-node-search">
-                节点选择
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  已选 {selectedNodeIds.size} / {nodes.size}
-                </span>
-              </Label>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isSubmitting || visibleNodes.length === 0}
-                  onClick={selectAll}
-                >
-                  全选当前
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isSubmitting || selectedNodeIds.size === 0}
-                  onClick={clearSelection}
-                >
-                  清空
-                </Button>
-              </div>
-            </div>
-
-            <div className="relative flex items-center">
-              <Search className="absolute left-2.5 size-3.5 text-muted-foreground" />
-              <Input
-                id="view-node-search"
-                value={search}
-                placeholder="搜索节点标题或语义类型…"
-                className="h-8 pl-8 text-xs"
-                disabled={isSubmitting}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-
-            <ScrollArea className="h-44 rounded-lg border">
-              <div className="flex flex-col gap-0.5 p-1.5">
-                {visibleNodes.length > 0 ? (
-                  visibleNodes.map((node) => {
-                    const isSelected = selectedNodeIds.has(node.id);
-                    const semantic = nodeSemantics.get(node.semanticId);
-                    return (
-                      <button
-                        key={node.id}
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={() => toggleNode(node.id)}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
-                          isSelected ? "bg-accent" : "hover:bg-accent/60",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
-                            isSelected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-input",
-                          )}
-                        >
-                          {isSelected && <Check className="size-3" />}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-[13px]">
-                          {node.title}
-                        </span>
-                        {semantic && (
-                          <span
-                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                            style={{
-                              backgroundColor: semantic.color
-                                ? `${semantic.color}1a`
-                                : undefined,
-                              color: semantic.color ?? undefined,
-                            }}
-                          >
-                            {semantic.name}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <p className="px-2 py-6 text-center text-[12px] text-muted-foreground">
-                    {nodes.size === 0
-                      ? "当前工作区还没有节点"
-                      : "没有匹配的节点"}
-                  </p>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+          <NodeSelectionList
+            idPrefix="view-node"
+            nodes={nodes}
+            nodeSemantics={nodeSemantics}
+            selectedNodeIds={selectedNodeIds}
+            disabled={isSubmitting}
+            onChange={setSelectedNodeIds}
+          />
 
           <div className="grid gap-2">
             <Label>筛选条件</Label>

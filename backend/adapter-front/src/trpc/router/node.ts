@@ -1,7 +1,7 @@
 import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
-import { DATA_VIEW_TYPES, DATABASE_FIELD_TYPES } from "@workspace/domain";
-import type { DataView, DataViewType } from "@workspace/interfaces/models/data-view";
+import { normalizeDataViewType, DATABASE_FIELD_TYPES } from "@workspace/domain";
+import type { DataView } from "@workspace/interfaces/models/data-view";
 import { z } from "zod";
 
 const baseNodeFields = {
@@ -69,11 +69,12 @@ const websiteContentSchema = z.object({
 /**
  * A data view (`DataView` in `@workspace/interfaces`) as it crosses the API.
  *
- * Only the identity is checked here: `type` comes from the one canonical list
- * (re-exported by the domain, never hand-copied), and the domain value objects
- * re-check `id` / `name` / `type` / `config` on the way in. The shape *inside*
- * `config` is owned by the frontend view registry, so it is opaque at this
- * boundary.
+ * Only the identity is checked here: `type` is resolved through the one
+ * canonical normalizer (re-exported by the domain, never hand-copied), which also
+ * accepts a legacy alias (`nodeGraph` → `graph`) so an old payload reaches the
+ * domain's rewriter instead of a 400. The domain value objects re-check `id` /
+ * `name` / `type` / `config` on the way in. The shape *inside* `config` is owned
+ * by the frontend view registry, so it is opaque at this boundary.
  *
  * Deliberately not a `z.object`: zod strips unknown keys, which would silently
  * drop anything a view carries beyond the keys listed here (`config` included,
@@ -90,7 +91,7 @@ const dataViewSchema = z.custom<DataView>((value) => {
     view.id.length > 0 &&
     typeof view.name === "string" &&
     view.name.length > 0 &&
-    DATA_VIEW_TYPES.includes(view.type as DataViewType) &&
+    normalizeDataViewType(String(view.type)) !== undefined &&
     typeof view.config === "object" &&
     view.config !== null
   );
@@ -292,7 +293,7 @@ export const nodeRouter = router({
         id: input.id,
         title: input.updates.title,
         abstract: input.updates.abstract,
-          tags: input.updates.tags,
+        tags: input.updates.tags,
         permission: input.updates.permission,
         semanticId: input.updates.semanticId,
         isPinned: input.updates.isPinned,
@@ -317,7 +318,11 @@ export const nodeRouter = router({
   delete: protectedProcedure
     .input(deleteSchema)
     .mutation(async ({ ctx, input }) => {
-      await container().nodeCommandService.deleteNode({ id: input.id, userId: ctx.userId, sourceId: ctx.sourceId });
+      await container().nodeCommandService.deleteNode({
+        id: input.id,
+        userId: ctx.userId,
+        sourceId: ctx.sourceId,
+      });
       return { success: true, id: input.id };
     }),
 

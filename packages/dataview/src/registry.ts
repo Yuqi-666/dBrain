@@ -54,9 +54,14 @@ export interface DataViewDescriptor {
   renderer: LazyExoticComponent<DataViewRendererComponent>;
   /**
    * The view's generic config editor — **absent when the view configures itself
-   * entirely from its own toolbar** (the table does: 添加记录 / 字段配置 / 筛选 /
-   * 分组 / 排序 / 行高 / 填色 are all dedicated menus, and there is no
-   * 视图配置 popover any more).
+   * entirely from its own toolbar**. Today that is every view: the table's seven
+   * menus, the kanban's three panels, the calendar's and the gantt's two, the
+   * chart's three and the graph's 布局 / 视图 are each a dedicated menu, so no
+   * descriptor registers an editor and nothing renders a 视图配置 popover.
+   *
+   * The slot is kept (with `ViewConfigMenu`) for a future view whose settings
+   * have no dedicated control yet: a registry entry may `lazy()` its
+   * `config-editor.tsx` into it and the toolbar picks it up automatically.
    */
   configEditor?: LazyExoticComponent<DataViewConfigEditorComponent>;
   defaultConfig: (source: DataViewSource) => DataViewConfig;
@@ -75,16 +80,6 @@ function defineRenderer<T extends DataViewType>(
   return lazy(
     loader,
   ) as unknown as LazyExoticComponent<DataViewRendererComponent>;
-}
-
-function defineConfigEditor<T extends DataViewType>(
-  loader: () => Promise<{
-    default: ComponentType<DataViewConfigEditorProps<DataViewConfigOf<T>>>;
-  }>,
-): LazyExoticComponent<DataViewConfigEditorComponent> {
-  return lazy(
-    loader,
-  ) as unknown as LazyExoticComponent<DataViewConfigEditorComponent>;
 }
 
 export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
@@ -176,23 +171,22 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
     // panels.
     defaultConfig: (source) => createDefaultConfig("chart", source),
   },
-  nodeGraph: {
-    type: "nodeGraph",
+  graph: {
+    type: "graph",
     label: "节点图",
     icon: Network,
     // Database rows are not graph nodes, so there is nothing to draw.
     nodeTypes: ["collection"],
-    renderer: defineRenderer<"nodeGraph">(() =>
-      import("./views/node-graph/node-graph-data-view").then((module) => ({
-        default: module.NodeGraphDataView,
+    renderer: defineRenderer<"graph">(() =>
+      import("./views/graph/graph-data-view").then((module) => ({
+        default: module.GraphDataView,
       })),
     ),
-    configEditor: defineConfigEditor<"nodeGraph">(() =>
-      import("./views/node-graph/config-editor").then((module) => ({
-        default: module.NodeGraphConfigEditor,
-      })),
-    ),
-    defaultConfig: (source) => createDefaultConfig("nodeGraph", source),
+    // No `configEditor`: 布局 / 视图 are the graph's own toolbar panels, exactly
+    // like the six other views' panels. The collection's filter is *not* view
+    // config — it is the node content's, and the host (`collection-node-content`)
+    // renders its entry and its editor next to the write path.
+    defaultConfig: (source) => createDefaultConfig("graph", source),
   },
 };
 
@@ -213,9 +207,17 @@ export function getDataViewDescriptorsForKind(
   );
 }
 
+/**
+ * Whether `kind` may host `type`.
+ *
+ * Deliberately defensive about the key: the type arrives from **persisted** node
+ * content, so a view saved by an older build (the `nodeGraph` → `graph` rename)
+ * or by a newer one must degrade into "not allowed" rather than crashing on
+ * `undefined.nodeTypes`. `DataViewRoot` then drops it and self-heals.
+ */
 export function isDataViewTypeAllowed(
   type: DataViewType,
   kind: DataViewSourceKind,
 ): boolean {
-  return DATA_VIEW_REGISTRY[type].nodeTypes.includes(kind);
+  return DATA_VIEW_REGISTRY[type]?.nodeTypes.includes(kind) ?? false;
 }

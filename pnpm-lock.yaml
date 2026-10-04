@@ -381,6 +381,9 @@ importers:
       '@visactor/vtable-search':
         specifier: ^1.26.8
         version: 1.26.8
+      '@workspace/graph':
+        specifier: workspace:*
+        version: link:../graph
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../interfaces

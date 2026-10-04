@@ -18,7 +18,7 @@ dBrain/
 ├── packages/        # Shared npm packages
 │   ├── ui/          # shadcn/ui component library
 │   ├── graph/       # d3-force graph (worker); flow mode is a placeholder shell
-│   ├── dataview/    # Multi-shape data views (table + kanban + calendar + gallery + gantt + chart implemented; nodeGraph placeholder); used by database & collection node content
+│   ├── dataview/    # Multi-shape data views (table + kanban + calendar + gallery + gantt + chart + graph, all implemented); used by database & collection node content
 │   ├── editor/      # Tiptap Pro rich text editor (Yjs collab)
 │   ├── interfaces/  # Type definitions & models
 │   ├── store/       # Zustand v5 state management
@@ -43,20 +43,20 @@ dBrain/
 
 ## WHERE TO LOOK
 
-| Task             | Location                     | Notes                                                                                                                                                                                   |
-| ---------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI components    | packages/ui/src/components   | shadcn/ui + custom                                                                                                                                                                      |
-| Graph            | packages/graph/src           | d3-force (worker); flow mode is a placeholder shell — see dedicated section below                                                                                                       |
-| Data views       | packages/dataview/src        | Multi-shape data browsing for database/collection nodes; table, kanban, calendar, gallery, gantt and chart are implemented and nodeGraph is a placeholder — see dedicated section below |
-| Rich text editor | packages/editor/             | Tiptap Pro + Yjs, Notion-like editor                                                                                                                                                    |
-| Type definitions | packages/interfaces/src      | Models, nodes, API types                                                                                                                                                                |
-| State management | packages/store/src           | Zustand v5                                                                                                                                                                              |
-| Service layer    | packages/services/src/graph/ | Optimistic upsert/delete/sync                                                                                                                                                           |
-| Desktop app      | apps/desktop/src             | Tauri + Next.js                                                                                                                                                                         |
-| Web app          | apps/web/src                 | Next.js 16, React 19                                                                                                                                                                    |
-| Backend domain   | backend/domain/src           | Entities, VOs, repository interfaces                                                                                                                                                    |
-| Backend infra    | backend/infrastructure/src   | PocketBase repos, mappers, event bus                                                                                                                                                    |
-| Backend adapter  | backend/adapter-back/src     | DAOs, DI factory                                                                                                                                                                        |
+| Task             | Location                     | Notes                                                                                                                                                                          |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| UI components    | packages/ui/src/components   | shadcn/ui + custom                                                                                                                                                             |
+| Graph            | packages/graph/src           | d3-force (worker); flow mode is a placeholder shell — see dedicated section below                                                                                              |
+| Data views       | packages/dataview/src        | Multi-shape data browsing for database/collection nodes; all seven views (table, kanban, calendar, gallery, gantt, chart, graph) are implemented — see dedicated section below |
+| Rich text editor | packages/editor/             | Tiptap Pro + Yjs, Notion-like editor                                                                                                                                           |
+| Type definitions | packages/interfaces/src      | Models, nodes, API types                                                                                                                                                       |
+| State management | packages/store/src           | Zustand v5                                                                                                                                                                     |
+| Service layer    | packages/services/src/graph/ | Optimistic upsert/delete/sync                                                                                                                                                  |
+| Desktop app      | apps/desktop/src             | Tauri + Next.js                                                                                                                                                                |
+| Web app          | apps/web/src                 | Next.js 16, React 19                                                                                                                                                           |
+| Backend domain   | backend/domain/src           | Entities, VOs, repository interfaces                                                                                                                                           |
+| Backend infra    | backend/infrastructure/src   | PocketBase repos, mappers, event bus                                                                                                                                           |
+| Backend adapter  | backend/adapter-back/src     | DAOs, DI factory                                                                                                                                                               |
 
 **Per-package AGENTS.md** with deeper conventions exist at:
 
@@ -302,10 +302,12 @@ No `build` / `dev` / `test` scripts exist.
   The table uses _only_ dedicated menus (添加记录 /
   字段配置 / 筛选 / 分组 / 排序 / 行高 / 填色), the kanban its own (分组 / 卡片配置 /
   排序), the gallery its own (添加记录 / 卡片配置 / 布局), the calendar and the
-  gantt theirs (字段配置 / 视图) and the chart its own (图表 / 字段配置 / 视图), so none
-  of them has a generic 视图配置 popover, none registers a `configEditor`, and the
-  kanban / calendar / gallery / gantt / chart have nothing on the right but the
-  shell's 更多 (the chart adds 导出图片); `ViewConfigMenu` in `shared/view-toolbar.tsx` remains for views
+  gantt theirs (字段配置 / 视图), the chart its own (图表 / 字段配置 / 视图) and the
+  graph its own (布局 / 视图), so none of them has a generic 视图配置 popover, none
+  registers a `configEditor`, and the kanban / calendar / gallery / gantt / chart /
+  graph have nothing on the right but the shell's 更多 (the chart adds 导出图片;
+  the graph's 编辑过滤 is not view UI at all — it is the host's control in the tab
+  strip's `tabActions` slot, see its bullet); `ViewConfigMenu` in `shared/view-toolbar.tsx` remains for views
   that have no dedicated menu yet. A settings trigger is **neutral chrome** — it
   shows the current value and nothing else (the old "this group is set" tint was
   removed), the same control looks the same in every view (the table's 分组 / 排序
@@ -501,10 +503,20 @@ No `build` / `dev` / `test` scripts exist.
   toolbar) because the shell exposes no way to set its cross-view `rowFilter`;
   打开记录 goes through the shared record surface. The chart **writes nothing**.
   See `docs/dataview/chart.md` §0 for its seven library gotchas.
-- **The last view renderer + config editor — placeholder only:** `nodeGraph`. It
-  renders `<DataViewPlaceholder />` and names the library it is planned to use (its
-  placeholder toolbar still carries the generic 视图配置 popover, since it has no
-  dedicated menu yet).
+- **Graph view — implemented:** `graph` (renamed from `nodeGraph`). It is the one
+  view that integrates an in-repo component instead of a library: a synthetic
+  `@workspace/graph` `View` carries the collection's `filterConfig`, `<Graph />`
+  draws the subgraph with its own force worker. It renders data only — the
+  `编辑过滤` control is **host chrome**, pinned by `collection-node-content.tsx`
+  into the shell's `tabActions` slot at the right end of the view tab strip (the
+  filter stays in `collection.content`), so no view receives an "edit my host's
+  content" prop. The
+  shell keys the mounted graph on a _structure_ key (view id + layout + filter):
+  a filter edit must rebuild the instance, because the library only re-reads its
+  data when the view id changes. Its toolbar is 布局 / 视图, and like every other
+  view it registers **no** `configEditor` — so no view uses
+  `ViewConfigMenu` / `DataViewPlaceholder` any more (they remain as scaffolding for
+  the next view type). See `docs/dataview/graph.md` §0 for the eleven gotchas.
 
 ### Top-level structure
 
@@ -533,7 +545,7 @@ src/
                       #   gallery/  = implemented, split into core/ board/ toolbar/; no config-editor
                       #   gantt/    = implemented, split into core/ canvas/ board/ toolbar/; no config-editor
                       #   chart/    = implemented, split into core/ board/ toolbar/; no config-editor
-                      #   node-graph/ = placeholder
+                      #   graph/    = implemented, split into core/ board/ toolbar/; no config-editor
 ```
 
 ### Architectural rules (do not break)
@@ -556,7 +568,8 @@ src/
    `onFieldsChange`, so a collection offers no 新增字段 and no column-end "+".
 4. **The registry is the single dispatch table** — the root, the toolbar and the
    config menus never `switch` on `DataViewType`. `descriptor.nodeTypes` encodes
-   the capability matrix (nodeGraph is collection-only).
+   the capability matrix (graph is collection-only, and the persisted type goes
+   through `normalizeDataViewType`, which maps the legacy `nodeGraph` onto `graph`).
 5. **Lazy by construction** — every renderer/config editor is `React.lazy`;
    view libraries must only be reachable through those dynamic imports.
 6. **Config is in the view toolbar, never a side panel** — one strip per view,
@@ -568,10 +581,10 @@ src/
 
 ### Host integration
 
-| Host         | File                                                                         | Behaviour                                                                                                                                                                                                                                  |
-| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `database`   | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })`; also supplies `onRowInsert` / `onRowDelete` / `onRowReorder` / `onFieldsChange` and lazy `resolveNodeTitle` / `resolveNode` lookups                                     |
-| `collection` | `.../content/collection-node-content.tsx`                                    | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)` and a lazy `resolveNode` (the gallery's card covers); no row/field callbacks, so the table offers no editing and no field CRUD |
+| Host         | File                                                                         | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `database`   | `packages/ui/src/components/dialog/editor/content/database-node-content.tsx` | editable; cell writes → `NodeService.upsert(nodeId, { content })`; also supplies `onRowInsert` / `onRowDelete` / `onRowReorder` / `onFieldsChange` and lazy `resolveNodeTitle` / `resolveNode` lookups                                                                                                                                                                                                                                                                     |
+| `collection` | `.../content/collection-node-content.tsx`                                    | read-only projection of selected graph nodes; `onOpenNode` → `useUIStore.getState().handleNodeEdit(nodeId)` and a lazy `resolveNode` (the gallery's card covers); its `tabActions` control (编辑过滤 → `<CollectionFilterDialog>`) sits at the right end of the view tab strip and writes `content.filterConfig` (serialised content patches, like the database host) — no data view is involved; no row/field callbacks, so the table offers no editing and no field CRUD |
 
 `node-content-editor.tsx` routes `case "database"` / `case "collection"`.
 Hosts must mount with `key={node.id}` (the root seeds its view state once per
@@ -607,9 +620,11 @@ delete `pb/pb_data` to rebuild, or writes fail with `unknown field`.
 
 ### Known gaps
 
-The **table**, **kanban**, **calendar**, **gallery**, **gantt** and **chart** views
-are real; **the last view is still a placeholder** — no `nodeGraph` renderer draws
-data yet. The chart offers 23 of VChart's types (3D / `map` / the statistical
+**All seven views are real** — table, kanban, calendar, gallery, gantt, chart and
+graph; nothing renders `<DataViewPlaceholder>` any more. The graph view has no
+Flow layout yet (`@workspace/graph`'s FlowGraph is still a placeholder shell, and
+the 布局 panel lists 流程图 as disabled), and its canvas mutations write to the
+graph rather than to the collection (see `docs/dataview/graph.md` §0.1). The chart offers 23 of VChart's types (3D / `map` / the statistical
 shapes are deliberate omissions), and its 下钻 filter is view-local: cross-view
 row filtering needs a shell setter the root does not expose; see
 `docs/dataview/chart.md` §0/§8. The gantt has no task dependency links, no resource dimension and

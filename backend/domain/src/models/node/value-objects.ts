@@ -1,9 +1,5 @@
-import type {
-  NodeId as NodeIdType,
-} from "@workspace/interfaces/models/node/base";
-import type {
-  NodeDataType,
-} from "@workspace/interfaces/models/node/types";
+import type { NodeId as NodeIdType } from "@workspace/interfaces/models/node/base";
+import type { NodeDataType } from "@workspace/interfaces/models/node/types";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 // NOTE: the bare `@workspace/interfaces` entry point is deliberate. Only `.`,
 // `./api`, `./common`, `./models` and `./nodes` are published in that package's
@@ -14,6 +10,7 @@ import type { WebpageContent as WebpageContentData } from "@workspace/interfaces
 import {
   DATA_VIEW_TYPES,
   DATABASE_FIELD_TYPES,
+  normalizeDataViewType,
   type DataView,
   type DataViewType,
   type DatabaseCell as DatabaseCellData,
@@ -328,7 +325,7 @@ export class WebsiteContent {
  * module only re-exports them, exactly like `DATABASE_FIELD_TYPES` below. Do not
  * re-declare the list here: a second copy is what used to drift.
  */
-export { DATA_VIEW_TYPES };
+export { DATA_VIEW_TYPES, normalizeDataViewType };
 export type { DataViewType };
 
 /**
@@ -340,6 +337,10 @@ export type { DataViewType };
  * non-empty `id`, a `name`, a known `type` and an object `config`. The config's
  * internals are deliberately opaque here (`TableColumnConfig`, `ChartMeasure`,
  * … are a registry concern, not an aggregate invariant).
+ *
+ * The type is resolved through `normalizeDataViewType`, not compared against the
+ * list directly: an alias (`nodeGraph` → `graph`) is accepted **and rewritten**,
+ * so this boundary is what upgrades an old payload instead of rejecting it.
  */
 function normalizeViews(value: readonly DataView[] | undefined): DataView[] {
   if (value === undefined || value === null) {
@@ -365,13 +366,17 @@ function normalizeViews(value: readonly DataView[] | undefined): DataView[] {
     if (typeof view.name !== "string" || view.name.length === 0) {
       throw new Error(`Data view "${view.id}" must have a non-empty name`);
     }
-    if (!DATA_VIEW_TYPES.includes(view.type as DataViewType)) {
+    const type = normalizeDataViewType(String(view.type));
+    if (!type) {
       throw new Error(`Unknown data view type: ${String(view.type)}`);
     }
     if (typeof view.config !== "object" || view.config === null) {
       throw new Error(`Data view "${view.id}" must have a config object`);
     }
-    return view as DataView;
+    // The pairing between `type` and the *shape* of `config` is a registry
+    // concern (the config is opaque here), so rewriting the type asserts the
+    // union instead of proving it — the same reason the old code cast at all.
+    return { ...(view as DataView), type } as DataView;
   });
 }
 

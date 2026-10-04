@@ -6,7 +6,8 @@
 > （`packages/dataview/src/views/calendar/`，见 calendar.md），画廊视图已实现并**重构**
 > （`packages/dataview/src/views/gallery/`，见 gallery.md），甘特图视图已实现
 > （`packages/dataview/src/views/gantt/`，见 gantt.md），图表视图已实现
-> （`packages/dataview/src/views/chart/`，见 chart.md），仅剩节点图视图为占位
+> （`packages/dataview/src/views/chart/`，见 chart.md），节点图视图已实现
+> （`packages/dataview/src/views/graph/`，见 graph.md）。**七个视图全部落地，不再有占位视图**
 > 范围：集成进 collection 与 database 节点类型的 node-content 的数据展示组件
 > 相关文档：../database-node-design.md（定义了 fields / rows 数据源）
 
@@ -37,13 +38,13 @@ DataView 是一个「多视图数据展示组件」。它接收一份结构化�
 
 项目已有一个图谱视图类型 View（packages/interfaces/src/models/view.ts，viewType 为 Force | Flow），它是工作区级的图谱布局视图。为避免冲突，本组件所有类型一律加 Data 前缀：
 
-| 本组件术语   | 类型名           | 说明                                                            |
-| ------------ | ---------------- | --------------------------------------------------------------- |
-| 数据视图     | DataView         | 挂在节点 content 下的一个视图实例                               |
-| 数据视图类型 | DataViewType     | table / kanban / calendar / gantt / gallery / chart / nodeGraph |
-| 数据视图配置 | DataViewConfig   | 按 DataViewType 区分的判别联合                                  |
-| 数据源       | DataViewSource   | 归一化后的 fields + rows（+ 可选 filterConfig）                 |
-| 视图注册表   | DataViewRegistry | DataViewType 到描述符（图标/渲染器/配置面板/允许的节点类型）    |
+| 本组件术语   | 类型名           | 说明                                                         |
+| ------------ | ---------------- | ------------------------------------------------------------ |
+| 数据视图     | DataView         | 挂在节点 content 下的一个视图实例                            |
+| 数据视图类型 | DataViewType     | table / kanban / calendar / gantt / gallery / chart / graph  |
+| 数据视图配置 | DataViewConfig   | 按 DataViewType 区分的判别联合                               |
+| 数据源       | DataViewSource   | 归一化后的 fields + rows（+ 可选 filterConfig）              |
+| 视图注册表   | DataViewRegistry | DataViewType 到描述符（图标/渲染器/配置面板/允许的节点类型） |
 
 ---
 
@@ -75,7 +76,7 @@ DataView 是一个「多视图数据展示组件」。它接收一份结构化�
 >
 > 再一轮反馈：**视图级操作（更多：设为默认 / 复制 / 删除）也从页签条移进了视图工具条的
 > 功能区**，页签条只做导航（页签 + 新建视图）。外壳用 `toolbar/view-actions.tsx` 的槽位
-> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图（含占位视图）
+> context 把菜单交给当前渲染器的工具条，所以任何画了 `ViewToolbar` 的视图
 > 都自动带上它。功能区因此必须只放**固定尺寸、常驻**的控件：宽度会变的控件（搜索输入框、
 > 随选中出现的按钮）会把右对齐行里它左侧的邻居一起推开。
 >
@@ -183,6 +184,11 @@ export interface DataViewRendererProps<C = DataViewConfig> {
   resolveNodeTitle?: (nodeId: string) => string | undefined; // relation 显示名
 }
 ```
+
+这个契约里**只有「这个视图要渲染的数据与交互」**：宿主的 content 该怎么编辑（过滤、属性、标签…）
+不是视图的事。collection 的过滤就是这条边界的样板：`filterConfig` 决定整个投影，所有视图画的是
+同一份过滤后的数据，所以「编辑过滤」是**宿主的控件**，经 `DataViewRoot` 的宿主槽 `tabActions`
+钉在视图页签栏的最右侧，数据视图既拿不到这个控件，也没有对应的 prop（graph.md §0、§7）。
 
 关键约束：视图渲染器不直接调用 NodeService / useDataStore 写数据，所有数据变更通过 onCellChange 冒泡回 DataViewRoot，再由宿主 node-content 决定如何落库（复用既有 NodeService.upsert 乐观写）。这保证「组件只负责展示与交互，数据所有权在节点」。同理，`onConfigChange` 只在宿主传了 `onViewsChange` 时下发，视图仍然不自己持久化。
 
@@ -327,7 +333,7 @@ export interface DataViewSource {
   nodeTitle?: string; // 宿主节点名：视图要「给整份数据起个名字」时用它（甘特图表头）
   fields: DatabaseField[]; // database 直接复用；collection 用固定节点属性 schema
   rows: DataRow[]; // id + cells（按 fieldId 键）。collection 每行对应一个节点
-  filterConfig?: FilterConfig; // 仅 collection：供 nodeGraph 视图复用 graph 组件
+  filterConfig?: FilterConfig; // 仅 collection：供 graph 视图复用 graph 组件
   nodeIds?: string[]; // 仅 collection：与 rows 平行对齐的 nodeId 列表
 }
 
@@ -411,7 +417,7 @@ export type DataViewType =
   | "gantt"
   | "gallery"
   | "chart"
-  | "nodeGraph";
+  | "graph";
 
 export interface DataViewBase {
   id: DataViewId;
@@ -427,7 +433,7 @@ export type DataView =
   | (DataViewBase & { type: "gantt"; config: GanttViewConfig })
   | (DataViewBase & { type: "gallery"; config: GalleryViewConfig })
   | (DataViewBase & { type: "chart"; config: ChartViewConfig })
-  | (DataViewBase & { type: "nodeGraph"; config: NodeGraphViewConfig });
+  | (DataViewBase & { type: "graph"; config: GraphViewConfig });
 ```
 
 各 \*ViewConfig 的完整 schema 见对应视图文档。共同约定：每个 config 都必须能只凭 fields 自愈——字段被删除/改类型后，配置面板要能把失效的字段引用降级为「未选择」而不是崩溃。
@@ -488,18 +494,21 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 
 ## 7. 能力矩阵（节点类型 × 视图类型）
 
-| 视图             | database | collection | 数据源依赖                                            | 技术方案                                  |
-| ---------------- | :------: | :--------: | ----------------------------------------------------- | ----------------------------------------- |
-| 表格 table       |    ✅    |     ✅     | fields/rows                                           | VTable + editors/export/search/plugins    |
-| 看板 kanban      |    ✅    |     ✅     | 需 select/multiSelect 分组字段                        | REUI shadcn 看板（dnd-kit）二次开发       |
-| 日历 calendar    |    ✅    |     ✅     | 需 date 字段（collection 用 **createdAt/**updatedAt） | FullCalendar 二次开发                     |
-| 甘特图 gantt     |    ✅    |     ⚠️     | 需 date 起止字段                                      | VTable（@visactor/vtable-gantt）          |
-| 画廊 gallery     |    ✅    |     ✅     | 需主列；封面字段可选（collection 用节点预览）         | 自研（shadcn + ui 的 `NodePreviewCover`） |
-| 图表 chart       |    ✅    |     ✅     | 需维度/度量字段                                       | VChart（23 种，见 chart.md §0.1）         |
-| 节点图 nodeGraph |    ❌    |     ✅     | 仅 filterConfig（复用 @workspace/graph）              | 复用 <Graph />                            |
+| 视图          | database | collection | 数据源依赖                                            | 技术方案                                  |
+| ------------- | :------: | :--------: | ----------------------------------------------------- | ----------------------------------------- |
+| 表格 table    |    ✅    |     ✅     | fields/rows                                           | VTable + editors/export/search/plugins    |
+| 看板 kanban   |    ✅    |     ✅     | 需 select/multiSelect 分组字段                        | REUI shadcn 看板（dnd-kit）二次开发       |
+| 日历 calendar |    ✅    |     ✅     | 需 date 字段（collection 用 **createdAt/**updatedAt） | FullCalendar 二次开发                     |
+| 甘特图 gantt  |    ✅    |     ⚠️     | 需 date 起止字段                                      | VTable（@visactor/vtable-gantt）          |
+| 画廊 gallery  |    ✅    |     ✅     | 需主列；封面字段可选（collection 用节点预览）         | 自研（shadcn + ui 的 `NodePreviewCover`） |
+| 图表 chart    |    ✅    |     ✅     | 需维度/度量字段                                       | VChart（23 种，见 chart.md §0.1）         |
+| 节点图 graph  |    ❌    |     ✅     | 仅 filterConfig（复用 @workspace/graph）              | 复用 <Graph />（零新增依赖）              |
 
 - ✅ 完整支持；⚠️ 支持但依赖字段可用性（缺少日期字段时给出引导）。
-- 节点图视图只在 collection 出现：database 的行不是图谱节点，无图可画；nodeGraph 描述符 nodeTypes 为 ["collection"]。
+- 节点图视图只在 collection 出现：database 的行不是图谱节点，无图可画；`graph` 描述符的 nodeTypes 为 ["collection"]。
+- 节点图是唯一一个**不消费 fields/rows** 的视图：collection 的行就是图谱节点，视图把宿主的 filterConfig
+  交给 `@workspace/graph` 自己去过滤（graph.md §3）。它也因此没有额外的功能项：过滤编辑入口在宿主的
+  节点内容工具条上，不在任何视图的工具条里。
 
 ---
 
@@ -507,20 +516,22 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 
 以下能力不随视图类型变化，放在 DataViewRoot / 共享 hook 层，各视图按需消费：
 
-| 能力               | 说明                                   | 归属                                                                                           |
-| ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 行级过滤           | 对 rows 施加字段条件过滤               | DataViewRoot → 过滤后的 source 下发；表格视图另有 `筛选` 菜单                                  |
-| 排序               | 对 rows 排序                           | 视图内局部态（写回视图 config）                                                                |
-| 选择与批量操作     | 多选行 → 批量删除/导出/改字段          | 各视图各自实现，共享 useRowSelection                                                           |
-| 打开记录/节点      | 行 → 统一记录编辑页（容器内右侧一列）  | 宿主 node-content 在 `relative` 容器里渲染 `<RecordEditor>`；外壳只上报 `onOpenRecord`（§3.5） |
-| 记录右键菜单       | 通用项 + 视图独有项                    | `shared/record-menu.tsx`（§3.6）                                                               |
-| 字段显示/编辑      | 单选多选 → Badge；日期 → Calendar      | `shared/field-value.tsx` / `shared/field-input.tsx`（§3.4b）                                   |
-| 导出               | 当前视图导出 CSV/Excel/PNG             | 目前只有表格（vtable-export）；画廊的 CSV 导出已移除，卡片墙没有自己的功能项                   |
-| 主题               | 浅/深色跟随 next-themes                | 共享 themeTokens → 各库 theme 映射                                                             |
-| 只读               | collection 投影只读；database 可编辑   | readOnly prop 逐视图传导                                                                       |
-| 空态/字段缺失引导  | 无数据、缺必需字段时的引导 UI          | 各视图 + 共享 EmptyState                                                                       |
-| 视图配置入口       | 每个视图自己的工具栏（配置左、功能右） | `shared/view-toolbar.tsx`：ViewToolbar（+ 可选的 ViewConfigMenu 兜底）                         |
-| 视图级操作（更多） | 每个视图工具条功能区的末尾             | `toolbar/view-actions.tsx`：槽位 context + `ViewActionsMenu`（设为默认/复制/删除视图）         |
+| 能力               | 说明                                   | 归属                                                                                                                                                         |
+| ------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 行级过滤           | 对 rows 施加字段条件过滤               | DataViewRoot → 过滤后的 source 下发；表格视图另有 `筛选` 菜单                                                                                                |
+| 排序               | 对 rows 排序                           | 视图内局部态（写回视图 config）                                                                                                                              |
+| 选择与批量操作     | 多选行 → 批量删除/导出/改字段          | 各视图各自实现，共享 useRowSelection                                                                                                                         |
+| 打开记录/节点      | 行 → 统一记录编辑页（容器内右侧一列）  | 宿主 node-content 在 `relative` 容器里渲染 `<RecordEditor>`；外壳只上报 `onOpenRecord`（§3.5）                                                               |
+| 记录右键菜单       | 通用项 + 视图独有项                    | `shared/record-menu.tsx`（§3.6）                                                                                                                             |
+| 字段显示/编辑      | 单选多选 → Badge；日期 → Calendar      | `shared/field-value.tsx` / `shared/field-input.tsx`（§3.4b）                                                                                                 |
+| 导出               | 当前视图导出 CSV/Excel/PNG             | 目前只有表格（vtable-export）；画廊的 CSV 导出已移除，卡片墙没有自己的功能项                                                                                 |
+| 主题               | 浅/深色跟随 next-themes                | 共享 themeTokens → 各库 theme 映射                                                                                                                           |
+| 只读               | collection 投影只读；database 可编辑   | readOnly prop 逐视图传导                                                                                                                                     |
+| 空态/字段缺失引导  | 无数据、缺必需字段时的引导 UI          | 各视图 + 共享 EmptyState                                                                                                                                     |
+| 视图配置入口       | 每个视图自己的工具栏（配置左、功能右） | `shared/view-toolbar.tsx`：ViewToolbar（+ 可选的 ViewConfigMenu 兜底，**当前无视图注册 configEditor**）                                                      |
+| 宿主的过滤编辑     | 页签栏最右的「编辑过滤」→ 宿主对话框   | `DataViewRoot` 的宿主槽 `tabActions`（外壳只留位置）+ `collection-node-content.tsx` 的 `<CollectionFilterDialog>`，写 `content.filterConfig`；视图完全不参与 |
+| 页签栏宿主槽       | 壳的页签栏右端（固定尺寸、恒在的控件） | `toolbar/data-view-toolbar.tsx`：`tabActions`（今天只有 collection 的「编辑过滤」；database 不传）                                                           |
+| 视图级操作（更多） | 每个视图工具条功能区的末尾             | `toolbar/view-actions.tsx`：槽位 context + `ViewActionsMenu`（设为默认/复制/删除视图）                                                                       |
 
 ### 8.1 视图工具栏约定（所有视图）
 
@@ -534,7 +545,8 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
   功能组最左端，输入类控件另起一行。
 - `<ViewConfigMenu type source config onConfigChange />` 是通用兜底：它按 `type` 从注册表取
   该视图的懒加载 `configEditor`，渲染进 Popover；该视图没有注册 `configEditor` 时它直接不渲染。
-  没有专属菜单的配置项放这里（剩下的占位视图目前只有它）。
+  没有专属菜单的配置项放这里。**七个视图各自都有专属菜单，所以现在没有任何视图注册 `configEditor`**
+  （槽位与 `ViewConfigMenu` 留给下一个新视图）。
 - 渲染器如果为全部配置都做了专属菜单（表格：添加记录/字段配置/筛选/分组/排序/行高/填色），
   就不要再用通用弹层兜底 —— 表格既不注册 `configEditor`，也不渲染 `ViewConfigMenu`。
 - **配置控件内不要留占位空态**：下拉菜单里不放「还没有条件…」这类虚线占位块，空菜单只留标题 +
@@ -564,7 +576,7 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 | @fullcalendar/react + core + daygrid + timegrid + list + multimonth + interaction | 日历                                  | calendar      |
 | @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities                            | 看板拖拽（REUI 看板依赖）             | kanban        |
 | radix-ui（已由 @workspace/ui 引入）                                               | REUI 源码的 `Slot`                    | kanban        |
-| @workspace/graph                                                                  | 节点图复用 <Graph />                  | nodeGraph     |
+| @workspace/graph                                                                  | 节点图复用 <Graph />（in-repo 包）    | graph         |
 | 无（自研：@workspace/ui shadcn + `NodePreviewCover`）                             | 卡片墙 / 窗口化                       | gallery       |
 | react-day-picker（经 `@workspace/ui` 的 `calendar`）                              | 统一的日期编辑控件（shadcn Calendar） | 各视图 DOM 面 |
 | @workspace/ui（shadcn 基础）、interfaces、store、utils                            | 基础依赖                              | 全部          |
@@ -576,7 +588,9 @@ DataViewRoot 依赖一个单例注册表 DATA_VIEW_REGISTRY: Record<DataViewType
 packages/ui/src/components/dialog/editor/content/ 下：
 
 - node-content-editor.tsx 增加 case "database" → <DatabaseNodeContent />。
-- collection-node-content.tsx 由「只读列表」升级为「内嵌 <DataViewRoot />」，并在工具条保留「节点图」入口（详见 node-graph.md）。
+- collection-node-content.tsx 由「只读列表」升级为「内嵌 <DataViewRoot />」，并把「编辑过滤」入口
+  （+ 宿主的 `<CollectionFilterDialog>`，节点多选 + 条件，写 `content.filterConfig`）通过宿主槽
+  `tabActions` 交给外壳摆在页签栏最右侧（详见 graph.md §0、§7）。
 - 新增 database-node-content.tsx：内嵌 <DataViewRoot />，source = databaseToDataViewSource(node.content)，onCellChange 走 NodeService.upsert 乐观写。
 
 ---
@@ -654,7 +668,10 @@ packages/dataview/src/
     │                ├── core/     config.ts + schema.ts + spec.ts + theme.ts
     │                ├── board/    chart-surface.tsx + chart-readout.tsx
     │                └── toolbar/  chart-toolbar.tsx    # 图表（类型）/ 字段配置（角色）/ 视图
-    └── node-graph/  node-graph-data-view.tsx
+    └── graph/       graph-data-view.tsx         # 壳（唯一入口，无 config-editor）
+                     ├── core/     config.ts + schema.ts
+                     ├── board/    graph-surface.tsx     # memo 包裹的 <Graph view={…} />
+                     └── toolbar/  graph-toolbar.tsx     # 布局 / 视图（功能区只剩外壳的「更多」）
 ```
 
 ---
@@ -672,7 +689,7 @@ packages/dataview/src/
 | M5 看板           | REUI 看板二次开发 + dnd-kit 拖拽写回（含泳道重排/编辑选项/四个工具栏面板）                                                               | M1 ✅ 已实现 |
 | M6 画廊           | 自研卡片墙：网格/瀑布流/列表 + 自研窗口化/增量分页 + 多选与批量删除（collection 借 `NodePreviewCover` 复用节点预览）                     | M1 ✅ 已实现 |
 | M7 甘特图         | @visactor/vtable-gantt 集成 + 日期写回 + 自研分组/今日线/悬浮读数/记录菜单                                                               | M1 ✅ 已实现 |
-| M8 节点图         | collection 内嵌 <Graph view={…filterConfig} />                                                                                           | M1 + graph   |
+| M8 节点图         | collection 内嵌 <Graph view={…filterConfig} /> + 结构 key 重挂载 + 宿主过滤编辑入口                                                      | M1 ✅ 已实现 |
 
 表格、日历为核心视图，功能清单与配置 schema 单独成文（table.md / calendar.md）并优先实现。
 

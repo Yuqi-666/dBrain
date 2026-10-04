@@ -2,14 +2,14 @@
 
 **Path:** `packages/dataview`
 **Parent:** `/home/lyq/workspace/projects/dBrain/AGENTS.md`
-**Design doc:** `docs/dataview/README.md` (plus `table.md`, `calendar.md`, `kanban.md`, `gantt.md`, `gallery.md`, `chart.md`, `node-graph.md`)
+**Design doc:** `docs/dataview/README.md` (plus `table.md`, `calendar.md`, `kanban.md`, `gantt.md`, `gallery.md`, `chart.md`, `graph.md`)
 
 ## OVERVIEW
 
 `packages/dataview/` is the multi-shape data browsing layer embedded in the
 `database` and `collection` node contents. It takes one normalized
 `DataViewSource` (`fields` + `rows`) and renders it through switchable views
-(table / kanban / calendar / gantt / gallery / chart / nodeGraph), each with its
+(table / kanban / calendar / gantt / gallery / chart / graph), each with its
 own config.
 
 **Current status: shell + the table, kanban, calendar, gallery, gantt and chart
@@ -50,10 +50,14 @@ panels — 字段配置 / 视图) and **the `chart` view** (VChart 2.1.7 through
 悬浮提示 / 主题 / 色板 / 点击行为 in 视图, view-local 下钻 with a clearable chip, 打开记录
 through the shared record surface, PNG export, and a DOM readout for the single-value
 types whose canvas has no text mark; see `docs/dataview/chart.md`)
-are implemented. The **last view renderer** (nodeGraph) is still a placeholder that
-renders `<DataViewPlaceholder>` / `<DataViewConfigPlaceholder>`, and its library
-(@workspace/graph) is not a dependency yet — each view pulls its library only when
-it is implemented. The kanban's own deps
+and **the `graph` view** (a wrapper over `@workspace/graph`'s `<Graph />`: the
+collection's `filterConfig` becomes a synthetic `View`, the library's force worker
+draws the subgraph, and the shell remounts it on a _structure_ change; it renders
+data only — the collection's 编辑过滤 control is the host's and rides the tab
+strip's `tabActions` slot; see `docs/dataview/graph.md`) are implemented. **Every view type is implemented — no
+placeholder view is left**, so nothing renders `<DataViewPlaceholder>` any more
+(the component and `ViewConfigMenu` remain as the scaffolding for the next new
+view type). The kanban's own deps
 (`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`, plus `radix-ui`
 for the vendored `Slot`) and the calendar's (`@fullcalendar/core|react|daygrid|
 timegrid|list|multimonth|interaction`, all `6.1.21`) are installed; **the gallery
@@ -68,10 +72,9 @@ toolbar as buttons + dropdown menus, **config left / functions right**; a later
 change moved the shell's view actions (更多: 设为默认 / 复制 / 删除视图) into that
 same function group, so the tab strip above is pure navigation. Every renderer
 draws a `ViewToolbar`, which appends the 更多 slot automatically. `ViewConfigMenu` (the generic "视图配置" popover
-over the registry's lazy `configEditor`) **is used by none of the six implemented
-views** — every one of their controls has a dedicated menu — and only remains for
-views that have no dedicated menu yet; a descriptor may therefore omit
-`configEditor` entirely. **A view toolbar's function group holds verbs, not
+over the registry's lazy `configEditor`) **is used by no view at all** — all seven
+have dedicated menus — and only remains for a view that has no dedicated menu yet;
+every descriptor therefore omits `configEditor` entirely. **A view toolbar's function group holds verbs, not
 readouts**: the kanban, the calendar and the gallery all dropped their
 「N 泳道 · N 卡片」/「N 事件」/「N 张卡片」badge, because the board, the day cells and
 the cards themselves say it — and a readout that follows the data would resize the
@@ -106,7 +109,7 @@ src/
 ├── registry.ts                  # DATA_VIEW_REGISTRY: type → descriptor (lazy renderer/configEditor)
 ├── defaults.ts                  # createDefaultConfig / createDefaultDataView / seedDataViewId
 ├── toolbar/
-│   ├── data-view-toolbar.tsx    # view tab strip + "new view" menu (navigation only)
+│   ├── data-view-toolbar.tsx    # view tab strip + "new view" menu + the host slot (tabActions) at its right end
 │   ├── view-actions.tsx         # 更多 (default/duplicate/delete view) + slot context
 │   └── view-switcher.tsx        # tab strip, inline rename (double-click), "new view" menu
 ├── source/
@@ -152,8 +155,8 @@ src/
 │   │                            #   viewport-fixed sheet — the host renders it inside a `relative`
 │   │                            #   box; the scrim only dismisses a click it saw a `pointerdown` for
 │   │                            #   (a touch's compatibility click lands on it right after opening)
-│   ├── data-view-placeholder.tsx        # placeholder body the one unimplemented view renders
-│   ├── data-view-config-placeholder.tsx # placeholder body its config editor renders
+│   ├── data-view-placeholder.tsx        # placeholder body for a FUTURE view type — no view uses it today
+│   ├── data-view-config-placeholder.tsx # placeholder body for its config editor, likewise unused today
 │   ├── empty-state.tsx
 │   ├── theme-tokens.ts          # literal light/dark tokens for canvas libraries
 │   ├── use-row-filter.ts
@@ -188,7 +191,8 @@ src/
     │                ├── core/     config.ts + schema.ts + spec.ts + theme.ts
     │                ├── board/    chart-surface.tsx + chart-readout.tsx
     │                └── toolbar/  chart-toolbar.tsx
-    └── node-graph/  node-graph-data-view.tsx + config-editor.tsx   (no hyphens in the type: `nodeGraph`)
+    └── graph/       graph-data-view.tsx + core/config.ts + core/schema.ts
+                     + board/graph-surface.tsx + toolbar/graph-toolbar.tsx  (implemented — see below)
 ```
 
 ### table view internals (the reference implementation)
@@ -318,6 +322,24 @@ details — including the seven library gotchas (hierarchy array, heatmap axes, 
 stacking, rose series, liquid registration, sankey `nodeKey`, missing
 `indicator`) — in `docs/dataview/chart.md` §0.
 
+### graph view internals
+
+| Group   | File                        | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | `graph-data-view.tsx`       | the shell: the synthetic `View` (`resolveGraphView`, memoized on the values that change what is drawn), the **structure key** the surface is keyed on, and the two guidance states (an empty workspace vs. a filter that matches nothing). It renders data only — the collection's filter editor is the host's, pinned into the tab strip's `tabActions` slot. It consumes neither `fields` nor `rows`. The only file `registry.ts` imports |
+| core    | `core/config.ts`            | `GRAPH_LAYOUT_MODES` (力导向 enabled, 流程图 disabled while the flow shell is a placeholder), `GRAPH_BACKGROUND_STYLES` (the three styles the force renderer really paints), `resolveGraphViewType` / `resolveGraphBackgroundStyle` / `resolveGraphVisualConfig` (theme tokens → literal canvas colours) and `hasActiveFilter`. No React, no library import                                                                                 |
+| core    | `core/schema.ts`            | `resolveGraphView` / `buildGraphView` (source + config + tokens → the throwaway `View`, `filterConfig` passed through untouched), `graphViewId` (the stable `dataview:graph:<nodeId>` position key) and `graphStructureKey` (view id + layout + serialized filter). No React                                                                                                                                                                |
+| board   | `board/graph-surface.tsx`   | the `memo`-wrapped `<Graph view />` — the single mount point of `@workspace/graph`. Everything below it (worker, canvas, event handler, selection, context menu, position persistence) is the library's                                                                                                                                                                                                                                     |
+| toolbar | `toolbar/graph-toolbar.tsx` | 布局 (layout modes; 流程图 disabled with its reason) / 视图 (background) on the left, **nothing** on the right but the shell's 更多 — the graph states its own extent, and the collection filter is not this view's                                                                                                                                                                                                                         |
+| —       | —                           | no `config-editor.tsx`: the two panels cover every `GraphViewConfig` key (the other two keys the draft had were dropped — see `docs/dataview/graph.md` §4)                                                                                                                                                                                                                                                                                  |
+
+Layering matches the others: `core/*` is pure (`@workspace/graph` appears only as
+the `View` / `ViewType` / `VisualConfig` _types_), `board/*` mounts the library,
+`toolbar/*` only reads config and reports `onConfigChange`, and **nothing imports
+`graph-data-view.tsx`**. Full details — including the eleven library gotchas, the
+load-bearing `graphStructureKey` remount, and why the collection filter's editor
+is the host's chrome rather than this view's — in `docs/dataview/graph.md` §0.
+
 ### UI conventions (applies to every view)
 
 **Config lives in the view toolbar, not a side panel.** A renderer draws one
@@ -395,6 +417,12 @@ Layout rules to keep:
   `toolbar/view-actions.tsx` slot context; `ViewToolbar` appends it automatically
   and a view with its own toolbar (the table) calls `useViewActions()` and puts it
   last. A view that renders no toolbar simply has no 更多;
+- **host chrome sits in the tab strip's host slot, not in a view.** `DataViewRoot`
+  takes `tabActions` and `DataViewToolbar` renders it `ml-auto` at the right end of
+  the tab strip — today the collection host's 编辑过滤, whose filter belongs to the
+  node content rather than to any view. The shell reserves the spot and knows
+  nothing about the control; a view can never receive it. Like every right-anchored
+  group, keep its contents fixed-size and always present;
 - **the shell's renderer box is fixed-size and never scrolls.** `DataViewRoot`
   gives each renderer an `overflow-hidden` box of exactly the space left under the
   tab strip, and **the renderer owns its own scrolling** (the table scrolls its
@@ -470,50 +498,54 @@ Layout rules to keep:
 
 ## WHERE TO LOOK
 
-| Task                                                              | Location                                                                                                                                                 |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Change the shell / routing                                        | `src/data-view-root.tsx`                                                                                                                                 |
-| Add or re-label a view type                                       | `src/registry.ts` + `src/defaults.ts`                                                                                                                    |
-| Tweak default configs                                             | `src/defaults.ts`                                                                                                                                        |
-| Change how database rows are read                                 | `src/source/database-source.ts`                                                                                                                          |
-| Change the collection projection schema                           | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                                                                               |
-| Cell → text/color/date/number                                     | `src/source/cell-resolver.ts`                                                                                                                            |
-| Implement a view                                                  | `src/views/<name>/` (replace the placeholder body)                                                                                                       |
-| Group rows into lanes / cards                                     | `src/views/kanban/core/board.ts`                                                                                                                         |
-| Kanban config self-heal / lane order                              | `src/views/kanban/core/config.ts`                                                                                                                        |
-| Kanban drag write-back                                            | `src/views/kanban/board/kanban-board.tsx`                                                                                                                |
-| Vendored ReUI board                                               | `src/views/kanban/reui/kanban.tsx`                                                                                                                       |
-| Rows → calendar events / gesture → cells                          | `src/views/calendar/core/schema.ts`                                                                                                                      |
-| Calendar config self-heal / view names / fixed defaults           | `src/views/calendar/core/config.ts` (`CALENDAR_FIXED`)                                                                                                   |
-| Calendar theme (FullCalendar `--fc-*`)                            | `src/views/calendar/core/theme.ts`                                                                                                                       |
-| The `<FullCalendar>` instance                                     | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
-| Calendar hover readout                                            | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
-| Rows → gantt records / drag → date cells                          | `src/views/gantt/core/schema.ts`                                                                                                                         |
-| Gantt config self-heal / 粒度 → scales / fixed defaults           | `src/views/gantt/core/config.ts` (`GANTT_FIXED`)                                                                                                         |
-| The gantt instance (lifecycle, events, `setRecords`)              | `src/views/gantt/board/gantt-surface.tsx`                                                                                                                |
-| Gantt theme (task list `ITableThemeDefine` + canvas colours)      | `src/views/gantt/canvas/theme.ts`                                                                                                                        |
-| Gantt hover readout                                               | `src/views/gantt/board/task-readout.tsx`                                                                                                                 |
-| The chart type catalogue / roles / palettes                       | `src/views/chart/core/config.ts` (`CHART_TYPES`)                                                                                                         |
-| Rows → chart data (series / scatter / hierarchy / links / single) | `src/views/chart/core/schema.ts`                                                                                                                         |
-| Config + data → VChart spec (the per-type quirks live here)       | `src/views/chart/core/spec.ts`                                                                                                                           |
-| The `<VChart>` instance / click policy / 水波图 registration      | `src/views/chart/board/chart-surface.tsx`                                                                                                                |
-| The single-value DOM readout (仪表 / 水波 / 进度)                 | `src/views/chart/board/chart-readout.tsx`                                                                                                                |
-| Rows → cards (gallery)                                            | `src/views/gallery/core/schema.ts`                                                                                                                       |
-| The card body / cover / settings / menu (kanban + gallery)        | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
-| The shared field list (卡片配置 + 日历字段配置)                   | `src/shared/field-config-list.tsx`                                                                                                                       |
-| The unified record editor / context menu                          | `src/shared/record-menu.tsx` + `src/shared/record-actions.tsx` (the menu, shell-owned) + `src/shared/record-editor.tsx` (the page, rendered by the host) |
-| Field display / edit vocabulary (shared)                          | `src/shared/field-value.tsx` + `src/shared/field-input.tsx` (+ `option-picker` / `date-picker`)                                                          |
-| Gallery config self-heal / layout enums                           | `src/views/gallery/core/config.ts`                                                                                                                       |
-| Gallery card geometry / virtual window                            | `src/views/gallery/core/layout.ts` + `src/views/gallery/board/use-gallery-scroll.ts`                                                                     |
-| Gallery keyboard nav                                              | `src/views/gallery/board/use-gallery-focus.ts` + `gallery-card.tsx`                                                                                      |
-| A node's cover media (shared with cards)                          | `packages/ui/src/components/preview-block/node-preview-cover.tsx`                                                                                        |
-| In-popover field picker (shared)                                  | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
-| The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序)    | `src/shared/condition-menu.tsx`                                                                                                                          |
-| Settings-panel primitives (shared)                                | `src/shared/settings-panel.tsx`                                                                                                                          |
-| A pointer-anchored layer (readout / menu-at-point)                | `src/shared/body-layer.tsx` (a fixed anchor must live in `document.body`, not under a transformed ancestor)                                              |
-| Contrast text for a colour fill                                   | `src/shared/color.ts`                                                                                                                                    |
-| Host integration                                                  | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
-| Persisted model                                                   | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
+| Task                                                                | Location                                                                                                                                                 |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change the shell / routing                                          | `src/data-view-root.tsx`                                                                                                                                 |
+| Add or re-label a view type                                         | `src/registry.ts` + `src/defaults.ts`                                                                                                                    |
+| Tweak default configs                                               | `src/defaults.ts`                                                                                                                                        |
+| Change how database rows are read                                   | `src/source/database-source.ts`                                                                                                                          |
+| Change the collection projection schema                             | `src/source/collection-source.ts` (`COLLECTION_FIELD_IDS`)                                                                                               |
+| Cell → text/color/date/number                                       | `src/source/cell-resolver.ts`                                                                                                                            |
+| Implement a view                                                    | `src/views/<name>/` (see § _HOW TO ADD / IMPLEMENT A VIEW_)                                                                                              |
+| Group rows into lanes / cards                                       | `src/views/kanban/core/board.ts`                                                                                                                         |
+| Kanban config self-heal / lane order                                | `src/views/kanban/core/config.ts`                                                                                                                        |
+| Kanban drag write-back                                              | `src/views/kanban/board/kanban-board.tsx`                                                                                                                |
+| Vendored ReUI board                                                 | `src/views/kanban/reui/kanban.tsx`                                                                                                                       |
+| Rows → calendar events / gesture → cells                            | `src/views/calendar/core/schema.ts`                                                                                                                      |
+| Calendar config self-heal / view names / fixed defaults             | `src/views/calendar/core/config.ts` (`CALENDAR_FIXED`)                                                                                                   |
+| Calendar theme (FullCalendar `--fc-*`)                              | `src/views/calendar/core/theme.ts`                                                                                                                       |
+| The `<FullCalendar>` instance                                       | `src/views/calendar/board/calendar-surface.tsx`                                                                                                          |
+| Calendar hover readout                                              | `src/views/calendar/board/event-readout.tsx`                                                                                                             |
+| Rows → gantt records / drag → date cells                            | `src/views/gantt/core/schema.ts`                                                                                                                         |
+| Gantt config self-heal / 粒度 → scales / fixed defaults             | `src/views/gantt/core/config.ts` (`GANTT_FIXED`)                                                                                                         |
+| The gantt instance (lifecycle, events, `setRecords`)                | `src/views/gantt/board/gantt-surface.tsx`                                                                                                                |
+| Gantt theme (task list `ITableThemeDefine` + canvas colours)        | `src/views/gantt/canvas/theme.ts`                                                                                                                        |
+| Gantt hover readout                                                 | `src/views/gantt/board/task-readout.tsx`                                                                                                                 |
+| The chart type catalogue / roles / palettes                         | `src/views/chart/core/config.ts` (`CHART_TYPES`)                                                                                                         |
+| The synthetic graph View / its stable id / the structure key        | `src/views/graph/core/schema.ts`                                                                                                                         |
+| Graph layout + background self-heal / theme tokens → canvas colours | `src/views/graph/core/config.ts`                                                                                                                         |
+| The `<Graph />` mount point (the only one)                          | `src/views/graph/board/graph-surface.tsx`                                                                                                                |
+| The host's collection-filter editor                                 | `packages/ui/src/components/dialog/collection-filter-dialog.tsx` (+ `node-selection-list.tsx`)                                                           |
+| Rows → chart data (series / scatter / hierarchy / links / single)   | `src/views/chart/core/schema.ts`                                                                                                                         |
+| Config + data → VChart spec (the per-type quirks live here)         | `src/views/chart/core/spec.ts`                                                                                                                           |
+| The `<VChart>` instance / click policy / 水波图 registration        | `src/views/chart/board/chart-surface.tsx`                                                                                                                |
+| The single-value DOM readout (仪表 / 水波 / 进度)                   | `src/views/chart/board/chart-readout.tsx`                                                                                                                |
+| Rows → cards (gallery)                                              | `src/views/gallery/core/schema.ts`                                                                                                                       |
+| The card body / cover / settings / menu (kanban + gallery)          | `src/shared/card.tsx` + `src/shared/card-cover.tsx` + `src/shared/card-ops.ts` + `src/shared/card-config.tsx`                                            |
+| The shared field list (卡片配置 + 日历字段配置)                     | `src/shared/field-config-list.tsx`                                                                                                                       |
+| The unified record editor / context menu                            | `src/shared/record-menu.tsx` + `src/shared/record-actions.tsx` (the menu, shell-owned) + `src/shared/record-editor.tsx` (the page, rendered by the host) |
+| Field display / edit vocabulary (shared)                            | `src/shared/field-value.tsx` + `src/shared/field-input.tsx` (+ `option-picker` / `date-picker`)                                                          |
+| Gallery config self-heal / layout enums                             | `src/views/gallery/core/config.ts`                                                                                                                       |
+| Gallery card geometry / virtual window                              | `src/views/gallery/core/layout.ts` + `src/views/gallery/board/use-gallery-scroll.ts`                                                                     |
+| Gallery keyboard nav                                                | `src/views/gallery/board/use-gallery-focus.ts` + `gallery-card.tsx`                                                                                      |
+| A node's cover media (shared with cards)                            | `packages/ui/src/components/preview-block/node-preview-cover.tsx`                                                                                        |
+| In-popover field picker (shared)                                    | `src/shared/field-select.tsx` (compact `Select`) + `src/shared/field-picker.tsx` (searchable)                                                            |
+| The 字段 + 方向 condition menu (table 分组/排序 + kanban 排序)      | `src/shared/condition-menu.tsx`                                                                                                                          |
+| Settings-panel primitives (shared)                                  | `src/shared/settings-panel.tsx`                                                                                                                          |
+| A pointer-anchored layer (readout / menu-at-point)                  | `src/shared/body-layer.tsx` (a fixed anchor must live in `document.body`, not under a transformed ancestor)                                              |
+| Contrast text for a colour fill                                     | `src/shared/color.ts`                                                                                                                                    |
+| Host integration                                                    | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx`                                                                |
+| Persisted model                                                     | `packages/interfaces/src/models/data-view.ts`                                                                                                            |
 
 ## DATA FLOW (do not break)
 
@@ -564,16 +596,21 @@ node.content (fields/rows/views)
    hide/reorder/group/sort/filter/colour).
 6. **The registry is the only dispatch table.** `DataViewRoot`, the toolbar and
    the config menus never `switch` on `DataViewType`.
-7. **`nodeTypes` enforces the capability matrix** (`README.md` §7): `nodeGraph`
+7. **`nodeTypes` enforces the capability matrix** (`README.md` §7): `graph`
    is collection-only; everything else works on both hosts. A persisted view
-   whose type is not allowed for the current host is dropped on mount.
+   whose type is not allowed for the current host is dropped on mount —
+   `isDataViewTypeAllowed` indexes the registry defensively, and the persisted
+   type goes through `normalizeDataViewType`, so a view saved by an older build
+   (`nodeGraph` → `graph`) degrades instead of crashing.
 8. **Lazy loading is intentional.** `registry.ts` wraps every renderer/config
    editor in `React.lazy`; `DataViewRoot` provides the `<Suspense>` boundaries.
    Keep new view deps out of the package's static import graph — the table view
    imports `@visactor/vtable*` at the top of its own `views/table/*` modules,
    which is fine precisely because those modules are only reachable lazily.
-9. **`node-graph/` is the only hyphenated directory**; the type literal is
-   `nodeGraph`.
+9. **The view directory name matches the type literal** (`views/graph/` ↔
+   `"graph"`); the one legacy alias is `nodeGraph` → `graph`
+   (`DATA_VIEW_TYPE_ALIASES` in `@workspace/interfaces`, applied by the domain's
+   `normalizeViews`, the tRPC schema and `DataViewRoot`'s self-heal).
 
 ## HOST CONTRACT
 
@@ -598,6 +635,14 @@ node.content (fields/rows/views)
   resolveNode={(nodeId) => useDataStore.getState().nodes.get(nodeId)}  // node covers
 />
 ```
+
+**A view is never handed a "edit my host's content" callback.** The collection's
+filter editor is the clearest case: `collection-node-content.tsx` owns the control
+(编辑过滤 → `<CollectionFilterDialog>`) and passes it through the shell's **host
+slot** `tabActions`, which `DataViewToolbar` renders at the right end of the view
+tab strip — the shell reserves the spot without knowing what it is, and no view
+prop exists for it (the views only ever receive the filtered `source` plus the
+write-back callbacks above). Host chrome belongs to the host.
 
 When `views` is empty, `DataViewRoot` synthesizes one default view (table, for
 both hosts) with the deterministic id `dv_default_<nodeId>` and reports it
@@ -639,13 +684,20 @@ lazy `nodes.get(id)` lookup rather than a map.
    settings.
 2. Only if the view has settings without a dedicated toolbar menu: add
    `config-editor.tsx` (`DataViewConfigEditorProps<XViewConfig>`) and register it
-   as `configEditor`. A view whose toolbar covers everything (the table, the
-   kanban, the calendar, the gantt) leaves the descriptor's `configEditor` undefined and
-   gets no 视图配置 button. Build the panels from `shared/settings-panel.tsx` +
-   `shared/field-select.tsx`.
+   as `configEditor` (a `lazy()` cast to `LazyExoticComponent<DataViewConfigEditorComponent>`).
+   **Every view today leaves `configEditor` undefined** and gets no 视图配置
+   button. Build the panels from `shared/settings-panel.tsx` +
+   `shared/field-select.tsx` (or `shared/field-picker.tsx` for a searchable list).
 3. Add the view's library to `package.json` **as a dynamic import only**; do not
    import it from `registry.ts` or `index.ts`. Top-level imports inside
    `views/<name>/*` are fine — those modules are already behind `React.lazy`.
+   **`views/graph/` is the reference for a view whose "library" is another
+   workspace package** (`@workspace/graph`): the renderer is a thin wrapper (one
+   synthetic model object in, one memo-wrapped component out), the shell keys that
+   component on the model's _structure_ so a structural change rebuilds the
+   library instance, and anything the view cannot own (the collection's filter)
+   goes back to the host as a callback. Read `docs/dataview/graph.md` §0 before
+   wrapping a library that keeps its own copy of the data.
 4. If the view needs a different default config, edit `createDefaultConfig` in
    `src/defaults.ts`.
 5. Filling in the config schema itself means editing
@@ -676,6 +728,22 @@ No `build` / `dev` / `test` scripts. Consumers receive `.ts` source via
   `withFilter` and `DatabaseNode`'s private `rebuildContent` may rebuild content;
   a bare `new DatabaseContent(fields, rows)` defaults `views` to `[]` and
   silently drops them.
+- **The graph view is a wrapper, and two of its rules are load-bearing** (verified
+  in a headless browser; see `docs/dataview/graph.md` §0):
+  - **A filter change must remount `<Graph />`.** `ForceGraph` re-reads the whole
+    node/edge set only when the view **id** changes, and its diff path can only
+    add or update — so a live instance keeps drawing nodes the new filter
+    excludes (measured: 14 drawn while the projection already had 4). The shell
+    keys `GraphSurface` on `graphStructureKey`
+    (`view.id | viewType | JSON(filterConfig)`); the id itself stays stable so the
+    rebuilt instance re-reads the positions the previous one persisted.
+  - **A background / theme change must NOT remount.** Those go through the
+    library's `updateStyle`; `visualConfig` is deliberately outside the structure
+    key (measured: node positions unchanged after 网格 → 点阵).
+  - Also: only `backgroundColor` / `gridColor` / `backgroundStyle` of
+    `VisualConfig` are read by the force pipeline; the canvas needs a
+    definite-height parent; and the view's writes go to the **graph**, not to the
+    collection.
 - **`resolveCollectionNodeIds` is a UNION**, not an intersection: a collection's
   `selectedNodes` and its `ruleGroup` combine exactly like a graph view's
   (`inEnumeration || matchesRule`), because the whole resolution is delegated to
