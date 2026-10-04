@@ -43,6 +43,7 @@ import {
   resolveEndField,
   resolveGroupField,
   resolveStartField,
+  resolveTaskColumnTitle,
   resolveTitleField,
 } from "./core/config";
 import {
@@ -117,6 +118,16 @@ export function GanttDataView({
   const canEditData = !readOnly && Boolean(onCellChange);
   const canConfigure = Boolean(onConfigChange);
   const today = useMemo(() => toISODate(new Date()), []);
+
+  /**
+   * What the task list's column is called: the config value, else the node this
+   * view lives in, else 任务 (`core/config.ts`). Resolved here because the surface
+   * is handed a plain string — it knows nothing about the node it draws.
+   */
+  const taskColumnTitle = resolveTaskColumnTitle(
+    config.taskColumnTitle,
+    source.nodeTitle,
+  );
 
   /**
    * Which groups are folded, scoped to the field they were folded under: a view
@@ -318,6 +329,7 @@ export function GanttDataView({
             rowHeight={config.rowHeight}
             showWeekends={config.showWeekends}
             showTodayLine={config.showTodayLine}
+            taskColumnTitle={taskColumnTitle}
             today={today}
             themeMode={tokens.mode}
             movable={canEditData}

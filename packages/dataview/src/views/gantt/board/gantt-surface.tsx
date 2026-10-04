@@ -65,6 +65,18 @@ export interface GanttSurfaceProps {
   rowHeight: number;
   showWeekends: boolean;
   showTodayLine: boolean;
+  /**
+   * What the task list's column is called (表头).
+   *
+   * Resolved by the shell — the config value, else the host node's name, else
+   * 任务 (`core/config.ts`'s `resolveTaskColumnTitle`) — because the surface
+   * knows nothing about the node it is drawn in. Unlike the rest of the
+   * presentation this is **not** part of {@link GanttSurfaceImpl}'s
+   * `structureKey`: a header is one column title, and rebuilding the chart for it
+   * would drop the scroll position and the split every time someone renames the
+   * node. It goes through `updateColumns` instead.
+   */
+  taskColumnTitle: string;
   /** The 今日线's `YYYY-MM-DD`, resolved by the shell once per mount. */
   today: string;
   /** The theme's mode — a light/dark switch is a different chart. */
@@ -157,12 +169,58 @@ function barRecordOf(args: unknown): GanttRecord | undefined {
   return (args as { taskRecord?: GanttRecord } | undefined)?.taskRecord;
 }
 
+/** What the library accepts for the task list's `columns`. */
+type TaskListColumns = NonNullable<
+  NonNullable<GanttConstructorOptions["taskListTable"]>["columns"]
+>;
+
+/**
+ * The task list's single column: the task's title, and the hierarchy drawn on it.
+ *
+ * A factory because the column's **title** is the one part of it that changes at
+ * runtime (表头 = the node's name by default, and a node can be renamed while a
+ * gantt is open) while everything else is fixed. It is the same definition the
+ * constructor gets and the one `updateColumns` is handed below, so the two can
+ * never drift.
+ */
+function taskListColumns(title: string): TaskListColumns {
+  return [
+    {
+      field: GANTT_TITLE,
+      title,
+      width: GANTT_FIXED.taskListColumnWidth,
+      /**
+       * The hierarchy, drawn by us.
+       *
+       * A 分组 header and its tasks are the *same* record shape in one flat
+       * list, so nothing about the library's layout says which is which:
+       * the header sits at the panel's edge and reads heavier, its tasks are
+       * indented under it. The row is resolved with
+       * `getCellOriginRecord` (the live record — unlike an event's cached
+       * `originData`, see the fold gotcha below); the header row itself is
+       * skipped so the column title keeps its own inset.
+       */
+      style: (args) => {
+        if (args.row < args.table.columnHeaderLevelCount) return {};
+        const record = args.table.getCellOriginRecord(args.col, args.row) as
+          | GanttRecord
+          | undefined;
+        if (record?.type === "project") {
+          return { padding: [0, 8, 0, 8], fontWeight: 600 };
+        }
+        return { padding: [0, 8, 0, GANTT_FIXED.taskListIndent] };
+      },
+    },
+  ];
+}
+
 function GanttSurfaceImpl({
   records,
   viewMode,
   rowHeight,
   showWeekends,
   showTodayLine,
+  taskColumnTitle,
   today,
   themeMode,
   movable,
@@ -180,16 +238,21 @@ function GanttSurfaceImpl({
   const ganttRef = useRef<Gantt | null>(null);
   /** The record array the live instance already has (identity comparison). */
   const appliedRecordsRef = useRef<readonly GanttRecord[] | null>(null);
+  /** The header the live task list already shows (see the title effect). */
+  const appliedTitleRef = useRef<string | null>(null);
 
   /**
    * Everything the library callbacks read, refreshed on every render.
    *
    * The callbacks are registered once per instance — they must keep their
    * identity for the lifetime of the chart — so they reach the live props
-   * through here, exactly like the table and the calendar do.
+   * through here, exactly like the table and the calendar do. The title is here
+   * for the same reason: the constructor effect only re-runs on a structure
+   * change, so it must read the *current* header, not the one its render saw.
    */
   const latest = useRef({
     records,
+    taskColumnTitle,
     onDateRangeChange,
     onTaskClick,
     onTaskContextMenu,
@@ -199,6 +262,7 @@ function GanttSurfaceImpl({
   });
   latest.current = {
     records,
+    taskColumnTitle,
     onDateRangeChange,
     onTaskClick,
     onTaskContextMenu,
@@ -295,35 +359,9 @@ function GanttSurfaceImpl({
         selectable: true,
       },
       taskListTable: {
-        columns: [
-          {
-            field: GANTT_TITLE,
-            title: "任务",
-            width: GANTT_FIXED.taskListColumnWidth,
-            /**
-             * The hierarchy, drawn by us.
-             *
-             * A 分组 header and its tasks are the *same* record shape in one flat
-             * list, so nothing about the library's layout says which is which:
-             * the header sits at the panel's edge and reads heavier, its tasks are
-             * indented under it. The row is resolved with
-             * `getCellOriginRecord` (the live record — unlike an event's cached
-             * `originData`, see the fold gotcha below); the header row itself is
-             * skipped so the column title keeps its own inset.
-             */
-            style: (args) => {
-              if (args.row < args.table.columnHeaderLevelCount) return {};
-              const record = args.table.getCellOriginRecord(
-                args.col,
-                args.row,
-              ) as GanttRecord | undefined;
-              if (record?.type === "project") {
-                return { padding: [0, 8, 0, 8], fontWeight: 600 };
-              }
-              return { padding: [0, 8, 0, GANTT_FIXED.taskListIndent] };
-            },
-          },
-        ],
+        // 表头 = the resolved title; see `taskListColumns` and the live update
+        // effect below (the title is the one part of this column that moves).
+        columns: taskListColumns(current.taskColumnTitle),
         theme: theme.taskListTheme,
         // Nothing in this panel is *selected*: a click already means "open this
         // record" or "fold this group", and VTable's own selection paint (its
@@ -388,6 +426,7 @@ function GanttSurfaceImpl({
 
     ganttRef.current = gantt;
     appliedRecordsRef.current = current.records;
+    appliedTitleRef.current = current.taskColumnTitle;
 
     gantt.on("change_date_range", (args) => {
       const range = rangeOf(args);
@@ -499,6 +538,27 @@ function GanttSurfaceImpl({
     appliedRecordsRef.current = records;
     ganttRef.current?.setRecords(records);
   }, [records]);
+
+  /**
+   * The 表头, which is the one column property that moves.
+   *
+   * `updateColumns` on the task list's own `ListTable` rather than a rebuild: the
+   * title's default *is* the host node's name, and a node is renamed in the very
+   * editor this view lives in — every keystroke of that rename would rebuild the
+   * chart, lose the scroll position and reset the split. Passing the same
+   * `taskListColumns` the constructor got keeps the hierarchy `style` function and
+   * the column width with it.
+   *
+   * A no-op right after a rebuild (the constructor already used the current title)
+   * — hence `appliedTitleRef`, which the constructor effect seeds.
+   */
+  useEffect(() => {
+    if (appliedTitleRef.current === taskColumnTitle) return;
+    appliedTitleRef.current = taskColumnTitle;
+    ganttRef.current?.taskListTableInstance?.updateColumns(
+      taskListColumns(taskColumnTitle),
+    );
+  }, [taskColumnTitle]);
 
   return (
     <div

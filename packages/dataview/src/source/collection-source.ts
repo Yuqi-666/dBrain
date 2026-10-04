@@ -202,6 +202,10 @@ function projectRow(node: NodeData): DatabaseRow {
  *
  * `rows` and `nodeIds` stay index-aligned: `rows[i]` is the projection of
  * `nodes.get(nodeIds[i])`, which is how views map a row back to a graph node.
+ *
+ * The collection's own name travels as `nodeTitle` — provenance, like `nodeId`,
+ * not a column of the projection (a view that labels the whole set defaults to
+ * it; the gantt's 表头).
  */
 export function collectionToDataViewSource(
   node: CollectionNodeData,
@@ -219,6 +223,7 @@ export function collectionToDataViewSource(
   return {
     kind: "collection",
     nodeId: node.id,
+    nodeTitle: node.title,
     fields: buildCollectionFields(options),
     rows,
     filterConfig,

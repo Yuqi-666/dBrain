@@ -24,11 +24,14 @@
  * the role it holds (开始 / 结束 / 标题 / 进度 / 分组), so one role is always set
  * the same way, in the same place, in every view.
  *
- * 视图 keeps the four decisions the view really has: 时间粒度, 行高, 今日线 and
- * 周末. 周末 only means something on a day-granularity axis (a 周 or 月 column
- * contains both), so it says so instead of silently doing nothing.
+ * 视图 keeps the decisions the view really has: 表头 (what the task list's column
+ * is called — empty means "the node's own name", see `core/config.ts`), 时间粒度,
+ * 行高, 今日线 and 周末. 周末 only means something on a day-granularity axis (a 周
+ * or 月 column contains both), so it says so instead of silently doing nothing.
  */
+import { useRef } from "react";
 import { ChartGantt, FolderTree } from "lucide-react";
+import { Input } from "@workspace/ui/components/ui/input";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import {
   ToggleGroup,
@@ -61,8 +64,58 @@ import {
   resolveGroupField,
   resolveProgressField,
   resolveStartField,
+  resolveTaskColumnTitle,
   resolveTitleField,
 } from "../core/config";
+
+/**
+ * The 表头 box: reports on blur / Enter, not on every keystroke.
+ *
+ * The value it writes is a view config, and the host persists that as a whole
+ * view (an upsert per keystroke otherwise). Empty is a real value — "name the set
+ * after the node" — and the placeholder states what that name currently is, so
+ * clearing the box needs no instruction next to it.
+ *
+ * Escape drops the draft: the popover closes with it and the input never blurs.
+ */
+function TaskColumnTitleInput({
+  value,
+  placeholder,
+  disabled,
+  onCommit,
+}: {
+  value: string;
+  placeholder: string;
+  disabled?: boolean;
+  onCommit: (next: string) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  return (
+    <Input
+      ref={ref}
+      defaultValue={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      aria-label="表头名称"
+      className="h-7 text-xs md:text-xs"
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          ref.current?.blur();
+        }
+        if (event.key === "Escape") {
+          if (ref.current) ref.current.value = value;
+          ref.current?.blur();
+        }
+      }}
+      onBlur={(event) => {
+        const next = event.target.value;
+        if (next !== value) onCommit(next);
+      }}
+    />
+  );
+}
 
 export interface GanttToolbarProps {
   source: DataViewSource;
@@ -327,6 +380,23 @@ export function GanttToolbar({
         }
         disabled={!canConfigure}
       >
+        <PanelSection label="表头">
+          {/**
+           * The task list's column title. The default is the node this view lives
+           * in (`DataViewSource.nodeTitle`), which is why the placeholder is not
+           * the literal 任务: an empty box means "follow the node", and the node
+           * is named in the editor this view is embedded in.
+           */}
+          <TaskColumnTitleInput
+            value={config.taskColumnTitle ?? ""}
+            placeholder={resolveTaskColumnTitle(undefined, source.nodeTitle)}
+            disabled={!canConfigure}
+            onCommit={(next) =>
+              patch({ taskColumnTitle: next.trim() || undefined })
+            }
+          />
+        </PanelSection>
+        <Separator />
         <PanelSection label="时间粒度">
           <ToggleGroup
             type="single"

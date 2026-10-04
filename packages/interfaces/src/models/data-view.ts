@@ -43,6 +43,14 @@ export interface DataViewSource {
   kind: DataViewSourceKind;
   /** Id of the host node, when the adapter knows it. */
   nodeId?: string;
+  /**
+   * The host node's own display name, when the adapter knows it.
+   *
+   * Provenance, like {@link nodeId}: it belongs to the node the rows came from,
+   * not to any row. A view that labels *the whole set* uses it — today the gantt's
+   * task-list header (`GanttViewConfig.taskColumnTitle`, "节点名").
+   */
+  nodeTitle?: string;
   fields: DatabaseField[];
   rows: DataRow[];
   /** Only `collection`: the host filter config, read by the nodeGraph view. */
@@ -295,9 +303,9 @@ export interface CalendarViewConfig {
  * `editable` switch (how much may be written is the host's capability — a drag
  * needs cell writes), the `theme` key (the surface follows `next-themes`, like
  * the calendar) and the `minDate` / `maxDate` pair (v1 always derives the
- * timeline range from the tasks it is given). The four remaining presentation
- * keys — `viewMode` (时间粒度), `rowHeight` (行高) and the two lines (今日线 /
- * 周末) — are real decisions the 视图 panel offers.
+ * timeline range from the tasks it is given). The remaining presentation keys —
+ * `taskColumnTitle` (表头), `viewMode` (时间粒度), `rowHeight` (行高) and the two
+ * lines (今日线 / 周末) — are real decisions the 视图 panel offers.
  */
 export interface GanttViewConfig {
   /** 开始日期 — the one required role; a `date` field. */
@@ -313,6 +321,16 @@ export interface GanttViewConfig {
   /** The fields the hover readout adds after 起止 / 进度 (the 字段配置 eye). */
   tooltipFields?: string[];
 
+  /**
+   * 表头 — what the task list's only column is called.
+   *
+   * Empty (the default) means "name the set, not the row": the header follows
+   * `DataViewSource.nodeTitle`, i.e. the node this view lives in, and falls back
+   * to 任务 for a node with no name yet. A gantt row is a *task* only sometimes —
+   * the same view draws 里程碑, 会议 or 员工排期 — so the default is the host's own
+   * name rather than a guess about the rows.
+   */
+  taskColumnTitle?: string;
   /** 时间粒度. */
   viewMode: "day" | "week" | "month";
   /** Row height in px; the 视图 panel offers 低 / 中 / 高. */

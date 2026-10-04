@@ -16,7 +16,7 @@ views/gantt/
 ├── canvas/theme.ts            # tokens → 任务列表 ITableThemeDefine + 时间轴/网格/条形字面色
 ├── board/gantt-surface.tsx    # memo 包裹的命令式 <Gantt>：构造/销毁、事件、setRecords
 ├── board/task-readout.tsx     # 悬浮读数（锚在指针上）
-└── toolbar/gantt-toolbar.tsx  # 字段配置（5 个角色 + 共享字段列表）/ 视图（粒度·行高·今日线·周末）
+└── toolbar/gantt-toolbar.tsx  # 字段配置（5 个角色 + 共享字段列表）/ 视图（表头·粒度·行高·今日线·周末）
 ```
 
 **注册表里没有 `configEditor`**：字段配置 / 视图 两个面板覆盖了 `GanttViewConfig` 里
@@ -81,7 +81,7 @@ views/gantt/
     哪条是组内任务：不处理时两者是同一层平铺的普通行，只有标题里的 ▸/▾ 能看出区别。列表列用
     一个 `style` 函数区分——分组行加粗、任务行缩进 `GANTT_FIXED.taskListIndent`（20px）——
     行记录用 `args.table.getCellOriginRecord(col, row)` 取**活**记录（它按当前 layout 解析，
-    和坑 5 里那个会过期的 `originData` 不是一回事）。表头行要显式跳过，否则「任务」表头也会被
+    和坑 5 里那个会过期的 `originData` 不是一回事）。表头行要显式跳过，否则表头文字也会被
     缩进。
 13. **悬浮读数和右键菜单必须 portal 到 `document.body`。** 两者都是「在库报告的坐标放一个隐形
     `position: fixed` 盒子当 Radix 锚点」。节点内容经常挂在节点编辑器对话框里，而 `DialogContent`
@@ -91,6 +91,15 @@ views/gantt/
     渲染在 `228,163` —— 偏移正好是对话框的页面位置。`shared/body-layer.tsx` 把整份 primitive
     portal 到 body，锚点和 Radix 自己 portal 的浮层就共享视口坐标系。日历悬浮读数与
     `RecordMenuAtPoint` 走同一个组件（同一个坑，一起修）。
+14. **表头默认是「节点名」，改标题走 `updateColumns`，不进 `structureKey`。** 任务列表只有一列，
+    标题由 `resolveTaskColumnTitle`（`core/config.ts`）分三步定：`config.taskColumnTitle` →
+    宿主节点名（`DataViewSource.nodeTitle`，两个适配器都会带上，`databaseToDataViewSource` 多收
+    一个参数）→ `GANTT_FIXED.taskColumnTitle`（「任务」，给还没命名的节点兜底）。它**不能**进
+    `structureKey`：默认值就是宿主节点的名字，而节点名正是在同一个节点编辑器里改的，一次键入
+    一次重建（丢滚动位置、把拖过的分割线弹回 200px）。所以标题走
+    `gantt.taskListTableInstance.updateColumns(taskListColumns(title))` —— 和构造时同一个工厂函数，
+    层级 `style` 与列宽一起带过去。实测：改标题、改节点名之后画布上的探针都还在（没有重建），
+    分割线拖到 170px 后再改节点名仍是 170px，任务行缩进的像素测量值前后完全一致。
 
 ---
 
@@ -165,6 +174,7 @@ export interface GanttViewConfig {
   groupByField?: string; // 分组（select / multiSelect）
   tooltipFields?: string[]; // 悬浮读数里额外显示的字段（字段配置的眼睛）
 
+  taskColumnTitle?: string; // 表头；留空 = 节点名（视图面板）
   viewMode: "day" | "week" | "month"; // 时间粒度
   rowHeight: number; // 行高（视图面板：低/中/高 = 28/36/48）
   showTodayLine: boolean; // 今日线
@@ -174,13 +184,15 @@ export interface GanttViewConfig {
 
 默认配置（`defaults.ts`）：`startField` 取首个 date、`endField` 取第二个 date、`titleField` 取主列、
 `progressField` 取首个 number、`viewMode: "week"`、`rowHeight: 36`、今日线与周末都开；
-**不默认分组**（时间轴本身才是这个视图的重点）。
+**不默认分组**（时间轴本身才是这个视图的重点），**不写 `taskColumnTitle`** —— 不写就是「跟随节点
+名」，显式写死反而会让节点改名之后表头还停在旧名字上。
 
 相对设计稿删掉的三项（沿用日历的取舍）：`editable`（能不能写是宿主能力，不是口味）、
 `theme`（跟随 `next-themes`，固定在 `GANTT_FIXED.theme`）、`minDate` / `maxDate`
 （v1 时间轴范围永远由任务自己算出来）。
 
-`GANTT_FIXED`（`core/config.ts`）：`headerRowHeight: 28`、任务列表列宽 200、未命名占位、未分组名称。
+`GANTT_FIXED`（`core/config.ts`）：`headerRowHeight: 28`、任务列表列宽 200、表头兜底「任务」、
+未命名占位、未分组名称。
 
 ---
 
@@ -188,6 +200,8 @@ export interface GanttViewConfig {
 
 - 时间轴条形：起止跨度 + 进度填充（`progressField` 0–1）+ 任务名标签（画在条形**外侧**，
   所以文字永远不会和填充打架，深浅色同一套颜色）。
+- 表头（任务列表唯一一列的标题）可改：视图面板里留空就是节点名，改节点名表头跟着改
+  （坑 14：走 `updateColumns`，不重建图表）。
 - 时间粒度：日 / 周 / 月（`buildTimelineScales`：月+日 / 月+周 / 年+月，最细一级决定列宽）。
 - 拖拽平移改起止、拖边缘改时长（database 可编辑；collection 只读）。
 - 分组折叠/展开：点分组头行或分组汇总条，标题上的 ▸ / ▾ 与折叠时的任务数就是状态。

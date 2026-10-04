@@ -61,8 +61,8 @@ export function DatabaseNodeContent({
   const content = node.content;
 
   const source = useMemo(
-    () => databaseToDataViewSource(content, node.id),
-    [content, node.id],
+    () => databaseToDataViewSource(content, node.id, node.title),
+    [content, node.id, node.title],
   );
 
   const liveContent = useCallback((): DatabaseContent => {

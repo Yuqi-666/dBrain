@@ -143,6 +143,27 @@ export function resolveTooltipFields(
     .filter((field): field is DatabaseField => field !== undefined);
 }
 
+/**
+ * The task list's column title (表头).
+ *
+ * Three steps, in order: what the config says, then **the node's own name**, then
+ * the generic 任务. Naming the set after the node it lives in is the default
+ * because the rows are not always tasks — the same view draws 里程碑 or 排期 — and
+ * the node is the one thing that already describes them. An explicit config value
+ * wins, so a user who wants the old word back, or a different one, keeps it.
+ *
+ * Pure: the shell resolves this from `source.nodeTitle` and hands the surface a
+ * plain string, so the surface never sees the node.
+ */
+export function resolveTaskColumnTitle(
+  taskColumnTitle: string | undefined,
+  nodeTitle: string | undefined,
+): string {
+  return (
+    taskColumnTitle?.trim() || nodeTitle?.trim() || GANTT_FIXED.taskColumnTitle
+  );
+}
+
 // —— timeline ——————————————————————————————————————————————————————————————
 
 /** The date a scale's label callback is handed (VTable's shape, ours here). */
@@ -273,6 +294,14 @@ export const GANTT_FIXED = {
   headerRowHeight: 28,
   /** The task list panel's column — the title, and nothing that repeats a bar. */
   taskListColumnWidth: 200,
+  /**
+   * What the task list's column is called when nothing names it better.
+   *
+   * The last step of {@link resolveTaskColumnTitle}: the view prefers the node's
+   * own name, and this is what a node with no name yet (or a bare source with no
+   * `nodeTitle`) shows.
+   */
+  taskColumnTitle: "任务",
   /**
    * How far a task's title is indented under its 分组 header row.
    *

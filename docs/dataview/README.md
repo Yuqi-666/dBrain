@@ -322,6 +322,8 @@ export type DataViewSourceKind = "database" | "collection";
 
 export interface DataViewSource {
   kind: DataViewSourceKind;
+  nodeId?: string; // 宿主节点 id（适配器知道就带上）
+  nodeTitle?: string; // 宿主节点名：视图要「给整份数据起个名字」时用它（甘特图表头）
   fields: DatabaseField[]; // database 直接复用；collection 用固定节点属性 schema
   rows: DataRow[]; // id + cells（按 fieldId 键）。collection 每行对应一个节点
   filterConfig?: FilterConfig; // 仅 collection：供 nodeGraph 视图复用 graph 组件
@@ -337,8 +339,16 @@ export type DataRow = DatabaseRow; // { id: string; cells: Record<string, Databa
 // packages/dataview/src/source/database-source.ts
 export function databaseToDataViewSource(
   content: DatabaseContent,
+  nodeId?: string, // 宿主节点 id
+  nodeTitle?: string, // 宿主节点名（nodes.title）
 ): DataViewSource {
-  return { kind: "database", fields: content.fields, rows: content.rows };
+  return {
+    kind: "database",
+    nodeId,
+    nodeTitle,
+    fields: content.fields,
+    rows: content.rows,
+  };
 }
 
 // packages/dataview/src/source/collection-source.ts
