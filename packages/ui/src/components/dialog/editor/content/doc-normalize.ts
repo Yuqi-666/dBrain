@@ -34,9 +34,10 @@ function paragraphDoc(text: string): NormalizedDoc {
  * single-block editor needs more (`node-content-ui.md` §M3.2-1).
  *
  * Rules, in priority order:
- * 1. a non-empty string → one paragraph;
+ * 1. a non-empty string → one paragraph (an empty string → an empty document);
  * 2. an object with `type === "doc"` → itself (`content` defaults to `[]`);
- * 3. an object whose `content` is a string → one paragraph (the old shape);
+ * 3. an object whose `content` is a non-empty string → one paragraph (the old
+ *    shape); an empty one → an empty document;
  * 4. an object whose `content` is an array → `{ type: "doc", content }`;
  * 5. anything else (`undefined` / `null` / empty string / unrecognized) → an
  *    empty document.
@@ -59,7 +60,13 @@ export function normalizeDoc(value: unknown): NormalizedDoc {
     }
 
     if (typeof record.content === "string") {
-      return paragraphDoc(record.content);
+      // An empty string is a real legacy shape (`text-node-content.tsx` wrote
+      // `{ content: textareaValue }`), and it must NOT become a paragraph with
+      // an empty text node: ProseMirror's `schema.text("")` throws
+      // "Empty text nodes are not allowed", so the document has to stay empty.
+      return record.content.length > 0
+        ? paragraphDoc(record.content)
+        : { type: "doc", content: [] };
     }
 
     if (Array.isArray(record.content)) {
