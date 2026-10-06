@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ListFilter } from "lucide-react";
 import type {
   CollectionContent,
@@ -14,12 +14,12 @@ import {
   collectionToDataViewSource,
   type OpenRecordOptions,
 } from "@workspace/dataview";
-import { NodeService } from "@workspace/services";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { CollectionFilterDialog } from "../../collection-filter-dialog";
+import { useNodeContentWriter } from "./use-node-content-writer";
 
 interface CollectionNodeContentProps {
   node: CollectionNodeData;
@@ -61,70 +61,18 @@ export function CollectionNodeContent({
   );
 
   /**
-   * The freshest content, read back from the store.
-   *
-   * Same rule as the database host (`database-node-content.tsx`): a patch must
-   * be built on the live content, never on this render's copy. `NodeService`
-   * updates the store optimistically and synchronously, so a read here sees a
-   * write raised moments ago — and the collection now has two writers (view
-   * management and the filter editor), which is exactly when a stale snapshot
-   * starts dropping the other one's change.
+   * Content writes go through the shared writer
+   * (`./use-node-content-writer`), which carries the two rules this host used to
+   * document inline: patch the freshest content read back from the store, never
+   * this render's `node.content`; and serialize the writes, because PocketBase's
+   * SDK aborts a pending request when another one for the same record starts.
+   * The collection's two writers (view management and the filter editor) are
+   * exactly why a stale snapshot here starts dropping the other one's change.
    */
-  const liveContent = useCallback((): CollectionContent => {
-    const live = useDataStore.getState().nodes.get(node.id);
-    return live?.nodeType === "collection" ? live.content : node.content;
-  }, [node.content, node.id]);
-
-  /**
-   * Serialised writes.
-   *
-   * PocketBase's SDK cancels a pending request when another one for the same
-   * record starts (the repositories pass the record id as the `requestKey`), so
-   * two overlapping upserts abort each other and the store rolls the loser back.
-   * A microtask-queued drain merges everything raised in one tick into a single
-   * write, which is the same fix the database host carries.
-   */
-  const pendingPatches = useRef<Partial<CollectionContent>[]>([]);
-  const draining = useRef(false);
-  const drainScheduled = useRef(false);
-
-  const drainWrites = useCallback(async () => {
-    if (draining.current) return;
-    draining.current = true;
-    try {
-      while (pendingPatches.current.length > 0) {
-        const merged = Object.assign(
-          {},
-          ...pendingPatches.current.splice(0),
-        ) as Partial<CollectionContent>;
-        const current = liveContent();
-        try {
-          await NodeService.upsert(node.id, {
-            content: { ...current, ...merged },
-          });
-        } catch (error) {
-          console.error(
-            "[CollectionNodeContent] Failed to persist collection content",
-            error,
-          );
-        }
-      }
-    } finally {
-      draining.current = false;
-    }
-  }, [liveContent, node.id]);
-
-  const patchContent = useCallback(
-    (patch: Partial<CollectionContent>) => {
-      pendingPatches.current.push(patch);
-      if (draining.current || drainScheduled.current) return;
-      drainScheduled.current = true;
-      queueMicrotask(() => {
-        drainScheduled.current = false;
-        void drainWrites();
-      });
-    },
-    [drainWrites],
+  const { patchContent } = useNodeContentWriter<CollectionContent>(
+    node.id,
+    "collection",
+    node.content,
   );
 
   const handleViewsChange = useCallback(

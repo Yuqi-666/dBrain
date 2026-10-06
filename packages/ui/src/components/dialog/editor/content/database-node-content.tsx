@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   DatabaseCell,
   DatabaseContent,
@@ -15,9 +15,10 @@ import {
   databaseToDataViewSource,
   type OpenRecordOptions,
 } from "@workspace/dataview";
-import { NodeService } from "@workspace/services";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
+
+import { useNodeContentWriter } from "./use-node-content-writer";
 
 interface DatabaseNodeContentProps {
   node: DatabaseNodeData;
@@ -37,22 +38,10 @@ interface DatabaseNodeContentProps {
  * component's live data and write path, so it lives with the node content rather
  * than inside the data view shell.
  *
- * Two rules make that persistence safe, and both are load-bearing:
- *
- * 1. **Patch the freshest content, never the render's copy.** One gesture can
- *    report two changes (adding a field writes its column config _and_ the
- *    field), and a patch built from a snapshot taken before the first write
- *    silently drops it. Every handler therefore reads the node back from the
- *    store through {@link liveContent}; `NodeService.upsert` updates the store
- *    optimistically and synchronously, so the second read sees the first write.
- * 2. **Serialize the writes.** Two writes for the same node must never be in
- *    flight together: PocketBase's SDK cancels a pending request when another
- *    one for the same record starts (the repositories pass the record id as the
- *    `requestKey`), which used to abort the first half of a gesture and roll the
- *    store back — the new row of an empty table flashed and vanished with
- *    `TRPCClientError: The request was aborted (most likely autocancelled…)`.
- *    A microtask-queued drain merges every patch raised in the same tick into a
- *    single upsert, then awaits it before sending the next.
+ * The two rules that make that persistence safe — patch the freshest content,
+ * never the render's snapshot; serialize the writes — live with the shared
+ * writer (`./use-node-content-writer`), which every handler here goes through.
+ * This file must never build a content patch from this render's `node.content`.
  */
 export function DatabaseNodeContent({
   node,
@@ -65,55 +54,10 @@ export function DatabaseNodeContent({
     [content, node.id, node.title],
   );
 
-  const liveContent = useCallback((): DatabaseContent => {
-    const live = useDataStore.getState().nodes.get(node.id);
-    return live?.nodeType === "database" ? live.content : node.content;
-  }, [node.content, node.id]);
-
-  /** Patches queued for the current drain; merged one write at a time. */
-  const pendingPatches = useRef<Partial<DatabaseContent>[]>([]);
-  const draining = useRef(false);
-  const drainScheduled = useRef(false);
-
-  const drainWrites = useCallback(async () => {
-    if (draining.current) return;
-    draining.current = true;
-    try {
-      // Re-checks the queue every round, so a patch raised while a write is in
-      // flight is picked up instead of being left to a later gesture.
-      while (pendingPatches.current.length > 0) {
-        const merged = Object.assign(
-          {},
-          ...pendingPatches.current.splice(0),
-        ) as Partial<DatabaseContent>;
-        const current = liveContent();
-        try {
-          await NodeService.upsert(node.id, {
-            content: { ...current, ...merged },
-          });
-        } catch (error) {
-          console.error(
-            "[DatabaseNodeContent] Failed to persist database content",
-            error,
-          );
-        }
-      }
-    } finally {
-      draining.current = false;
-    }
-  }, [liveContent, node.id]);
-
-  const patchContent = useCallback(
-    (patch: Partial<DatabaseContent>) => {
-      pendingPatches.current.push(patch);
-      if (draining.current || drainScheduled.current) return;
-      drainScheduled.current = true;
-      queueMicrotask(() => {
-        drainScheduled.current = false;
-        void drainWrites();
-      });
-    },
-    [drainWrites],
+  const { liveContent, patchContent } = useNodeContentWriter<DatabaseContent>(
+    node.id,
+    "database",
+    node.content,
   );
 
   const handleViewsChange = useCallback(
