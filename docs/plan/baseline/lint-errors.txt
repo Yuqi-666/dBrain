@@ -23,4 +23,4 @@
 1× @workspace/infrastructure: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
 1× @workspace/interfaces: ✖ 3 problems (0 errors, 3 warnings)
 1× @workspace/store: ✖ 5 problems (0 errors, 5 warnings)
-1× @workspace/ui: ✖ 28 problems (0 errors, 28 warnings)
+1× @workspace/ui: ✖ 26 problems (0 errors, 26 warnings)

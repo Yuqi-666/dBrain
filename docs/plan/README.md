@@ -1,6 +1,6 @@
 # 执行总纲：五份设计文档的落地计划
 
-> 状态：**进行中**（M0 / M0.1 已过闸，M1 开工）
+> 状态：**进行中**（G0 / G0.1 / G1 / G2 已过闸；M3 已实现、**待测** —— 见 [gates.md](./gates.md)）
 > 范围：`docs/proposal/` 的六份提案 → `docs/{dynamic-island,node-content,dashboard}/` 的五份设计文档，共 13 个里程碑
 > 依赖：五份设计文档（执行期间视为**冻结契约**）；本机既有 `pb/pb_data`（**不得删库**）
 > 相关文档：[gates.md](./gates.md)（闸门台账）、[baseline.md](./baseline.md)（回归基线）、[spine.md](./spine.md)、[node-content-ui.md](./node-content-ui.md)、[annotation.md](./annotation.md)、[media.md](./media.md)、[dynamic-island.md](./dynamic-island.md)、[dashboard.md](./dashboard.md)
@@ -310,6 +310,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | R36 | W1 的冻结清单具体化：**先落 `file-drop-zone.tsx` 的 `Variant` 两行**（否则 W1-A 的 `media-drop-pane` 用 `variant="cover"` 编不过）；M3 **不开**并行窗口，编辑器与只读渲染器同 owner | 总纲 §3.2 原话只说「先冻结 `node-media/` 导出」，粒度不够：`Variant` 是 W1-A 的编译前提；editor 侧两个文件共享同一份 schema/扩展集，拆开必然漂移 | 本 README §3.2                                    |
 | R37 | **新增 M0.1 子章**：浏览器侧后端地址改为**按 origin 解析**（回环仍走 `localhost:3001`/`localhost:8090`，非回环走同域 `/trpc` 与 `/pb`）；宿主 nginx 负责把这两条路由到本机端口 | M0/G0 实测发现应用**在反向代理下不可用**：`ws://localhost:3001`（`packages/api-client/src/trpc/client.ts:32`）与 `http://localhost:8090`（`apps/web/app/providers.tsx:15`）是**硬编码回环**，而用户浏览器是从 `https://dev.yuqi-666.cn`（宿主 openresty → 容器 `:3000`）访问的 ⇒ 浏览器里的 `localhost` 是用户自己的机器。这不是本轮功能需求，而是**所有浏览器闸门（G1–G13）的前置**：不修则每个闸门都只能由主 agent 用 curl 代验，用户无法实测手感。按 §6.3「允许把该章拆出 `M<n>.1` 子章并单独过闸」处理 | [§10 风险表](#10-风险登记)、dynamic-island/media/annotation 等**所有**需要用户肉眼的闸门 |
 | R38 | **M1 顺手修 `apps/server/tsconfig.json`**：补 `@workspace/interfaces` / `@workspace/utils` 的 `paths`；`baseline.sh` 加**第三类归一化**（抹掉 `(line,col)`、保留出现次数，快照改成 `N× <错误>`）；`baseline.md` 与基线快照随 M1 收口重采 | ① M1 只改 12 行代码，`server:` 段就涌出 12 条「新增」——全是 `apps/server` 解析不到 `@workspace/interfaces`（它的 `paths` 里有 domain/application/infrastructure/adapter-*，**唯独漏了 interfaces/utils**）造成的次生错误；补上后该段**一次归零**（46 条消失、`server` 任务转绿），`server` 从此是**真哨兵**。② 里程碑编辑一个本身带基线错误的文件时行号必然漂移（M1 实测 9 删 10 增），属纯位置噪声 | [baseline.md §0 缺陷 4 / §1.1 类③](./baseline.md#0-为什么需要基线三个既存缺陷1-个-m1-顺手修掉的噪声源) |
+| R39 | **M3 的两处口径落地**：① nc §2 表格第 1 行的「cover 空则不占位」实现为**标题行右端的 compact「添加封面」按钮**（不画灰块，但不留成"没有入口"——方案 A 已把对话框头部的封面按钮对 rich-text 隐藏，若严格不占位则该类型永远加不了封面）；② §M3.2-2 方案 A 的范围**只覆盖图标/封面**，rich-text 的 `title` 仍在对话框头部保留（`editor-header.tsx` 只对 `CONTENT_OWNED_HEADER_TYPES` 隐藏 icon/cover 按钮），因此 rich-text 会出现两个标题输入框、写同一份 `nodes.title` —— 是否也收口由 **G3 第 6 条**判定后再回填本行 | ① 设计文档只写了「空则不占位」，没说入口放哪；把入口塞进封面段会造出一个空灰块，塞进 title 行是唯一不增加新段落位置的做法。② M3.5-3 的回归面明写 `NodeTitle`（`node-title.tsx:21-30`）行为照旧，M3 不擅自扩大收口范围 | node-content §2（表格第 1 行）、本 README §3.2 |
 
 ---
 

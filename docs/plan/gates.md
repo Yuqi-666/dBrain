@@ -24,7 +24,7 @@
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
-| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
+| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 待测 | 1    | 2026-10-06 | 见 §5 |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
@@ -339,6 +339,51 @@
   6. **最近使用 `dbrain:icon-recent` 未做**（sel §5 标 P2），仅在文件 JSDoc 留了落点。
   7. **其余弹层在模态对话框里仍滚不动**：`react-remove-scroll` 只放行落在 Radix Dialog shard 内的事件，任何仍 portal 到 `document.body` 的 `PopoverContent`（dataview 的字段 / 筛选面板、tag-list 等）在窗口模式下都受同一限制。本轮只让**媒体弹层** opt-in（`container` 透传），因为全局改会把 filter / view 对话框里那些弹层从「滚不动」换成「被裁切」。要收掉这条得逐个确认宿主对话框不是滚动容器。
 - 用户结论：**通过**（2026-10-06，用户回复「G2全通过」）。本章 7 条遗留不阻塞项全部转入后续章节，不阻塞 M3 开工。
+
+### G3 — M3 text 单块 + rich-text 头部
+
+- 状态：**待测**（第 1 轮；自检 + 20/20 真浏览器探针全绿）
+- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）
+- 自检：
+  - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅
+  - **lint diff**：**0 新增 / 2 消失** ✅ —— `@workspace/ui` 28 → 26 problems（旧 `rich-text-node-content.tsx` 的 `cn` 与 `className` 两个 `no-unused-vars` 随重写消失，`pnpm eslint --stdin` 对 HEAD 版本复现过），`@workspace/editor` 仍是 **106 problems (67 errors, 39 warnings)** 与基线同数、**M3 新文件零 error**；基线已按脚本提示重采（`--accept`），所以现在两段都是 `0 新增 / 0 消失`
+  - **越界检查**：`git status --short` 全程只有 §M3.1 白名单内的文件 + `use-node-content-writer.ts`（登记见下）；`backend/**`、`packages/interfaces`、`pb/**`、`preview-block/**`、`apps/**`、`package.json`/lockfile 均未触碰；**零新依赖**
+  - **`globals.css` 的 `@source` 未改**：M3.1 第 8 行是「按需」项，落码后按 §M3.2-3 的结论把 Tailwind 类全部放在 `packages/ui` 侧（禅意容器在 `text-node-content.tsx`），`packages/editor` 侧只有结构 + 自己的 SCSS ⇒ 该行**未触发**。已实测域名侧编译产物里有 `max-w-\[42rem\]`（`packages_ui_src_styles_globals_css_*.single.css`），且新 SCSS 被 dev server 编成独立 chunk
+  - **白名单登记（§M3.1 表格漏列的一行）**：`use-node-content-writer.ts` 是 M1 的交付文件，M3 必须扩它才能满足 §M3.2-10「`patchNode` 与 `useNodeContentWriter` 共用同一个 drain」——第 6 行的描述点明了这件事，但白名单只列了 `rich-text-node-content.tsx`。改动是**纯增量**：`+patchNode(top-level patch)`、`+` 写前 `cancelPendingUpdate(nodeId)`（被 debounce 的旧 payload 是本次写入的严格子集，留着它只会在稍后把新值覆盖回旧副本），`patchContent` 的语义逐字不变，database / collection 两个既有宿主零改动
+- 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)。**按实测调整 8 处**（开头前置说明），其中两条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面。
+- **主 agent 预跑证据（真浏览器探针 20/20）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真组件**（`TextNodeContent` / `NodeContentHeader` / `SingleBlockRenderer` / `useNodeContentWriter` + 真模态 `Dialog`）+ **真编译 CSS**（dev server 编出的 Tailwind globals + 新的 single-block SCSS 两份产物拼起来），数据层换成行为等价的 stub（`upsert` 乐观同步落 store、网络调用是 await、单次 25ms），所有输入都是 CDP 的**受信任**事件：
+  ```
+  ✓ ① 探针页挂载（真 TextNodeContent / Header / Renderer / Writer + 真 CSS）
+  ✓ ② 禅意排版落在 ui 侧：text-align=center、font-size=24px(text-2xl)、max-width=672px(42rem)、padding-top=64px(py-16)
+  ✓ ③ 编辑器铺满整块内容盒：editable 472px / host 600px（点击区不是只有一行字）
+  ✓ ④ 空文档占位文案「写下这句话…」由新 SCSS 规则给出（不依赖 paragraph-node.scss 是否被加载）
+  ✓ ⑤ 点内容盒中部（留白处）即聚焦编辑器：activeElement = .tiptap.ProseMirror.single-block-editor
+  ✓ ⑥ Enter 不新建块：输入「第一行」+ Enter + 「第二行」后 DOM 顶层仍只有 1 个 <p>，两行都在
+  ✓ ⑦ 反向对照：往 DOM 注入第二个 <p> 时计数确实读到 2（第 ⑥ 条不是空过）
+  ✓ ⑧ Mod-A + Mod-B 后落库 docs = {type:"doc",content:[{type:"paragraph",attrs:{textAlign:null},content:[{type:"text",marks:[{type:"bold"}],text:"第一行第二行"}]}]}（编辑器→写者→upsert 全链路）
+  ✓ ⑨ 焦点在编辑器内时按 Esc，外层 Radix Dialog 仍关闭（探针确认 dialogMounted=true → stillOpen=false）。**事实记录**：Esc 会被 ProseMirror 的 keymap `preventDefault`（栈落在 `editHandlers.keydown`），Radix 自己在 document 上也 `preventDefault` 一次；两者都只 preventDefault、不 stopPropagation，所以 Dialog 照常关（旧 `<Textarea>` 路径里 PM 不存在，此差异无用户可见后果）
+  ✓ ⑩ 合成 paste（DataTransfer "甲\n乙"）被 transformPasted 压平：仍只有 1 个 <p>，文本为「甲\n乙」（不落 hardBreak）
+  ✓ ⑪ 只读渲染器输出 <strong>只读渲染</strong> + white-space: pre-wrap
+  ✓ ⑪b 旧形状 {content:"旧文本"} 惰性升级：编辑器直接显示「旧文本」（不是 doc / [object Object] / 空白），且占位符不出现
+  ✓ ⑫ 头部五段顺序：icon → title → summary → semantic pill；空封面时入口是标题行右端的 compact 按钮（24px 高，不画灰块）
+  ✓ ⑬ 点 icon 位 → onPick → patchNode({icon}) 生效
+  ✓ ⑭ 有封面后封面段占位并排到最上（顺序随状态变化）
+  ✓ ⑮ 同一 tick 的 patchContent + patchNode 合并成**一次** upsert：{content:{docs:{v:1}}, title:"T1"}
+  ✓ ⑯ 连续写串行化：4 次写、任一时刻在飞请求数 = 1、无时间重叠（PB 同记录会互相 abort 的根因面）
+  ✓ ⑰ 顶层 patch 也走同一队列并落进 store（最后一次 title = "T2"）
+  ✓ ⑱ 卸载 flush：防抖窗口（400ms）内卸载编辑器，最后一次输入「末」仍落库
+  ✓ ⑲ 无未捕获报错
+  ```
+- 用户实测结果：（待填 —— 清单 12 条）
+- 失败项与归因：（待填）
+- 迭代：——
+- 遗留不阻塞项（初步，G3 通过后定稿）：
+  1. **`SingleBlockRenderer` 已落地但没有消费方**：预览浮层的文本预览用自己的 `text-preview.tsx`（M3 不碰 `preview-block/**`，§M3.2-9 已说明它自动生效），只读展示路径留给后续章节接。不是死代码风险（它是 §M3.1 第 2 行的交付物），但"什么时候接上去"要有人认领。
+  2. **rich-text 有两个标题输入框**：对话框头的 `NodeTitle`（debounced，走 store 调度器）+ 内容区头部的 title（走共享 drain）写的是同一份 `nodes.title`。两条路本轮已证明不互相覆盖（写者写前会取消同节点的 pending payload，而 payload 都是从乐观 store 取的），但输入框重复是观感问题——等 G3 第 6 条判定要不要收口。
+  3. **Esc 被 ProseMirror 的 keymap 消费（preventDefault）**：无用户可见后果（Dialog 照常关，探针 ⑨），但 §M3.2「编辑器不消费 Esc」的措辞按实测应改成「不 stopPropagation」。原因未追到具体 binding（Tiptap / PM 的源码里都没有 `"Escape"` 字面量），登记为已知事实。
+  4. **`@tiptap/starter-kit` 仍是 `packages/editor` 的 devDependency 却被运行时 import**：M3 沿用既有形态（`notion-like-editor.tsx:10` 早就如此），未动 manifest（动它要碰 lockfile，属主 agent 独占面）。是否提升为 `dependencies` 待定。
+  5. **`@tiptap/static-renderer` 未安装**：只读渲染用 `@tiptap/core` 的 `generateHTML`（3.22.4 已导出），符合 §M3.2-4；上游若把 static renderer 变成必需包，届时按 §5 账本增依赖。
+- 用户结论：（待填）
 
 ---
 
