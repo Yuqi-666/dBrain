@@ -175,7 +175,7 @@
 
 ### G1 — M1 数据脊柱
 
-- 状态：**待测**（第 1 轮；自检与主 agent 端到端预跑全绿）
+- 状态：**待测**（第 1 轮；自检 + 三条真机探针全绿）
 - 提交：`2b6bbf7`（interfaces 形状 + `null` 哨兵）→ `3a9b5ee`（domain）→ `357f59a`（迁移 + 基线第三类归一化）→ `4aec001` + `35af438`（application/DTO/tRPC + infra mapper）→ `153e6cf`（共享写者 + doc-normalize）→ `22fb180`（attributes-sidebar 修）→ `3d8c1a4`（清空哨兵写显式 `null`）→ `1d67b4d`（doc-normalize 空串）→ `b70eaaf`（apps/server paths + 基线重采）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 47 消失** ✅。消失的 47 条全是 `server:` 段噪声，根因是 `apps/server/tsconfig.json` 漏了 `@workspace/interfaces` / `@workspace/utils` 的 `paths`（见 R38）；补上后 `pnpm --filter=server typecheck` **零诊断**，全仓 `Tasks: 15 successful, 19 total`（`Failed:` 只剩 editor / interfaces / ui / web）。
@@ -183,7 +183,8 @@
   - **四个后端层 typecheck 全绿** ✅（domain / application / infrastructure / adapter-back / adapter-front；这是 M1 唯一的硬判据）。
   - **`@workspace/interfaces` 仍只剩环的那 1 条** ✅（M1 新增两个文件 + 若干 barrel 导出后未增）。
   - **迁移**：`./pb/pocketbase migrate up` → `Applied 1700000001_node_extras.js`，`nodes` 字段 32 → 36；`printf 'y\n' | ./pb/pocketbase migrate down 1` → `Reverted …`，字段回到 32；再 `up` 回到 36 ✅（`down` 用的是 `removeByName`，真的能跑）。
-  - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是一条**真机端到端探针**（`tsx` 起真 `AppContainer` + 真 PocketBase），6/6 全过 —— 明细见「主 agent 预跑证据」。
+  - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是三条**真机探针**（`tsx` 起真 `AppContainer` + 真 PocketBase，不是 mock），全绿 —— 明细见「主 agent 预跑证据」：① 写路径/哨兵 6/6；② **既有 27 条数据的读路径 168/168**（覆盖库里现存的 9 种节点类型，正是 G1 第 3/7 条用户要打开的那批数据）；③ **半边合并 8/8**（拿 `database` / `rich-text` 两条**活**记录做同值写，证明另一半不被抹除，且落库快照零漂移）。
+  - **G1 第 3 条因此提前拿到硬证据**：`nodeQueryService.listByWorkspace` → `NodeMapper.toDomain` → `toNodeDTO` 对现有 `image ×6 / audio ×4 / website ×4 / text ×4 / pdf ×3 / video ×3 / database ×1 / rich-text ×1 / webpage ×1` 全部无抛错、无 `null` 哨兵泄漏、`getById` 与 `list` 逐字段一致（时间戳除外，见遗留 2）。
 - 用户操作清单：见 [spine.md §M1.4](./spine.md#m14-闸门-g1--用户操作清单)。**按实测调整三处**：
   1. 第 1/2 条**已经由主 agent 代跑并留证**（迁移已应用、四列已在）；你只需在 PB 后台复核一眼。
   2. 第 3/8/9 条**不要用 text 节点**：库里的 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞在 `content` 的**字符串**里，打开会显示 `{` —— 这是 seeder 的形状，不是 M1 引入的；M3 的 `normalizeDoc` 才会修它。请改用 **image / audio / pdf** 节点（它们的数据是好的）。
@@ -202,11 +203,30 @@
   6) read-path DTO keys = {"hasIcon":true,"hasCover":true,"hasAnnotations":true}
   ```
   第 4 步第一次跑时**失败**（`icon` 没清掉）：domain 的 `clearIcon()` 是正确的，但 `toRecord` 写的是 `icon: node.icon`（清空后为 `undefined`），PB 的 `update` 是**部分更新** ⇒ 缺键 = 保留旧值。修法是 `icon: node.icon ?? null` / `cover: node.cover ?? null`（提交 `3d8c1a4`），并立了反向规矩：`annotations` / `timestampNotes` **不许**改成 `?? null`（半边合并依赖「缺键保留」）。已登记 [README §10 风险表](./README.md#10-风险登记)。
+
+  探针 #2（`apps/server/src/__m1-readpath.ts`，跑完即删）—— **既有数据的读路径**，喂的是真库里的 27 条：
+  ```
+  每条节点断言：id/title/permission、tags[]/isPinned、时间戳可解析、
+                icon/cover 无 null 哨兵、该类型的 content 键齐全、getById ≡ list（不含时间戳）
+  类型分布：audio 4 · database 1 · image 6 · pdf 3 · rich-text 1 · text 4 · video 3 · webpage 1 · website 4
+  === 结果：168 通过 / 0 失败 ===
+  [已知缺陷·不计失败] 时间戳跨读取漂移：27/27 个节点两次读取的 createdAt/updatedAt 不同
+  ```
+  探针 #3（`apps/server/src/__m1-halfmerge.ts`，跑完即删）—— **半边合并在活数据上**（同值写 = 无副作用；先 REST 拍快照，有漂移就原样恢复）：
+  ```
+  ✓ database(Component Inventory) · 前置：views 非空 / fields·rows 非空
+  ✓ database · 单元格写（**故意不带 views**）后 views 仍在        ← 第 7 条「表格改单元格」的后端面
+  ✓ database · 单元格写后 fields/rows 长度不变
+  ✓ rich-text(Frontend Architecture) · 只写 docs 后 referencedNodes 仍在   ← 半边拆分的回归点
+  ✓ database · 改标题（同值）后 content 未变
+  ✓ database / rich-text · 落库快照零漂移（moved=∅，无需恢复）
+  === 结果：8 通过 / 0 失败 ===
+  ```
 - 失败项与归因：暂无（用户实测前）
 - 迭代：——
 - 遗留不阻塞项：
   1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键，`createNode` 也不透传 `annotations` / `timestampNotes`。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
-  2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。
+  2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。探针 #2 给出实测口径：**27/27 条节点的两次读取时间戳都不同**（同一进程内相隔 10ms 的 `list` 与 `getById`），所以「按更新时间排序」今天恒等于「随机序」；这条不是 G1 的失败项，但它是 M12 的硬前提。
   3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
   4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
 - 用户结论：**待填**
