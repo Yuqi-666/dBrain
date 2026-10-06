@@ -105,6 +105,14 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 
 入口统一：`pnpm dev:full` → PocketBase 后台 `http://127.0.0.1:8090/_/`、web `http://localhost:3000/graph`（需已登录；未登录跳 `/login`）。dev 下首次进会 seed 演示数据（`apps/web/app/(main)/graph/page.tsx:44-46`）；**seed 里没有 `collection` 节点**（`packages/dev/src/MOCK/demo-data.ts` 的 25 条 seed 里 `grep -c 'nodeType: "collection"'` = 0，已核），集合节点按第 6 条现建。所有「Network 面板」类证据都把过滤器设成 `node.update` 这一条请求。
 
+> **按本机实测调整的口径（2026-10-06，与 G1 同一套环境）**
+>
+> 1. **入口走同域**，不要用回环：web `https://dev.yuqi-666.cn/graph`，PB 后台 `https://dev.yuqi-666.cn/pb/_/`（`admin@dbrain.dev`，密码在 gitignored 的 `pb/pb_data/.superuser-credentials.txt`）。`127.0.0.1:8090` 是主 agent 这台机器的回环，不在你的浏览器那侧。
+> 2. **第 1 条改用一个 image 节点**（例如「System Architecture Diagram」）：判定面是**编辑器头部**，与正文无关；而 seed 的 `text` 节点正文是坏形状（`docs = null`、正文塞在 `content` 里），打开会显示 `{`（seeder 的形状，M3 的 `normalizeDoc` 才修）。M1 留下的两条 `M1 自检 · image/audio（可删）` 探针节点也还在，可随手用或删。
+> 3. **第 10 条是 `container` 透传的唯一判据**：两种宿主形态（窗口 / 全屏）各开一次弹层，**只有实测发现被裁切或偏移错误**时才由主 agent 去改 `ui/popover.tsx`（那属主 agent 独占的 shadcn 基座）；默认 portal 够用就不动。
+> 4. **两条已知偏差，不算失败**：① 设计文档 §2 骨架图底部的**分类条**没做（扁平网格 + 类名并入关键词，搜「食物」仍命中）；② `MediaGrid` 的 `aria-selected` 由 cmdk 掌握、不与 roving 焦点同步 —— 第 11 条只判「`Tab` 能正常遍历、网格不是 300 个 tab stop」。
+> 5. 第 4 条需要一个**本地图片文件**；第 6 条要现建一个 collection 节点（seed 里没有）。
+
 | #   | 用户做什么（具体入口）                                                                                                                                          | 期望                                                                                                          | 判据或证据                                                                                                                     | 失败先看哪                                                                     |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | 1   | `/graph` → **双击**节点「Backend Services」（text，`demo-data.ts:86`；双击进编辑器由 `packages/graph/src/eventHandler.ts:172-176` 的 `node:dblclick` → `handleNodeEdit` 保证） → 看编辑器头部标题**左侧** | 出现一个 36×36 图标位，空态画的是 text 的类型图标；点开弹层，焦点已在搜索框                                    | 截图；`document.activeElement` 是搜索输入框                                                                                     | `editor-header.tsx:42-44` 的中间组；`node-icon-button.tsx` 的默认触发器         |

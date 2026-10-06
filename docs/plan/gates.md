@@ -23,7 +23,7 @@
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
+| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 1    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -36,12 +36,12 @@
 | G12  | M12 selectors P2 收尾      | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G13  | M13 dashboard P2+P3        | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
 
-**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启**（G1 通过 + 冻结已提交，见下）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
+**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启并已关闭**（2026-10-06：四路全部交付、复核通过、四条提交落地，见 §5 G2）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
 
 | 窗口 | 章        | 开启前提（必须已落地）                                                        | 登记状态 |
 | ---- | --------- | ----------------------------------------------------------------------------- | -------- |
 | W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | 未开启   |
-| W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已开启**（2026-10-06） |
+| W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已关闭**（2026-10-06；四路交付 + 四条提交） |
 | W2   | M5        | 主 agent 冻结 `annotation/types.ts` 与 `geometry.ts` 签名（另独占 `annotation-layer.tsx`） | 未开启   |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
@@ -263,3 +263,43 @@
   3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
   4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
 - 用户结论：**「g1通过」**（2026-10-06）。据此判定 `通过`；三条通过判据：① 10 条清单由用户整体判定通过（后端 6 条另有主 agent 探针证据）；② `bash docs/plan/baseline.sh` 两段均 0 新增；③ 回归面（`/graph` 可用性、dataview 七视图、四后端层 typecheck）无退化。⇒ **M2 开工前提已满足**，W1 窗口随之开启（见 §1 并行窗口登记）。
+
+### G2 — M2 图标与封面
+
+- 状态：**待测**（第 1 轮；自检全绿 + 主 agent 的 M2 写路径探针 13/13）
+- 提交：`17ab977`（主 agent 冻结：`NodeIconViewProps` / `media/**` 五原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody` / `NODE_TYPE_ICONS` 单一真源）→ `f4801bd`（§M2.3-3 preview-block 抽取）→ `18fbcfc`（§M2.3-2 file-drop-zone 变体 + R4 半边合并）→ `a3dc123`（§M2.3-1 node-media 骨架 + `IconSelectorPopover`）→ `92229f7`（§M2.3-4 `CoverSelectorPopover` + 编辑器头部两按钮）
+- 自检：
+  - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅；`pnpm --filter=@workspace/ui typecheck` = **76 error**，与基线同数，且全部仍落在 `../editor/**`（非 editor 命中 **0**）。
+  - **lint diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅；`pnpm --filter=@workspace/ui lint` = **28 problems / 0 error / 28 warning**，与基线同数。
+  - **验收 grep**：`grep -rn "NodePreviewBody" packages/ui/src` = **5 命中**（定义 / JSDoc / index 导出 / preview-block 的 import+使用）；`grep -rn "nodeTypeIcons" packages/ui/src` = **0 命中**（本地表已删净）；`grep -c "lucide-react" icon-selector-popover.tsx` = **1**（只剩 UI 用的 `Ban`/`SmilePlus`，无第二份图标名表）。
+  - **越界检查**：`git status --short` 全程只有 §M2.1 白名单内的文件（`node-media/**`、`preview-block/**`、`file-drop-zone.tsx`、`editor-header/*`）；`ui/**`、`backend/**`、`packages/interfaces`、`packages/graph`、`packages/dataview`、`package.json` 均未触碰，**零新依赖**。
+  - **格式化**：三个新/改文件（`cover-selector-popover.tsx` / `node-icon-view.tsx` / `media-url-row.tsx`）已过 `prettier --check`。既有文件 `attributes-sidebar.tsx` / `options-menu.tsx` / `pin-button.tsx` 有 prettier 漂移，但它们在 HEAD 里就这样（M2 未碰）。
+  - **写路径探针**（`apps/server/src/__m2-probe.ts`，跑完即删；真 `AppContainer` + 真 tRPC router + 真 PocketBase，动过的探针节点已从 REST 快照恢复）：**13/13 通过**
+    ```
+    ✓ cover {kind:"image"} 落库，且没动 content / annotations      ← 第 6 条
+    ✓ cover {kind:"node"} 落库；DTO 读回仍是 {kind:"node"}（未被 zod / mapper 改写）  ← 第 7 条②
+    ✓ icon 三键（kind/value/color）落库
+    ✓ 上传替换 kind/value 后 color 仍在（「换图但保留底色」）        ← 第 5 条
+    ✓ 写 icon 没动 cover / content
+    ✓ {cover:null} 落库为 null；DTO 读回 undefined                 ← 第 7 条①
+    ✓ 恢复后快照零漂移
+    ```
+- 并行窗口 **W1**（已关闭，四路 owner 与白名单见 §1）：
+
+  | 路 | 交付 | 主 agent 复核 |
+  | -- | ---- | ------------- |
+  | W1-A | `node-icon-view.tsx`（四段回落链 + 168 条精选 Lucide 表 `LUCIDE_ICON_ENTRIES`/`LUCIDE_ICON_SET`）、`emoji-set.ts`（8 类 × 46 = 368）、`media/**` 五原子件；`MediaGrid` 的 roving tabindex 用 `useCommandState(search)` 重同步“唯一 tab stop” | 通过。**决策**：精选表留在 `node-icon-view.tsx`（不另拆 `lucide-set.ts`，纯搬运无收益）；`className` 定盒不定字形的约定由 `preview-header`/`node-icon-button` 的传参遵守 |
+  | W1-B | `file-drop-zone.tsx`：`DisplayFieldDropZone` 真实现（只写顶层字段）、三 helper 退化为纯 patch、`writeContentPatch` 在 **await 之后**读活 content 再合并 | 通过，**但修掉一个缺陷**：icon 上传会重置已有 `color`，改为 `{ ...liveIcon, kind:"image", value }`（sel §7「换图但保留底色」是不变式）；`cover` 侧不合并（`{kind:"image"}` 无其他字段，展入 `{kind:"node"}` 会造出非法联合成员） |
+  | W1-C | R1 抽取 `NodePreviewBody`（十路 dispatch 原样搬移）；`preview-header`/`node-preview-cover` 改读 `icon`/`cover`；`resolveCover()` 深度上限 1 的环保护 | 通过。逐处推演过 `A→A` / `A→B→A` / `A→B(image)` / `A→B(无 cover)` / 无 `resolveNode` 五种情形，均不递归；定位、`Esc`、`isFocus`、`data-preview-block` 未动 |
+  | W1-D | `icon-selector-popover.tsx`：三 tab + 色板（8 色 + 无）+ 移除 + `aria-disabled` + 错误条，props 与 sel §4 逐字段一致 | 通过，**退回一处**：它自带第二份图标名表（~75 条），已改为消费 `LUCIDE_ICON_ENTRIES`（否则选中不在 A 表里的名字会静默回落，直接威胁第 3 条） |
+- 用户操作清单：见 [node-content-ui.md §M2.4](./node-content-ui.md#m24-闸门-g2--用户操作清单)。**按实测调整几处**（入口改同域、可用节点、已知偏差）——见该节开头的前置说明。
+- 失败项与归因：暂无（用户实测前）
+- 迭代：——
+- 遗留不阻塞项：
+  1. **分类条 / 每分类 `CommandGroup` 未做**：设计文档 §2 的骨架图底部画了分类条，但本计划的 W1-D 验收条款与 G2 的 13 条都不含它；当前是扁平网格 + 把类名并入 `keywords`（搜「食物」仍命中）。要与骨架图完全一致需扩 `MediaGrid`（新增一条 `CommandGroup` + 滚动锚），由后续章节或用户反馈决定。
+  2. **`MediaGrid` 的 `aria-selected` 由 cmdk 掌握**，无法与 roving 焦点同步（cmdk 未暴露 setter）。可见的焦点环与 `data-media-active` 高亮跟 roving 走，G2 第 11 条只判 tab 遍历与「不是 300 个 tab stop」，不受影响。要彻底同步得放弃 cmdk 过滤或给 shell 加受控 `value`。
+  3. **`PopoverContent` 的 `container` 透传未做**（§M2.1 第 7 行标「按需」）：等 G2 第 10 条实测两种宿主形态后再定，届时若需要则属主 agent 独占的 shadcn 基座改动。
+  4. **`webpage-source` 仍整份替换 `content`**：`WebpageContent` 今天只有 `code`/`language`，合并在行为上是 no-op，按 §M2.5-1「语义逐字不变」保留原样。
+  5. **`listNodes(query)` 只被调用一次（空串）**：`从节点选` 的首屏由宿主给最近节点、过滤交给 `Command`；逐键回源查询需要 shell 暴露搜索串（`media-popover-shell.tsx` 拥有那个 `Command`），标为 P2。
+  6. **最近使用 `dbrain:icon-recent` 未做**（sel §5 标 P2），仅在文件 JSDoc 留了落点。
+- 用户结论：**待填**
