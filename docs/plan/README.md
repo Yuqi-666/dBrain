@@ -42,7 +42,6 @@
 | **M3** | text 单 block（禅意）+ rich-text 头部挂载 + 旧形状惰性升级                        | node-content:P1                                | M1、M2      | G3   | 否   | 否                  |
 | **M4** | 灵动岛 P0：常驻胶囊 + 四层视觉 + 弹簧形变 + 导航面板 + `islandPanel` 切片          | dynamic-island:P0                              | M0          | G4   | 否   | `motion ^12`        |
 | **M5** | image 批注：归一化坐标 + Canvas 2D 分层 + 画笔/手指示意分离 + toolbar + 撤销/重做  | annotation:P0（除字段链路）                    | M1          | G5   | 否   | `perfect-freehand`  |
-| **M5.1** | image 照片编辑：`imageEdits` 配方列 + `react-easy-crop` 裁剪面 + 纯函数烘焙（旋转/翻转/裁剪/长边）+ 一次 upsert 写回（**原图永不覆盖**）+ 批注随动 + 恢复原图 | node-content `## image`（照片编辑） | M5 | G5.1 | **是** | `react-easy-crop` |
 | **M6** | 媒体：自绘音频播放器 + `<VideoPlayer>` 控件外壳 + 共享时间戳笔记 + `Mod-Enter` 跳转 | node-content:P2（audio/video 半）              | M1          | G6   | 否   | 否                  |
 | **M7** | PDF：pdfjs 自绘（页盒/翻页/缩放/旋转）+ 多页批注层 + iframe 降级                  | annotation:P1、node-content:P3                 | M5          | G7   | 否   | `pdfjs-dist ^4.10`  |
 | **M8** | 灵动岛 P1：预览面板（节点悬停/点击）+ `ForceGraph` 去掉浮层                       | dynamic-island:P1（抽取已移 M2，R1）           | M4、M2      | G8   | 否   | 否                  |
@@ -54,7 +53,7 @@
 
 **只有两个里程碑动后端**：M1（`nodes` 加列，三份设计文档的字段链路合并，R3）与 M11（`dashboard_pages` 新集合）。其余里程碑一律不碰 `backend/`、`packages/interfaces` 的形状、`pb/pb_migrations`。
 
-**执行顺序**：M0 → M1 是硬串行（M1 是三份文档的共同地基）；M4 是唯一的「可提前」里程碑（不依赖 M1，文件不重叠，见 §3.2 W0）；**M5 → M5.1 → M7 硬串行**（M5.1 与 M5 共用 `image-node-content.tsx`，同一文件同一时刻只有一个 owner；M7 会反向改写 `geometry.ts`，它的 image 回归面要在照片编辑到位之后再跑；annotation 文档 §6 明写 P1 会反向改写 P0 的 `geometry.ts` 接口）；M10 → M11 → M13 硬串行。
+**执行顺序**：M0 → M1 是硬串行（M1 是三份文档的共同地基）；M4 是唯一的「可提前」里程碑（不依赖 M1，文件不重叠，见 §3.2 W0）；M5 → M7 硬串行（annotation 文档 §6 明写 P1 会反向改写 P0 的 `geometry.ts` 接口）；M10 → M11 → M13 硬串行。
 
 ---
 
@@ -119,7 +118,7 @@
 
 | 文件                                                                     | 会被哪些里程碑碰                  | 处置                                                                 |
 | ------------------------------------------------------------------------ | --------------------------------- | -------------------------------------------------------------------- |
-| `packages/ui/package.json`                                               | M2、M4、M5、M5.1、M7、M10、M12    | **主 agent 在每章开工时一次装完**（§5），子 agent 禁止改               |
+| `packages/ui/package.json`                                               | M2、M4、M5、M7、M10、M12          | **主 agent 在每章开工时一次装完**（§5），子 agent 禁止改               |
 | `packages/ui/src/components/index.ts`                                    | M4（+导出）、M9（−QuickPanel 导出） | 主 agent 独占                                                       |
 | `packages/ui/src/styles/globals.css`                                     | M5（`--annotation-*`）等          | 主 agent 独占                                                       |
 | `packages/store/src/uiStore.ts`                                          | M4（+`islandPanel`）、M9（−`quickPanel`/死切片） | 主 agent 独占                                          |
@@ -127,13 +126,10 @@
 | `packages/ui/src/components/preview-block/**`                            | M2（`preview-header`、`node-preview-cover`、+`node-preview-body`）、M8（+预览面板挂载） | **M2 一次做完（R1）**，M8 只读 |
 | `packages/ui/src/components/dialog/editor/content/file-drop-zone.tsx`    | M1（半边合并）、M2（新 variant）  | **M2 一次做完（R4）**                                               |
 | `packages/ui/src/components/dialog/editor/content/node-content-editor.tsx` | M10（抽 `NodeBodyRouter`）        | M10 独占；M1 不动它                                                  |
-| `packages/ui/src/components/dialog/editor/content/image-node-content.tsx` | M5（内容盒 + 批注层 + `baseRect`）、M5.1（浮层入口 + 编辑器挂载 + 写回） | **M5 先、M5.1 后**（同一文件，串行；M5.1 开工前提是 G5 已通过）。M5.1 之后 M7 只复测、不改 |
-| `packages/ui/src/components/dialog/editor/content/use-node-content-writer.ts` | M1（新建）、M5/M6 消费          | M1 独占；M5.1 **不扩它的签名**（元数据写回单开一次 upsert，见 image-editor.md §0.3-2） |
-| `packages/interfaces/src/models/node/nodes/single/image.ts`              | M1（`annotations`）、M5.1（`imageEdits`） | 主 agent 独占；M5.1 是**显式解冻点**（§9 R39），改完立刻回冻       |
-| `packages/ui/src/components/header/editor-header/attributes-sidebar.tsx`  | M1（修「整包 content 抹除」，R13）、M5.1（image 改链接时清配方） | M1 独占；M5.1 只加 image 分支的一行 `imageEdits: null`（主 agent 做） |
+| `packages/ui/src/components/header/editor-header/attributes-sidebar.tsx`  | M1（修「整包 content 抹除」，R13） | M1 独占（M2 只加新按钮文件，M11 只改 `editor-header.tsx`）            |
 | `packages/ui/src/components/header/editor-header/**`（其余）              | M2（图标/封面按钮）、M11（添加到 dashboard） | M2 先、M11 后（可叠加，无冲突）                            |
 | `apps/web/app/(main)/layout.tsx`                                         | M4                                | 主 agent 独占                                                       |
-| `pb/pb_migrations/**`                                                    | M1、M5.1、M11                     | 主 agent 独占（§4）                                                  |
+| `pb/pb_migrations/**`                                                    | M1、M11                           | 主 agent 独占（§4）                                                  |
 
 ### 3.2 并行窗口（必须由主 agent 显式开启并登记到 gates.md）
 
@@ -147,9 +143,8 @@
 | W3   | M10 | dashboard 六个组件文件 ∥ 路由宿主与 store                                              | 主 agent 先冻结 `DashboardItem`/`DashboardLayout` 与 `dashboardStore` 切片 |
 | W4   | M13 | 组件库抽屉 ∥ 多页面管理 ∥ 迷你摘要 ∥ 性能收尾                                          | 主 agent 先冻结 `dashboard_pages` 的 tRPC 契约（M11 已落） |
 | W5   | M6 | `media/audio-player.tsx` ∥ `media/timestamp-notes.tsx` ∥ `video-player.tsx` 的 `onMediaController` 出口 | 主 agent 先冻结 `media/types.ts`（`MediaController` / `TimestampNoteMarks` / `formatTimeMs`）；该文件零 React 依赖，消费者不许反向 import 生产者 |
-| W6   | M5.1 | 三个 UI 面（`recipe.ts`+`bake.ts`+`encode.ts` ∥ `crop-surface.tsx` ∥ `image-editor.tsx`+`use-image-editor.ts`+`annotations.ts`）∥ 两个后端面（domain ∥ application+DTO+tRPC，另加不相交的 infra mapper） | 主 agent 先冻结 `interfaces` 的 `ImageEditRecipe`、`image-editor/types.ts` 与三个纯函数模块的签名，并跑通 `1700000002` 迁移；宿主 `image-node-content.tsx` 归主 agent，不进任何一路 |
 
-**不为并行开窗的章（明确登记，避免「看着像能并行」）**：**M7**（pdfjs 渲染 / 批注坐标链 / toolbar 三面都改 `geometry.ts` 或 `annotation-canvas.tsx`，文件集相交）；**M3**（`packages/editor` 的编辑器与渲染器共享同一 schema 文件）；**M5.1 的收口段**（宿主 `image-node-content.tsx` + `attributes-sidebar.tsx` 只由主 agent 改）。
+**不为并行开窗的章（明确登记，避免「看着像能并行」）**：**M7**（pdfjs 渲染 / 批注坐标链 / toolbar 三面都改 `geometry.ts` 或 `annotation-canvas.tsx`，文件集相交）；**M3**（`packages/editor` 的编辑器与渲染器共享同一 schema 文件）。
 
 **并行窗口的三条纪律**：① 同一文件同一时刻只有一个 owner；② 子 agent 发现需要改白名单外的文件 → 停下来问，不许自行扩权；③ 并行期间禁止任何 `pnpm add` / `pnpm install`（会重写 lockfile 与 `node_modules`，让另一条线的 `typecheck` 结果不可信）。
 
@@ -161,15 +156,12 @@
 
 > **M0 实测更正（2026-10-06）：`pb/pb_data/data.db` 里没有真实数据。** 直读 sqlite：`nodes` / `users` / `workspaces` / `workspace_members` / `edges` **全部 0 行**；`nodes` 集合已有 32 个字段（含 `views`/`fields`/`rows`/`filterConfig`）但无记录。初稿「有真实数据，删库会毁掉回归面」的**前提不成立**，删库的代价只有「重建 schema + 重新初始化 PB」。本轮仍**不删库**，理由改为下面第 1 条。另：PB 的超级管理员安装**从未完成**（`_superusers` 里只有 PocketBase 自己的 `__pbinstaller@example.com` 占位账号，带一个已打印到终端的 install token）——M0 已用 `pocketbase superuser upsert` 完成安装并删掉占位账号，账号 `admin@dbrain.dev`，密码落在 gitignored 的 `pb/pb_data/.superuser-credentials.txt`。
 
-本轮**只新增三个**迁移文件：
+本轮**只新增两个**迁移文件：
 
 | 序号         | 文件名                              | 内容                                                                     | 章   | 回滚（`down`）                        |
 | ------------ | ----------------------------------- | ------------------------------------------------------------------------ | ---- | ------------------------------------- |
 | `1700000001` | `1700000001_node_extras.js`         | `nodes` 加 `annotations` / `timestampNotes` / `icon` / `cover` 四个 json 列 | M1   | 对四个名字 `fields.removeByName` → save |
-| `1700000002` | `1700000002_node_image_edits.js`    | `nodes` 加 `imageEdits` json 列（照片编辑配方）                            | M5.1 | `fields.removeByName("imageEdits")` → save |
-| `1700000003` | `1700000003_dashboard_pages.js`     | 新集合 `dashboard_pages`（`{ workspaceId, name, isDefault, items, layout }`） | M11  | `app.delete(findCollectionByNameOrId("dashboard_pages"))` |
-
-> 编号与执行顺序一致（`1700000001` M1 → `1700000002` M5.1 → `1700000003` M11），R2 定的 `1700000002_dashboard_pages.js` 被 **R40** 顺延。PocketBase 只按文件名去重，所以即便将来某章提前落地也不会互相覆盖；但**按序编号**能让「迁移跑没跑」的排查只看一个数。
+| `1700000002` | `1700000002_dashboard_pages.js`     | 新集合 `dashboard_pages`（`{ workspaceId, name, isDefault, items, layout }`） | M11  | `app.delete(findCollectionByNameOrId("dashboard_pages"))` |
 
 三条硬规矩：
 
@@ -188,10 +180,9 @@
 | M2   | **+0**                | ——                   | 图标/封面选择器                  | `lucide-react@^0.577.0` 已在 `packages/ui`；P0 的 Emoji 是**内置精选集**，无网络无依赖 |
 | M4   | `motion`              | `^12`                | 岛的 `layout` 形变               | 必须确认 React 19 peer 与 Next 16 打包                            |
 | M5   | `perfect-freehand`    | `^1.2`               | 笔迹轮廓数学（唯一绘制依赖）      | **已在 store**：`@excalidraw/excalidraw@^0.18.1`（`packages/editor/package.json:11`）的传递依赖，`pnpm-lock.yaml:6703/:8532` 已锁 `1.2.0` → 不需要新下载，但 `packages/ui` 仍必须**显式声明**（否则是隐式依赖） |
-| M5.1 | `react-easy-crop`     | `^6.2.4`             | 照片编辑的裁剪面（比例 / 平移 / 缩放 / 旋转 / 触摸 / 键盘） | **与 M12 是同一个包**（总依赖数不增加）；M0 已核实 `6.2.4` 存在；MIT、gzip 7.2KB、React 19 peer 满足（`react >=16.4`）。装完立刻 `pnpm --filter=web build`（总纲 §10）。选型对比见 [node-content/image-editor.md §10](../node-content/image-editor.md) |
 | M7   | `pdfjs-dist`          | `^4.10`              | 客户端自绘 PDF + worker          | **store 已有 `4.10.38`**（见下），但 `packages/ui` 必须显式声明。**同 major 硬约束**：`backend/infrastructure/package.json:13` 锁 `^4.10.38`，不同 major 会出现两份 pdfjs。worker 主路径用 `GlobalWorkerOptions.workerPort`；**兜底需要 `apps/web/public/`，该目录今天不存在**（属跨包改动 → 主 agent 决策） |
 | M10  | `react-grid-layout`   | `^2.3.0`             | dashboard 网格                   | v2 才是 React 18+ 兼容线；需要 `useContainerWidth` / `verticalCompactor` |
-| M12  | `react-easy-crop`     | `^6.2.4`（M5.1 已装，本章**复用，不重复安装**） | 封面/图标裁剪                     | 与照片编辑共用同一个包与同一个 `bake.ts`（包内相对 import）；需确认与 `radix-ui` 弹层的指针事件不互斥 |
+| M12  | `react-easy-crop`     | 未定                 | 封面/图标裁剪                     | 需先确认与 `radix-ui` 弹层的指针事件不互斥                        |
 | M12  | `frimousse`           | 未定（可能不用）      | Emoji 全量面板（懒加载）          | 若不用则用内置精选集收尾                                          |
 
 **安装纪律**：每章开工第一步，主 agent 用 `pnpm --filter=@workspace/ui add ...` 一次装完并立即提交 lockfile；该章内不再动依赖。子 agent 禁止任何包管理命令。
@@ -319,9 +310,6 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | R36 | W1 的冻结清单具体化：**先落 `file-drop-zone.tsx` 的 `Variant` 两行**（否则 W1-A 的 `media-drop-pane` 用 `variant="cover"` 编不过）；M3 **不开**并行窗口，编辑器与只读渲染器同 owner | 总纲 §3.2 原话只说「先冻结 `node-media/` 导出」，粒度不够：`Variant` 是 W1-A 的编译前提；editor 侧两个文件共享同一份 schema/扩展集，拆开必然漂移 | 本 README §3.2                                    |
 | R37 | **新增 M0.1 子章**：浏览器侧后端地址改为**按 origin 解析**（回环仍走 `localhost:3001`/`localhost:8090`，非回环走同域 `/trpc` 与 `/pb`）；宿主 nginx 负责把这两条路由到本机端口 | M0/G0 实测发现应用**在反向代理下不可用**：`ws://localhost:3001`（`packages/api-client/src/trpc/client.ts:32`）与 `http://localhost:8090`（`apps/web/app/providers.tsx:15`）是**硬编码回环**，而用户浏览器是从 `https://dev.yuqi-666.cn`（宿主 openresty → 容器 `:3000`）访问的 ⇒ 浏览器里的 `localhost` 是用户自己的机器。这不是本轮功能需求，而是**所有浏览器闸门（G1–G13）的前置**：不修则每个闸门都只能由主 agent 用 curl 代验，用户无法实测手感。按 §6.3「允许把该章拆出 `M<n>.1` 子章并单独过闸」处理 | [§10 风险表](#10-风险登记)、dynamic-island/media/annotation 等**所有**需要用户肉眼的闸门 |
 | R38 | **M1 顺手修 `apps/server/tsconfig.json`**：补 `@workspace/interfaces` / `@workspace/utils` 的 `paths`；`baseline.sh` 加**第三类归一化**（抹掉 `(line,col)`、保留出现次数，快照改成 `N× <错误>`）；`baseline.md` 与基线快照随 M1 收口重采 | ① M1 只改 12 行代码，`server:` 段就涌出 12 条「新增」——全是 `apps/server` 解析不到 `@workspace/interfaces`（它的 `paths` 里有 domain/application/infrastructure/adapter-*，**唯独漏了 interfaces/utils**）造成的次生错误；补上后该段**一次归零**（46 条消失、`server` 任务转绿），`server` 从此是**真哨兵**。② 里程碑编辑一个本身带基线错误的文件时行号必然漂移（M1 实测 9 删 10 增），属纯位置噪声 | [baseline.md §0 缺陷 4 / §1.1 类③](./baseline.md#0-为什么需要基线三个既存缺陷1-个-m1-顺手修掉的噪声源) |
-| R39 | **新增 M5.1 子章（image 照片编辑）**：`nodes` 加第五个 json 列 `imageEdits` + `interfaces` 的 `ImageContent.imageEdits?: ImageEditRecipe \| null` + `react-easy-crop`；后端**第三次解冻**（M1 的六层再走一遍）；闸门 **G5.1** | ① [proposal/node-content-refine.md:17](../proposal/node-content-refine.md) 的 `## image` 行本来就写了「照片编辑」（与「批注」并列），而早期设计文档把它收窄成「照片编辑只到盒子/显示模式这一层」并在 §1.2 边界写「不做滤镜、裁剪、旋转写入文件」——**是文档缺口，不是需求变更**（用户 2026-10-06 明确要求补写）。② 它与 M5 共用 `image-node-content.tsx`（同一文件唯一 owner）且**共用批注的坐标基准**，所以必须在 M5 之后、M7 之前相邻落地（§6 的裁剪↔批注换算是两者共同的契约）。③ 若不新增列（「烘焙但不存配方」），会失去「恢复原图」与「再次编辑」，退路已写在 [node-content/image-editor.md §7](../node-content/image-editor.md) | node-content §1.2（边界行已改写）/§4.1/§4.2/§4.4/§5/§8、annotation §7 的范围行、本 README §1/§3/§4/§5 |
-| R40 | **迁移号顺延**：M5.1 占用 `1700000002_node_image_edits.js`；dashboard 从 R2 定的 `1700000002_dashboard_pages.js` 改为 **`1700000003_dashboard_pages.js`** | 编号与**执行顺序**一致（M1 → M5.1 → M11）后，「迁移跑没跑」的排查只看一个数；PB 按文件名去重，重排不会丢已应用的迁移 | 本 README §4、[dashboard.md §0.3-1/§M11](./dashboard.md) |
-| R41 | **破例修改设计文档正文一次**：按用户指令补写 [node-content/image-editor.md](../node-content/image-editor.md)，并修订 [node-content/README.md](../node-content/README.md) §1.2 / §4.1 / §4.2 / §4.4 / §5 / §8 与 [annotation.md](../node-content/annotation.md) 的范围行 | 与 §11-5「不改设计文档正文」冲突，但这是**需求被文档写窄**的修补（见 R39），不是执行中为了省事回改设计；此后仍按原规矩：设计文档只回填「待验证」，实现偏差一律进本表 | 本 README §11-5、node-content 三份文档 |
 
 ---
 
@@ -334,7 +322,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | 真机（一加平板 + 手写笔）不可用，批注手感无法验收                      | M5/G5                                      | 先按 R23 用 `http://localhost:3000` 试（同 netns ⇒ 平板 localhost = 容器监听 = secure context）；仍不行则降级为「DevTools 指针伪造（annotation §8.2 的 getter 覆写）+ 鼠标」，并把 P95 延迟标为「环境受限，未验收」 |
 | `motion` / RGL 与 React 19 + Next 16 打包不兼容                        | M4/G4、M10/G10                             | 每章装完依赖立刻跑一次 `pnpm --filter=web build`，不通过就换方案（岛退回 CSS transition + `linear()`；网格退回自研 + `@dnd-kit`） |
 | `react-grid-layout@^2.3.0` 的 `useContainerWidth` 不是 named export     | M10 第一步                                 | **M0 已解除**（`npm pack` 读 `dist/index.d.ts`：`useContainerWidth` / `verticalCompactor` 都是具名导出，见 [spine.md §附](./spine.md#待验证-6-的结案)）。剩余风险只在**打包**：M10 装完立刻跑 `pnpm --filter=web build`；不通过就退回「不装 RGL 自研网格 + `@dnd-kit`」这条已登记的退路 |
-| `packages/ui` 的 `exports` 通配（`./components/*` → `./src/components/*.tsx`）**跨两级目录**匹配 | M8/M10 按路径 import `preview-block/previews/*`、`dynamic-island/panels/*`；M5.1 的 `image-editor/*` 同样是两级 | **已由 M2 证伪**：`packages/dataview/src/shared/card-cover.tsx:26` import `@workspace/ui/components/preview-block/node-preview-cover` 就是两级通配的既有消费者，随 dataview typecheck 通过。剩下的唯一限制是**通配只认 `.tsx`**（`.ts` 纯函数模块只能包内相对 import，或补具体子路径） |
+| `packages/ui` 的 `exports` 通配（`./components/*` → `./src/components/*.tsx`）**跨两级目录**匹配无先例 | M8/M10 按路径 import `preview-block/previews/*`、`dynamic-island/panels/*` | 已有同级先例（`packages/dataview/src/shared/card-cover.tsx:26`）。M10 第一次 typecheck 就是它的判定点；失败则在 `exports` 里补一条具体子路径（主 agent 独占文件） |
 | `NodePreviewBody` 的**文件名与导出名尚未冻结**（M2 的交付物）           | M8、M10 都要 import 它                     | 两章都写成「先按路径 import `preview-block/previews/*`，M2 的 `NodePreviewBody` 落地后替换是纯替换」。**M2 的 G2 通过时应把最终文件名写进本表**，否则 M8/M10 的 import 会各写一个 |
 | HLS 打包后的时间轴与原始文件不一致                                     | M6/G6 的笔记跳转                           | 已给可执行取数步骤（PB 后台临时删/恢复 `hlsUrl`，两次 `Mod-Enter` 读数比 `\|t1−t2\|`，本机 `ffprobe` 交叉验证）。>1s 且归因到打包参数（`-copyts` / `-start_at_zero` / `HLS_SEGMENT_SECONDS`）即**挑战 R3**：停手报主 agent，不许顺手改 `backend/` |
 | `pdfjs-dist` 客户端 worker 在 Turbopack 下 404                         | M7/G7                                      | 主路径 `GlobalWorkerOptions.workerPort`（`worker_options.d.ts:8`）；兜底是静态资源，但**需要新建 `apps/web/public/`**（今天不存在，属跨包改动 → 主 agent 决策）；再兜底 iframe |
@@ -344,9 +332,6 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | **浏览器侧后端地址曾硬编码 `localhost`**（`ws://localhost:3001`、`http://localhost:8090`） | 任何**非本机**浏览器的使用 | **M0.1 已修**（R37）：改为按 origin 解析 —— 回环保持原样，非回环走同域 `/trpc` 与 `/pb`。**剩余依赖是宿主配置**：nginx 必须加下面两条 location，否则闸门仍只能由主 agent 用 curl 代验。SSH 本地转发降为备选（仍可行，且对改动前的老代码也有效） |
 | **可清空的 json 列在 PB 的 `update`（部分更新）下写 `undefined` = 保留旧值** | 任何「清空某个可空字段」的写路径 | **M1 已修一处、并立成规矩**：`toRecord` 里 `icon` / `cover` 必须写 `node.icon ?? null` / `node.cover ?? null`（实测：写 `undefined` 时 PB 保留旧值，`{icon:null}` 清不掉）。反向规矩同样重要：`annotations` / `timestampNotes` 的 `undefined` 反而是**期望**（半边合并：缺键保留旧值），不许顺手改成 `?? null`。**待验证**：既有的 `filterConfig: node.content.filterConfig ? … : undefined`、`stateData: node.stateData` 是否也需要显式 null —— M1 未碰（`CollectionNode.clearFilter` 目前无 UI 入口） |
 | **活动库的 `nodes` 表没有 `created` / `updated` 列**（`pb/pb_migrations/1700000000_initial_schema.js` 的 nodes 定义里本来就没有；只有 `files` 定义了 autodate） | 任何按时间排序 / 显示时间的路径 | M1 实测（直读 sqlite + PB API 双向确认）：`record.created` / `record.updated` 恒为 `undefined`，而 domain 的 `create()` 用 `props.createdAt ?? new Date().toISOString()` 兜底 ⇒ **节点时间戳每次读取都变成「现在」**，`sort=-updated` 与「最近使用」没有真实语义。**不是 M1 引入的，本轮不修**（修它要给 `nodes` 加两个 autodate 列，等于改 schema 语义 + 需要新迁移号，超出 §4 账本）。登记在此，M12「最近使用」开工前必须解决 |
-| **canvas 编码的两个静默陷阱**（M5.1/R39） | 照片编辑的导出 | ① `toBlob("image/webp")` 在 **WebKit（Linux 桌面的 Tauri = WebKitGTK）静默回落 PNG**、不抛错 ⇒ 本轮**不提供 WebP 导出**且 `encode.ts` 断言 `blob.type`；② JPEG 无 alpha、canvas 合成的底色是**黑**⇒ 透明 PNG 存 JPEG 前必须白底 flatten。两条都有闸门判据（G5.1 #14）。出处见 [node-content/image-editor.md §10](../node-content/image-editor.md) |
-| **照片编辑的孤儿 blob 会累积**（M5.1/R39） | 每次保存 = 一个**新** `files` 记录；原图与上一次的烘焙结果都留下 | P0 **不回收**（删了就无法「恢复原图」，且无法确认没有别的节点/封面引用同一 URL）；`imageEdits.originalUrl` 是原图的唯一指针。登记为 G5.1 的遗留项，P2 再评 GC 与 PB `?thumb=` 缩略图 |
-| **后端第三次解冻**（M5.1/R39）：`value-objects.ts` / `node-command.service.ts` / `node-dto.mapper.ts` / `node.mapper.ts` / `router/node.ts` 五个 M1 的文件再改一遍 | M5.1 开工 | 照 M1 的既有清单执行并复用其教训：`updateNodeContent` 的 **guard 只认 `content.url !== undefined`**（只写 `imageEdits` 会被静默吞掉）、DTO 必须**点名**新字段（否则是 `hlsUrl` 的翻版）、`add` 路径的 `z.object` 会 **strip**（`update` 是 `z.any()`，两条路径行为不同）。探测脚本用 G1 那一套 |
 
 ---
 
@@ -394,7 +379,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 2. **不引入测试框架**（仓库无 vitest/jest，`packages/*/AGENTS.md` 与根 `AGENTS.md` 都把它列为 anti-pattern）。验证 = typecheck + lint + 浏览器/真机手测。
 3. **不做旧数据批量迁移脚本**（text 走惰性升级；新列对旧记录天然读作空）。
 4. **不动 `FlowGraph`**（`@workspace/graph` 的 flow 模式仍是占位壳，本轮无需求）。
-5. **不改 `docs/proposal/**` 与五份设计文档正文**，除「待验证」回填。**唯一例外**：2026-10-06 按用户显式指令为「照片编辑」补写了 [node-content/image-editor.md](../node-content/image-editor.md)（需求本就有、设计文档写窄了），并修订 node-content/README 与 annotation.md 的相应段落——登记见 §9 **R41**；此后恢复原规矩。
+5. **不改 `docs/proposal/**` 与五份设计文档正文**，除「待验证」回填。
 
 ---
 
@@ -405,7 +390,6 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | [spine.md](./spine.md)                     | M0、M1     | G0、G1 |
 | [node-content-ui.md](./node-content-ui.md) | M2、M3     | G2、G3 |
 | [annotation.md](./annotation.md)           | M5、M7     | G5、G7 |
-| [image-editor.md](./image-editor.md)       | M5.1       | G5.1   |
 | [media.md](./media.md)                     | M6         | G6     |
 | [dynamic-island.md](./dynamic-island.md)   | M4、M8、M9 | G4、G8、G9 |
 | [dashboard.md](./dashboard.md)             | M10、M11、M13 | G10、G11、G13 |

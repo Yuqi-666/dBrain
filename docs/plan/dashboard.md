@@ -34,7 +34,7 @@
 
 ### 0.3 与设计文档的硬冲突（**以总纲为准**，设计文档相应句子失效）
 
-1. **迁移文件名**：设计 §5.1 / §10 写 `1700000001_dashboard_pages.js`；总纲 §4 与 R2 定为 `1700000002_dashboard_pages.js`（`1700000001` 被 M1 的 `node_extras` 占用）；**R40 再顺延为 `1700000003_dashboard_pages.js`**（`1700000002` 被 M5.1 的 `node_image_edits` 占用）。**本章一律用 `1700000003`。**
+1. **迁移文件名**：设计 §5.1 / §10 写 `1700000001_dashboard_pages.js`；总纲 §4 与 R2 定为 **`1700000002_dashboard_pages.js`**（`1700000001` 被 M1 的 `node_extras` 占用）。**本章一律用 `1700000002`。**
 2. **P0 的几何**：设计 §7 的 P0 行写「刷新后几何不变（暂用 localStorage 兜底或直连后端）」；**R6** 改为内存 → P0 的此项验收失效，改为「刷新丢几何是**预期**，不判失败」，该判据整体移到 M11/G11。
 3. **编辑器头的路径**：总纲 §3.1 把「编辑器头」写在 `packages/ui/src/components/dialog/editor/editor-header/**`；**真实路径是 `packages/ui/src/components/header/editor-header/editor-header.tsx`**（该目录含 `editor-header.tsx` / `options-menu.tsx` / `pin-button.tsx` / `fullscreen-button.tsx` / `node-title.tsx` / `attributes-sidebar.tsx`；`packages/ui/src/components/dialog/editor/node-editor.tsx:7` 就是这么 import 的）。
 4. **组件库的「复用 `NodeSelectionList`」是部分不成立**：设计 §0.2-⑤ / §3.2 说直接复用 `packages/ui/src/components/dialog/node-selection-list.tsx:43` 的 `NodeSelectionList`。真读该文件：它的过滤只有**标题 + 语义名**（`:53-62`），既没有标签过滤也没有「显示已添加」开关，而且它是一份带「全选/清空」的多选清单，不是卡片网格。→ 只复用它的**过滤口径**，卡片网格与两个开关在 M13-A 新写。
@@ -103,7 +103,7 @@
 
 | #   | 任务                                                                                       | 文件白名单（新增 / 修改）                                                                                                                                                                                          | 执行主体        | 验收（编译器可判定的部分）                                                                                              |
 | --- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 1   | **迁移**：新集合 `dashboard_pages`（照 `views` 的六层范式）                                 | 新增 `pb/pb_migrations/1700000003_dashboard_pages.js`                                                                                                                                                              | **主 agent**    | 文件名 = `1700000003`（总纲 §4/R2）；列 = `name` / `workspaceId` / `items` / `layout` / `isDefault` / `sortOrder`；`up`/`down` 都在 PB 0.40 上真跑一次 |
+| 1   | **迁移**：新集合 `dashboard_pages`（照 `views` 的六层范式）                                 | 新增 `pb/pb_migrations/1700000002_dashboard_pages.js`                                                                                                                                                              | **主 agent**    | 文件名 = `1700000002`（总纲 §4/R2）；列 = `name` / `workspaceId` / `items` / `layout` / `isDefault` / `sortOrder`；`up`/`down` 都在 PB 0.40 上真跑一次 |
 | 2   | **domain**：不可变实体 + `normalizeDashboardPage` + 仓储端口                                | 新增 `backend/domain/src/models/dashboard/{entities,value-objects}.ts`；修改 `backend/domain/src/repositories/index.ts`、`backend/domain/src/models/index.ts`                                                       | 子 agent        | `cd backend/domain && pnpm typecheck`；`normalizeDashboardPage` 的职责与 `normalizeViews`（`backend/domain/src/models/node/value-objects.ts:345`）同构 |
 | 3   | **infra**：PB 仓储 + mapper + adapter-back 工厂                                            | 新增 `backend/infrastructure/src/repositories/pocketbase-dashboard-page.repository.ts`、`backend/infrastructure/src/database/mappers/dashboard-page.mapper.ts`；修改 `backend/adapter-back/src/factory.ts`（＋`dao/**`） | 子 agent        | `cd backend/infrastructure && pnpm typecheck`；`cd backend/adapter-back && pnpm typecheck`；缺失列读作 `[]` / `{}`（照 `views` 列） |
 | 4   | **application + tRPC + DI**：命令/查询 + DTO + `z.custom` + 路由注册                       | 新增 `backend/application/src/{commands,queries}/dashboard/**`、`backend/application/src/dto/dashboard.dto.ts`、`backend/adapter-front/src/trpc/router/dashboard.ts`；修改 `dto/index.ts`、`application/src/index.ts`、`router/index.ts`、`adapter-front/src/di/container.ts` | 子 agent        | 四个后端包 typecheck；`router/index.ts` 现有 10 个 router（真读）→ 加 `dashboard` 后为 11；`items`/`layout` 用 `z.custom`（理由见 `router/node.ts:83-104`） |
@@ -114,7 +114,7 @@
 
 ### M11.2 关键决策与挡路的坑
 
-- **迁移文件名**：`1700000003_dashboard_pages.js`（§0.3-1）。规则照 `pb/pb_migrations/1700000000_initial_schema.js:99-116` 的 `views`：`listRule` / `viewRule` / `createRule` / `updateRule` / `deleteRule` 全为空串，鉴权留在 tRPC。`items` / `layout` 是 json、**不设 required**，mapper 缺列读空。
+- **迁移文件名**：`1700000002_dashboard_pages.js`（§0.3-1）。规则照 `pb/pb_migrations/1700000000_initial_schema.js:99-116` 的 `views`：`listRule` / `viewRule` / `createRule` / `updateRule` / `deleteRule` 全为空串，鉴权留在 tRPC。`items` / `layout` 是 json、**不设 required**，mapper 缺列读空。
 - **只读验证（本章的核心，逐条引真实行号）**：
   - 不传 `onViewsChange` ⇒ `packages/dataview/src/data-view-root.tsx:233` 的 `canManageViews = Boolean(onViewsChange)` 为 `false`；`packages/dataview/src/toolbar/data-view-toolbar.tsx:60` 的 `canEditViews` 同为 `false`，于是 `:84-86` 不把 `onCreateView` / `onRenameView` 交给 `ViewSwitcher` ⇒ **不能新建 / 重命名 / 删除视图，也没有视图配置入口**。
   - **视图仍能切换**：`onActiveViewChange` 与那个布尔无关（`data-view-root.tsx:253-256` 无条件 `setActiveViewId` 并透传），所以「在已有视图间切换」是纯本地状态，必须仍然可用。
@@ -135,7 +135,7 @@
 
 ### M11.3 提交切分
 
-1. `dashboard 后端：dashboard_pages 迁移 1700000003 + domain/infra/application/tRPC 六层链路`
+1. `dashboard 后端：dashboard_pages 迁移 1700000002 + domain/infra/application/tRPC 六层链路`
 2. `dashboard 服务：DashboardService 乐观 upsert + 500ms 防抖 + flush，宿主接真实链路`
 3. `dashboard P1：database/collection 只读挂载（懒挂载 + 并发上限）+ 编辑器头「添加到 dashboard」+ 折叠/删除/打开节点`
 

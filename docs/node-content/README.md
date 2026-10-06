@@ -125,7 +125,7 @@ TextAlign.configure({ types: ["paragraph"] }),
 
 ### 1.2 image —— 照片编辑 + 覆盖批注层
 
-**目标形态。** 现有 `<img>`（`image-node-content.tsx:46-66`）外面套一个**内容盒**：图片按 `object-contain` 铺满盒子，盒子之上绝对定位两层覆盖物——**批注层**（`pointer-events-none`，仅在批注层激活时打开指针）与**宿主的浮层操作组**（`替换` / `编辑`，右上角）。内容盒是这个节点的**唯一测量点**：批注层要的是图片的**实际渲染矩形**（而不是 `<img>` 元素的矩形，因为 `object-contain` 会留黑边），照片编辑的裁剪面要的是同一个盒。**照片编辑**是一条独立的能力（不是「显示模式」）：裁剪 / 旋转 / 翻转 / 调整 / 导出，完整设计见 [./image-editor.md](./image-editor.md)（阶段 P2.5，章号 M5.1）；本文只写它在这个节点里的**接入位**。批注层的完整设计见 [./annotation.md](./annotation.md)（阶段 P2）。
+**目标形态。** 现有 `<img>`（`image-node-content.tsx:46-66`）外面套一个**内容盒**：图片按 `object-contain` 铺满盒子，盒子之上绝对定位一层批注覆盖层（`pointer-events-none`，仅在批注层激活时打开指针）。「照片编辑」在本次只到「盒子 / 显示模式」这一层：批注层需要知道图片的**实际渲染矩形**（而不是 `<img>` 元素的矩形，因为 `object-contain` 会留黑边）。
 
 **数据结构变化。**
 
@@ -135,18 +135,13 @@ export interface ImageContent {
   url: string;
   /** 覆盖在图片上的批注；形状以 annotation.md §3.1 为真源，page 必须 undefined（§3-①） */
   annotations?: AnnotationLayerData;
-  /** 照片编辑配方（原图 + 裁剪/旋转/翻转/导出）；形状以 image-editor.md §3 为真源 */
-  imageEdits?: ImageEditRecipe | null;
 }
 ```
 
-`imageEdits === null` 是**显式清空**（`undefined` = 保留旧值，PB 部分更新的语义），与 `annotations` 的 `undefined` = 半边保留**故意不同**，两者不要统一处理（[image-editor.md §0.3-1](./image-editor.md)、总纲 R29-定）。
-
 **组件改造。**
 
-- `image-node-content.tsx`：`<img>` 外面套一个 `relative h-full min-h-0` 的内容盒（`object-contain` + `mx-auto max-h-full`），批注层与浮层操作组作为同盒内的绝对定位子层；层本体来自 annotation.md / image-editor.md。
+- `image-node-content.tsx`：`<img>` 外面套一个 `relative h-full min-h-0` 的内容盒（`object-contain` + `mx-auto max-h-full`），批注层作为同盒内的绝对定位子层；层本体来自 annotation.md。
 - 接入批注层：`image-node-content.tsx` 负责给出容器与 `baseRect`（§3-②），组件本身（canvas / toolbar / 输入）见 [./annotation.md](./annotation.md) §9 的文件清单。
-- 接入照片编辑：宿主只给盒尺寸、`content.url` 与写回；编辑器本体（裁剪面 / 配方 / 烘焙 / 上传）见 [./image-editor.md](./image-editor.md) §5。**编辑器必须懒加载**，且与批注态**互斥**（同一时刻只有一个激活表面）。
 - 上传路径不变（仍 `FileDropZone` → `NodeService.upsert`），但**上传回填的 patch 必须走 live-content 合并**，否则会把已有 `annotations` 抹掉（`file-drop-zone.tsx:165-190` 今天直接写 `content: { url }`）。
 
 **交互与快捷键。** 批注自己的工具集、快捷键、手势与触控笔仲裁**由 [./annotation.md](./annotation.md) §2 / §4 定义，本文不重复**（两份文档各写一份工具表必然漂移）。node-content 只负责这几条宿主语义：
@@ -158,7 +153,7 @@ export interface ImageContent {
 | 只读态                | 不渲染 toolbar；批注仍可查看（tooltip / 侧栏由批注层提供）                 |
 | 容器尺寸变化          | 重算 `baseRect`（双宿主切换、窗口缩放），批注坐标不动                      |
 
-**边界。** **不做**像素级修复（磨皮、液化、内容感知填充）；**不做**多人实时批注；**不做**批注导出为图片；**不做**把批注烘焙进底图（批注永远是 sidecar，§3-③）。裁剪 / 旋转 / 翻转 / 调整 / 导出**属于**本节范围，按 [./image-editor.md](./image-editor.md) 执行（该文档同时定义「编辑过的底图与已有批注如何换算」）。
+**边界。** 不做像素级修图（滤镜、裁剪、旋转写入文件）；不做多人实时批注；不做批注导出为图片。
 
 ### 1.3 audio —— 自定义组件 + 时间戳笔记
 
@@ -412,7 +407,7 @@ export interface PdfContent {
 
 ### 4.4 依赖
 
-- **本文不新增 npm 依赖。** `text` 用仓库已有的 Tiptap（`packages/editor/package.json:15-39`）；`audio` / `video` 的自绘控件与笔记层是本仓组件；`image` 的批注层是自绘 canvas。另外三份文档各自引入：`perfect-freehand`（annotation.md，P0）、`pdfjs-dist` 浏览器侧（annotation.md，P1）与 `react-easy-crop`（image-editor.md，P2.5——与 selectors.md P2 的图标/封面裁剪**共用同一个依赖**）。
+- **本文不新增 npm 依赖。** `text` 用仓库已有的 Tiptap（`packages/editor/package.json:15-39`）；`audio` / `video` 的自绘控件与笔记层是本仓组件；`image` 的批注层是自绘 canvas。另外两份文档各自引入：`perfect-freehand`（annotation.md，P0）与 `pdfjs-dist` 浏览器侧（annotation.md，P1）。
 - **PDF 渲染复用仓库已有的 `pdfjs-dist`**（`backend/infrastructure/package.json:13`，`^4.10.38`）。客户端需要 `pdfjs-dist/build/pdf.mjs` + `pdf.worker.min.mjs`（服务端现在用的是 `legacy/build/pdf.mjs`，`pdf-document-analyzer.ts:32`、`:46`），**版本必须与那边同 major**，否则会出现两份 pdfjs。`packages/ui` 需显式声明该依赖（不能靠 backend 的传递依赖）。**待验证**：`react-pdf`（wojtekmaj）作为封装层是否值得——它绑定 pdfjs 的 peer 版本且在 Next.js 下有 `DOMMatrix` 等 SSR 例外（§9），本设计倾向直接用 pdfjs。
 - **Tailwind**：新组件都在 `packages/ui/src` 下，已被 `globals.css:10` 覆盖；若把任何样式类写进 `packages/editor`（单 block 编辑器就会），必须补 `@source`（§0.3-11）。
 
@@ -455,9 +450,7 @@ migrate((app) => {
 
 阶段之间无强制依赖顺序，但 **P0 必须先落**：`useNodeContentWriter` 与 `timestampNotes` 列是 P1–P3 共同的地基。
 
-**image 照片编辑 = 后补的 P2.5（章号 M5.1，闸门 G5.1）。** 它是 requirement 里本就有的「照片编辑」（[proposal/node-content-refine.md:17](../proposal/node-content-refine.md)），早期文档把它收窄成「盒子 / 显示模式」，那份收窄**已作废**。P2.5 与 P2 **同宿主**（`image-node-content.tsx`）且**与批注共用坐标基准**，因此排期固定为 **P2（M5）→ P2.5（M5.1）→ P3（M7）**：宿主文件同一时刻只有一个 owner，批注的坐标换算要在照片编辑的裁剪语义之前定死。交付与验收见 [./image-editor.md](./image-editor.md) §2 / §8 与 [../plan/image-editor.md](../plan/image-editor.md)。
-
-**与三份兄弟文档的阶段对齐**（避免同一批文件被两个阶段各改一次）：`selectors.md` 的 icon / cover 全链路在其 P0、裁剪在其 P2，`annotation.md` 的 image 批注全链路在其 P0、pdf 渲染在其 P1，`image-editor.md` 的照片编辑在其 P2.5（P0 骨架 + P1 调整）。本文的阶段只描述 node-content 自己的增量；`text` 单块与 rich-text 头部挂载可以与它们并批，媒体、PDF 与照片编辑以那三份文档的阶段为准。
+**与两份兄弟文档的阶段对齐**（避免同一批文件被两个阶段各改一次）：`selectors.md` 的 icon / cover 全链路在其 P0，`annotation.md` 的 image 批注全链路在其 P0、pdf 渲染在其 P1。本文的阶段只描述 node-content 自己的增量；`text` 单块与 rich-text 头部挂载可以与它们并批，媒体与 PDF 部分以那两份文档的阶段为准。
 
 ---
 
@@ -525,7 +518,7 @@ pnpm dev:full                                 # 端到端手测：PocketBase(默
 | 路径                                                                                        | 说明                                                     | 阶段 |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---- |
 | `packages/interfaces/src/models/node/nodes/single/timestamp-note.ts`                        | `TimestampNote { id; timeMs; text; createdAt; updatedAt }` | P0   |
-| `pb/pb_migrations/1700000001_node_extras.js`（已由总纲 R2 合并四列；`timestampNotes` 是其中一列） | `nodes` 加 `timestampNotes`（另三批列见 §4.1）             | P0   |
+| `pb/pb_migrations/1700000002_node_timestamp_notes.js`（编号与文件名可并批调整，只要是新文件） | `nodes` 加 `timestampNotes`（另两批列见 §4.5）             | P0   |
 | `packages/ui/src/components/dialog/editor/content/use-node-content-writer.ts`                | 共享串行化写者（live content + 微任务 drain）              | P0   |
 | `packages/ui/src/components/dialog/editor/content/doc-normalize.ts`                          | 旧 `docs` 形状与脏数组的归一化                              | P0   |
 | `packages/ui/src/components/dialog/editor/content/node-content-header.tsx`                   | 共享头部壳（cover / icon / title / summary / semantic pill） | P1   |
@@ -535,16 +528,12 @@ pnpm dev:full                                 # 端到端手测：PocketBase(默
 | `packages/ui/src/components/media/audio-player.tsx`                                          | 自绘音频播放器                                              | P2   |
 | `packages/ui/src/components/media/timestamp-notes.tsx`                                       | 时间戳笔记（audio / video 共用）                            | P2   |
 | `packages/ui/src/components/pdf/*`                                                           | pdfjs 自绘渲染（页盒 / 翻页 / 缩放 / worker）；清单见 annotation.md §9 | P3   |
-| `packages/interfaces/src/models/node/nodes/single/image-edit.ts`                              | `ImageEditRecipe { version: 1; originalUrl; original; crop?; rotate?; flipH?; flipV?; output? }`（形状见 [image-editor.md §3](./image-editor.md)） | P2.5 |
-| `packages/ui/src/components/image-editor/*`                                                   | 照片编辑器（配方 / 烘焙 / 编码 / 裁剪面 / 会话与撤销）；清单见 [image-editor.md §9](./image-editor.md) | P2.5 |
-| `pb/pb_migrations/1700000002_node_image_edits.js`                                             | `nodes` 加 `imageEdits` json 列（编号见总纲 §4；dashboard 顺延到 `1700000003`） | P2.5 |
 
 **修改**
 
 | 路径                                                                     | 改动                                                                                   | 阶段 |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ---- |
 | `packages/interfaces/src/models/node/nodes/single/{audio,video}.ts`       | `+ timestampNotes?: TimestampNote[]`（另两处 content 字段见各自文档）                     | P0   |
-| `packages/interfaces/src/models/node/nodes/single/image.ts`               | `+ imageEdits?: ImageEditRecipe \| null`（形状见 image-editor.md §3；`annotations?` 见 annotation.md） | P2.5 |
 | `packages/interfaces/src/models/node/base.ts`                             | `+ icon?: NodeIcon`、`+ cover?: NodeCover`（形状由 selectors.md 定）                      | P0   |
 | `backend/domain/src/models/node/value-objects.ts`                         | `AudioContent` / `VideoContent` 的 getter + `withTimestampNotes()` + `equals`              | P0   |
 | `backend/domain/src/models/node/entities.ts`                              | `AudioNode` / `VideoNode` 加 `applyTimestampNotes`；base 字段按 selectors.md 铺开到 10 个子类 | P0   |
@@ -556,16 +545,13 @@ pnpm dev:full                                 # 端到端手测：PocketBase(默
 | `packages/ui/src/components/dialog/editor/content/{database,collection}-node-content.tsx` | 改用共享 `useNodeContentWriter`                                    | P0   |
 | `packages/ui/src/components/dialog/editor/content/text-node-content.tsx`  | `<Textarea>` → 受限编辑器 + 禅意容器；经共享写者写 `docs`                                | P1   |
 | `packages/ui/src/components/dialog/editor/content/rich-text-node-content.tsx` | 挂载头部；正文经共享写者写 `docs`（头部只写顶层）                                       | P1   |
-| `packages/ui/src/components/dialog/editor/content/image-node-content.tsx` | 内容盒 + 批注层 + 浮层入口（替换 / 编辑）+ 编辑器挂载（懒加载）；上传回填走 live-content 合并 | P2/P2.5 |
+| `packages/ui/src/components/dialog/editor/content/image-node-content.tsx` | 内容盒 + 批注层；上传回填走 live-content 合并                                            | P2   |
 | `packages/ui/src/components/dialog/editor/content/audio-node-content.tsx` | 自绘播放器 + 笔记                                                                       | P2   |
 | `packages/ui/src/components/dialog/editor/content/video-node-content.tsx` | `VideoPlayer` 外套控件 + 笔记                                                            | P2   |
 | `packages/ui/src/components/video-player/video-player.tsx`                | 暴露当前时间订阅 / overlay 插槽                                                          | P2   |
 | `packages/ui/src/components/dialog/editor/content/pdf-node-content.tsx`   | 主路径换成 pdfjs 自绘视图 + 批注层；`:44-53` 的 `<iframe>` 退为失败兜底                    | P3   |
 | `packages/ui/src/components/dialog/editor/content/file-drop-zone.tsx`     | 上传回填改为「读 live content → 合并本半边」（`:165-190`、`:197-220`、`:234-260`）        | P0   |
-| `packages/ui/package.json`                                               | 按 annotation.md / image-editor.md：`+ perfect-freehand`（P0）、`+ pdfjs-dist`（P1，与 backend 同 major）、`+ react-easy-crop`（P2.5，与 selectors.md P2 共用） | P0/P1/P2.5 |
-| `packages/ui/src/components/header/editor-header/attributes-sidebar.tsx`  | image 分支改「内容链接」时一并写 `imageEdits: null`（换底图 = 清配方，image-editor.md §0.2-⑤） | P2.5 |
-
-> **P2.5 的后端面走的是与 §4.2 完全相同的六层**（`value-objects.ts` → `node-command.service.ts` → `node-dto.mapper.ts` → `node.mapper.ts` → `router/node.ts` + 迁移），只是多一个独立字段 `imageEdits`；逐文件改动与判据见 [image-editor.md §9](./image-editor.md) 与 [../plan/image-editor.md §M5.1](../plan/image-editor.md)。
+| `packages/ui/package.json`                                               | 按 annotation.md：`+ perfect-freehand`（P0）、`+ pdfjs-dist`（P1，与 backend 同 major）   | P0/P1 |
 
 ---
 
