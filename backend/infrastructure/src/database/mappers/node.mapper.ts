@@ -471,10 +471,19 @@ export class NodeMapper {
       tags: node.tags,
       isPinned: node.isPinned,
       stateData: node.stateData,
-      // Top-level JSON columns shared by every node type; the domain normalises
-      // a cleared field to `undefined`, and `undefined` keys are not written.
-      icon: node.icon,
-      cover: node.cover,
+      // `icon` / `cover` are top-level JSON columns that every node type shares
+      // and that the user can CLEAR. "No value" therefore has to be written as
+      // an explicit `null`: the JS SDK drops `undefined` keys, and PocketBase's
+      // `update` is a partial update (a missing key keeps the old value), so
+      // `clearIcon()` / `clearCover()` would never reach the database. This is
+      // deliberately NOT the `stateData` treatment above.
+      icon: node.icon ?? null,
+      cover: node.cover ?? null,
+      // Do NOT "fix" `annotations` / `timestampNotes` the same way in the
+      // content branches below: those are half-side patches of `content`, so an
+      // `undefined` key (i.e. "keep the old value" on a partial update) is
+      // exactly the merge semantics `updateNodeContent`'s `?? node.content.*`
+      // relies on. Only a whole-field clear needs the `null` sentinel.
       created: node.createdAt,
       updated: node.updatedAt,
       nodeType: node.nodeType.value,
