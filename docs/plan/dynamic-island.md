@@ -89,7 +89,7 @@
 > 2. **P0 的展开内容全是占位**（§M4.2-11）：点搜索图标展开后看到的是「搜索面板将在 M9 接入」这类占位文案 —— 本阶段判的是**形态**（尺寸 / 圆角 / 可打断 / 指针 / 层级），不是内容；`preview` / `agent` 同理（preview 在 P0 没有 UI 入口）。
 > 3. **第 8 条（`pnpm --filter=web build`）在 M4 开工前就不通过**，实测证据：`next build` 的**编译阶段 ✓**（`✓ Compiled successfully in 70s`，含新装的 `motion`），随后 TS 阶段停在 `app/(main)/graph/page.tsx(L,C): error TS2322: … 'theme' does not exist on type 'IntrinsicAttributes & GraphProps'` —— 这一条**就在基线里**（[baseline/typecheck-errors.txt:2](./baseline/typecheck-errors.txt)，`GraphProps` 今天只有 `viewId`/`view`/`className`/`style`）。⇒ 第 8 条的判据改成「**编译阶段通过 + TS 阶段只允许停在基线里那一条**」；要不要把 `graph/page.tsx` 的 `theme` 作为**独立前置修复**（会同时解锁 G7/G10 的同名判据）请你定，**M4 不擅自扩大白名单**。
 > 4. **第 2 条的三个动作在 P0 只有两个可用**：`/dashboard` 是禁用项（§M4.2-6 有意如此），所以「搜索 → 导航 → 收起」实测走「**搜索 → Esc 收起**」。**Esc 只在焦点位于岛内时生效**（P0 不注册全局键盘，§M4.2-10）：点完搜索图标焦点还在胶囊上，直接按 Esc 即可；若你先点了画布，Esc 不会有反应（那是 M9 的全局语义）。
-> 5. **`⌘K` / `⌘⇧K` 在 P0 仍归 QuickPanel**：岛**不抢键**，按 `⌘K` 打开的仍是今天那个顶部对话框（设计 §6.3 的迁移纪律：双触发必须与删掉旧监听同一次提交 = M9）。所以第 9 条只判「触摸端命中区 ≥44×44 + 悬停不再自动展开」。
+> 5. **`⌘K` / `⌘⇧K` 在 P0 仍归 QuickPanel**：岛**不抢键**，按 `⌘K` 打开的仍是今天那个顶部对话框（设计 §6.3 的迁移纪律：双触发必须与删掉旧监听同一次提交 = M9）。第 9 条因此只判「**触摸端导航命中区 ≥44×44**」—— 「悬停不再自动展开预览」这半句在 P0 **没有对象**（岛今天不订阅 `previewBlock`，悬停预览仍是 `ForceGraph` 里那个旧的跟随浮层，M8 才迁移过来；§M4.2-12）。
 > 6. **看不到玻璃感/高光时先查这两处**：`(hover: none)`（触摸仿真或平板真机）下指针高光**不跟随**；系统开了「减少动态效果」时高光跟随与漂移**关闭**、形变不做弹簧（尺寸直接切换 + 约 120ms 淡入）。两者都是设计（§3.4 降级矩阵），不是失效。
 > 7. **窄屏（≤640px）**：展开宽度收 `calc(100vw - 32px)`、导航只留图标（标签 `hidden md:inline`）。
 > 8. **DevTools 量尺寸的锚点**：`document.querySelector('[data-island]')`（胶囊本体）、`[data-island-panel]`（当前形态）、`[data-island-nav]`、`[data-island-nav-disabled]`。收起态 `getBoundingClientRect().height` 应为 **40**。
