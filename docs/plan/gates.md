@@ -342,8 +342,8 @@
 
 ### G3 — M3 text 单块 + rich-text 头部
 
-- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下。**再加一轮「追加交付」**：用户要求「单行 block 要有 rich-text 里 block 的能力」—— 选区浮条 + 行内 LaTeX，含一次前置别名修复，见下面的「追加交付」段）
-- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）→ `b8e3fb5`（**前置修复**：`packages/ui` 的 `@workspace/editor` 别名）→ `5954cfe`（单块内联能力：选区浮条 + 行内公式）
+- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下。**再加两轮「追加交付」**：① 用户要求「单行 block 要有 rich-text 里 block 的能力」—— 选区浮条 + 行内 LaTeX，含一次前置别名修复；② 用户给定参考图，要求按图中的元素位置关系重排 rich-text 开头 —— 封面出列出血 + 图标骑封面下沿 + 「类型 • 语义」行，随后追加「图标大小应该和 emoji 一样大」（板不再按图标种类分档）。两轮都在下面各自的「追加交付」段）
+- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）→ `b8e3fb5`（**前置修复**：`packages/ui` 的 `@workspace/editor` 别名）→ `5954cfe`（单块内联能力：选区浮条 + 行内公式）→ `e89cc0e`（rich-text 页头按参考图重排）→ `60a45cc`（页头 r1：图标与 emoji 同尺寸；r2：语义胶囊改成下拉切换）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅
   - **lint diff**：**0 新增 / 2 消失** ✅ —— `@workspace/ui` 28 → 26 problems（旧 `rich-text-node-content.tsx` 的 `cn` 与 `className` 两个 `no-unused-vars` 随重写消失，`pnpm eslint --stdin` 对 HEAD 版本复现过），`@workspace/editor` 仍是 **106 problems (67 errors, 39 warnings)** 与基线同数、**M3 新文件零 error**；基线已按脚本提示重采（`--accept`），所以现在两段都是 `0 新增 / 0 消失`
@@ -383,6 +383,38 @@
     复跑：`node /tmp/probe/toolbar-check.mjs`（`PROBE_URL=http://127.0.0.1:8899/toolbar.html`；入口 `toolbar-entry.tsx` 要放进 `apps/web/` 下再交给 esbuild，否则 `@tiptap/*` 之类的裸包名解析不到）。
   - **探针工装踩到的两个坑（复跑时要带）**：① `Input.dispatchKeyEvent` **不带 `text` 不会插入字符**，所以「打一个空格触发 `$ ` 输入规则」必须走 `Input.insertText(" ")`，否则规则永远不触发；② 探针页尺寸要用 inline style —— 它链的是 app 的**预编译** Tailwind 产物，只写在探针文件里的任意值类（`w-[880px]`）根本不在 CSS 里，会得到一个 64px 宽的「对话框」，然后所有点击都落到盒子外面（表现为「输入不进编辑器」）。另有一个**不是 bug** 的现场：`Input.insertText("E=mc^2")` 是一次性多字符输入，`Typography` 的 `/\^2$/` 规则会按单字符位置算范围并抛 `RangeError: Position N out of range`（真机逐字输入不触发，且公式源码写在 textarea 里、根本不经过 ProseMirror）—— 登记为遗留 7。
   - **口径（判清单 14–17 时按这四条看）**：① 浮条**没有**「转换成」/ AI / 图片 / 缩进（单块只有一段，块级入口不适用），少几个按钮是设计；② 公式**只有行内**；③ 窄屏/平板**照常显示**浮条（不做 `MobileToolbar` 回落，理由：单块没有第二条格式入口）；④ 公式编辑弹层开着时第一次 `Esc` 归它（Radix innermost-first），第二次才关对话框。
+- **追加交付 二：rich-text 页头按参考图重排（封面出列出血 + 图标骑封面下沿 + 类型 • 语义）**（`e89cc0e`，清单加 18–22 并改写老第 4 条）：
+  - **需求**：用户给一张页面截图（封面 + 骑在下沿的 emoji 图标 + 标题 + 摘要 + 「Page • Tag」），要求「根据图中的各元素布局位置关系，调整 rich-text 开头」。
+  - **先量图，再落码**：截图 3061×1028（缩略图规范化后的尺寸）。按「内容列 708px、两侧 `minmax(96px,1fr)`」反推 DPR≈2.4，得到 CSS 值：封面 `1244×287`、圆角 10px、距 pane 边缘 8px；图标板 `91×91` 且**左边缘与文字列左边缘对齐**；板底在封面下沿**以下 24px**（板顶在上方 67px ≈ 封面下方 25% 处）；标题墨迹顶在下沿以下 43px；meta 是灰色 `rgb(130,130,130)`、摘要是正文色 `rgb(37,37,37)`。折算到本仓（Dialog 1200×80vh ⇒ pane 1008 / 内容列 708）：封面 `h-60`=240、`rounded-lg`=10px、板 `size-20`=80 / 露出 16px、标题 `text-4xl`。
+  - **交付**：① 封面**出文字列**（宿主不再包 `mx-auto max-w-[708px] px-12 pt-6`，文字列改由 `NodeContentHeader` 自己画，封面是根的第一个孩子 ⇒ 全宽出血）；② 图标**独占一行**（`h-10 items-end` + `-mt-6`，行底落在封面下沿 + 16px，板高多少都不影响这条关系）；③ 标题 `text-3xl → text-4xl`；④ 第 5 段从「语义 pill」变成「**类型 • 语义**」（复用 `NODE_TYPE_LABELS`，pill 保留 `semantic.color`）；⑤ `NODE_ICON_PLATE` / `NODE_ICON_GLYPH` / `NODE_ICON_FALLBACK` 导出，注入的触发按钮、`fallback` 板与字形共用同一份类名。
+  - **交付后用户当场追加的两条（`60a45cc`，r1 + r2）。** 第一版按「`NodeIconView` 的 Lucide 字形写死 16px（sel §5）⇒ 大板里是小图形」给 `kind:"icon"` 配了 44px 小板；用户看完直接要求「图标大小应该和 emoji 一样大」。修法：给 `NodeIconView` 加**可选** `glyphClassName`（默认 `size-4` 不变 ⇒ M2 的四个既有消费方零改动、源码兼容），页头传 `size-3/5` ⇒ **emoji / Lucide 图形 / 图片统一 80px 板 + 48px 字形**。代价与登记：`node-icon-view.tsx` 是 M2/W1-A 的文件，超出 §M3.1 原白名单，按 `use-node-content-writer.ts` 的先例显式登记（§M3.1 第 14 行）；`NodeIconViewProps` 是「冻结形状」，加**可选**字段是纯增量、不动既有字段与语义。探针 ㉑㉙㉚ 改为三条都断言「80px 板 + 48px 字形」（emoji 量 plate 的 `font-size`，Lucide / 类型回落量 `<svg>` 的 `getBoundingClientRect`）。
+    **r2「把 semantic 胶囊改成按钮下拉菜单切换 semantic」**：胶囊从静态 `span` 变成 `DropdownMenu` 触发器（`readOnly` 仍是静态 pill、无语义时「选择语义」），菜单体**复用**共享 `SemanticList`（搜索 + 目录 + Add new type），选一条 → `patchNode({ semanticId })`（仍然只有宿主 drain 写节点）；分类色仍是胶囊自己的颜色；**没有箭头**（用户要求）。**这里踩到一个真坑**：`ui/dropdown-menu.tsx:47` 的内容宽度默认是 `w-(--radix-dropdown-menu-trigger-width)` —— 胶囊 ~90–190px 宽，共享列表 256px ⇒ 列表被内容盒的 `overflow-x-hidden` 裁掉，行**既看不见也点不到**（探针 hit test 显示点击落在 Dialog overlay `DIV.fixed inset-0 ... bg-black/10` 上）。`w-auto` / `w-64` 都可能输给那个 CSS 变量（样式表顺序），改用 **`min-w-64`**（`min-width` 与 `width` 不同属性，顺序无关）。用户实测时截的正是这个裁剪现场，修完探针 ㉝b 断言「菜单 256px、行落在盒内」。
+    **探针工装也因此修了两处会说谎的地方**（见 §M3.2-26）：stub store 改成 `useSyncExternalStore` + 写入通知（原先不可订阅 ⇒ 写进 store 不重渲染 ⇒ 一次**成功**的写入被报成「什么都没发生」）；fixture 把节点**放进 store**（`NodeService.upsert` 只更新已存在的行）。改完 ㉞ 一次通过：`{"text":"Concept","color":"rgb(20,184,166)","semanticId":"sem-2","menuOpen":false}`。
+  - **探针当场抓到的一个真错误（值得记）**：第一版把负边距按「板要往上挪 56」写成 `-mt-14`，实测板底落在封面下沿**以上** 16px（探针报 `plate.bottom - cover.bottom = -16`）—— 负边距挪的是**行**不是板。改成定高盒 `h-10` + `items-end` + `-mt-6` 后，板高（80 / 44）与露出量（16）解耦，三种图标形态各测一次都是 16。
+  - **自检**：`bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**（基线未动：typecheck 88 / lint 26）；越界检查：改动集中在 `node-content-header.tsx` / `rich-text-node-content.tsx` 两个**已在 §M3.1 白名单内**的文件；r1 另加 `node/media/node-icon-view.tsx`（M2/W1-A 的文件，**超出原白名单**，按 `use-node-content-writer.ts` 先例在 §M3.1 第 14 行与本节登记）；**零新依赖**；`globals.css` 的 `@source` 未动（新类全在 `packages/ui` 侧，已核 dev 产物里有 `-mt-6` / `h-60` / `size-20` / `size-11` / `text-5xl` / `text-4xl`）。
+  - **主 agent 预跑证据（真浏览器探针 18/18）**：同一个 harness（`chrome-headless-shell` + 裸 CDP），页面这次挂**真 `RichTextNodeContent`**（→ 真 `NodeContentHeader` + 真 `IconSelectorPopover` / `CoverSelectorPopover` + 真 plate 类）放进**真 Radix Dialog**（`node-editor.tsx` 的窗口宿主形态），`<NotionEditor>` 被 alias 成只保留 editor **布局 grid** 的替身（这样「标题与正文首段是否左对齐」仍是真问题），CSS 是 dev server 编出的 Tailwind globals + `notion-like-editor.scss` 两份产物：
+    ```
+    ✓ ㉝ 语义胶囊是下拉按钮：点开是共享的 SemanticList（搜索框 + 语义行 + Add new type）
+    ✓ ㉝b 菜单按共享列表的宽度撑开（256px、行落在盒内）：不会被 overflow-x-hidden 裁掉
+    ✓ ㉞ 选另一条语义：经 patchNode 写回 semanticId，胶囊文案与分类色即刻更新、菜单自关
+    ✓ ⑱ 封面全宽出血：cover.left == pane.left（136）、cover.width == pane.clientWidth（998），比标题列（708 居中）宽出两侧
+    ✓ ⑲ 封面高 240、圆角 10px（= 主题 rounded-lg，与参考图量到的 10px 同值）
+    ✓ ⑳ 图标骑在封面下沿：plate.top(344) < cover.bottom(408) < plate.bottom(424)，露出 16px
+    ✓ ㉑ emoji 撑满 plate：80×80、font-size 48px、与封面同圆角、底色 = 页面底色（lab(100 0 0)）
+    ✓ ㉒ 触发按钮与 NodeIconView 的盒子同尺寸（宿主/头部共用同一个 plate 类）
+    ✓ ㉓ 自上而下 icon → title → summary → meta，四段互不重叠
+    ✓ ㉔ 头部标题与正文首段左边缘逐像素相同（708px 列 + 3rem 的推论仍成立）
+    ✓ ㉕ meta 行 = 「Rich Text • <语义>」且 pill 保留分类色 rgb(99,102,241)
+    ✓ ㉖ 横向无溢出（pane.scrollWidth - clientWidth = 0）
+    ✓ ㉗ 无封面：不画封面块，图标回到列顶（pane.top + 24 = pt-6，不再负边距）
+    ✓ ㉘ 无封面：入口变成标题行右侧的「添加封面」
+    ✓ ㉙ 有封面无图标：类型图形回落进同一块 80px 板（字形 48px），仍在下沿露 16px
+    ✓ ㉚ Lucide 图标与 emoji 同尺寸：同一块 80px 板 + 48px 字形，骑边不变
+    ✓ ㉛ 图片型图标：真的画出 <img>（kind:"image" 读的是 value 字段）+ 同一块 80px 板
+    ✓ ㉜ 无未捕获报错
+    ```
+    复跑：`node /tmp/probe/header-check.mjs`（`PROBE_URL=http://127.0.0.1:8899/header.html`；bundling 脚本 `/tmp/probe/build-header.mjs` 用 pnpm store 里的 esbuild + `nodePaths`，入口可以留在 `/tmp`）。**踩坑记录**：① headless shell 只有 DejaVu（没有 CJK/emoji 字体），截图里中文与 emoji 是豆腐块 —— 探针 fixture 因此换成 ASCII 文案，几何断言与字体无关；② `NodeIcon.kind === "image"` 读的是 **`value`** 字段（不是 `url`），第一版 fixture 写错导致 `onError` 静默回落到类型图标，已补一条断言（㉛）钉住；③ `pane.clientWidth` ≠ `getBoundingClientRect().width`（有纵向滚动条时差 10px），出血判据要用 clientWidth。
+  - **口径（判清单 18–22 时按这五条看）**：① 参考图的绝对像素不是标准，判两条**关系**（封面比文字列宽、图标板压在下沿）；② 封面 240px 是按「封面高 : pane 宽 ≈ 22.5%」折的，嫌高/矮改一个类名；③ meta 行**多了类型标签**（参考图的 `Page • Tag`），语义 pill 的颜色没丢，不想要标签就说；④ 摘要在参考图里是正文色，本轮**没跟**（第 21 条专判）；⑤ 三种图标同一尺寸（80px 板 + 48px 字形，r1 已按你的要求改掉分档）。
 - 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)（**共 17 条**，14–17 是追加的内联能力）。**按实测调整 10 处**（开头前置说明），其中三条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面；③ 第 1 条之前**必须整页刷新**（标签页可能还停在 21:5x 的中间构建上，见上）。
 - **主 agent 预跑证据（真浏览器探针 23/23）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真组件**（`TextNodeContent` / `NodeContentHeader` / `SingleBlockRenderer` / `useNodeContentWriter` + 真模态 `Dialog`）+ **真编译 CSS**（dev server 编出的 Tailwind globals + 新的 single-block SCSS 两份产物拼起来），数据层换成行为等价的 stub（`upsert` 乐观同步落 store、网络调用是 await、单次 25ms），所有输入都是 CDP 的**受信任**事件：
   ```
@@ -410,8 +442,8 @@
   ✓ ⑱ 卸载 flush：防抖窗口（400ms）内卸载编辑器，最后一次输入「末」仍落库
   ✓ ㉒ 无未捕获报错
   ```
-- 探针脚本的复跑口径（两个脚本）：**追加交付**用 `node /tmp/probe/toolbar-check.mjs`（16 条，见上）；首轮的 `node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
-- 用户实测结果：（待填 —— 清单 **17** 条；13 条基础 + 14–17 追加的内联能力/公式）
+- 探针脚本的复跑口径（三个脚本）：**追加交付 二**用 `node /tmp/probe/header-check.mjs`（15 条，见上）；**追加交付**用 `node /tmp/probe/toolbar-check.mjs`（16 条，见上）；首轮的 `node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
+- 用户实测结果：（待填 —— 清单 **23** 条；13 条基础 + 14–17 追加一的内联能力/公式 + 18–23 追加二的页头布局（第 18/20 条含 r1 的「图标与 emoji 同尺寸」，第 23 条是 r2 的语义下拉））
 - 失败项与归因：（待填）
 - 迭代：——
 - 遗留不阻塞项（初步，G3 通过后定稿）：
@@ -423,6 +455,9 @@
   6. **内容宿主仍不按 `node.id` 挂载**：`f4e7357` 只在 `text-node-content.tsx` 内部用 `key={node.id}` 修掉 text→text；`node-content-editor.tsx` 本身没 key（§M3.5-5 冻结了该文件的路由），所以「对话框原地换节点」这条路上，其他宿主（rich-text 的正文靠 `NotionEditor` 自己的 `room` 变化，M2 形态、M3 未改；database / collection 的 `DataViewRoot` 靠宿主自己带 key）仍各有各的假设。要不要在 `node-content-editor.tsx` 统一加 `key={node.id}`（一行、不改路由）请 G3 一并判——本轮不动它，以免扩大白名单。
   7. **`Typography` 的 `^2` / `^3` 输入规则在「一次插入多字符」时会抛 `RangeError`**：Tiptap 的 `textInputRule` 按单字符输入算替换范围，遇到一次性多字符文本输入（探针里的 `Input.insertText("E=mc^2")`；将来若有别的批量注入路径同理）会算出越界位置。rich-text 也注册了 `Typography`，所以这是**既存行为、不是本轮引入**，真机逐字输入不触发；公式源码写在 textarea 里、不经过 ProseMirror。要不要给 `Typography` 加白名单/去掉 `^2` 规则，留给后续章节（它同时是"输入 ^2 就变 ²"这个功能的来源，取舍要单独判）。
   8. **浮条不做移动端回落**（§M3.2-15）：rich-text 在窄屏会藏掉浮条、改用底部 `MobileToolbar`，单块没有第二套入口所以照常显示。若平板实测发现浮条在触摸选区下不好用，下一步是给单块做一个紧凑的固定工具条，而不是照抄 rich-text 的隐藏策略。
+  9. **~~Lucide 图标在页头是「小板 + 小字形」~~（r1 已解决）**：`NodeIconView` 现在接受可选 `glyphClassName`，页头三种图标同类同尺寸（80px 板 + 48px 字形，§M3.2-21）。**剩下的**：默认值仍是 `size-4`，所以别的消费方（编辑器头部 36px 按钮、`preview-header` 16px 盒）在需要大盒子时同样要显式传字形类 —— 要不要改成「字形默认按盒子比例」是另一件事（会让 `preview-header` 的 16px 盒出现 9.6px 字形，需单独判）。
+  10. **页头文字列与正文列只在 pane ≥ 900px 时严格同源**（§M3.5-11）：头部用 `mx-auto max-w-[708px] px-12`，正文用 editor 的 grid（`minmax(96px,1fr) | minmax(auto,708px)`）。窄 pane 下两者会差 ~50px（grid 的边距是 96px、`mx-auto` 是 0）。1200px 的对话框里实测逐像素一致（探针 ㉔），所以本轮不修；真要修就是让头部复用 editor 的 `.notion-like-editor-layout` 列 —— 代价是 `packages/ui` 反向依赖 `packages/editor` 的全局类名。
+  11. **`readOnly` 会让封面一起消失**（§M3.5-13）：`readOnly` 时不调用两个注入点，`{hasCover && coverEntry}` 因此渲染 `false`。今天没有消费方（只有 rich-text 挂载且不传 `readOnly`），要修就单开一条：`readOnly` 下用 `NodePreviewCover` 静态画封面。
 - 用户结论：（待填）
 
 ---
