@@ -1,0 +1,26 @@
+desktop:  ELIFECYCLE  Command failed with exit code 1.
+desktop: Invalid project directory provided, no such directory: /home/lyq/workspace/projects/dBrain/apps/desktop/lint
+ ELIFECYCLE  Command failed with exit code 2.
+server:  ELIFECYCLE  Command failed with exit code 2.
+server: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+web: ✖ 4 problems (0 errors, 4 warnings)
+@workspace/adapter-back:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/adapter-back: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/adapter-front:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/adapter-front: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/adapter-tauri:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/adapter-tauri: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/api-client: ✖ 1 problem (0 errors, 1 warning)
+@workspace/application:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/application: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/domain:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/domain: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/editor: ✖ 106 problems (67 errors, 39 warnings)
+@workspace/editor:  ELIFECYCLE  Command failed with exit code 1.
+@workspace/graph: ✖ 3 problems (0 errors, 3 warnings)
+@workspace/hooks: ✖ 2 problems (0 errors, 2 warnings)
+@workspace/infrastructure:  ELIFECYCLE  Command failed with exit code 2.
+@workspace/infrastructure: ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+@workspace/interfaces: ✖ 3 problems (0 errors, 3 warnings)
+@workspace/store: ✖ 5 problems (0 errors, 5 warnings)
+@workspace/ui: ✖ 31 problems (0 errors, 31 warnings)

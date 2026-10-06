@@ -18,6 +18,9 @@ coverage
 # Turbo
 .turbo
 
+# docs/plan/baseline.sh 的原始输出（归一化快照已入库：docs/plan/baseline/）
+.baseline-raw/
+
 # Vercel
 .vercel
 
