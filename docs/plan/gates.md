@@ -342,8 +342,8 @@
 
 ### G3 — M3 text 单块 + rich-text 头部
 
-- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下）
-- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）
+- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下。**再加一轮「追加交付」**：用户要求「单行 block 要有 rich-text 里 block 的能力」—— 选区浮条 + 行内 LaTeX，含一次前置别名修复，见下面的「追加交付」段）
+- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）→ `b8e3fb5`（**前置修复**：`packages/ui` 的 `@workspace/editor` 别名）→ `5954cfe`（单块内联能力：选区浮条 + 行内公式）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅
   - **lint diff**：**0 新增 / 2 消失** ✅ —— `@workspace/ui` 28 → 26 problems（旧 `rich-text-node-content.tsx` 的 `cn` 与 `className` 两个 `no-unused-vars` 随重写消失，`pnpm eslint --stdin` 对 HEAD 版本复现过），`@workspace/editor` 仍是 **106 problems (67 errors, 39 warnings)** 与基线同数、**M3 新文件零 error**；基线已按脚本提示重采（`--accept`），所以现在两段都是 `0 新增 / 0 消失`
@@ -356,7 +356,34 @@
   - **顺手堵掉的真回归（M3 引入、M2 没有）**：`node-content-editor.tsx` **不按 `node.id` 挂载**（该文件被 §M3.5-5 冻结），而侧栏「关系」页签在对话框打开时直接改 `currentEditingNodeId`（`attributes-sidebar.tsx:519`）⇒ text→text 切换时：① 单块编辑器是无控的、种子只读一次，**会继续显示上一个节点的正文**；② 为旧节点武装的 400ms 防抖会经**新节点**的写者落到新节点（串数据）。M2 的 `<Textarea>` 是受控的，跟着 `node` prop 走，所以这是 M3 的回归。
   - **修法（只在白名单文件里）**：编辑器在宿主内 `key={node.id}` 重挂载（种子每挂载读一次 ⇒ 渲染期不再读 ref，改用 lazy `useState` 的等价形态）；待写内容与「它属于哪个写者」一起入队，flush 用当时捕获的 `patchContent` —— 于是旧节点的待写内容只会写回旧节点。rich-text 那一侧 M3 未改（M2 就是 `room={node.id}` + `getInitialContent`），同名风险登记为遗留 6。
   - **复跑**：探针 23/23（新增 ⑲⑳㉑ 覆盖切换路径 + 反向对照，原「无未捕获报错」改为 ㉒）；`baseline.sh` 仍 **0 新增 / 0 消失**。
-- 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)。**按实测调整 9 处**（开头前置说明），其中三条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面；③ 第 1 条之前**必须整页刷新**（标签页可能还停在 21:5x 的中间构建上，见上）。
+- **追加交付：单块的内联能力对齐 rich-text（选区浮条 + 行内公式）**（`b8e3fb5` + `5954cfe`，清单加 14–17）：
+  - **需求**：用户实测时提出「text-node-content 中的单行 block 要有 rich-text 中的 block 的能力，比如选中文字后的 toolbar 和 latex 输入」。
+  - **交付**：① 扩展集补 rich-text 的**内联半边**（`TextStyle` / `Color` / `Highlight(multicolor)` / `Superscript` / `Subscript` / `Typography` / `LatexInline`），块级仍全关，`docs` 与 rich-text 的合法子集关系（设计 §0.2-1）保持；② 新增 `single-block-toolbar.tsx`，用**同一批** `tiptap-ui` 控件组装浮条（粗 / 斜 / 下划线 / 删除线 / 代码 / 链接 / 颜色 / 公式 / 更多＝上下标+四个对齐），可见性直接复用 `isSelectionValid`（公式节点因此不弹浮条，它有自己的编辑弹层）；③ 只读孪生加 `static` 模式：`generateHTML` 不跑 node view，`static` 时把 KaTeX 烘进 HTML，否则静态渲染的公式是个空 `span`。两条入口都在：浮条的「T」按钮（把选区文字**搬进**公式）与 `$` + 空格输入规则（新建空公式，它自己的编辑框会自动打开）。
+  - **前置修复（`b8e3fb5`，超出本章原白名单，单独一次提交）**：`packages/ui/tsconfig.json` 的 `@workspace/editor` / `@workspace/editor/*` 原本指向 `../editor/src(/*)` —— **不存在的目录**。能编过是因为 `packages/ui/node_modules/@workspace/editor` 是 workspace 软链、TS 在 `paths` 落空后会回退到 node_modules 解析；代价是被拉进程序的 editor 文件内部的 `@workspace/editor/...` 全部 TS2307（`@workspace/ui` 段 65 行噪声）。不修的话，浮条引 8 个 tiptap-ui 模块就是 +8 条以上基线新行 ⇒「复用 editor 控件」这件事本身会把基线判据搞脏。改成 `../editor(/*)` 后：`@workspace/ui` typecheck **76 → 19** 条、全仓 typecheck **136 → 88** 条、lint 26 条不变；剩下的 19 条是 editor 文件**真实的**既存错误（与 `@workspace/editor` / `web` 两段同源），只是从「被 TS2307 掩盖的 TS7006」变成显示出来。
+  - **自检**：`@workspace/editor` typecheck / lint 相对基线无新增行（lint 仍 `106 problems (67 errors, 39 warnings)`，**新增两个文件零 error**）；`@workspace/ui` typecheck 19 条、逐行与别名修正后一致（新文件零行）；`bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**（基线已 `--accept` 重采为 typecheck 88 / lint 26，见 [baseline.md](./baseline.md) §2）。越界检查：本轮新增/修改文件只有 `single-block-editor.tsx` / `single-block-toolbar.tsx`（新）/ `single-block-renderer.tsx` / `packages/ui/tsconfig.json`；**零新依赖**（用的全是 `packages/editor` 既有的依赖：`katex`、`@tiptap/extension-{highlight,superscript,subscript,typography,text-style}`、`@floating-ui/react`）。
+  - **主 agent 预跑证据（真浏览器探针 16/16）**：同一个 harness（`chrome-headless-shell` + 裸 CDP），页面这次把 `TextNodeContent` 放进**真 Radix Dialog**（`node-editor.tsx` 的窗口宿主形态），CSS 用 dev server 编出的两份产物（Tailwind globals + editor 组件 CSS）拼起来，数据层仍是行为等价的 stub：
+    ```
+    ✓ ① 探针页挂载（真 Dialog + 真 TextNodeContent → 真单块编辑器 + 浮条 + 真 CSS）
+    ✓ ② 键入正文：仍是**一个** <p>，文字落进去
+    ✓ ③ Ctrl+A 后出现选区浮条：贴在选区上方、横向覆盖选区、不出 Dialog 盒（345×40）
+    ✓ ④ 浮条里是 rich-text 的同一套控件（粗/斜/下划线/删除线/代码/链接/颜色/行内公式/更多）
+    ✓ ⑤ 点浮条「Bold」：选区真的加粗（<strong> + 按钮 data-active-state=on）
+    ✓ ⑥ 「更多」弹层里是上下标 + 四个对齐（rich-text 同款，且点击弹层不收起浮条）
+    ✓ ⑦ 点上标：选区变成 <sup>（弹层里的控件同样作用于正文）
+    ✓ ⑧ 点浮条「行内公式」：选中的文字变成 latexInline 并渲染出 KaTeX（不是空公式）
+    ✓ ⑨ 公式节点被选中时不弹格式浮条（latexInline 在 isSelectionValid 的排除表里）
+    ✓ ⑩ 输入 `$ `（空格）触发输入规则：插入空公式节点并弹出公式编辑框（浮条让位）
+    ✓ ⑪ 在公式编辑框里输入 E=mc^2 并回车：公式落到节点上、编辑框关闭
+    ✓ ⑫ 回车不新建块：文档始终只有一个块级子节点
+    ✓ ⑬ 落库：docs 是「单段 Tiptap doc」，粗体与行内公式都进了 JSON（写者只带 docs 一个键）
+    ✓ ⑭ 只读孪生（generateHTML + static 模式）把公式渲染成 KaTeX，而不是空 span
+    ✓ ⑮ 浮条不吞 Esc：浮条收起、Dialog 照常关闭（Esc 语义仍归宿主）
+    ✓ ⑯ 无未捕获报错
+    ```
+    复跑：`node /tmp/probe/toolbar-check.mjs`（`PROBE_URL=http://127.0.0.1:8899/toolbar.html`；入口 `toolbar-entry.tsx` 要放进 `apps/web/` 下再交给 esbuild，否则 `@tiptap/*` 之类的裸包名解析不到）。
+  - **探针工装踩到的两个坑（复跑时要带）**：① `Input.dispatchKeyEvent` **不带 `text` 不会插入字符**，所以「打一个空格触发 `$ ` 输入规则」必须走 `Input.insertText(" ")`，否则规则永远不触发；② 探针页尺寸要用 inline style —— 它链的是 app 的**预编译** Tailwind 产物，只写在探针文件里的任意值类（`w-[880px]`）根本不在 CSS 里，会得到一个 64px 宽的「对话框」，然后所有点击都落到盒子外面（表现为「输入不进编辑器」）。另有一个**不是 bug** 的现场：`Input.insertText("E=mc^2")` 是一次性多字符输入，`Typography` 的 `/\^2$/` 规则会按单字符位置算范围并抛 `RangeError: Position N out of range`（真机逐字输入不触发，且公式源码写在 textarea 里、根本不经过 ProseMirror）—— 登记为遗留 7。
+  - **口径（判清单 14–17 时按这四条看）**：① 浮条**没有**「转换成」/ AI / 图片 / 缩进（单块只有一段，块级入口不适用），少几个按钮是设计；② 公式**只有行内**；③ 窄屏/平板**照常显示**浮条（不做 `MobileToolbar` 回落，理由：单块没有第二条格式入口）；④ 公式编辑弹层开着时第一次 `Esc` 归它（Radix innermost-first），第二次才关对话框。
+- 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)（**共 17 条**，14–17 是追加的内联能力）。**按实测调整 10 处**（开头前置说明），其中三条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面；③ 第 1 条之前**必须整页刷新**（标签页可能还停在 21:5x 的中间构建上，见上）。
 - **主 agent 预跑证据（真浏览器探针 23/23）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真组件**（`TextNodeContent` / `NodeContentHeader` / `SingleBlockRenderer` / `useNodeContentWriter` + 真模态 `Dialog`）+ **真编译 CSS**（dev server 编出的 Tailwind globals + 新的 single-block SCSS 两份产物拼起来），数据层换成行为等价的 stub（`upsert` 乐观同步落 store、网络调用是 await、单次 25ms），所有输入都是 CDP 的**受信任**事件：
   ```
   ✓ ① 探针页挂载（真 TextNodeContent / Header / Renderer / Writer + 真 CSS）
@@ -383,8 +410,8 @@
   ✓ ⑱ 卸载 flush：防抖窗口（400ms）内卸载编辑器，最后一次输入「末」仍落库
   ✓ ㉒ 无未捕获报错
   ```
-- 探针脚本的复跑口径：`node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
-- 用户实测结果：（待填 —— 清单 13 条）
+- 探针脚本的复跑口径（两个脚本）：**追加交付**用 `node /tmp/probe/toolbar-check.mjs`（16 条，见上）；首轮的 `node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
+- 用户实测结果：（待填 —— 清单 **17** 条；13 条基础 + 14–17 追加的内联能力/公式）
 - 失败项与归因：（待填）
 - 迭代：——
 - 遗留不阻塞项（初步，G3 通过后定稿）：
@@ -394,6 +421,8 @@
   4. **`@tiptap/starter-kit` 仍是 `packages/editor` 的 devDependency 却被运行时 import**：M3 沿用既有形态（`notion-like-editor.tsx:10` 早就如此），未动 manifest（动它要碰 lockfile，属主 agent 独占面）。是否提升为 `dependencies` 待定。
   5. **`@tiptap/static-renderer` 未安装**：只读渲染用 `@tiptap/core` 的 `generateHTML`（3.22.4 已导出），符合 §M3.2-4；上游若把 static renderer 变成必需包，届时按 §5 账本增依赖。
   6. **内容宿主仍不按 `node.id` 挂载**：`f4e7357` 只在 `text-node-content.tsx` 内部用 `key={node.id}` 修掉 text→text；`node-content-editor.tsx` 本身没 key（§M3.5-5 冻结了该文件的路由），所以「对话框原地换节点」这条路上，其他宿主（rich-text 的正文靠 `NotionEditor` 自己的 `room` 变化，M2 形态、M3 未改；database / collection 的 `DataViewRoot` 靠宿主自己带 key）仍各有各的假设。要不要在 `node-content-editor.tsx` 统一加 `key={node.id}`（一行、不改路由）请 G3 一并判——本轮不动它，以免扩大白名单。
+  7. **`Typography` 的 `^2` / `^3` 输入规则在「一次插入多字符」时会抛 `RangeError`**：Tiptap 的 `textInputRule` 按单字符输入算替换范围，遇到一次性多字符文本输入（探针里的 `Input.insertText("E=mc^2")`；将来若有别的批量注入路径同理）会算出越界位置。rich-text 也注册了 `Typography`，所以这是**既存行为、不是本轮引入**，真机逐字输入不触发；公式源码写在 textarea 里、不经过 ProseMirror。要不要给 `Typography` 加白名单/去掉 `^2` 规则，留给后续章节（它同时是"输入 ^2 就变 ²"这个功能的来源，取舍要单独判）。
+  8. **浮条不做移动端回落**（§M3.2-15）：rich-text 在窄屏会藏掉浮条、改用底部 `MobileToolbar`，单块没有第二套入口所以照常显示。若平板实测发现浮条在触摸选区下不好用，下一步是给单块做一个紧凑的固定工具条，而不是照抄 rich-text 的隐藏策略。
 - 用户结论：（待填）
 
 ---

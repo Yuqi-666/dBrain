@@ -40,17 +40,34 @@
 | ② TS 对象字面量成员顺序 | 同一处 `TS2345` 的错误文案里 `{ userId; sourceId; color?; category?; }` 的成员顺序两次运行不同 | `server: ../../backend/adapter-front/src/trpc/router/edge-semantic.ts(31,80)`，两次采集的差异**只**在成员顺序 | `canon_type_literals`：把每个 `{...}` 内的 `a: T; b: U` 按字典序排序（先摘掉结尾 `;` 再排，否则空元素会被排到最前——这是第一版的 bug） |
 | ③ **行/列号漂移** | 里程碑编辑一个**本身带基线错误**的文件时，那些既存错误的行号必然跟着挪，于是同一份错误集在 diff 里表现为「删 9 行 / 加 10 行」 | M1 实测：`backend/domain/src/models/node/value-objects.ts` 的 3 条 TS7006 从 `(931,8)/(937,14)/(943,8)` 挪到 `(1019,8)/(1025,14)/(1031,8)`；`entities.ts` 的 3 条 TS2307 从 `(1,31)/(6,8)/(9,8)` 挪到 `(2,31)/(7,8)/(10,8)`。它们全在 `server:` 段（`apps/server` 编 `backend/**` 时解析不到 `@workspace/interfaces` 的深路径/裸入口） | `s/\([0-9]+,[0-9]+\)/(L,C)/g` **＋ 保留出现次数**（`sort \| uniq -c`，快照写成 `N× <错误>`）。判据因此是「**file + error code + message + 出现次数**」的集合比较：新文件、新文案、或同一文案多一条，都仍然会被 diff 抓到；丢掉的只有「同一 file+文案 内部换了行号」这一件无信息量的事 |
 
-> 三类都**只影响文案/位置、不影响错误集**：真有字段增删时清单依然会变，所以不掩盖真实回归。归一化后的基线（**M1 收口时重采**）：typecheck **136** 条、lint **26** 条。
+> 三类都**只影响文案/位置、不影响错误集**：真有字段增删时清单依然会变，所以不掩盖真实回归。归一化后的基线（**M3/G3 追加交付时重采**）：typecheck **88** 条、lint **26** 条。
 
 ---
 
-## 2. typecheck 基线（19 任务：15 通过 / 4 失败；M1 重采）
+### 1.2 第四类「假差异」其实是**真差异**：`@workspace/ui` 段的别名修复（M3/G3 追加交付）
+
+`packages/ui/tsconfig.json` 的 `@workspace/editor` / `@workspace/editor/*` 原本指向 `../editor/src(/*)` —— **不存在的目录**。它之所以"能编过"，是因为 `packages/ui/node_modules/@workspace/editor` 是 workspace 软链，TS 在 `paths` 落空后会**回退到 node_modules 解析**：文件确实被拉进程序了，但那些文件**内部**的 `@workspace/editor/...` 一律 TS2307，于是 `@workspace/ui` 段堆了 65 行噪声（还有一批被 2307 掩盖、因类型退化成 `any` 而消失的 TS7006）。
+
+改成 `../editor(/*)` 后同一批文件按正确路径解析，结果是**一次真实的改善**：
+
+| 段 | 修前 | 修后 | 说明 |
+| -- | ---- | ---- | ---- |
+| `@workspace/ui` | 76 条 | **19 条** | 剩下的 19 条是 editor 文件**真实的**既存错误（latex 三件套、`notion-like-editor-header`、`excalidraw-wrapper`），与 `@workspace/editor` / `web` 两段同源；`packages/ui/src` 自身仍是零错误 |
+| `@workspace/editor` / `web` / `interfaces` / `server` | 不变 | 不变 | 只有 `packages/ui` 一份 tsconfig 改了 |
+| 全仓归一化条数 | 136 | **88** | diff = −52 / +4（那 4 条是上面说的"显示出来"的真实错误） |
+| lint | 26 | **26** | 不受影响 |
+
+这不是 M3 功能的副作用，而是它的**前置条件**：单块编辑器要复用 `packages/editor` 的 `tiptap-ui` 控件（浮条），不修别名的话每引一个模块就 +1 条噪声行，基线判据会被"复用 editor 代码"这件事本身搞脏。改动与判定过程记在 [gates.md §5 G3](./gates.md) 的「追加交付」段。
+
+---
+
+## 2. typecheck 基线（19 任务：15 通过 / 4 失败；M3/G3 追加交付重采）
 
 | 包 / 应用                  | 结果 | 说明                                                                        | 本轮是否触碰 |
 | -------------------------- | ---- | --------------------------------------------------------------------------- | ------------ |
 | `@workspace/interfaces`    | ❌ 1 条 | M0 前是 4 条；其中 3 条是 `nodes/complex/index.ts:5-7` 的**死 re-export**，已在 M0 删除。剩下 1 条是环的产物 `../utils/src/filter.ts(7,8) TS2307`，**M1 之后这里必须仍然只有这 1 条**（实测：M1 加了 annotation/timestamp-note 两个新文件与若干 barrel 导出后仍是 1 条 ✅） | **是**（M1） |
 | `@workspace/editor`        | ❌ 多条 | `@workspace/adapter-front` / `@workspace/store` / `next/dynamic` 解析不到的 TS2307，以及 tRPC hooks 的 TS2339 | **是**（M3） |
-| `@workspace/ui`            | ❌ 76 条 | 全部是 `../editor/**` 同源的跨包解析错误（`ui` 把 `../editor/**` 一起编）；**`packages/ui/src` 自身零错误**。M1 改 3 个 content 宿主 + 新增 2 个文件后仍是 76 条（逐条 diff 为空） | **是**（M2–M13） |
+| `@workspace/ui`            | ❌ **19 条** | 别名修正后只剩 editor 文件真实的既存错误（见 §1.2）；**`packages/ui/src` 自身零错误**。M1（76 条）/ M2 期间逐条 diff 为空；M3 追加交付把 76 → 19 | **是**（M2–M13） |
 | `web`                      | ❌ 多条 | 同族 TS2307（`@workspace/hooks`、`@workspace/infrastructure`、`@workspace/domain/...`）+ 若干 TS18047/TS2322 | **是**（M4、M10 加路由） |
 | `server`                   | ✅ **0 条** | **M1 修掉了缺陷 4**：给 `apps/server/tsconfig.json` 补 `@workspace/interfaces` / `@workspace/utils` 的 `paths` 后，46 条噪声一次归零。它现在是后端改动的**真哨兵** | **是**（M1、M11） |
 | `@workspace/{dataview,store,services,graph,hooks,utils,api-client,dev}` | ✅ | —— | dataview / store / services 会被 M1、M4、M10 碰 |
@@ -93,10 +110,10 @@
 
 | 项                | 值                                                              |
 | ----------------- | --------------------------------------------------------------- |
-| 采集时间          | 2026-10-06（初采 @ `907521f`；M0 落地后重采 @ `ac6a0f0`；**M1 收口重采 @ `1d67b4d` 后工作树**：补第三类归一化 + 修掉 `apps/server` 的 paths） |
+| 采集时间          | 2026-10-06（初采 @ `907521f`；M0 落地后重采 @ `ac6a0f0`；M1 收口重采 @ `1d67b4d` 后工作树：补第三类归一化 + 修掉 `apps/server` 的 paths；**M3/G3 追加交付重采**：修掉 `packages/ui` 的 `@workspace/editor` 别名，见 §1.2） |
 | 分支 / HEAD       | `develop`（M1 进行中）                                           |
 | 快照格式          | `N× <file>(L,C): error TSxxxx: <message>` —— 行/列号已归一化，出现次数保留（见 §1.1 类③） |
-| 归一化后条数      | typecheck **136** 条（计数行）／ lint **26** 条（M1 收口时重采；M0 时是 213/26，差值来自归零的 `server:` 段与本轮归一化） |
+| 归一化后条数      | typecheck **88** 条（计数行）／ lint **26** 条（M3/G3 追加交付重采；M1 收口时是 136/26，M0 时是 213/26 —— 差值分别来自 M1 归零的 `server:` 段与 §1.2 的别名修复） |
 | node / pnpm / turbo | v24.15.0 / 9.0.0 / 2.9.6                                      |
 | PocketBase        | `pb/pocketbase`（31 MB 二进制）；`pb/pb_data/` 已存在 —— **但库是空的**：`nodes`/`users`/`workspaces`/`edges` 全 0 行（M0 直读 sqlite 实测）。superuser 安装已于 M0 用 CLI 完成（`admin@dbrain.dev`，密码见 gitignored 的 `pb/pb_data/.superuser-credentials.txt`） |
 | 迁移现状          | `pb/pb_data/data.db` 的 `_migrations` 已含 `1700000000_initial_schema.js` + **M1 的 `1700000001_node_extras.js`**（另 8 条是 PB 自带迁移）；`nodes` 字段 32 → 36（`annotations`/`timestampNotes`/`icon`/`cover`），`up`/`down` 双向实跑通过 |

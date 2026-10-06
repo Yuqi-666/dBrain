@@ -1,6 +1,7 @@
 # node-content UI 执行计划（M2 / M3）
 
 > 状态：**M2 已过 G2（2026-10-06 · 第 3 轮）**；**M3 已实现、待 G3 实测**（提交 `e5ef141` / `8cc8d36` / `8ea92e2` / `f4e7357`，自检与 23/23 真浏览器探针见 [gates.md §5 G3](./gates.md)；首轮实测报的 `initialDoc.current` 崩溃已归因到标签页里的中间构建，并顺手修掉「对话框原地换节点」的回归）
+> 追加（G3 待测期内，用户要求）：**单块要有 rich-text 里 block 的能力** —— 选中文字的浮条 + 行内 LaTeX。落码见 §M3.1 第 9/10 行（含一处前置别名修复）与 [gates.md §5 G3](./gates.md) 的「追加交付」段；清单加 4 条（14–17）
 > 覆盖：M2 = 图标与封面（selectors P0 UI + P1 + node-content P0 的 `file-drop-zone` + 重排 R1/R4）；M3 = text 单 block（禅意）+ rich-text 头部挂载（node-content P1）
 > 闸门：G2、G3（各自独立过闸；可与 W0 的 G4 共用一次用户会话，但结果**分别记录、分别判定**，总纲 §6.4）
 > 契约：设计文档 [../node-content/selectors.md](../node-content/selectors.md)（下称「sel §n」）、[../node-content/README.md](../node-content/README.md)（下称「nc §n」）、执行总纲 [./README.md](./README.md)（下称「总纲 §n」）
@@ -159,6 +160,14 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 | 7   | 头部与 chrome 的重复入口收口（**仅当采用 §M3.2-2 的方案 B**）：`EditorHeader` 对「内容自带头部」的类型不渲染图标/封面按钮 | 修改 `packages/ui/src/components/header/editor-header/editor-header.tsx`（M2 之后的第三个串行 writer）                                       | 子 agent   | 同上                                                                                                                 |
 | 8   | **按需**：若第 1/3 行最终把 Tailwind 工具类写进 `packages/editor`，补一行 `@source`                                                                            | 修改 `packages/ui/src/styles/globals.css`（`:8-16` 的 `@source` 列表）                                                                       | **主 agent**（总纲 §3.1 独占） | 改完立刻 `pnpm --filter=web build` 通过 + G3 复测该样式                                                               |
 
+**G3 待测期追加（用户要求：单行 block 要有 rich-text 里 block 的能力 —— 选区浮条 + LaTeX 输入）**：
+
+| #   | 任务                                                                                                                                                                                                     | 文件白名单（新增/修改）                                                                                     | 执行主体 | 验收（编译器可判定的部分）                                                                                   |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| 9   | 单块的**内联能力**对齐 rich-text：扩展集补 `TextStyle` / `Color` / `Highlight(multicolor)` / `Superscript` / `Subscript` / `Typography` / `LatexInline`（块级仍全关；`latexBlock` 是 `group:"block"`，schema 容不下）；只读孪生加 `static` 模式（`generateHTML` 不跑 node view ⇒ 公式由 KaTeX 烘进 HTML） | 修改 `single-block-editor.tsx`、`single-block-renderer.tsx`                                                  | 主 agent | `pnpm --filter=@workspace/editor typecheck` / `lint` 相对基线无新增行（lint 仍 `106 problems (67 errors)`）    |
+| 10  | 选区浮条：用**同一批** `tiptap-ui` 控件（`MarkButton` / `LinkPopover` / `ColorTextPopover` / `TextAlignButton` / `LatexInlineButton` / `Toolbar` / `FloatingElement`）组装单块自己的浮条，不做 MobileToolbar 回落                | 新增 `single-block-toolbar.tsx`；修改 `single-block-editor.tsx`                                              | 主 agent | 同上；新文件零 error（editor 段不走 `eslint-plugin-only-warn`）                                                |
+| 11  | **前置修复**：`packages/ui/tsconfig.json` 的 `@workspace/editor` / `@workspace/editor/*` 指向 `../editor/src` / `../editor/src/*`（**不存在的目录**）。今天靠 `node_modules` 回退仍能找到文件，但 editor 文件内部的 `@workspace/editor/...` 一律 TS2307 ⇒ 复用 editor 控件的代价是**每引一个模块 +1 条基线噪声**。改成 `../editor` / `../editor/*` | 修改 `packages/ui/tsconfig.json`（G3 追加项，超出本章原白名单，已在 [gates.md](./gates.md) 登记）                     | 主 agent | `@workspace/ui` typecheck **76 → 19** 条，全仓 typecheck **136 → 88** 条；`--accept` 后两段 0 新增 / 0 消失     |
+
 ### M3.2 关键决策与挡路的坑
 
 1. **`doc-normalize.ts` 与 `use-node-content-writer.ts` 都由 M1 交付，M3 只消费。** [spine.md](./spine.md) §M1 任务 T5 把两个文件都列为 M1 的新增文件（`packages/ui/src/components/dialog/editor/content/{use-node-content-writer.ts,doc-normalize.ts}`）。开工前置检查：`ls packages/ui/src/components/dialog/editor/content/{use-node-content-writer.ts,doc-normalize.ts}` 两个都必须存在（今天都**不存在**，已核）。若缺，停在本章入口回派 M1，**不在 M3 里补建第二个归一化文件**；`normalizeDoc` 的目标形状（`{type:"doc", content:[…]}`）以本章 §M3.2-7 为准，需要扩展就在 M1 那个文件上改。
@@ -173,6 +182,11 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 10. **头部六项里只有正文碰 `content`。** nc §2 的纪律：cover/icon/title/summary/semantic pill 都是顶层字段直写（`NodeService.upsert(id, { icon })`），**永远不要为了改图标发 `{ content }`**——`NodeService.upsert` 的顶层浅合并里 `content` 是整包替换（`node.service.ts:50`）。即便如此也要串行化：传 `content` 的半边（正文）与传顶层字段的头部仍会落进同一个「同一节点两次写互相 abort」的坑（nc §0.3-8），所以 `patchNode` 与 `useNodeContentWriter` 共用同一个 drain。
 11. **rich-text 正文只写 `docs` 半边依赖 M1 拆开后端。** 今天 `updateNodeContent` 要求 `referencedNodes` 与 `docs` **同时出现**（`node-command.service.ts:403-407`），缺一个就静默不改；M1 已把两半边拆开（总纲 §9 R3）。G3 的正文回归里要确认 `referencedNodes` 不会因为编辑器只发 `docs` 而丢。
 12. **双宿主尺寸约束继续成立。** node-content 既在 `w-[1200px] h-[80vh]` 的 Dialog（`node-editor.tsx:55`）里，也在 `absolute inset-0`（`:69-78`）里；单块编辑器的禅意留白不得用 `vh`/视口单位，高度一律 `h-full min-h-0`（内容盒是 `:104-107` 的 `flex-1 overflow-y-auto`）。
+13. **「单块也要 rich-text 的能力」= 内联半边，不是整份扩展集。** 设计 §1.1 只要求一块居中富文本，`docs` 与 rich-text 的**合法子集**关系（§0.2-1）必须保持，所以第 9 行加的是 rich-text 扩展集里**所有内联**的东西（marks + 行内公式 + 排印替换），块级的（标题/列表/引用/表格/图片/emoji/mention/块公式/斜杠菜单/拖拽柄/AI/批注）一个都不加 —— 它们要么 schema 容不下，要么需要一个单块没有的容器。**代价**：单块与 rich-text 的控件是「同一批组件、两份装配」，不是一份共享装配；这是刻意的，因为两边可用项不同（rich-text 的浮条还有「转换成」/AI/图片）。第 9 行**不动** `notion-like-editor-toolbar-floating.tsx`，它有 AI/collab/mention/表格的整张图。
+14. **复用 editor 控件的前提是 `packages/ui` 的别名正确（第 11 行）。** `packages/ui/tsconfig.json` 的 `@workspace/editor/*` 原本指向 `../editor/src/*`；因为 `packages/ui/node_modules/@workspace/editor` 是 workspace 软链，`paths` 落空后 TS 会**回退到 node_modules 解析**，所以「能编过」是假象：被拉进程序的 editor 文件内部的 `@workspace/editor/...` 全部 TS2307，`@workspace/ui` 段因此有 65 行噪声。第 10 行要引 8 个 `tiptap-ui` 模块，不修别名就是 +8 条以上基线新行。修完 **76 → 19** 条（剩下 19 条是 editor 文件**真实的**既存错误，与 `@workspace/editor` / `web` 两段同源），基线 `--accept` 重采为 typecheck **88** / lint **26**。**这不是本轮功能的副作用，是它的前置条件**，所以单独一次提交。
+15. **浮条的可见性规则直接复用 `isSelectionValid`，所以公式节点不弹浮条。** `latexInline` / `latexBlock` 都在它的 `excludedNodeTypes` 里 —— 选中公式时该出现的是公式自己的编辑弹层（`latex-inline.tsx` 的 node view），不是格式浮条。反过来，`FloatingElement` 必须挂在 `EditorContent` **内部**（notion 模板就是这个形态）：`isElementWithinEditor` 判的是 `editor.view.dom.parentElement`，浮条在别的盒子里时，点它会因为"在编辑器外"而自我关闭。浮条也不做移动端回落（不挂 `useIsBreakpoint`、不做 `MobileToolbar`）：单块没有第二条格式入口，隐藏等于在平板上失去全部格式能力。
+16. **`Esc` 的层级语义要在真 Dialog 里验。** 浮条自己不 preventDefault（`closeOnEscape` 只关浮条），所以 `Esc` 仍会走到宿主 Dialog ⇒ 关编辑器。但**公式编辑弹层是另一层**：它开着时第一次 `Esc` 被它消费（Radix `DismissableLayer` 的 innermost-first 规则，实测 `defaultPrevented=true`），第二次才轮到 Dialog —— 这是 Radix 的正常层序，不是「浮条吞了 Esc」；清单第 15 条按这个口径判。
+17. **只读孪生要显式区分「可编辑的 `latexInline`」与「静态烘好的公式」。** `generateHTML` 不跑 node view，而可编辑的 `latexInline.renderHTML` 只吐一个空的 `span[data-type=latexInline]`（内容由 node view 填）⇒ 静态渲染会得到**看不见的公式**。所以 `createSingleBlockExtensions({ static: true })` 换成 `LatexInline.extend({ renderHTML })`：KaTeX 直接烘进 HTML（`document` 不是新增依赖面 —— `generateHTML` 本身就是 DOM-bound 的）。`SingleBlockRenderer` 今天仍无消费方（遗留 1），但公式进了文档形状，只读路径就不能再默认"文本而已"。
 
 ### M3.3 提交切分
 
@@ -181,6 +195,9 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 3. `rich-text 头部：cover/icon/title/summary/semantic pill 挂载，顶层字段经共享写者直写`
 
 （第 1 条含第 1/2 行；第 2 条含第 3/4 行；第 3 条含第 5/6/7 行与按需的第 8 行。按需项的提交并入对应条，不另起一次提交。）
+
+4. `fix(ui): packages/ui 的 @workspace/editor 别名指向不存在的 src/，修正为包根`（第 11 行）
+5. `editor 单块：内联能力对齐 rich-text（选区浮条 + 行内公式 + 颜色/高亮/上下标）`（第 9/10 行）
 
 ### M3.4 闸门 G3 — 用户操作清单
 
@@ -197,6 +214,7 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 > 7. **第 12 条**：`bash docs/plan/baseline.sh` 的判据是两段 diff；本轮基线已重采（见 gates.md G3），预期 **0 新增 / 0 消失**。
 > 8. **已知偏差（不算失败）**：① 只读渲染器 `SingleBlockRenderer` 已落地但没有消费方——预览浮层的文本预览用自己的 `text-preview.tsx`（M3 不碰 `preview-block/**`，`§M3.2-9`），该组件留给后续只读展示路径；② 触摸端没有 hover，封面入口只有「有封面 → 点封面 / 无封面 → 点按钮」两种形态。
 > 9. **交付后首轮实测报过一次 `initialDoc.current` 崩溃（已修，清单不受影响）**：那次崩溃来自**你标签页里 21:5x 的中间构建**（dev server 的 chunk 名按模块图取、21:56 那份被 22:05 的最终构建就地覆盖，页面在 22:05 之前加载就留着旧模块），当前代码与服务端产物里都没有那个表达式。**所以第 1 条之前请整页刷新一次**（普通刷新即可，chunk 是 `no-store`；域名下 HMR 不通，站点内跳转不算）。排查时还顺手发现并修掉一个真回归：对话框不按 `node.id` 重挂载，而侧栏「关系」页签能在对话框打开时把同一个对话框指向另一个节点 ⇒ text→text 切换会显示上一个节点的正文、且防抖会把旧节点的内容写进新节点（提交 `f4e7357`，探针 ⑲⑳㉑ 覆盖）。这就是第 13 条的来历。
+> 10. **追加的 4 条（14–17）来自「单行 block 要有 rich-text 里 block 的能力」**：选中文字的浮条与行内 LaTeX。**也是先 F5**（`packages/editor` 与 `packages/ui/tsconfig.json` 都改了）。口径：① 浮条里**没有**「转换成」/ AI / 图片 / 缩进（单块只有一段，见 §M3.2-13），所以"比 rich-text 少几个按钮"是设计，不是缺件；② 公式**只有行内**（`latexBlock` 是块级节点，schema 容不下）；③ 平板窄屏下浮条**照常显示**（与 rich-text 不同，见 §M3.2-15）；④ `$` + 空格会立刻弹出公式输入框，此时按第二次 `Esc` 才会关对话框（第一次归公式弹层，见 §M3.2-16）；⑤ 手感上浮条出现在文字上方，页面滚动/缩放时会跟随。
 
 | #   | 用户做什么（具体入口）                                                                                                         | 期望                                                                                                     | 判据或证据                                                                                                                              | 失败先看哪                                                                        |
 | --- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -213,6 +231,10 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 | 11  | 回归：双击一个 image / database 节点                                                                                            | 它们的 node-content 与改动前一致（M3 只动 text 与 rich-text）                                             | 逐项操作；PB 数据无变化                                                                                                                  | `node-content-editor.tsx:29-62` 的路由是否被改                                    |
 | 12  | 跑三条命令：`pnpm --filter=@workspace/editor lint`、`--filter=@workspace/editor typecheck`、`--filter=@workspace/ui typecheck`（或 `bash docs/plan/baseline.sh`） | 相对 [baseline.md](./baseline.md) **无新增行**；`@workspace/editor` 的 lint 计数不超过 `106 problems (67 errors)`，且 M3 新增文件零 error | 贴三条输出的尾部 + `.baseline-raw` 的 diff                                                                                                | 新文件里的 `any`（editor 不走 `eslint-plugin-only-warn`）；未使用的 import         |
 | 13  | 打开一个 text 节点 → 在右侧「属性」面板切到「关系」页签 → 点列表里的**另一个 text 节点**（对话框不关）；在新正文里输入几个字；再切回第一个节点 | 正文**换成新节点的内容**（不是上一个节点的草稿）；刚输入的字写进**新节点**；切回后旧节点里没有新节点的那几个字 | 两次切换后的截图；PB `nodes` 表两行的 `content` 各是什么                                                                               | `SingleBlockEditor` 的 `key={node.id}`；待写内容是否带着「它属于哪个写者」                   |
+| 14  | 双击一个 text 节点 → 拖选/长按选中一段文字                                                                                      | 选区**上方**浮出一排控件：粗 / 斜 / 下划线 / 删除线 / 代码 / 链接 / 颜色 / 公式 / 更多（更多里有上下标 + 四个对齐） | 截图（含选区与浮条）                                                                                                                     | 浮条是否出现（`isSelectionValid`）、是否贴在选区上方、是否超出对话框                     |
+| 15  | 接着点「B」，再点「更多」→ 上标；然后把鼠标移到正文里（不点按钮）按一次 `Esc`                                                    | 文字立刻变粗、再变上标；`Esc` 让浮条自己收起并**关闭编辑器对话框**                                                       | 截图；PB 该行 `content.docs` 里出现 `marks:[{type:"bold"}]` / `superscript`                                                              | ⑤⑥⑦⑮（探针覆盖）；若第一次 `Esc` 没关对话框，看是不是公式输入框开着（见前置说明 10-④） |
+| 16  | 选中一段文字 → 点浮条里的「T」（行内公式）                                                                                      | 选中的文字变成**行内公式**（KaTeX 渲染，不再是原文）；点一下公式能再编辑                                              | 截图；PB `content.docs` 里该段 `content` 变成 `[{type:"latexInline",attrs:{text:"…"}}]`                                                    | `LatexInline` 是否在扩展集里、node view 是否渲染                                         |
+| 17  | 在空行里直接输入 `$` 再打一个**空格** → 在弹出的输入框里写 `E=mc^2` → 回车                                                       | 立刻出现公式；回车后输入框关闭、公式留下；**F5 刷新后仍在**                                                             | 前后截图；PB `content.docs` 的 `latexInline.attrs.text = "E=mc^2"`                                                                        | `$ ` 输入规则（`latex-inline-extension.ts` 的 `inputRegex`）；公式弹层与浮条的层序      |
 
 ### M3.5 回归面
 
@@ -223,6 +245,8 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 5. **其余八种 node-content 不受影响**：`node-content-editor.tsx:29-62` 的路由不改；`node-content-header.tsx` 只被 rich-text 挂载。
 6. **`packages/editor` 的既有 lint 债务不增长**：[baseline.md](./baseline.md) §3 的 `106 problems (67 errors)` 是判据的分母，不是要修的债。
 7. **`packages/ui/src/styles/globals.css` 的 `@source` 列表不变**（除非真的落地第 8 行）：加行要重跑 `pnpm --filter=web build`，不能只在 dev 里看。
+8. **`packages/ui/tsconfig.json` 的 `@workspace/editor` 别名修正（第 11 行）改变了 `@workspace/ui` 段的基线**：76 → 19 条 typecheck、lint 不变。判据因此换到新基线上（typecheck 88 / lint 26）；老基线在 git 历史里，diff 是 -52 / +4（那 4 条本就是 editor 自己的既存错误，只是从"被 TS2307 掩盖的 TS7006"变成"显示出来"）。
+9. **单块的"能力清单"是断言过的最小集**：浮条 9 个控件 + 「更多」6 个 = 15 个可点项，全部由探针点过或断言可见（探针 ③④⑥⑦）。rich-text 的浮条另有「转换成」/AI/图片/缩进，**故意不搬**（§M3.2-13），G3 判定时按"少是设计"看。
 
 ---
 
