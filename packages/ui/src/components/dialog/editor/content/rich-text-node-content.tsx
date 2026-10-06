@@ -34,7 +34,11 @@ import { NodeIconView } from "@workspace/ui/components/node-media/node-icon-view
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
 import { NodePreviewCover } from "@workspace/ui/components/preview-block/node-preview-cover";
 import { cn } from "@workspace/ui/lib/utils";
-import { NodeContentHeader } from "./node-content-header";
+import {
+  NodeContentHeader,
+  nodeIconGlyphClass,
+  nodeIconPlateClass,
+} from "./node-content-header";
 import { useNodeContentWriter } from "./use-node-content-writer";
 
 /** How many nodes 「从节点选」offers before the search narrows it. */
@@ -87,82 +91,90 @@ export function RichTextNodeContent({
 
   return (
     <div className={cn("flex min-h-full flex-col", className)}>
-      {/* The header shares the body's content column (708px + 3rem of padding,
-          `notion-like-editor.scss:85-112`) so the two line up. */}
-      <div className="mx-auto w-full max-w-[708px] px-12 pt-6">
-        <NodeContentHeader
-          node={liveNode}
-          patchNode={writer.patchNode}
-          renderIconSelector={({ node: target, onPick }) => (
-            <IconSelectorPopover
-              nodeId={target.id}
-              value={target.icon ?? undefined}
-              onChange={(next) => {
-                if (next === undefined) {
-                  onPick(null);
-                  return;
-                }
-                // Live-value base, exactly like `NodeIconButton`: a colour-only
-                // pick must not drop `kind` / `value` (sel §7).
-                const live =
-                  useDataStore.getState().getNode(target.id)?.icon ?? undefined;
-                onPick(live ? { ...live, ...next } : next);
-              }}
-              onRemove={() => onPick(null)}
+      {/* The header owns its own layout — the 708px text column **and** the
+          full-bleed cover outside it (`node-content-header.tsx`, G3 追加交付 二),
+          so the host must not wrap it in one. */}
+      <NodeContentHeader
+        node={liveNode}
+        patchNode={writer.patchNode}
+        renderIconSelector={({ node: target, onPick }) => (
+          <IconSelectorPopover
+            nodeId={target.id}
+            value={target.icon ?? undefined}
+            onChange={(next) => {
+              if (next === undefined) {
+                onPick(null);
+                return;
+              }
+              // Live-value base, exactly like `NodeIconButton`: a colour-only
+              // pick must not drop `kind` / `value` (sel §7).
+              const live =
+                useDataStore.getState().getNode(target.id)?.icon ?? undefined;
+              onPick(live ? { ...live, ...next } : next);
+            }}
+            onRemove={() => onPick(null)}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "p-0",
+                nodeIconPlateClass(target.icon ?? undefined),
+              )}
+              aria-label={target.icon ? "更换节点图标" : "设置节点图标"}
             >
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-9"
-                aria-label={target.icon ? "更换节点图标" : "设置节点图标"}
-              >
-                <NodeIconView
-                  icon={target.icon ?? undefined}
-                  fallback={<TypeIcon className="size-5" />}
-                  className="size-9 rounded-sm text-2xl"
-                />
-              </Button>
-            </IconSelectorPopover>
-          )}
-          renderCoverSelector={({ node: target, onPick }) =>
-            target.cover == null ? (
-              // Empty cover draws no block (nc §2); the popover's own trigger is
-              // the compact 「添加封面」 entry of the title row.
-              <CoverSelectorPopover
-                nodeId={target.id}
-                value={undefined}
-                onChange={(next) => onPick(next ?? null)}
-                onRemove={() => onPick(null)}
-                listNodes={listNodes}
-                label="添加封面"
-              />
-            ) : (
-              <CoverSelectorPopover
-                nodeId={target.id}
-                value={target.cover}
-                onChange={(next) => onPick(next ?? null)}
-                onRemove={() => onPick(null)}
-                listNodes={listNodes}
-              >
-                <button
-                  type="button"
-                  className="block h-40 w-full overflow-hidden rounded-md"
-                  aria-label="更换节点封面"
-                >
-                  <NodePreviewCover
-                    node={target}
-                    className="size-full"
-                    resolveNode={(nodeId) =>
-                      useDataStore.getState().getNode(nodeId)
-                    }
+              <NodeIconView
+                icon={target.icon ?? undefined}
+                fallback={
+                  <TypeIcon
+                    className={nodeIconGlyphClass(target.icon ?? undefined)}
                   />
-                </button>
-              </CoverSelectorPopover>
-            )
-          }
-        />
-      </div>
+                }
+                className={nodeIconPlateClass(target.icon ?? undefined)}
+              />
+            </Button>
+          </IconSelectorPopover>
+        )}
+        renderCoverSelector={({ node: target, onPick }) =>
+          target.cover == null ? (
+            // Empty cover draws no block (nc §2); the popover's own trigger is
+            // the compact 「添加封面」 entry of the title row.
+            <CoverSelectorPopover
+              nodeId={target.id}
+              value={undefined}
+              onChange={(next) => onPick(next ?? null)}
+              onRemove={() => onPick(null)}
+              listNodes={listNodes}
+              label="添加封面"
+            />
+          ) : (
+            <CoverSelectorPopover
+              nodeId={target.id}
+              value={target.cover}
+              onChange={(next) => onPick(next ?? null)}
+              onRemove={() => onPick(null)}
+              listNodes={listNodes}
+            >
+              {/* Full-bleed: the reference page's cover is the pane's width, not
+                  the text column's, and its corners follow the dialog's. */}
+              <button
+                type="button"
+                className="block h-60 w-full overflow-hidden rounded-lg"
+                aria-label="更换节点封面"
+              >
+                <NodePreviewCover
+                  node={target}
+                  className="size-full"
+                  resolveNode={(nodeId) =>
+                    useDataStore.getState().getNode(nodeId)
+                  }
+                />
+              </button>
+            </CoverSelectorPopover>
+          )
+        }
+      />
 
       <NotionEditor
         room={node.id}
