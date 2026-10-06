@@ -1,12 +1,6 @@
 export type { CollectionNodeData, CollectionContent } from "./collection";
 
-export type {
-  RichTextNodeData,
-  RichTextBlock,
-  BaseBlock,
-  ReferenceBlock,
-  RichTextContent,
-} from "./rich-text";
+export type { RichTextNodeData, RichTextContent } from "./rich-text";
 
 export type {
   DatabaseNodeData,
