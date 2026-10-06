@@ -9,9 +9,23 @@
  * branches write the **top-level** field (`{ icon: { kind: "image", value } }` /
  * `{ cover: { kind: "image", url } }`) instead of `content` — reusing
  * `variant="image"` here would replace the node's content with the new picture
- * (sel §6.1). The write itself stays inside `FileDropZone` for P0, so the
- * selector's displayed value comes from the host's store subscription, not from
- * a callback.
+ * (sel §6.1 / plan §M2.2-7).
+ *
+ * Boundaries this file keeps (sel §2):
+ *
+ * - **No store, no write.** Reading the node back is the host's job; this pane
+ *   never touches `NodeService`. `onUploaded` deliberately carries no url — the
+ *   displayed value arrives through the host's own store subscription.
+ * - **Upload is the one sanctioned exception** to "the selector does not write":
+ *   P0 keeps `FileDropZone`'s self-write (`file-drop-zone.tsx`) and folds it into
+ *   the `icon` / `cover` variants, so a successful upload lands in the node
+ *   without the popover having to round-trip the url.
+ * - **Failure changes nothing.** `onError` only bubbles the message up to the
+ *   popover's error strip; the pane must not write, and must not clear the value
+ *   the node already had (sel §6.1).
+ *
+ * The pane takes `nodeId`, not the whole node, because that is all
+ * `FileDropZone` needs to attach the blob to the right record.
  */
 import type { ReactNode } from "react";
 import { FileDropZone } from "@workspace/ui/components/dialog/editor/content/file-drop-zone";

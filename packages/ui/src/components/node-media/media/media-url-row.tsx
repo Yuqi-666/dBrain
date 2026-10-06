@@ -5,12 +5,21 @@
  *
  * Frozen shape (`docs/plan/node-content-ui.md` §0-2 — W1-A owns the body).
  *
- * Write rule (sel §5 URL / §7): the input is local state and **nothing is
- * persisted while typing** — `onSubmit` fires once, on `Enter` or on blur, and
- * only for a non-empty value without whitespace. Blur-submit must be skipped
- * when focus moves *within* the row (otherwise pressing the submit button would
- * commit twice).
+ * Write rule (sel §5 URL / §6.3 / §7): the draft is local to the **owner**
+ * (`value` / `onValueChange`) and **nothing is persisted while typing** — the
+ * only path to the database is a single `onSubmit(url)` fired on `Enter`, on a
+ * real blur, or on the 添加 button. The row therefore has no debounce and no
+ * effect: sel §7's「逐键不发请求」is enforced by the shape, not by a timer.
+ *
+ * Validation is the design's 轻量校验 — non-empty and free of whitespace. There
+ * is no `<img>` preload and no fetch in P0 (sel §6.3), and **nothing is
+ * downloaded into PocketBase**: a relative path is legal because every renderer
+ * runs the value through `resolveFileUrl`, and an external URL simply stays
+ * external. `invalidReason` is the host's message (sel §2 boundary 3 — the
+ * component makes no business judgement); when it is given the row shows it,
+ * marks the input `aria-invalid`, and refuses to submit.
  */
+import { useRef } from "react";
 import type { ReactNode } from "react";
 import {
   InputGroup,
@@ -43,11 +52,21 @@ export function MediaUrlRow({
   invalidReason,
   className,
 }: MediaUrlRowProps): ReactNode {
-  const canSubmit = !disabled && !invalidReason && value.trim().length > 0;
+  /**
+   * The value of the last commit. An `Enter` usually closes the popover, whose
+   * unmount blurs the input — without this the blur would submit the same URL a
+   * second time (sel §7: URL 只提交一次). Editing the draft re-arms it.
+   */
+  const submittedRef = useRef<string | null>(null);
+
+  const url = value.trim();
+  /** sel §6.3's 轻量校验: an internal space is the one malformed case P0 detects. */
+  const malformed = /\s/.test(url);
+  const canSubmit = !disabled && !invalidReason && url.length > 0 && !malformed;
 
   const submit = () => {
-    const url = value.trim();
-    if (!canSubmit || /\s/.test(url)) return;
+    if (!canSubmit || submittedRef.current === url) return;
+    submittedRef.current = url;
     onSubmit(url);
   };
 
@@ -61,18 +80,25 @@ export function MediaUrlRow({
           value={value}
           placeholder={placeholder}
           disabled={disabled}
-          aria-invalid={invalidReason ? true : undefined}
-          onChange={(event) => onValueChange(event.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          aria-invalid={invalidReason || malformed ? true : undefined}
+          onChange={(event) => {
+            // Draft only — the owner holds the text and no request is sent until
+            // the commit paths below run.
+            submittedRef.current = null;
+            onValueChange(event.target.value);
+          }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              submit();
-            }
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            submit();
           }}
           onBlur={(event) => {
-            // Only submit when focus actually leaves the row.
+            // Only commit when focus actually leaves the row: moving to the 添加
+            // button inside the same group must not submit twice.
             if (event.currentTarget.contains(event.relatedTarget)) return;
-            if (value.trim().length > 0) submit();
+            submit();
           }}
         />
         <InputGroupButton
