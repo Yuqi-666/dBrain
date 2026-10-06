@@ -26,6 +26,37 @@
 3. **本章不新增依赖**。M2 零依赖；M3 的只读渲染用 `@tiptap/core@3.22.4` 已导出的 `generateHTML(doc, extensions)`（`packages/editor/node_modules/@tiptap/core/dist/index.d.ts:1986`），**不装** `@tiptap/static-renderer`（全仓未安装，已核）。`packages/ui/package.json` 与 lockfile 一律主 agent 独占（总纲 §2.2-3）。
 4. **不碰本章白名单之外的 `backend/**`、`packages/interfaces` 形状、`pb/pb_migrations`**（总纲 §1：M2/M3 不动后端）。
 
+### 0.1 开工前的实测校正（2026-10-06 · M1 之后重核行号与事实）
+
+M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-zone.tsx`，本章不少引用是 M1 **之前**写的，行号已经漂移。开工前逐条对过一遍（**只核不改**，代码仍在原状）：
+
+**① 硬前提 1 三项已落地，可直接开工（G1 通过后）**：`NodeIcon`/`NodeCover` 已进 [base.ts](../../packages/interfaces/src/models/node/base.ts) 并挂在 `NodeBase.icon/cover`；`nodes.icon`/`nodes.cover` 两列已在既有 `pb_data` 上迁移成功；[use-node-content-writer.ts](../../packages/ui/src/components/dialog/editor/content/use-node-content-writer.ts) 已存在。
+
+**② §M2.2-1 那个「唯一的跨章阻塞点」已经解除，哨兵就是 `null`**（R29-定）。M1 落地并在真机上端到端验过（[gates.md §5 G1](./gates.md) 探针 #4）：`updateNode({ icon: null })` → PB `nodes.icon` = `null` → DTO 读回 `undefined`，且 `content`/`cover`/`annotations` 一个都没动。W1-D 的 `onRemove` 直接写 `{ icon: null }` / `{ cover: null }`，**不要再自创 `removeIcon` 布尔**；注意**不能**写 `{ icon: undefined }`（`NodeService.upsert` 的 `{...old, ...updates}` 会把它合进去，服务端按值判定 ⇒ 什么都不做）。
+
+**③ 事实补充（M1 探针实测）**：`update` 的 `content` 是 **`z.any()`**（`node.ts:305`），所以 content 半边不会被 zod 剥键；但 `add` 的 content 是各类 `z.object` 字面量，**`annotations` / `timestampNotes` 不在其中** → 「新建时就带批注」这条链路今天是断的（G1 遗留 1）。M2 不碰它。
+
+**④ 行号漂移表**（引用要按右列改）：
+
+| 章里的引用 | 今天的实际位置 | 漂移原因 |
+| --- | --- | --- |
+| `adapter-front/.../node.ts:259-273`（`updateSchema`，§M2.2-1） | **`:296-312`** | M1 在前面插入了 content schema / `nodeIconSchema` |
+| `node-command.service.ts:290-292`（`isPinned` 值判定） | **`:310`** | M1 在其上方加了 icon/cover 的两段判定 |
+| `node.mapper.ts:474-479`（text → `docs`） | **`:493-498`**（`if (node instanceof TextNode)`；`content: node.content.docs` 在 `:496`） | M1 给 `baseRecord` 加了 `icon`/`cover` 与一整段「为什么是 `null`」注释（`:474-486`） |
+| `node.mapper.ts:481-491`（image → url 字符串） | **`:500-511`**（`content: node.content.url` 在 `:503`，`annotations` 在 `:509`） | 同上 |
+| `node.mapper.ts:493-499`（pdf） | **`:513-522`**（`content` 在 `:516`，`annotations` 在 `:520`） | 同上 |
+| `node.mapper.ts:501-516`（video / audio） | video **`:524-538`**（`timestampNotes` 在 `:536`）、audio **`:540-548`**（`:546`） | 同上 |
+| `file-drop-zone.tsx:27-33`（`Variant`） | `:26-33`，`type Variant` 在 **`:33`** | —— |
+| `file-drop-zone.tsx:171-178`（image 分支） | `case "image"` 在 **`:172`**，两处 `content: { url }` 在 **`:174`** / **`:181`** | —— |
+| `file-drop-zone.tsx:462`、`:424-531`（`webpage-source`） | `variant === "webpage-source"` 在 **`:534`**（文件共 539 行） | M1 改了「读活 content」的写者后该分支后移 |
+| `node-editor.tsx:51-64`（「被 transform 的对话框」） | `node-editor.tsx` 只是消费 `DialogContent`（`:51` 起）；真正带 `-translate-x-1/2 -translate-y-1/2` 的是共享基座 **`packages/ui/src/components/ui/dialog.tsx:64`** | §M2.2-8 的成因在基座，不在 editor |
+| `apps/web/app/(main)/graph/page.tsx:44-46`（seed） | **`:43-45`**，真正的 seed 实现在 `./demo-seed` | —— |
+| `graph-context-menu-canvas.tsx:37` / `dataType-list.tsx:20`（G2 第 6 条） | 全路径是 `packages/ui/src/components/menu/graph-context-menu/graph-context-menu-canvas.tsx`（`Add Node` 子菜单 `:34-37`）与 `packages/ui/src/components/menu/**node**/dataType-list.tsx:20`（`collection: "Collection"`，**行号准确**） | 章里省了目录 |
+
+**⑤ 逐条核过、行号仍然准确的引用**（不用改）：`preview-header.tsx:18-29`；`node-preview-cover.tsx:13`（leaf 约束）、`:32-43`；`preview-block.tsx:36-65`、`:121-130`、`:182`（`data-preview-block` 在，且 `packages/graph/src/force/ForceGraph.tsx:823` 也在读它）、`:68-93` 十路分发（实际 `:70-88`）；`ui/popover.tsx:20-40`（`PopoverPrimitive.Portal` 在 `:27-38`，确认**没有** `container` 透传）；`editor-header.tsx:42-44`（中间组）、`:46-58`（右侧组）；`node.service.ts:50/58/76`；`components/index.ts:16`（`export { PreviewBlock }`）；`semantic-dialog.tsx:200-208`（仍是自由文本 icon 输入）；`card-cover.tsx:26`、`:142-144`、`clampCardCoverAspect`（函数体 `:42` 起）；`eventHandler.ts:172-176`（`node:dblclick` → `handleNodeEdit`）；`demo-data.ts:86`（Backend Services）、25 条 seed、`collection` **0 条**；`lucide-react` `0.577.0`（ui）/`0.469.0`（editor）。
+
+**⑥ 冻结还没做**（§0-2 那四项）。它本身就是 M2 的第一批写操作，按总纲 §6 必须在 **G1 通过后**才能落笔；本章登记 W1 的前提时以「冻结已提交」为准。
+
 ---
 
 ## M2 — 图标与封面
