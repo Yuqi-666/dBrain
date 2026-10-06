@@ -1,3 +1,4 @@
+import type { NodeCover, NodeIcon } from "@workspace/interfaces";
 import type { DataView } from "@workspace/interfaces/models/data-view";
 import type {
   NodeTagId,
@@ -42,6 +43,19 @@ export interface NodeBaseProps {
   createdAt: string;
   updatedAt: string;
   workspaceId?: string;
+  /**
+   * Display icon (`NodeBase.icon`).
+   *
+   * **`null` is the write path's "clear this field" sentinel** — `docs/plan/README.md`
+   * §9 R29-定, with the shape fixed by selectors §0.2-④. The `Node`
+   * constructor normalises it to `undefined`, so `Node.icon` never returns
+   * `null`: a clear and an absent icon read back identically, while `undefined`
+   * on a write means "leave this field alone" (the two cannot be told apart
+   * once merged).
+   */
+  icon?: NodeIcon | null;
+  /** Display cover. See {@link NodeBaseProps.icon} for the `null` sentinel. */
+  cover?: NodeCover | null;
 }
 
 export abstract class Node {
@@ -57,6 +71,8 @@ export abstract class Node {
   protected readonly _updatedAt: string;
   protected readonly _nodeType: NodeType;
   protected readonly _workspaceId: string | undefined;
+  protected readonly _icon: NodeIcon | undefined;
+  protected readonly _cover: NodeCover | undefined;
 
   protected constructor(
     props: NodeBaseProps & { nodeType: NodeType<NodeDataType> },
@@ -73,6 +89,11 @@ export abstract class Node {
     this._updatedAt = props.updatedAt;
     this._nodeType = props.nodeType;
     this._workspaceId = props.workspaceId;
+    // The one place the `null` clear sentinel is normalised away: every
+    // subclass rebuilds through this constructor, so the getters below can
+    // promise `undefined` and never `null` (`docs/plan/README.md` §9 R29-定).
+    this._icon = props.icon ?? undefined;
+    this._cover = props.cover ?? undefined;
   }
 
   get id(): NodeId {
@@ -121,6 +142,16 @@ export abstract class Node {
 
   get workspaceId(): string | undefined {
     return this._workspaceId;
+  }
+
+  /** Display icon, or `undefined` when the node has none (never `null`). */
+  get icon(): NodeIcon | undefined {
+    return this._icon;
+  }
+
+  /** Display cover, or `undefined` when the node has none (never `null`). */
+  get cover(): NodeCover | undefined {
+    return this._cover;
   }
 
   sameIdentityAs(other: Node): boolean {
@@ -184,6 +215,71 @@ export abstract class Node {
     });
   }
 
+  updateIcon(icon: NodeIcon): Node {
+    return this.cloneWith({
+      icon,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Remove the display icon.
+   *
+   * `icon: null` — not `undefined` — is the write-path sentinel: the client
+   * sends a merged node and the server decides value-by-value, so an
+   * `undefined` here would be read as "leave the old icon in place"
+   * (`docs/plan/README.md` §9 R29-定).
+   */
+  clearIcon(): Node {
+    return this.cloneWith({
+      icon: null,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  updateCover(cover: NodeCover): Node {
+    return this.cloneWith({
+      cover,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /** Remove the display cover. See {@link Node.clearIcon} for the `null` sentinel. */
+  clearCover(): Node {
+    return this.cloneWith({
+      cover: null,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Every base field, shaped exactly like the subclasses' constructor /
+   * `create()` input.
+   *
+   * This is the base fields' single home: each subclass rebuilds itself with
+   * `{ ...this.baseProps(), ...its own fields }` instead of re-listing the
+   * eleven base properties in `create` / `updateContent` / `updateFileMeta` /
+   * `cloneWith`. Adding a base field therefore touches this method and
+   * `NodeBaseProps` once, not ten subclasses (selectors §0.2-④ / §8).
+   */
+  protected baseProps(): NodeBaseProps {
+    return {
+      id: this._id,
+      title: this._title,
+      abstract: this._abstract,
+      permission: this._permission,
+      semanticId: this._semanticId,
+      tags: this._tags,
+      isPinned: this._isPinned,
+      stateData: this._stateData,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+      workspaceId: this._workspaceId,
+      icon: this._icon,
+      cover: this._cover,
+    };
+  }
+
   protected abstract cloneWith(props: Partial<NodeBaseProps>): Node;
 }
 
@@ -208,6 +304,8 @@ export class TextNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: TextContent;
     createdAt?: string;
     updatedAt?: string;
@@ -223,6 +321,8 @@ export class TextNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -232,35 +332,17 @@ export class TextNode extends Node {
 
   updateContent(content: TextContent): TextNode {
     return new TextNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): TextNode {
     return new TextNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -331,6 +413,8 @@ export class ImageNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     width: number;
     height: number;
     fileSize: number;
@@ -351,6 +435,8 @@ export class ImageNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       width: props.width,
       height: props.height,
       fileSize: props.fileSize,
@@ -365,23 +451,14 @@ export class ImageNode extends Node {
 
   updateContent(content: ImageContent): ImageNode {
     return new ImageNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       width: this._width,
       height: this._height,
       fileSize: this._fileSize,
       location: this._location,
       shootingTime: this._shootingTime,
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -408,45 +485,27 @@ export class ImageNode extends Node {
     }
 
     return new ImageNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       width: meta.width ?? this._width,
       height: meta.height ?? this._height,
       fileSize: meta.fileSize ?? this._fileSize,
       location: meta.location ?? this._location,
       shootingTime: meta.shootingTime ?? this._shootingTime,
       content: this._content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): ImageNode {
     return new ImageNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       width: this._width,
       height: this._height,
       fileSize: this._fileSize,
       location: this._location,
       shootingTime: this._shootingTime,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -495,6 +554,8 @@ export class PdfNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     pageCount: number;
     fileSize: number;
     content: PdfContent;
@@ -512,6 +573,8 @@ export class PdfNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       pageCount: props.pageCount,
       fileSize: props.fileSize,
       content: props.content,
@@ -523,20 +586,11 @@ export class PdfNode extends Node {
 
   updateContent(content: PdfContent): PdfNode {
     return new PdfNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       pageCount: this._pageCount,
       fileSize: this._fileSize,
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -547,39 +601,21 @@ export class PdfNode extends Node {
     }
 
     return new PdfNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       pageCount: meta.pageCount ?? this._pageCount,
       fileSize: meta.fileSize ?? this._fileSize,
       content: this._content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): PdfNode {
     return new PdfNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       pageCount: this._pageCount,
       fileSize: this._fileSize,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -657,6 +693,8 @@ export class VideoNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     duration: number;
     source: "local" | "online";
     sourceUrl?: string;
@@ -678,6 +716,8 @@ export class VideoNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       duration: props.duration,
       source: props.source,
       sourceUrl: props.sourceUrl,
@@ -693,14 +733,7 @@ export class VideoNode extends Node {
 
   updateContent(content: VideoContent): VideoNode {
     return new VideoNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       duration: this._duration,
       source: this._source,
       sourceUrl: this._sourceUrl,
@@ -708,9 +741,7 @@ export class VideoNode extends Node {
       location: this._location,
       shootingTime: this._shootingTime,
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -735,14 +766,7 @@ export class VideoNode extends Node {
     }
 
     return new VideoNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       duration: meta.duration ?? this._duration,
       source: meta.source ?? this._source,
       sourceUrl: meta.sourceUrl ?? this._sourceUrl,
@@ -750,22 +774,14 @@ export class VideoNode extends Node {
       location: meta.location ?? this._location,
       shootingTime: meta.shootingTime ?? this._shootingTime,
       content: this._content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): VideoNode {
     return new VideoNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       duration: this._duration,
       source: this._source,
       sourceUrl: this._sourceUrl,
@@ -773,9 +789,6 @@ export class VideoNode extends Node {
       location: this._location,
       shootingTime: this._shootingTime,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -824,6 +837,8 @@ export class AudioNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     duration: number;
     fileSize: number;
     content: AudioContent;
@@ -841,6 +856,8 @@ export class AudioNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       duration: props.duration,
       fileSize: props.fileSize,
       content: props.content,
@@ -852,20 +869,11 @@ export class AudioNode extends Node {
 
   updateContent(content: AudioContent): AudioNode {
     return new AudioNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       duration: this._duration,
       fileSize: this._fileSize,
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -876,39 +884,21 @@ export class AudioNode extends Node {
     }
 
     return new AudioNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       duration: meta.duration ?? this._duration,
       fileSize: meta.fileSize ?? this._fileSize,
       content: this._content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): AudioNode {
     return new AudioNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       duration: this._duration,
       fileSize: this._fileSize,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -934,6 +924,8 @@ export class WebpageNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: WebpageContent;
     createdAt?: string;
     updatedAt?: string;
@@ -949,6 +941,8 @@ export class WebpageNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -958,35 +952,17 @@ export class WebpageNode extends Node {
 
   updateContent(content: WebpageContent): WebpageNode {
     return new WebpageNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): WebpageNode {
     return new WebpageNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -1012,6 +988,8 @@ export class WebsiteNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: WebsiteContent;
     createdAt?: string;
     updatedAt?: string;
@@ -1027,6 +1005,8 @@ export class WebsiteNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -1036,35 +1016,17 @@ export class WebsiteNode extends Node {
 
   updateContent(content: WebsiteContent): WebsiteNode {
     return new WebsiteNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): WebsiteNode {
     return new WebsiteNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -1090,6 +1052,8 @@ export class CollectionNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: CollectionContent;
     createdAt?: string;
     updatedAt?: string;
@@ -1105,6 +1069,8 @@ export class CollectionNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -1116,72 +1082,36 @@ export class CollectionNode extends Node {
     filterConfig: FilterConfig,
   ): CollectionNode {
     return new CollectionNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       // `withFilter`, not a bare `new CollectionContent(...)`: the data views
       // hanging off this node are not part of the filter and must survive it.
       content: this._content.withFilter(FilterConfig.create(filterConfig)),
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   /** Replace the node's data views, keeping the filter untouched. */
   applyViews(views: readonly DataView[]): CollectionNode {
     return new CollectionNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content: this._content.withViews(views),
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   clearFilter(): CollectionNode {
     return new CollectionNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content: this._content.withFilter(FilterConfig.empty()),
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): CollectionNode {
     return new CollectionNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -1207,6 +1137,8 @@ export class RichTextNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: RichTextContent;
     createdAt?: string;
     updatedAt?: string;
@@ -1222,6 +1154,8 @@ export class RichTextNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -1236,18 +1170,9 @@ export class RichTextNode extends Node {
     }
     const newRefs = [...currentRefs, nodeId];
     return new RichTextNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content: new RichTextContent(newRefs, this._content.docs),
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -1259,52 +1184,25 @@ export class RichTextNode extends Node {
       return this;
     }
     return new RichTextNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content: new RichTextContent(newRefs, this._content.docs),
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   updateContent(content: RichTextContent): RichTextNode {
     return new RichTextNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
   protected cloneWith(props: Partial<NodeBaseProps>): RichTextNode {
     return new RichTextNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }
@@ -1384,6 +1282,8 @@ export class DatabaseNode extends Node {
     tags?: NodeTagId[];
     isPinned?: boolean;
     stateData?: NodeStateData;
+    icon?: NodeIcon | null;
+    cover?: NodeCover | null;
     content: DatabaseContent;
     createdAt?: string;
     updatedAt?: string;
@@ -1399,6 +1299,8 @@ export class DatabaseNode extends Node {
       tags: props.tags ?? [],
       isPinned: props.isPinned ?? false,
       stateData: props.stateData,
+      icon: props.icon,
+      cover: props.cover,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -1408,18 +1310,9 @@ export class DatabaseNode extends Node {
 
   updateContent(content: DatabaseContent): DatabaseNode {
     return new DatabaseNode({
-      id: this._id,
-      title: this._title,
-      abstract: this._abstract,
-      permission: this._permission,
-      semanticId: this._semanticId,
-      tags: this._tags,
-      isPinned: this._isPinned,
-      stateData: this._stateData,
+      ...this.baseProps(),
       content,
-      createdAt: this._createdAt,
       updatedAt: new Date().toISOString(),
-      workspaceId: this._workspaceId,
     });
   }
 
@@ -1617,18 +1510,9 @@ export class DatabaseNode extends Node {
 
   protected cloneWith(props: Partial<NodeBaseProps>): DatabaseNode {
     return new DatabaseNode({
-      id: props.id ?? this._id,
-      title: props.title ?? this._title,
-      abstract: props.abstract ?? this._abstract,
-      permission: props.permission ?? this._permission,
-      semanticId: props.semanticId ?? this._semanticId,
-      tags: props.tags ?? this._tags,
-      isPinned: props.isPinned ?? this._isPinned,
-      stateData: props.stateData ?? this._stateData,
+      ...this.baseProps(),
+      ...props,
       content: this._content,
-      createdAt: this._createdAt,
-      updatedAt: props.updatedAt ?? this._updatedAt,
-      workspaceId: props.workspaceId ?? this._workspaceId,
     });
   }
 }

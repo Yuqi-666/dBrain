@@ -11,11 +11,13 @@ import {
   DATA_VIEW_TYPES,
   DATABASE_FIELD_TYPES,
   normalizeDataViewType,
+  type AnnotationLayerData,
   type DataView,
   type DataViewType,
   type DatabaseCell as DatabaseCellData,
   type DatabaseContent as DatabaseContentData,
   type DatabaseFieldType,
+  type TimestampNote,
 } from "@workspace/interfaces";
 import { FilterConfig } from "../filter/value-objects";
 
@@ -166,17 +168,40 @@ export class TextContent {
  */
 export class ImageContent {
   private readonly _url: string;
+  private readonly _annotations: AnnotationLayerData | undefined;
 
-  constructor(url: string) {
+  constructor(url: string, annotations?: AnnotationLayerData) {
     this._url = url;
+    this._annotations = annotations;
   }
 
   get url(): string {
     return this._url;
   }
 
+  /**
+   * The pen/highlight layer drawn on the image, or `undefined` when there is
+   * none.
+   *
+   * Absent — never an empty layer — is the "no annotations" shape: a record
+   * predating the column simply has no key. The whole layer is replaced in one
+   * write (`annotation.md` §3.1 / README §4.1), so `withAnnotations` is this
+   * content's half-side entry point.
+   */
+  get annotations(): AnnotationLayerData | undefined {
+    return this._annotations;
+  }
+
+  /** Same image with a different annotation layer; `url` is carried over. */
+  withAnnotations(annotations: AnnotationLayerData | undefined): ImageContent {
+    return new ImageContent(this._url, annotations);
+  }
+
   equals(other: ImageContent): boolean {
-    return this._url === other._url;
+    return (
+      this._url === other._url &&
+      JSON.stringify(this._annotations) === JSON.stringify(other._annotations)
+    );
   }
 }
 
@@ -186,10 +211,16 @@ export class ImageContent {
 export class PdfContent {
   private readonly _url: string;
   private readonly _coverUrl: string;
+  private readonly _annotations: AnnotationLayerData | undefined;
 
-  constructor(url: string, coverUrl: string) {
+  constructor(
+    url: string,
+    coverUrl: string,
+    annotations?: AnnotationLayerData,
+  ) {
     this._url = url;
     this._coverUrl = coverUrl;
+    this._annotations = annotations;
   }
 
   get url(): string {
@@ -200,8 +231,22 @@ export class PdfContent {
     return this._coverUrl;
   }
 
+  /** See `ImageContent.annotations`. */
+  get annotations(): AnnotationLayerData | undefined {
+    return this._annotations;
+  }
+
+  /** Same pdf with a different annotation layer; `url`/`coverUrl` are carried over. */
+  withAnnotations(annotations: AnnotationLayerData | undefined): PdfContent {
+    return new PdfContent(this._url, this._coverUrl, annotations);
+  }
+
   equals(other: PdfContent): boolean {
-    return this._url === other._url && this._coverUrl === other._coverUrl;
+    return (
+      this._url === other._url &&
+      this._coverUrl === other._coverUrl &&
+      JSON.stringify(this._annotations) === JSON.stringify(other._annotations)
+    );
   }
 }
 
@@ -217,11 +262,18 @@ export class VideoContent {
   private readonly _url: string;
   private readonly _coverUrl: string;
   private readonly _hlsUrl: string;
+  private readonly _timestampNotes: TimestampNote[] | undefined;
 
-  constructor(url: string, coverUrl: string, hlsUrl = "") {
+  constructor(
+    url: string,
+    coverUrl: string,
+    hlsUrl = "",
+    timestampNotes?: TimestampNote[],
+  ) {
     this._url = url;
     this._coverUrl = coverUrl;
     this._hlsUrl = hlsUrl;
+    this._timestampNotes = timestampNotes;
   }
 
   get url(): string {
@@ -236,11 +288,31 @@ export class VideoContent {
     return this._hlsUrl;
   }
 
+  /**
+   * Notes anchored to points on the played timeline, or `undefined` when the
+   * node has none.
+   *
+   * Absent — not an empty array — is the "no notes" shape of an old record.
+   * The list is one half of the content (`README.md` §4.1), so
+   * `withTimestampNotes` replaces it whole while `url` / `coverUrl` / `hlsUrl`
+   * stay put.
+   */
+  get timestampNotes(): TimestampNote[] | undefined {
+    return this._timestampNotes;
+  }
+
+  /** Same video with a different timestamp-note list; the media fields are carried over. */
+  withTimestampNotes(notes: TimestampNote[] | undefined): VideoContent {
+    return new VideoContent(this._url, this._coverUrl, this._hlsUrl, notes);
+  }
+
   equals(other: VideoContent): boolean {
     return (
       this._url === other._url &&
       this._coverUrl === other._coverUrl &&
-      this._hlsUrl === other._hlsUrl
+      this._hlsUrl === other._hlsUrl &&
+      JSON.stringify(this._timestampNotes) ===
+        JSON.stringify(other._timestampNotes)
     );
   }
 }
@@ -250,17 +322,33 @@ export class VideoContent {
  */
 export class AudioContent {
   private readonly _url: string;
+  private readonly _timestampNotes: TimestampNote[] | undefined;
 
-  constructor(url: string) {
+  constructor(url: string, timestampNotes?: TimestampNote[]) {
     this._url = url;
+    this._timestampNotes = timestampNotes;
   }
 
   get url(): string {
     return this._url;
   }
 
+  /** See `VideoContent.timestampNotes`. */
+  get timestampNotes(): TimestampNote[] | undefined {
+    return this._timestampNotes;
+  }
+
+  /** Same audio with a different timestamp-note list; `url` is carried over. */
+  withTimestampNotes(notes: TimestampNote[] | undefined): AudioContent {
+    return new AudioContent(this._url, notes);
+  }
+
   equals(other: AudioContent): boolean {
-    return this._url === other._url;
+    return (
+      this._url === other._url &&
+      JSON.stringify(this._timestampNotes) ===
+        JSON.stringify(other._timestampNotes)
+    );
   }
 }
 
