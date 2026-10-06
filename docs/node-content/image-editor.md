@@ -51,7 +51,14 @@ Content-Type: image/png
 
 **② 变换顺序与坐标空间一次定死，且与 `react-easy-crop` 的语义对齐。**
 
-顺序 = **旋转(90° 整数倍) → 翻转 → 裁剪**；`crop` 表达在**旋转+翻转之后**的源位图像素空间，整数矩形（`x/y/width/height`）。`react-easy-crop` 回传的 `croppedAreaPixels` 就是这个空间的矩形，**原样存、原样烘焙**，不做二次换算（这是「预览与保存一致」的最低成本做法）。
+顺序 = **旋转(90° 整数倍) → 翻转 → 裁剪**；`crop` 表达在**旋转+翻转之后**的源位图像素空间，整数矩形（`x/y/width/height`）。`react-easy-crop` 回传的 `croppedAreaPixels` 就是这个空间的矩形（README 的 `onCropComplete` 一节原文：「coordinates and dimensions of the cropped area **in pixels**」），**原样存、原样烘焙**，不做二次换算（这是「预览与保存一致」的最低成本做法）。
+
+**但「读回配方」必须走官方的两个入口，不要手搓。** README 在 `initialCroppedAreaPercentages` 那一条里明确写：`croppedAreaPixels` 是**取整后**的值，「when used for restoration, may result in a slight drifting」。所以再次进入编辑器时**不能**把存下来的 `crop` 直接塞进 `initialCroppedAreaPixels`——否则每次「打开 → 保存」都会漂一小截，逐次累积（表现是裁剪框慢慢移动、输出尺寸逐次变小）。恢复只用两种官方方式：
+
+1. `initialCroppedAreaPercentages`（README 标为 *the preferred way of restoring the previously set crop*）——需要把像素矩形换算成百分比（除以 `original.width/height`，纯算术）；
+2. 导出的 `getInitialCropFromCroppedAreaPixels(croppedAreaPixels, mediaSize, rotation, cropSize, minZoom, maxZoom)`——直接给像素矩形。
+
+**存像素（烘焙精确）、读百分比（恢复不漂）** 是有意的分工：`crop` 保持整数像素（`drawImage` 的源矩形要它），恢复路径负责换算。
 
 **③ 编辑器的预览与保存共用同一个烘焙函数。**
 
@@ -293,7 +300,7 @@ bash docs/plan/baseline.sh
 1. 进入 / 退出编辑态：取消与 `Esc` 都不写库。
 2. 裁剪：自由 + 四种预设比例；鼠标、触摸、笔都能拖动与缩放（平板上不能把页面滚走）。
 3. **贴边判据**：把裁剪框贴住一个可辨认物体的右下角 → 保存后该物体正好在右下角（验 §0.2-③ 的两次渲染一致）。
-4. 旋转 90° / 翻转后保存 → 像素方向正确；再次进入编辑器，配方被读回（裁剪框位置与上次一致）。
+4. 旋转 90° / 翻转后保存 → 像素方向正确；再次进入编辑器，配方被读回（裁剪框位置与上次一致）；连做 5 次「进编辑器 → 什么都不改 → 保存」，`crop` 与输出尺寸**逐次完全一致**（恢复路径不漂，§0.2-②）。
 5. 保存后立刻刷新：编辑器 / preview 块 / 图库卡片三处都是新图；`W × H` 与 `fileSize` 是新值。
 6. PB 后台：新 `files` 记录 + `nodes.content` 是新 `/api/files/...`（无 `.pb` 之类拼接错误）、`imageEdits` 非空、**旧记录的 blob 仍在**。
 7. 恢复原图 → url 回原图、`imageEdits` 变 `null`（PB 后台核对）、刷新后仍是原图。
@@ -315,7 +322,7 @@ bash docs/plan/baseline.sh
 | --- | --- | --- |
 | `packages/interfaces/src/models/node/nodes/single/image-edit.ts` | `ImageEditRecipe`（+ barrel 导出） | P0 |
 | `packages/ui/src/components/image-editor/types.ts` | 会话状态与 props 契约（`ImageEditorProps` / `EditorSession` / `CropPreset`） | P0 |
-| `packages/ui/src/components/image-editor/recipe.ts` | 默认值、校验与归一化、仿射变换数学（**零 React**，§6 的公式实现地） | P0 |
+| `packages/ui/src/components/image-editor/recipe.ts` | 默认值、校验与归一化、仿射变换数学（**零 React**，§6 的公式实现地）、像素⇄百分比换算（恢复路径用，§0.2-②） | P0 |
 | `packages/ui/src/components/image-editor/bake.ts` | `renderRecipe` / `bakeRecipe`（**零 React**，预览与保存共用） | P0 |
 | `packages/ui/src/components/image-editor/encode.ts` | `toBlob` 的包装：白底 flatten、`blob.type` 断言与回落（**零 React**） | P0 |
 | `packages/ui/src/components/image-editor/crop-surface.tsx` | `react-easy-crop` 包装（比例预设 / 缩放 / 旋转 / 翻转 / `touch-action`） | P0 |
@@ -354,6 +361,7 @@ bash docs/plan/baseline.sh
 | 6 | `React.lazy` 的 `image-editor` chunk 是否真的不进 image 节点首屏 | G5.1 #13（Network 面板） | 不进（预期）/ 需把 `react-easy-crop` 挪到更深的动态 import |
 | 7 | 透明 PNG 存成 JPEG 的白底 flatten 是否生效（WebKitGTK / Android Chrome 各一次） | G5.1 #14 | 白底 / 需改 flatten 顺序 |
 | 8 | `react-easy-crop@6.2.4` 的 `rotation` prop 形态（P1 straighten 用） | **已核实**：props 表有 `rotation: number`（deg）与 `onRotationChange` | 存在，P1 可直接用 |
+| 9 | **重复进出编辑器是否漂移**：连续「进编辑器 → 什么都不改 → 保存」5 次，`crop` 与输出像素尺寸应逐次完全一致 | G5.1 #7 | 不漂（走 `initialCroppedAreaPercentages`）/ 若漂 = 恢复路径用错了像素（§0.2-②） |
 
 ---
 

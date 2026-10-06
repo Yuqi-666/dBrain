@@ -77,7 +77,7 @@
 1. **`null` 是唯一的「清空」哨兵，`undefined` 是「保留」。** `imageEdits` 与 `icon`/`cover` 同类（可清空），「恢复原图」必须发 `{ url: originalUrl, imageEdits: null }`；而 `annotations` 的 `undefined` 是半边合并的期望语义（总纲 §10 风险表最后一条 / R29-定）。**两个字段的处理方式故意不同，不许统一。**
 2. **一次 upsert 的分片风险。** `useNodeContentWriter.patchContent` 只写 `content` 半边，写不了 `width/height/fileSize`。本章的保存路径直接调 `NodeService.upsert(nodeId, { content: {...liveContent(), url, imageEdits}, width, height, fileSize })`。**必须单独定义这条路径**，不要顺手扩 `patchContent` 的签名（它是 M1 的公共面，M5/M6 都在用）。
 3. **服务端 image 分支的 guard（M1 坑 1 的同款）。** `node-command.service.ts` 的 `updateNodeContent` 在 image 上用「`content.url !== undefined`」决定要不要重建 VO；只写 `imageEdits`（不带 url）会被**静默吞掉**。本章的 UI 写路径永远同时带 url（烘焙后 url 必变），所以闸门不会撞上它；但**开工第一步要读一遍 M1 坑 1 的正文，并在 G5.1 的预跑里用一次「只带 `imageEdits` 的 tRPC `update`」探针确认行为**（要么按同款改 guard、要么在文档里写死「`imageEdits` 不允许单独写」，二选一都要登记）。
-4. **`croppedAreaPixels` 原样存、原样烘。** 预览（`react-easy-crop` 自己画）与保存（canvas 烘焙）是**两次渲染**；唯一可控的做法是让烘焙直接吃 `croppedAreaPixels`（源像素空间整数矩形），顺序按 §0.2-② 固定为 旋转→翻转→裁剪。**不要**在中间再做一次归一化重算。
+4. **`croppedAreaPixels` 原样存、原样烘，但读回必须走官方恢复入口。** 预览（`react-easy-crop` 自己画）与保存（canvas 烘焙）是**两次渲染**；唯一可控的做法是让烘焙直接吃 `croppedAreaPixels`（源像素空间整数矩形），顺序按 §0.2-② 固定为 旋转→翻转→裁剪。**不要**在中间再做一次归一化重算。**另一半**：`croppedAreaPixels` 是**取整值**，把它直接当 `initialCroppedAreaPixels` 会「逐次漂移」（README 原文 *may result in a slight drifting*）⇒ 恢复用 `initialCroppedAreaPercentages`（preferred）或导出的 `getInitialCropFromCroppedAreaPixels`；G5.1 #7 补了「连续进出 5 次不漂」的判据。
 5. **平板上的 `touch-action`。** 裁剪面必须自己压住宿主 Dialog 内容区（`overflow-y-auto`）的滚动，先例是 `packages/graph/src/force/ForceGraph.tsx:849` 的 `touch-action: none`；退出编辑态必须复原，否则整页不能滚。G5.1 有专门一条判据。
 6. **外链图的 CORS 面。** PB `files` 的响应头已实测带 `Access-Control-Allow-Origin: *`（设计 §0.1），所以「工作区内的图」必定可烘焙；**外链图**（picsum / arxiv / 用户粘贴的地址）不一定带 CORS 头 ⇒ 必须走 §5.1.3-8 的显式错误条，不许静默失败、不许写库。
 7. **`files` 的 30 天缓存。** 响应头 `Cache-Control: max-age=2592000` ⇒ 新像素必须用**新 URL**（新 `files` 记录）。PB 覆盖同名文件虽然会改文件名（随机后缀），但语义上会毁掉原图，**禁止**。
@@ -110,7 +110,7 @@
 | 4 | 依次做 `旋转 90°` ×1、`水平翻转` ×1 → 保存 | 像素方向与预览一致（左右/上下可辨认） | 保存前后截图 | `bake.ts` 的 `setTransform` 顺序；`naturalWidth/Height` 是否用了原值 |
 | 5 | 保存后**立刻刷新**页面，再打开 preview 块 / 图库（dataview collection）卡片 | 三处都是新图；preview 块的 `W × H` 与文件大小是**新值**（不是旧值） | 三处截图 + PB 后台 `width/height/fileSize` | 保存是否只写了 content 没写顶层元数据（契约 3 / 坑 9） |
 | 6 | PB 后台看 `nodes` 该记录 + `files` 集合 | `content` 是新 `/api/files/...`（能直接打开）、`imageEdits` 是配方 JSON（含 `originalUrl` / `original` / `crop`）；`files` **多了一条**新记录，**旧记录仍在** | PB 后台两张截图 | 烘焙是否覆盖了原 blob（禁止）；DTO 是否漏点名 `imageEdits`（`hlsUrl` 的翻版） |
-| 7 | 再进编辑器一次，看裁剪框位置 | 读回上次的配方（裁剪框回到保存时的位置），不是全图 | 截图 | `imageEdits` 是否真读回（读路径 mapper）|
+| 7 | 再进编辑器一次，看裁剪框位置；然后连做 5 次「进编辑器 → 什么都不改 → 保存」 | 读回上次的配方（裁剪框回到保存时的位置，不是全图）；**5 次的 `crop` 与输出尺寸逐次完全一致**（不漂移） | 截图 + PB 后台 5 次的 `imageEdits` 对比 | `imageEdits` 是否真读回（读路径 mapper）；恢复路径是否误用了取整后的 `croppedAreaPixels`（坑 4）|
 | 8 | 点 `恢复原图`（编辑器工具条内） | 图片回到原图；PB 后台 `imageEdits` 变成 **`null`**（不是「值还在」）；刷新后仍是原图 | PB 后台前后截图（对比 G1 第 10 条的哨兵判据） | 清空是否发了 `undefined`（发 `undefined` = 什么都不做，坑 1） |
 | 9 | 打开一张**有批注**的 image（先用 M5 画两笔，一笔在左上、一笔在右下）→ 裁剪到只剩左上 → 保存 | 保存前出现「批注会一起被裁剪」的确认；确认后**右下那笔消失、左上那笔仍在且位置正确** | 保存前后截图 + 图元计数 | §6 的公式与「界外点丢弃」；确认框是否真的拦住了 |
 | 10 | 给一张长边 > 4096 的大图（或先用属性侧栏把 URL 换成一张大图）做任意裁剪 → 保存 | 落库文件长边 ≤ 4096；`width/height` 同步为缩放后的值；画面不糊 | PB 后台记录 + 尺寸读数 | 长边上限是否生效；降采样是否两步（一步会糊）|
