@@ -227,15 +227,23 @@ selectors.md §7 的写回表写的是「移除 → `upsert(id, { icon: undefine
 
 ### M1.3 提交切分
 
-一章内部允许分段提交（每段 typecheck 过再进下一段）：
+一章内部允许分段提交（每段 typecheck 过再进下一段）。**已落地**（`develop`）：
 
-| # | 提交信息                                                                                       |
-| - | ---------------------------------------------------------------------------------------------- |
-| 1 | `interfaces 节点字段：icon/cover 上 NodeBase，annotations/timestampNotes 上各 content`          |
-| 2 | `domain 节点字段：四个 content 值对象加半边入口，10 个子类铺开 base 字段`                        |
-| 3 | `node-extras 落库：nodes 增四列，application/DTO/tRPC 与 infra mapper 贯通，顶层字段清空哨兵落地` |
-| 4 | `node-content 写者：抽共享 use-node-content-writer 与 doc-normalize，两个宿主去重`              |
-| 5 | `attributes-sidebar 修：内容链接改写活 content 半边，不再整包覆盖新字段`                        |
+| # | 提交信息                                                                                       | 实际提交 |
+| - | ---------------------------------------------------------------------------------------------- | -------- |
+| 1 | `interfaces 节点字段：icon/cover 上 NodeBase，annotations/timestampNotes 上各 content`          | `2b6bbf7`（含 `null` 清空哨兵；连带 README §9 新增 R29-定） |
+| 2 | `domain 节点字段：四个 content 值对象加半边入口，10 个子类铺开 base 字段与 null 清空哨兵`        | `3a9b5ee` |
+| 3 | `node-extras 落库：nodes 增四列迁移（up/down 实跑过）`                                          | `357f59a`（连带 `baseline.sh` 第三类归一化 + 基线重采） |
+| 4 | `node-extras 贯通：application/DTO/tRPC 与 infra mapper 读写四列…`                              | `4aec001` + `35af438`（infra mapper 单独一段） |
+| 5 | `node-content 写者：抽共享 use-node-content-writer 与 doc-normalize，两个宿主去重`              | `153e6cf` |
+| 6 | `attributes-sidebar 修：内容链接与集合类型改写活 content 半边，不再整包覆盖新字段（R13）`        | `22fb180` |
+
+**执行期间的四处登记**（不改设计文档正文）：
+
+1. **T3 白名单补一个文件**：`backend/application/src/dto/node.dto.ts`。原任务包的 4 个文件不含它，但 `BaseNodeDTO` 与各 content 字面量必须点名新字段，否则字段到不了客户端（坑 3）。已记入 T3 任务书。
+2. **不新增实体级 `applyAnnotations` / `applyTimestampNotes`**：T2 机械面里列过（照 `CollectionNode.applyViews`）。实际用「VO 的 `withAnnotations`/`withTimestampNotes` + `updateNodeContent` 里组装完整 VO」即可等价达成，同一文件内少两组方法。属纯实现选择。
+3. **`nodes.icon` / `cover` 的清空必须写显式 `null`**：`toRecord` 若写 `undefined`，PB 的 `update`（部分更新）会保留旧值 ⇒ 清空哨兵落不了库。M1 验收探针实测到（见下）。这是 R29-定 在 infra 层的配套要求。
+4. **`packages/dev` 的 25 条演示数据已在库里**（覆盖 10 种节点类型，属用户工作区 `7wniiy8107bpzv1`）：G1 第 3/7/8/9 条的「既有节点」由它提供，不必新建。
 
 ### M1.4 闸门 G1 — 用户操作清单
 

@@ -251,12 +251,13 @@
 
 ## 8. 回归基线（**为什么验证命令和设计文档不一样**）
 
-M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-types` / `pnpm lint` 今天都跑不了**：
+M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-types` / `pnpm lint` 今天都跑不了**（M1 又补了一个噪声源）：
 
 | 缺陷                                                | 证据                                                                 | 影响                                                     |
 | --------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
 | `turbo.json` 的 `lint`/`check-types` 声明了 `dependsOn: ["^lint"]`，而 workspace 存在真实环（`interfaces ⇄ utils`、`services ⇄ api-client`、`ui ⇄ editor ⇄ dataview`） | `pnpm lint` / `pnpm check-types` 直接 `x Cyclic dependency detected` 退出 1 | 全仓 lint/typecheck 一条命令都跑不了                      |
 | 根 `check-types` 脚本是 `turbo run check-types`，而**没有一个包**定义 `check-types` 脚本（包里的名字是 `typecheck`） | 去掉 `dependsOn` 后 turbo 报 `No tasks were executed as part of this run. Tasks: 0 successful, 0 total` | 即使修了环，`pnpm check-types` 仍然是**空跑**             |
+| **`apps/server/tsconfig.json` 缺 `@workspace/interfaces` / `@workspace/utils` 的 `paths`**（M1 修） | 那 46 条 `server:` 前缀错误全部是 `Cannot find module '@workspace/interfaces...'` 及其次生 TS7006/TS2322；补上两条 path 后 `pnpm --filter=server typecheck` **零诊断**，全仓 `Tasks: 14 successful` → **`15 successful`**，`server` 从「失败」变「通过」 | 基线里最大的一块噪声把「后端改动」的信号淹掉：M1 只改 12 行就换来 12 条假新增 |
 
 环本身是**真实的源码环**（`packages/interfaces/src/models/filter.ts:1` ← `@workspace/utils`；`packages/utils/src/filter.ts:7` ← `@workspace/interfaces`），拆环是一次独立重构，**不在本轮范围**。M0 采用最小修法：让 turbo 的任务图不含 `^` 边、任务名与包脚本名对齐（详见 [spine.md §M0](./spine.md#1-m0--基线与验证闭环)）。修完 `pnpm lint` 会真正跑到 22 个包，其中 `desktop#lint` 基线即失败 —— 所以：
 
@@ -308,6 +309,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | R35 | rich-text 会出现**两套**图标/封面入口（sel §4 的 `EditorHeader` 按钮 + nc §1.6/§2 的内容区头部），必须显式收口 | 两份设计文档各要求一套，且渲染的是同一份 `node.icon`/`node.cover`。方案 A（M2 预置「该类型是否有内容自带头部」集合，M3 只加 `"rich-text"`）/ 方案 B（M3 改 `editor-header.tsx`）——**由 G3 第 6 条判定，不许留成「看情况」** | selectors §4、node-content §1.6/§2                |
 | R36 | W1 的冻结清单具体化：**先落 `file-drop-zone.tsx` 的 `Variant` 两行**（否则 W1-A 的 `media-drop-pane` 用 `variant="cover"` 编不过）；M3 **不开**并行窗口，编辑器与只读渲染器同 owner | 总纲 §3.2 原话只说「先冻结 `node-media/` 导出」，粒度不够：`Variant` 是 W1-A 的编译前提；editor 侧两个文件共享同一份 schema/扩展集，拆开必然漂移 | 本 README §3.2                                    |
 | R37 | **新增 M0.1 子章**：浏览器侧后端地址改为**按 origin 解析**（回环仍走 `localhost:3001`/`localhost:8090`，非回环走同域 `/trpc` 与 `/pb`）；宿主 nginx 负责把这两条路由到本机端口 | M0/G0 实测发现应用**在反向代理下不可用**：`ws://localhost:3001`（`packages/api-client/src/trpc/client.ts:32`）与 `http://localhost:8090`（`apps/web/app/providers.tsx:15`）是**硬编码回环**，而用户浏览器是从 `https://dev.yuqi-666.cn`（宿主 openresty → 容器 `:3000`）访问的 ⇒ 浏览器里的 `localhost` 是用户自己的机器。这不是本轮功能需求，而是**所有浏览器闸门（G1–G13）的前置**：不修则每个闸门都只能由主 agent 用 curl 代验，用户无法实测手感。按 §6.3「允许把该章拆出 `M<n>.1` 子章并单独过闸」处理 | [§10 风险表](#10-风险登记)、dynamic-island/media/annotation 等**所有**需要用户肉眼的闸门 |
+| R38 | **M1 顺手修 `apps/server/tsconfig.json`**：补 `@workspace/interfaces` / `@workspace/utils` 的 `paths`；`baseline.sh` 加**第三类归一化**（抹掉 `(line,col)`、保留出现次数，快照改成 `N× <错误>`）；`baseline.md` 与基线快照随 M1 收口重采 | ① M1 只改 12 行代码，`server:` 段就涌出 12 条「新增」——全是 `apps/server` 解析不到 `@workspace/interfaces`（它的 `paths` 里有 domain/application/infrastructure/adapter-*，**唯独漏了 interfaces/utils**）造成的次生错误；补上后该段**一次归零**（46 条消失、`server` 任务转绿），`server` 从此是**真哨兵**。② 里程碑编辑一个本身带基线错误的文件时行号必然漂移（M1 实测 9 删 10 增），属纯位置噪声 | [baseline.md §0 缺陷 4 / §1.1 类③](./baseline.md#0-为什么需要基线三个既存缺陷1-个-m1-顺手修掉的噪声源) |
 
 ---
 
@@ -328,6 +330,8 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | 后端在 M1 一次做完，改动面大（10 个 entity 子类 + 10 份 `baseProps` + 3 处白名单）导致 review 困难 | M1                                    | M1 内部按「interfaces → domain → application/DTO → infra」四段提交（同一章内的分段提交），每段 `typecheck` 过再进下一段；G1 仍是唯一的用户闸门 |
 | 五份设计文档的「待验证」项在真机/浏览器上被证伪                        | 各闸门                                     | 就地决策 + 登记 §9；不改设计文档正文                                                                      |
 | **浏览器侧后端地址曾硬编码 `localhost`**（`ws://localhost:3001`、`http://localhost:8090`） | 任何**非本机**浏览器的使用 | **M0.1 已修**（R37）：改为按 origin 解析 —— 回环保持原样，非回环走同域 `/trpc` 与 `/pb`。**剩余依赖是宿主配置**：nginx 必须加下面两条 location，否则闸门仍只能由主 agent 用 curl 代验。SSH 本地转发降为备选（仍可行，且对改动前的老代码也有效） |
+| **可清空的 json 列在 PB 的 `update`（部分更新）下写 `undefined` = 保留旧值** | 任何「清空某个可空字段」的写路径 | **M1 已修一处、并立成规矩**：`toRecord` 里 `icon` / `cover` 必须写 `node.icon ?? null` / `node.cover ?? null`（实测：写 `undefined` 时 PB 保留旧值，`{icon:null}` 清不掉）。反向规矩同样重要：`annotations` / `timestampNotes` 的 `undefined` 反而是**期望**（半边合并：缺键保留旧值），不许顺手改成 `?? null`。**待验证**：既有的 `filterConfig: node.content.filterConfig ? … : undefined`、`stateData: node.stateData` 是否也需要显式 null —— M1 未碰（`CollectionNode.clearFilter` 目前无 UI 入口） |
+| **活动库的 `nodes` 表没有 `created` / `updated` 列**（`pb/pb_migrations/1700000000_initial_schema.js` 的 nodes 定义里本来就没有；只有 `files` 定义了 autodate） | 任何按时间排序 / 显示时间的路径 | M1 实测（直读 sqlite + PB API 双向确认）：`record.created` / `record.updated` 恒为 `undefined`，而 domain 的 `create()` 用 `props.createdAt ?? new Date().toISOString()` 兜底 ⇒ **节点时间戳每次读取都变成「现在」**，`sort=-updated` 与「最近使用」没有真实语义。**不是 M1 引入的，本轮不修**（修它要给 `nodes` 加两个 autodate 列，等于改 schema 语义 + 需要新迁移号，超出 §4 账本）。登记在此，M12「最近使用」开工前必须解决 |
 
 ---
 

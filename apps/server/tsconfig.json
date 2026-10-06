@@ -39,6 +39,18 @@
       "@workspace/adapter-tauri": [
         "../../backend/adapter-tauri/src"
       ],
+      "@workspace/interfaces": [
+        "../../packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../../packages/interfaces/src/*"
+      ],
+      "@workspace/utils": [
+        "../../packages/utils/src"
+      ],
+      "@workspace/utils/*": [
+        "../../packages/utils/src/*"
+      ],
       "@workspace/adapter-tauri/*": [
         "../../backend/adapter-tauri/src/*"
       ]

@@ -22,7 +22,7 @@
 | ---- | -------------------------- | ------------------------------------------ | ------ | ---- | ---- | ---- |
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
-| G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 未开工 | —    | —    | —    |
+| G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 待测 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -172,3 +172,41 @@
   1. 上传大文件的 `client_max_body_size` 若漏配，表现为「上传到 100% 后失败」——属 nginx 配置，不是代码
   2. 老数据若在 content 里存了**绝对** `http://localhost:8090/api/files/…`，`resolveFileUrl` 会原样返回（该分支刻意保留）。当前库是空的 ⇒ 无影响；将来导入老数据时要注意
 - 用户结论：**「已加路由，注册登录正常，G0.1 通过」**（2026-10-06）。⇒ G0、G0.1 均为 `通过`，**M1 开工前提已满足**；G1 起所有闸门用户都能在浏览器里实测。
+
+### G1 — M1 数据脊柱
+
+- 状态：**待测**（第 1 轮；自检与主 agent 端到端预跑全绿）
+- 提交：`2b6bbf7`（interfaces 形状 + `null` 哨兵）→ `3a9b5ee`（domain）→ `357f59a`（迁移 + 基线第三类归一化）→ `4aec001` + `35af438`（application/DTO/tRPC + infra mapper）→ `153e6cf`（共享写者 + doc-normalize）→ `22fb180`（attributes-sidebar 修）→ `3d8c1a4`（清空哨兵写显式 `null`）→ `1d67b4d`（doc-normalize 空串）→ `f9c7e5b` 后续（apps/server paths + 基线重采，见本条目末）
+- 自检：
+  - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 47 消失** ✅。消失的 47 条全是 `server:` 段噪声，根因是 `apps/server/tsconfig.json` 漏了 `@workspace/interfaces` / `@workspace/utils` 的 `paths`（见 R38）；补上后 `pnpm --filter=server typecheck` **零诊断**，全仓 `Tasks: 15 successful, 19 total`（`Failed:` 只剩 editor / interfaces / ui / web）。
+  - **lint diff**：`bash docs/plan/baseline.sh` → **0 新增 / 3 消失** ✅（`@workspace/ui` 31 → 28，attributes-sidebar 去掉 2 条 `no-explicit-any` + 1 条 unused directive）。
+  - **四个后端层 typecheck 全绿** ✅（domain / application / infrastructure / adapter-back / adapter-front；这是 M1 唯一的硬判据）。
+  - **`@workspace/interfaces` 仍只剩环的那 1 条** ✅（M1 新增两个文件 + 若干 barrel 导出后未增）。
+  - **迁移**：`./pb/pocketbase migrate up` → `Applied 1700000001_node_extras.js`，`nodes` 字段 32 → 36；`printf 'y\n' | ./pb/pocketbase migrate down 1` → `Reverted …`，字段回到 32；再 `up` 回到 36 ✅（`down` 用的是 `removeByName`，真的能跑）。
+  - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是一条**真机端到端探针**（`tsx` 起真 `AppContainer` + 真 PocketBase），6/6 全过 —— 明细见「主 agent 预跑证据」。
+- 用户操作清单：见 [spine.md §M1.4](./spine.md#m14-闸门-g1--用户操作清单)。**按实测调整三处**：
+  1. 第 1/2 条**已经由主 agent 代跑并留证**（迁移已应用、四列已在）；你只需在 PB 后台复核一眼。
+  2. 第 3/8/9 条**不要用 text 节点**：库里的 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞在 `content` 的**字符串**里，打开会显示 `{` —— 这是 seeder 的形状，不是 M1 引入的；M3 的 `normalizeDoc` 才会修它。请改用 **image / audio / pdf** 节点（它们的数据是好的）。
+  3. 第 4/5/8/9 条的「既有节点」直接用主 agent 造的两条探针节点（在你的工作区里，标题以 `M1 自检 ·` 开头，可删）：`M1 自检 · image（可删）` 已经带了一层 `annotations`，`M1 自检 · audio（可删）` 已经带了一条 `timestampNotes`。
+- 主 agent 端到端预跑证据（`apps/server/src/__m1-probe.ts`，跑完即删；真 `AppContainer` + 真 PocketBase，不是 mock）：
+  ```
+  1) createNode(image) → DTO icon/cover = {"icon":{"kind":"emoji","value":"🧠"},"cover":{"kind":"image","url":"…"}}
+     record after create = {"icon":{…},"cover":{…},"content":"…/m1-probe.png","annotations":null}
+  2) after annotations-only patch (url must survive) = {"content":"…/m1-probe.png","annotations":{"version":1,"items":[{"kind":"stroke",…}]}}
+  3) after url-only patch (annotations must survive)   = {"content":"…/m1-probe-2.png","annotations":{…}}      ← 坑 1 / R13 的回归点
+     DTO content = {"url":"…","annotations":{…}}
+  4) after {icon:null} (icon cleared, content untouched) = {"icon":null,"cover":{…},"annotations":{…}}         ← 坑 8 哨兵
+     DTO icon = undefined
+  5) audio after notes-only patch (url must survive) = {"content":"…/m1-probe.mp3","timestampNotes":[{…,"timeMs":3000}]}
+     DTO content = {"url":"…","timestampNotes":[…]}
+  6) read-path DTO keys = {"hasIcon":true,"hasCover":true,"hasAnnotations":true}
+  ```
+  第 4 步第一次跑时**失败**（`icon` 没清掉）：domain 的 `clearIcon()` 是正确的，但 `toRecord` 写的是 `icon: node.icon`（清空后为 `undefined`），PB 的 `update` 是**部分更新** ⇒ 缺键 = 保留旧值。修法是 `icon: node.icon ?? null` / `cover: node.cover ?? null`（提交 `3d8c1a4`），并立了反向规矩：`annotations` / `timestampNotes` **不许**改成 `?? null`（半边合并依赖「缺键保留」）。已登记 [README §10 风险表](./README.md#10-风险登记)。
+- 失败项与归因：暂无（用户实测前）
+- 迭代：——
+- 遗留不阻塞项：
+  1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键，`createNode` 也不透传 `annotations` / `timestampNotes`。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
+  2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。
+  3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
+  4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
+- 用户结论：**待填**
