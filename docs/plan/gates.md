@@ -183,8 +183,9 @@
   - **四个后端层 typecheck 全绿** ✅（domain / application / infrastructure / adapter-back / adapter-front；这是 M1 唯一的硬判据）。
   - **`@workspace/interfaces` 仍只剩环的那 1 条** ✅（M1 新增两个文件 + 若干 barrel 导出后未增）。
   - **迁移**：`./pb/pocketbase migrate up` → `Applied 1700000001_node_extras.js`，`nodes` 字段 32 → 36；`printf 'y\n' | ./pb/pocketbase migrate down 1` → `Reverted …`，字段回到 32；再 `up` 回到 36 ✅（`down` 用的是 `removeByName`，真的能跑）。
-  - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是三条**真机探针**（`tsx` 起真 `AppContainer` + 真 PocketBase，不是 mock），全绿 —— 明细见「主 agent 预跑证据」：① 写路径/哨兵 6/6；② **既有 27 条数据的读路径 168/168**（覆盖库里现存的 9 种节点类型，正是 G1 第 3/7 条用户要打开的那批数据）；③ **半边合并 8/8**（拿 `database` / `rich-text` 两条**活**记录做同值写，证明另一半不被抹除，且落库快照零漂移）。
+  - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是四条**真机探针**（`tsx` 起真 `AppContainer` + 真 PocketBase，不是 mock），全绿 —— 明细见「主 agent 预跑证据」：① 写路径/哨兵 6/6；② **既有 27 条数据的读路径 168/168**（覆盖库里现存的 9 种节点类型，正是 G1 第 3/7 条用户要打开的那批数据）；③ **半边合并 8/8**（拿 `database` / `rich-text` 两条**活**记录做同值写，证明另一半不被抹除，且落库快照零漂移）；④ **tRPC 路由层 24/24**（`appRouter.createCaller` 直打浏览器真正走的那条链：`protectedProcedure` 鉴权 + zod 白名单 + command service + PB 落库，跑完把两条探针节点原样恢复）。
   - **G1 第 3 条因此提前拿到硬证据**：`nodeQueryService.listByWorkspace` → `NodeMapper.toDomain` → `toNodeDTO` 对现有 `image ×6 / audio ×4 / website ×4 / text ×4 / pdf ×3 / video ×3 / database ×1 / rich-text ×1 / webpage ×1` 全部无抛错、无 `null` 哨兵泄漏、`getById` 与 `list` 逐字段一致（时间戳除外，见遗留 2）。
+  - **G1 第 4/5/8/9/10 条也提前在「浏览器真正走的层」验过**：`node.update` 的 content 是 `z.any()`（不是会剥键的 `z.object`）⇒ 批注/笔记半边合并、`icon: null` 哨兵、非法 icon 被拒，全部在 router 层成立；`getById` / `listByWorkspace` 的输出也没有被剥键。
 - 用户操作清单：见 [spine.md §M1.4](./spine.md#m14-闸门-g1--用户操作清单)。**按实测调整三处**：
   1. 第 1/2 条**已经由主 agent 代跑并留证**（迁移已应用、四列已在）；你只需在 PB 后台复核一眼。
   2. 第 3/8/9 条**不要用 text 节点**：库里的 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞在 `content` 的**字符串**里，打开会显示 `{` —— 这是 seeder 的形状，不是 M1 引入的；M3 的 `normalizeDoc` 才会修它。请改用 **image / audio / pdf** 节点（它们的数据是好的）。
@@ -222,10 +223,27 @@
   ✓ database / rich-text · 落库快照零漂移（moved=∅，无需恢复）
   === 结果：8 通过 / 0 失败 ===
   ```
+  探针 #4（`apps/server/src/__m1-router.ts`，跑完即删）—— **tRPC 路由层**，`appRouter.createCaller({ userId })` 直打浏览器那条链（探针 #1/#2 都是直连 `nodeCommandService`，绕过了 zod 白名单与 `protectedProcedure`，所以这一层必须单独验）：
+  ```
+  ✓ 未登录 caller 被拒（protectedProcedure 生效）
+  ✓ getById 返回 image / content.url 在 / annotations 未被 zod 剥掉 / icon 不是 null 哨兵 / cover 仍在
+  ✓ listByWorkspace 返回 27 条（与直连一致）
+  ✓ annotations-only 补丁（经 router）后 items = 2，且 content（url）未被清空     ← 第 4/8 条
+  ✓ url-only 补丁后 content 是新值，annotations 仍在（2 条）                      ← 第 8 条反向
+  ✓ audio notes-only 补丁后 notes = 2，content（url）未变                        ← 第 5/9 条
+  ✓ icon 写入落库 → {icon:null} 落库为 null → DTO 读回 undefined               ← 第 10 条
+  ✓ 清空 icon 没动 cover / annotations / content
+  ✓ 非法 icon 被 zod 拒绝（校验器真的在生效，不是被绕过）
+  ✓ 遗留 1 复核：add 路径的 annotations 确实被 `addSchema` 剥掉（content 只剩 url）
+  ✓ 除被测字段外零漂移（image / audio）
+  恢复两条探针节点原状… ✓ image 已恢复 ✓ audio 已恢复
+  === 结果：24 通过 / 0 失败 ===
+  ```
+  关键事实：`update` 的 `content` 是 **`z.any()`**（`node.ts:305`），不是会剥键的 `z.object` —— 这正是批注 / 笔记半边合并能在浏览器里成立的前提；而 `add` 的 content 是各类 `z.object` 字面量，`annotations` / `timestampNotes` 不在其中，故 **遗留 1 是真实缺口**（新建时带批注会被静默剥掉），已在 [spine.md](./spine.md) / 下方遗留 1 登记。
 - 失败项与归因：暂无（用户实测前）
 - 迭代：——
 - 遗留不阻塞项：
-  1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键，`createNode` 也不透传 `annotations` / `timestampNotes`。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
+  1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键（`imageContentSchema = z.object({ url })` 等），`createNode` 也不透传 `annotations` / `timestampNotes`；探针 #4 已实测确认这个缺口是真的（经 router `add` 一条带 `annotations` 的 image，落库后 `annotations` 为 `null`）。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
   2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。探针 #2 给出实测口径：**27/27 条节点的两次读取时间戳都不同**（同一进程内相隔 10ms 的 `list` 与 `getById`），所以「按更新时间排序」今天恒等于「随机序」；这条不是 G1 的失败项，但它是 M12 的硬前提。
   3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
   4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
