@@ -11,6 +11,7 @@ import {
   SmileIcon,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
@@ -23,7 +24,15 @@ import {
 } from "@workspace/api-client";
 import { languageFromFilename } from "@workspace/ui/components/code-editor/code-editor";
 import { NodeService } from "@workspace/services";
-import type { NodeData } from "@workspace/interfaces";
+import { useDataStore } from "@workspace/store";
+import type {
+  AudioContent,
+  ImageContent,
+  NodeData,
+  PdfContent,
+  VideoContent,
+} from "@workspace/interfaces";
+import { useNodeContentWriter } from "./use-node-content-writer";
 
 /** Variants that store an uploaded blob. */
 type UploadVariant = "audio" | "video" | "image" | "pdf";
@@ -64,6 +73,13 @@ interface FileDropZoneProps {
   className?: string;
 }
 
+/** Row shape of {@link VARIANT_CONFIG}. */
+interface VariantConfig {
+  icon: LucideIcon;
+  label: string;
+  minHeight: string;
+}
+
 const VARIANT_CONFIG = {
   audio: {
     icon: MusicIcon,
@@ -100,7 +116,7 @@ const VARIANT_CONFIG = {
     label: "封面",
     minHeight: "min-h-[160px]",
   },
-} as const;
+} as const satisfies Record<Variant, VariantConfig>;
 
 /** Ceiling for locally read source files — past this the tab starts to stall. */
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
@@ -185,44 +201,84 @@ async function generatePreview(
   }
 }
 
+/**
+ * One upload's contribution to its node: the **half** of `content` the variant
+ * owns, plus the top-level fields written beside it.
+ *
+ * `content` here is the client's DTO object (`NodeData.content`), never the
+ * PocketBase `nodes.content` column: the same column holds a `docs` object for
+ * a text node but a bare url **string** for image / pdf / video / audio
+ * (`backend/infrastructure/src/database/mappers/node.mapper.ts`), so a
+ * column-shaped patch would stuff an object into a string column
+ * (`docs/plan/node-content-ui.md` §M2.2-6).
+ */
+interface ContentPatch<C extends object> {
+  contentHalf: Partial<C>;
+  meta: Partial<NodeData>;
+}
+
+/** Base for the shared writer when the store has no live node to read. */
+const NO_LIVE_CONTENT: Record<string, unknown> = {};
+
+/**
+ * Merges one upload's content half onto the node's **live** content and writes
+ * it together with its sibling top-level fields.
+ *
+ * `NodeService.upsert` merges top-level keys only — `content` is replaced
+ * wholesale — so the base must be read back from the store at write time
+ * instead of taken from this render: a snapshot captured before another
+ * writer's patch would silently drop the half that writer owns (PDF / image
+ * `annotations`, video `timestampNotes`; plan §M2.2-6).
+ */
+async function writeContentPatch<C extends object>(
+  nodeId: string,
+  live: Record<string, unknown>,
+  { contentHalf, meta }: ContentPatch<C>,
+): Promise<void> {
+  await NodeService.upsert(nodeId, {
+    ...meta,
+    content: { ...live, ...contentHalf },
+  } as unknown as Partial<NodeData>);
+}
+
 /** Maps the stored file onto the node fields the matching node type expects. */
 function buildNodeUpdates(
   variant: LocalVariant,
   url: string,
   file: File,
   preview: FilePreview,
-): Partial<NodeData> {
+): ContentPatch<ImageContent | AudioContent> {
   switch (variant) {
     case "image":
       return {
-        content: { url },
-        fileSize: file.size,
-        width: preview.width ?? 0,
-        height: preview.height ?? 0,
+        contentHalf: { url },
+        meta: {
+          fileSize: file.size,
+          width: preview.width ?? 0,
+          height: preview.height ?? 0,
+        },
       };
     case "audio":
       return {
-        content: { url },
-        fileSize: file.size,
-        duration: preview.duration ?? 0,
+        contentHalf: { url },
+        meta: { fileSize: file.size, duration: preview.duration ?? 0 },
       };
   }
 }
 
 /**
- * Patches a freshly uploaded PDF onto its node using the parameters the backend
- * parsed out of it.
+ * Parses a freshly uploaded PDF on the backend and returns the content half the
+ * node should end up with.
  *
  * Best-effort on purpose: the blob is already stored, so a document the backend
  * cannot parse (password protected, corrupt) must still leave the node pointing
  * at its file — it just keeps `pageCount: 0` and no cover, which is what the
  * node renders before any metadata arrives.
  */
-async function applyPdfAnalysis(
-  nodeId: string,
+async function analyzePdfUpload(
   url: string,
   file: File,
-): Promise<void> {
+): Promise<ContentPatch<PdfContent>> {
   let coverUrl = "";
   let pageCount = 0;
   let fileSize = file.size;
@@ -236,41 +292,39 @@ async function applyPdfAnalysis(
     console.warn("[FileDropZone] PDF analysis failed", error);
   }
 
-  await NodeService.upsert(nodeId, {
-    content: { url, coverUrl },
-    fileSize,
-    pageCount,
-  });
+  return {
+    contentHalf: { url, coverUrl },
+    meta: { fileSize, pageCount },
+  };
 }
 
 /**
- * Packages a freshly uploaded video as HLS and maps the result onto the node.
+ * Packages a freshly uploaded video as HLS and returns the content half the node
+ * should end up with.
  *
  * A transcode that fails must not lose the upload: the node then simply keeps
  * the original blob as its only representation — what every upload did before
  * the backend packaged videos — and the player reports the codec it cannot
  * decode instead of pretending to play it.
- *
- * The whole content object is written at once (rather than patched field by
- * field) because the store merges top-level keys: a partial `content` patch
- * would replace the object and drop the address written above it.
  */
-async function applyVideoTranscode(
+async function packageVideoUpload(
   url: string,
   file: File,
-): Promise<Partial<NodeData>> {
+): Promise<ContentPatch<VideoContent>> {
   try {
     const transcoded = await transcodeVideo(url);
 
     return {
-      content: {
+      contentHalf: {
         url,
         coverUrl: transcoded.coverUrl,
         hlsUrl: transcoded.hlsUrl,
       },
-      fileSize: file.size,
-      duration: transcoded.duration,
-      source: "local",
+      meta: {
+        fileSize: file.size,
+        duration: transcoded.duration,
+        source: "local",
+      },
     };
   } catch (error) {
     console.warn(
@@ -279,10 +333,8 @@ async function applyVideoTranscode(
     );
 
     return {
-      content: { url, coverUrl: "", hlsUrl: "" },
-      fileSize: file.size,
-      duration: 0,
-      source: "local",
+      contentHalf: { url, coverUrl: "", hlsUrl: "" },
+      meta: { fileSize: file.size, duration: 0, source: "local" },
     };
   }
 }
@@ -308,6 +360,19 @@ function UploadDropZone({
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
 
+  /**
+   * The node's freshest `content`, read when a write is built. The write itself
+   * stays an awaited `NodeService.upsert` (not the writer's `patchContent`)
+   * because every media path below reports `onUploaded` / drops its `packaging`
+   * note only once the node is really written, and because a failed write has
+   * to reach `onUploadError`.
+   */
+  const { liveContent } = useNodeContentWriter<Record<string, unknown>>(
+    nodeId,
+    variant,
+    NO_LIVE_CONTENT,
+  );
+
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
     maxSize: 100 * 1024 * 1024,
     limit: 1,
@@ -321,7 +386,8 @@ function UploadDropZone({
           // Parsing happens on the server: it takes a PDF parser and a
           // rasterizer, neither of which belongs in the client bundle. The
           // blob is already stored, so only its address is sent over.
-          await applyPdfAnalysis(nodeId, url, file);
+          const patch = await analyzePdfUpload(url, file);
+          await writeContentPatch(nodeId, liveContent(), patch);
           onUploaded?.();
           return;
         }
@@ -334,10 +400,8 @@ function UploadDropZone({
           // "packaging" note until then.
           setPackaging(true);
           try {
-            await NodeService.upsert(
-              nodeId,
-              await applyVideoTranscode(url, file),
-            );
+            const patch = await packageVideoUpload(url, file);
+            await writeContentPatch(nodeId, liveContent(), patch);
           } finally {
             setPackaging(false);
           }
@@ -347,10 +411,8 @@ function UploadDropZone({
 
         const preview = await generatePreview(file, variant);
 
-        await NodeService.upsert(
-          nodeId,
-          buildNodeUpdates(variant, url, file, preview),
-        );
+        const patch = buildNodeUpdates(variant, url, file, preview);
+        await writeContentPatch(nodeId, liveContent(), patch);
         onUploaded?.();
       } catch (error) {
         onUploadError?.(
@@ -574,11 +636,132 @@ export function FileDropZone(props: FileDropZoneProps) {
  * usual, then write only the top-level field —
  * `cover → { cover: { kind: "image", url } }`, `icon → { icon: { kind: "image", value: url } }`
  * — never `content`, and never `width` / `height` / `fileSize`.
+ *
+ * A branch of its own rather than a widening of {@link UploadDropZone} (plan
+ * §M2.2-7): that component's `LocalVariant` constrains `buildNodeUpdates` to
+ * the variants whose upload *is* the node's content, and reusing it would write
+ * the picture into `content.url` — the one way this component can corrupt data
+ * (sel §6.1).
  */
 function DisplayFieldDropZone({
+  nodeId,
+  accept = "image/*",
   variant,
+  onUploadStart,
+  onUploaded,
+  onUploadError,
+  className,
 }: FileDropZoneProps & { variant: DisplayVariant }) {
-  // TODO(W1-B): 上传成功后只写顶层 `icon` / `cover`（不落 content）。
-  void variant;
-  return null;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+
+  const config = VARIANT_CONFIG[variant];
+  const Icon = config.icon;
+
+  const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
+    maxSize: 100 * 1024 * 1024,
+    limit: 1,
+    accept: accept,
+    upload: uploadFile,
+    onSuccess: async (url: string) => {
+      try {
+        // Only the top-level display field is written; `content` is not touched
+        // at all (sel §6.1). Nothing is cleared before the upload, so a failed
+        // write leaves whatever icon / cover the node already had.
+        //
+        // The icon half merges over the **live** value: sel §7 names 「换图但保留
+        // 底色」 as one of the two partial updates that must not lose a field, so
+        // the stored `color` survives an upload. `cover` needs no merge — its
+        // `{kind:"image"}` variant carries no field beyond `url`, and spreading a
+        // `{kind:"node"}` cover into it would produce an invalid union member.
+        const liveIcon = useDataStore.getState().getNode(nodeId)?.icon;
+        const updates: Partial<NodeData> =
+          variant === "cover"
+            ? { cover: { kind: "image", url } }
+            : { icon: { ...liveIcon, kind: "image", value: url } };
+
+        await NodeService.upsert(nodeId, updates);
+        onUploaded?.();
+      } catch (error) {
+        onUploadError?.(
+          error instanceof Error ? error : new Error("Upload failed"),
+        );
+      }
+    },
+    onError: (error) => {
+      onUploadError?.(error);
+    },
+  });
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setMenuOpen(true);
+  };
+
+  const handleFilesSelected = (files: File[]) => {
+    onUploadStart?.();
+    uploadFiles(files);
+  };
+
+  if (fileItems.length === 0) {
+    return (
+      <>
+        <div
+          onClick={handleClick}
+          className={cn(
+            "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+            config.minHeight,
+            className,
+          )}
+        >
+          <Icon className="size-12 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            点击添加{config.label}
+          </span>
+        </div>
+
+        <UploadMenu
+          position={menuPosition}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          accept={accept}
+          // The zone only ever takes a picture, so a pasted image is a valid
+          // source for both variants (same reason `variant="image"` allows it).
+          allowPasteImage
+          onFilesSelected={handleFilesSelected}
+          onError={onUploadError}
+        />
+      </>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "w-full h-full flex flex-col items-center justify-center gap-4",
+        className,
+      )}
+    >
+      {fileItems.map((item) => (
+        <div key={item.id} className="w-full max-w-md space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm truncate">{item.file.name}</span>
+            <button
+              onClick={() => removeFileItem(item.id)}
+              disabled={item.status === "success"}
+              className="p-1 hover:bg-muted rounded-sm disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <Progress value={item.progress} />
+          <span className="text-xs text-muted-foreground">
+            {item.status === "error" ? "上传失败" : `${item.progress}%`}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
