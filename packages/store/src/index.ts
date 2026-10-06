@@ -9,6 +9,7 @@ export type {
   MainViewType,
   SidebarMode,
   QuickPanelMode,
+  IslandPanel,
   NodeSemanticAfterCreate,
 } from "./uiStore";
 

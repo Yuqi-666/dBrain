@@ -27,6 +27,18 @@ export type MainViewType = "graph" | "editor";
 export type QuickPanelMode = "search" | "agent";
 
 /**
+ * 灵动岛当前面板（`idle` 即收起）。
+ *
+ * **这是「同形定义」的两份之一。** 设计 §6.1 要求本文件导出它，设计 §5.2 又要求
+ * `packages/ui` 的 `dynamic-island/dynamic-island.tsx` 导出同名同形的类型；而依赖
+ * 方向不允许 `packages/ui → @workspace/store`（设计 §0.2-2），所以两边各自写一份
+ * 字面量联合，**结构等价**即可 —— 宿主把 store 的值直接传给
+ * `<DynamicIsland panel>` 靠结构类型通过。值集变更时必须同时改两处：
+ * `idle | preview | search | agent`。
+ */
+export type IslandPanel = "idle" | "preview" | "search" | "agent";
+
+/**
  * Sidebar 显示模式
  * - "closed": 关闭状态
  * - "fixed": 固定显示（推开右侧内容）
@@ -208,6 +220,25 @@ export interface UIStore {
   toggleQuickPanelFromKeyboard: () => void;
   /** 关闭 Quick Panel（保留 mode） */
   closeQuickPanel: () => void;
+
+  // ==================== Dynamic Island Section ====================
+  /**
+   * 灵动岛当前面板（受控状态；`idle` 即收起）。受控壳
+   * `<DynamicIsland panel onPanelChange />` 的 `panel` 直接取这个值 —— 岛本身
+   * 既不读 store 也不做业务判断（设计 §5.2 的三条边界）。
+   */
+  islandPanel: IslandPanel;
+  /**
+   * 「最近一次打开的功能面板」，`⌘K` 在未展开时复用它 —— 对齐 `quickPanel.mode`
+   * 「关闭后仍保留」的既有语义。收起（`idle`）**不**写这里。
+   */
+  lastIslandPanel: Exclude<IslandPanel, "idle">;
+  /** 打开某个面板（等价于「展开岛」）；传 `idle` 即收起 */
+  setIslandPanel: (panel: IslandPanel) => void;
+  /** 收起岛（保留 `lastIslandPanel`，供 ⌘K 复用） */
+  collapseIsland: () => void;
+  /** ctrl/⌘+K：未展开则以 `lastIslandPanel` 打开，已展开则收起 */
+  toggleIslandFromKeyboard: () => void;
 
   // ==================== Panel Visibility Section ====================
   /** 视图配置面板是否显示 */
@@ -422,6 +453,26 @@ export const useUIStore = create<UIStore>()(
         set((state) => ({
           quickPanel: { mode: state.quickPanel.mode, open: false },
         })),
+
+      // ==================== Dynamic Island ====================
+      islandPanel: "idle",
+      lastIslandPanel: "search",
+      // 打开时记下「最近一次功能面板」，收起时不覆盖它（与 design §6.1 的
+      // `...(panel === "idle" ? {} : { lastIslandPanel: panel })` 等价，
+      // 写成显式三元只是为了对象字面量的类型更直接）。
+      setIslandPanel: (panel) =>
+        set(
+          panel === "idle"
+            ? { islandPanel: panel }
+            : { islandPanel: panel, lastIslandPanel: panel },
+        ),
+      collapseIsland: () => set({ islandPanel: "idle" }),
+      toggleIslandFromKeyboard: () =>
+        set((state) =>
+          state.islandPanel === "idle"
+            ? { islandPanel: state.lastIslandPanel }
+            : { islandPanel: "idle" },
+        ),
 
       // ==================== Panel Visibility ====================
       viewConfigPanelOpen: false,
