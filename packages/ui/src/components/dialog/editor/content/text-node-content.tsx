@@ -1,10 +1,43 @@
 "use client";
 
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { cn } from "@workspace/ui/lib/utils";
-import { useUIStore } from "@workspace/store";
-import { NodeService } from "@workspace/services";
+/**
+ * A `text` node's content: one centered, large-type rich-text block — the 禅意
+ * block of `docs/node-content/README.md` §1.1 (plan `docs/plan/node-content-ui.md`
+ * M3).
+ *
+ * Three things are worth knowing here:
+ *
+ * 1. **The editor owns the document, the store is only the sink.** The block is
+ *    seeded once from `normalizeDoc(node.content.docs)` — lazy upgrade, never a
+ *    migration: an old `{ content: "字符串" }` record is translated on read and
+ *    the first edit persists the `{ type:"doc", content:[…] }` shape
+ *    (`doc-normalize.ts`).
+ * 2. **Writes are debounced, but never dropped.** The shared writer serializes
+ *    them (`patchContent`), and a trailing debounce keeps one write per pause
+ *    instead of one per keystroke; the unmount flush is what makes the last
+ *    keystrokes survive an immediate `Esc`. The trailing debounce has a second
+ *    effect worth keeping: the write lands *after* a click that follows typing,
+ *    so a header edit made in that window travels in the same payload instead of
+ *    racing an in-flight body write.
+ * 3. **Only the `docs` half is written** — `patchContent` merges onto the live
+ *    content, so nothing else on the node is at risk.
+ */
+import { useCallback, useEffect, useRef } from "react";
 import type { TextNodeData } from "@workspace/interfaces";
+import { SingleBlockEditor } from "@workspace/editor/components/tiptap-templates/single-block/single-block-editor";
+import { cn } from "@workspace/ui/lib/utils";
+import { normalizeDoc } from "./doc-normalize";
+import { useNodeContentWriter } from "./use-node-content-writer";
+
+/**
+ * The content half of a text node. Read off the node type rather than imported:
+ * `packages/interfaces`' barrel exports `TextNodeData` but not `TextContent`, and
+ * M3 does not touch that package's exports.
+ */
+type TextContent = TextNodeData["content"];
+
+/** How long typing has to pause before the document is written. */
+const TEXT_WRITE_DEBOUNCE_MS = 400;
 
 interface TextNodeContentProps {
   node: TextNodeData;
@@ -12,36 +45,64 @@ interface TextNodeContentProps {
 }
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
-  const currentEditingNodeId = useUIStore(
-    (state) => state.currentEditingNodeId,
+  const writer = useNodeContentWriter<TextContent>(
+    node.id,
+    "text",
+    node.content,
   );
 
-  // Get the first content string if docs is stored as object record
-  const getValue = (): string => {
-    if (!node.content?.docs) return "";
-    if (typeof node.content.docs === "string") return node.content.docs;
-    const firstKey = Object.keys(node.content.docs)[0];
-    return firstKey ? String(node.content.docs[firstKey]) : "";
-  };
+  // The document the editor is about to persist, and the timer that will do it.
+  const pendingDoc = useRef<TextContent["docs"] | undefined>(undefined);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // `patchContent` changes identity whenever the store does (its live-content
+  // reader depends on this render's node), so hold it in a ref instead of
+  // rebuilding the flush callback — the unmount cleanup has to stay stable.
+  const patchRef = useRef(writer.patchContent);
+  useEffect(() => {
+    patchRef.current = writer.patchContent;
+  }, [writer.patchContent]);
+
+  const flush = useCallback(() => {
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const docs = pendingDoc.current;
+    if (docs === undefined) return;
+    pendingDoc.current = undefined;
+    patchRef.current({ docs });
+  }, []);
+
+  const handleChange = useCallback(
+    (doc: unknown) => {
+      pendingDoc.current = doc as TextContent["docs"];
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = setTimeout(flush, TEXT_WRITE_DEBOUNCE_MS);
+    },
+    [flush],
+  );
+
+  // Unmount (closing the dialog) persists whatever the debounce still holds.
+  useEffect(() => flush, [flush]);
+
+  const initialDoc = useRef(normalizeDoc(node.content?.docs)).current;
 
   return (
-    <div className={cn("flex flex-col gap-6 p-6", className)}>
-      <div className="space-y-2 flex-1">
-        <Textarea
-          value={getValue()}
-          onChange={(e) => {
-            if (!currentEditingNodeId) return;
-            void NodeService.upsert(
-              currentEditingNodeId,
-              {
-                content: { docs: { content: e.target.value } },
-              },
-              { debounce: true },
-            );
-          }}
-          placeholder="输入正文内容..."
-          className="min-h-[200px] resize-none font-mono text-sm"
-        />
+    <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      <div className="flex-1 overflow-y-auto">
+        {/* The 禅意 box: the type scale, the whitespace and the line length are
+            the consumer's (plan §M3.2-3 — `packages/editor` is not scanned by
+            Tailwind), the editor only fills it. No viewport units: node-content
+            is mounted both in a dialog and in `absolute inset-0` (plan §M3.2-12). */}
+        <div className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col px-8 py-16 text-center text-2xl leading-relaxed">
+          <SingleBlockEditor
+            initialContent={initialDoc}
+            onContentChange={handleChange}
+            placeholder="写下这句话…"
+            className="flex-1"
+          />
+        </div>
       </div>
     </div>
   );

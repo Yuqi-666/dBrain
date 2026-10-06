@@ -11,6 +11,21 @@ export interface NodeContentWriter<C> {
   liveContent(): C;
   /** Queue a content-half patch; patches raised in the same tick merge into one write. */
   patchContent(patch: Partial<C>): void;
+  /**
+   * Queue a **top-level** node patch (`title` / `abstract` / `semanticId` /
+   * `icon` / `cover` …) through the *same* queue as {@link patchContent}.
+   *
+   * The shared queue is the point (plan `node-content-ui.md` §M3.2-10): a header
+   * edit raised while the body is being typed must not become a second in-flight
+   * request for the same record — PocketBase's SDK cancels the earlier one
+   * (the repositories pass the record id as `requestKey`) and the aborted write
+   * rolls the store back. Raised in one tick, a content patch and a top-level
+   * patch are merged into a single upsert.
+   *
+   * Never route `content` through here; use {@link patchContent} so the content
+   * half keeps its merge rule.
+   */
+  patchNode(patch: Partial<NodeData>): void;
 }
 
 /**
@@ -39,6 +54,12 @@ export interface NodeContentWriter<C> {
  *    A microtask-queued drain merges every patch raised in the same tick into a
  *    single upsert, then awaits it before sending the next.
  *
+ * Since M3 the same queue also carries **top-level** patches
+ * ({@link NodeContentWriter.patchNode}), because a node can be edited from two
+ * places at once — the rich-text content header writes `title`/`icon`/`cover`
+ * while the body editor writes `docs`. Two queues would be two in-flight requests
+ * for one record; one queue is the invariant above, kept.
+ *
  * @param nodeId   the node whose `content` is being written
  * @param nodeType guards `liveContent` against reading another node type's content
  * @param fallback this render's content, used only when the store has no live node
@@ -56,7 +77,7 @@ export function useNodeContentWriter<C>(
   }, [fallback, nodeId, nodeType]);
 
   /** Patches queued for the current drain; merged one write at a time. */
-  const pendingPatches = useRef<Partial<C>[]>([]);
+  const pendingPatches = useRef<Partial<NodeData>[]>([]);
   const draining = useRef(false);
   const drainScheduled = useRef(false);
 
@@ -70,14 +91,27 @@ export function useNodeContentWriter<C>(
         const merged = Object.assign(
           {},
           ...pendingPatches.current.splice(0),
-        ) as Partial<C>;
-        const current = liveContent();
+        ) as Partial<NodeData>;
+
+        // The content half is merged onto the freshest content, so a patch that
+        // names one key never drops its siblings.
+        if (merged.content !== undefined) {
+          merged.content = {
+            ...liveContent(),
+            ...(merged.content as Partial<C>),
+          } as unknown as NodeData["content"];
+        }
+
+        // Any debounced payload already scheduled for this node was captured from
+        // the store this write is about to read, i.e. it is a strict subset of
+        // what we send — and it would otherwise fire *after* us and put a stale
+        // copy back (a title typed earlier would revert an icon set since).
+        NodeService.cancelPendingUpdate(nodeId);
+
         try {
           // `C` is the content half of one node type; TypeScript cannot see that
           // through the generic, so assert at this single boundary.
-          await NodeService.upsert(nodeId, {
-            content: { ...current, ...merged },
-          } as unknown as Partial<NodeData>);
+          await NodeService.upsert(nodeId, merged);
         } catch (error) {
           console.error(
             `[${label ?? nodeType} content] Failed to persist content`,
@@ -90,8 +124,8 @@ export function useNodeContentWriter<C>(
     }
   }, [label, liveContent, nodeId, nodeType]);
 
-  const patchContent = useCallback(
-    (patch: Partial<C>) => {
+  const enqueue = useCallback(
+    (patch: Partial<NodeData>) => {
       pendingPatches.current.push(patch);
       if (draining.current || drainScheduled.current) return;
       drainScheduled.current = true;
@@ -103,5 +137,19 @@ export function useNodeContentWriter<C>(
     [drainWrites],
   );
 
-  return { liveContent, patchContent };
+  const patchContent = useCallback(
+    (patch: Partial<C>) => {
+      enqueue({ content: patch } as unknown as Partial<NodeData>);
+    },
+    [enqueue],
+  );
+
+  const patchNode = useCallback(
+    (patch: Partial<NodeData>) => {
+      enqueue(patch);
+    },
+    [enqueue],
+  );
+
+  return { liveContent, patchContent, patchNode };
 }
