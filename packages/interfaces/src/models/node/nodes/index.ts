@@ -26,12 +26,24 @@ export type ComplexNodeData =
   | DatabaseNodeData;
 
 export type { TextNodeData } from "./single/text";
-export type { ImageNodeData } from "./single/image";
-export type { PdfNodeData } from "./single/pdf";
-export type { VideoNodeData, VideoSource } from "./single/video";
-export type { AudioNodeData } from "./single/audio";
+export type { ImageNodeData, ImageContent } from "./single/image";
+export type { PdfNodeData, PdfContent } from "./single/pdf";
+export type { VideoNodeData, VideoContent, VideoSource } from "./single/video";
+export type { AudioNodeData, AudioContent } from "./single/audio";
+export type { TimestampNote } from "./single/timestamp-note";
 export type { WebpageNodeData, WebpageContent } from "./single/webpage";
 export type { WebsiteNodeData } from "./single/website";
+
+export type {
+  AnnotationLayerData,
+  Annotation,
+  AnnotationPoint,
+  Stroke,
+  Highlight,
+  TextAnno,
+  ArrowAnno,
+  ShapeAnno,
+} from "./annotation";
 
 export type {
   CollectionNodeData,

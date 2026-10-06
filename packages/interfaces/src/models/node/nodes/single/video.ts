@@ -1,5 +1,6 @@
 import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
+import type { TimestampNote } from "./timestamp-note";
 
 export type VideoSource = "local" | "online";
 
@@ -25,4 +26,6 @@ export interface VideoContent {
    * playlist and only falls back to {@link url} when it does not.
    */
   hlsUrl?: string;
+  /** Absent / empty means "no notes" — old records stay readable (media.md §4.1). */
+  timestampNotes?: TimestampNote[];
 }

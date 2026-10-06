@@ -1,5 +1,6 @@
 import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
+import type { AnnotationLayerData } from "../annotation";
 
 export interface ImageNodeData extends NodeBase, NodeType<"image"> {
   width: number;
@@ -13,4 +14,6 @@ export interface ImageNodeData extends NodeBase, NodeType<"image"> {
 
 export interface ImageContent {
   url: string;
+  /** Absent means "no annotations" — old records stay readable (annotation.md §0.2-①). */
+  annotations?: AnnotationLayerData;
 }

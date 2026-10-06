@@ -223,6 +223,8 @@ selectors.md §7 的写回表写的是「移除 → `upsert(id, { icon: undefine
 
 无论选哪个，M2 的 `onRemove`、G2 第 7 条与 G1 的验收都按它写。**这条不定死，M2 就没法开工**（selectors §7 与 §11-2 两处随此失效 → [README.md §9](./README.md) R29/R30）。
 
+> **M1-T1 已定（2026-10-06）：取 `null` 哨兵。** `NodeBase.icon?: NodeIcon | null`、`cover?: NodeCover | null`；读路径永不返回 `null`（缺省即 `undefined`）。登记见 [README.md §9](./README.md) R29-定。
+
 ### M1.3 提交切分
 
 一章内部允许分段提交（每段 typecheck 过再进下一段）：
