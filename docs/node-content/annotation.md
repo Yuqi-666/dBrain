@@ -1,7 +1,7 @@
 # 批注组件（annotation）设计文档
 
 > 状态：**待实现**（提案见 [../proposal/annotation.md](../proposal/annotation.md)，两行来源见 [../proposal/node-content-refine.md:18](../proposal/node-content-refine.md) 与 [:33](../proposal/node-content-refine.md)）
-> 范围：**image 与 pdf 两种 node-content 之上的一层手写批注**。交付三件东西：`toolbar`、批注层、触控笔与手势仲裁。底图的编辑（照片编辑、自定义 pdf 组件）**不在**本设计内。
+> 范围：**image 与 pdf 两种 node-content 之上的一层手写批注**。交付三件东西：`toolbar`、批注层、触控笔与手势仲裁。底图的编辑（照片编辑、自定义 pdf 组件）**不在**本设计内——照片编辑见 [image-editor.md](./image-editor.md)，它与本文的交界（裁剪/旋转如何作用于已有批注）由 [image-editor.md §6](./image-editor.md) 定义。
 > 新增运行时依赖：**`perfect-freehand`（P0，唯一）**、**`pdfjs-dist`（P1，浏览器侧）**——后者仓库里已经有一个（服务端），见 §0.2-③。
 > 相关文档：[../proposal/node-content-refine.md](../proposal/node-content-refine.md)、[../dynamic-island/README.md](../dynamic-island/README.md)（本文件的体例来源）、`packages/graph/AGENTS.md`（多指手势与 `devicePixelRatio` 的既有先例）、`packages/editor/AGENTS.md`（Excalidraw 今天怎么被用的）、`packages/interfaces/src/AGENTS.md`
 
