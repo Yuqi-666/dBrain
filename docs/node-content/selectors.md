@@ -1,7 +1,7 @@
 # 节点图标与封面选择器（Icon / Cover Selector）设计文档
 
 > 状态：**待实现**（提案 [../proposal/icon-selector.md](../proposal/icon-selector.md) 与 [../proposal/cover-selector.md](../proposal/cover-selector.md)——两份正文近乎逐字重复，本文是它们的合并版）
-> 范围：给**节点**加两个可选的展示字段——**图标** `icon`（弹层里选 Emoji / 图标 / 上传图片 / URL，可配色、可清除）与**封面** `cover`（上传 / 从节点选 / URL / 移除），并落地它们出现在节点编辑器头部、`preview-block`、dataview 卡片里的规则。
+> 范围：给**节点**加两个可选的展示字段——**图标** `icon`（弹层里选 Emoji / 图标 / 上传图片 / URL，可配色、可清除）与**封面** `cover`（上传 / 从节点选 / 移除；URL 是上传 tab 尾部的一行），并落地它们出现在节点编辑器头部、`preview-block`、dataview 卡片里的规则。
 > 新增运行时依赖：**P0 无**（§3）；P1 视 Emoji 面板的取舍再定（候选 `frimousse`，懒加载 chunk）
 > 相关文档：[../dynamic-island/README.md](../dynamic-island/README.md)（本文体例照抄它）、[../dataview/README.md](../dataview/README.md)（卡片封面的既有规则）、`packages/ui/src/AGENTS.md`、`packages/dataview/AGENTS.md`、`packages/interfaces/src/AGENTS.md`
 
@@ -52,7 +52,7 @@
 
 **决策 2：两个组件，共享一组内部 primitive。不做「一个 `MediaSelectorPopover` 的两个 preset」。**
 
-tab 集合不同（Emoji / 图标 / 上传 / URL vs 上传 / 从节点选 / URL）、值形态不同、写回目标不同、可用性不同（cover 只对一部分类型有意义）。合成一个组件，躯干里必然长出 `switch (variant)` 去决定 tab、空态与提交——而本仓刚在 `file-drop-zone.tsx:533-539` 用过、并认可的形状正好相反：**一个入口 + 两个内部实现**。照抄它：两个导出组件各写自己的弹层内容，共享 `media/` 下的骨架与原子件（§2）。
+tab 集合不同（Emoji / 图标 / 上传 vs 上传 / 从节点选；URL 行两个弹层都挂在上传 tab 尾部）、值形态不同、写回目标不同、可用性不同（cover 只对一部分类型有意义）。合成一个组件，躯干里必然长出 `switch (variant)` 去决定 tab、空态与提交——而本仓刚在 `file-drop-zone.tsx:533-539` 用过、并认可的形状正好相反：**一个入口 + 两个内部实现**。照抄它：两个导出组件各写自己的弹层内容，共享 `media/` 下的骨架与原子件（§2）。
 
 **决策 3：值都是带 `kind` 的判别联合，各存一个 json 列。**
 
@@ -97,7 +97,7 @@ export type NodeCover =
 | 目标         | 场景                                                                                     | 提案截图                                                                          |
 | ------------ | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | **节点图标** | 编辑器头部点图标 → 弹层里选 Emoji / Lucide 图标 / 上传图片 / 贴 URL，可配色、可移除        | [../proposal/assets/2026-10-06-14-17-59.png](../proposal/assets/2026-10-06-14-17-59.png)：`Emojis / Library / Upload` + 右上 `Remove` + "Click to filter…" + 分类网格 + 底部分类条 |
-| **节点封面** | 头部点封面 → 上传 / 从节点选 / URL / 移除；封面的**呈现**沿用既有封面位（preview-block、卡片） | [../proposal/assets/2026-10-06-14-18-59.png](../proposal/assets/2026-10-06-14-18-59.png)：`Upload / Library / Gallery / Unsplash` + 落地区 "Choose Image or Drag it here" + "Or add via URL" |
+| **节点封面** | 头部点封面 → 上传 / 从节点选 / 移除（URL 是上传 tab 尾部的一行）；封面的**呈现**沿用既有封面位（preview-block、卡片） | [../proposal/assets/2026-10-06-14-18-59.png](../proposal/assets/2026-10-06-14-18-59.png)：`Upload / Library / Gallery / Unsplash` + 落地区 "Choose Image or Drag it here" + "Or add via URL" |
 
 成功标准（可验收）：
 
@@ -123,7 +123,7 @@ export type NodeCover =
                  └────────────────────────────────────────┘
 ```
 
-CoverSelectorPopover 同骨架，tab 换成 [上传] [从节点选] [URL]：上传 tab 是落地区 (MediaDropPane → `<FileDropZone variant="cover" />`)，下半部分是 "Or add via URL"(MediaUrlRow)。
+CoverSelectorPopover 同骨架，tab 换成 [上传] [从节点选]：上传 tab 是落地区 (MediaDropPane → `<FileDropZone variant="cover" />`)，下半部分是 "Or add via URL"(MediaUrlRow)。**URL 不单列 tab**（G2-r1 第 3 条：与「上传」写同一处、同一种来源，一个 tab 一个来源），与图标弹层同形。
 
 ```text
 packages/ui/src/components/node-media/
@@ -275,6 +275,7 @@ export interface CoverSelectorPopoverProps {
 
 ### 6.3 URL
 
+- 位置：**「上传」tab 的下半部分**，不单列 tab（G2-r1 第 3 条；与图标弹层同形，一个 tab 一个来源）。
 - `Or add via URL` 受控输入行 + `Enter` / blur 提交；`resolveFileUrl` 让相对路径与绝对 URL 都能用；提交前做轻量校验（非空、无空白字符），P1 再加 `<img>` 预加载校验（失败就报错不写库）。
 - **不下载到 PocketBase**：与 `UploadMenu` 的"URL 先 fetch 再当文件上传"（`upload-menu.tsx:164-209`）不同，封面允许外链；代价是离线不可见（与 `website` 的 favicon 同待遇），不做额外提示。
 
@@ -351,7 +352,7 @@ URL 输入                 受控 useState（逐键）  ──▶ Enter/blur 才
 | 阶段   | 交付                                                                                                                                                                       | 验收                                                                                                  |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **P0** | 字段全链路（迁移 → domain → mapper → DTO → tRPC → interfaces）+ `NodeIconView` + `IconSelectorPopover`（Emoji 精选集 / 图标精选集 / 上传 / URL / 底色 / 移除）+ 编辑器头部按钮 + `NodePreviewCover` 与 `PreviewHeader` 读 `icon` | `typecheck` / `lint` 干净；设图标后 preview-block 头部立刻变；`upsert` 只写顶层字段（抓包确认 content 未被替换）；手测清单 1–6 |
-| **P1** | `CoverSelectorPopover`（上传 / 从节点选 / URL / 移除）+ 编辑器头部封面按钮 + `NodePreviewCover` 读 `cover`（含 `resolveNode` 与环保护）+ `popover` 的 `container` 透传按需 | 卡片 / 瀑布流 / preview 三处封面同时生效、失败回落字母占位；手测清单 7–11                          |
+| **P1** | `CoverSelectorPopover`（上传 / 从节点选 / 移除）+ 编辑器头部封面按钮 + `NodePreviewCover` 读 `cover`（含 `resolveNode` 与环保护）+ `popover` 的 `container` 透传按需 | 卡片 / 瀑布流 / preview 三处封面同时生效、失败回落字母占位；手测清单 7–11                          |
 | **P2** | `react-easy-crop` 裁剪、最近使用、Emoji 全量面板（`frimousse` 懒加载）、语义弹窗接入图标选择器                                                                            | 裁剪结果另存新文件且不改原 blob；离线时 P0 的 tab 不受影响                                            |
 
 依赖顺序上，**P0 的字段全链路必须先合并**（它对后端是破坏性最小的加法，但跨 5 个包），再动 UI；否则 UI 只能对着假类型开发。

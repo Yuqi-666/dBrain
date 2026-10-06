@@ -38,7 +38,7 @@
  * exactly the design's 320 / 420px, while the `(pointer: coarse)` 44px grid
  * (sel §5 尺寸) is allowed to widen the panel instead of being clipped.
  */
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Command } from "@workspace/ui/components/ui/command";
 import {
   Popover,
@@ -49,7 +49,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 
 export interface MediaPopoverTab {
-  /** Stable id — `emoji` / `icon` / `upload` / `node` / `url`. */
+  /** Stable id — `emoji` / `icon` / `upload` / `node`. */
   value: string;
   label: string;
 }
@@ -89,6 +89,18 @@ export function MediaPopoverShell({
   children,
   className,
 }: MediaPopoverShellProps) {
+  /**
+   * The body ceiling with Radix's own measurement folded in.
+   *
+   * `--radix-popover-content-available-height` is written by the popper onto the
+   * content element (children inherit it), so `min(...)` keeps the design's
+   * `min(384px, 52vh)` on a roomy viewport while never letting the panel outgrow
+   * the space Radix found for it — the same trick `dataview`'s settings panel
+   * uses. It is also the value the list's cap is derived from, so both
+   * mechanisms agree.
+   */
+  const bodyCap = `min(${bodyMaxHeight}, var(--radix-popover-content-available-height, 100vh))`;
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -138,21 +150,54 @@ export function MediaPopoverShell({
             <div className="flex shrink-0 items-center gap-1">{actions}</div>
           ) : null}
         </div>
-        {/* Body ceiling: the `Command` is clamped and its inner list
-            (`flex-1 min-h-0`, supplied by the host) is what scrolls. `height:
-            auto` is inline because the base class is `size-full` and
-            `tailwind-merge` does not treat `size-*` as conflicting with `h-*`;
-            a percentage height here would resolve against the popover's auto
-            height and defeat the clamp. The descendant rule releases
-            `CommandList`'s own `max-h-72` (288px), which is *below* sel §2's
-            `min(384px, 52vh)` and would otherwise be the real ceiling. */}
-        <Command
-          shouldFilter
-          className="rounded-none! bg-transparent p-0 [&_[cmdk-list]]:max-h-none"
-          style={{ height: "auto", maxHeight: bodyMaxHeight }}
+        {/* Body ceiling — **the panel's scroll contract** (G2-r1 第 1 条).
+            The old shape put the ceiling on the `Command` (inline `maxHeight`)
+            and expected the host's `flex-1 min-h-0` `CommandList` to scroll
+            through it. A flex item inside an `height: auto` flex container is
+            *not* shrunk by that container's `max-height`: the 368-cell grid
+            computed ~1900px, `Command` clipped it at 384px and no scrollport
+            existed anywhere — nothing could scroll.
+
+            Two independent mechanisms now, both copied from shapes that already
+            work in this repo:
+            1. **`CommandList` owns the ceiling again** — `popover + Command +
+                CommandList` with the list's own `max-height: auto
+                overflow-y-auto` is how `dataview/shared/field-picker.tsx` and
+                `settings-panel.tsx` scroll inside this very editor dialog; M2
+                had switched it off with `max-h-none`. The cap is handed over as
+                a CSS variable so the shell stays the one place that knows it,
+                minus the search row's height (`CommandInput`'s wrapper is
+                `p-1 pb-0` + `h-8` = 2.25rem; the list is the only body child on
+                every grid tab).
+            2. **The wrapper is a single safety net** for hosts whose body is not
+                a `CommandList` (the upload panes): same cap, `overflow-y-auto`.
+                On a grid tab the two add up to exactly the cap, so the wrapper
+                never grows a second scrollbar.
+
+            The cap also folds in `--radix-popover-content-available-height`
+            (which Radix sets on the popover content and children inherit, the
+            same variable `settings-panel.tsx` uses), so a popover anchored near
+            the viewport edge is never taller than the space Radix measured for
+            it. `Command` keeps giving up clipping (`overflow-visible` — the same
+            `tailwind-merge` group as its base `overflow-hidden`, so the later
+            class wins) and `height: auto` stays inline because the base class is
+            `size-full` and `tailwind-merge` does not treat `size-*` as
+            conflicting with `h-*`. `MediaSearchInput` pins itself to the top of
+            whichever of the two viewports ends up scrolling. */}
+        <div
+          className="min-h-0 overflow-y-auto overscroll-contain"
+          style={{ maxHeight: bodyCap }}
         >
-          {children}
-        </Command>
+          <Command
+            shouldFilter
+            className="rounded-none! overflow-visible bg-transparent p-0 [&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)_-_2.25rem)]"
+            style={
+              { height: "auto", "--media-body-cap": bodyCap } as CSSProperties
+            }
+          >
+            {children}
+          </Command>
+        </div>
       </PopoverContent>
     </Popover>
   );

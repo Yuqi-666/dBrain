@@ -161,14 +161,21 @@ export function IconSelectorPopover({
     commit({ kind: "icon", value: item.key.slice(ICON_KEY_PREFIX.length) });
   };
 
-  /** Rebuilds the whole icon from the live value — never `{ color }` alone. */
+  /**
+   * Rebuilds the whole icon from the live value — never `{ color }` alone.
+   *
+   * `color` is written **even when clearing** (G2-r1 第 2 条). The host merges the
+   * value it receives onto a freshly re-read live icon (`{ ...live, ...next }`,
+   * sel §7), so a `next` that merely *omits* the key is indistinguishable from
+   * "leave the colour alone" and the old colour survived 无底色 — the key must be
+   * present and `undefined` for the write to mean "no background". It
+   * serialises away at the PocketBase boundary (`JSON.stringify` drops
+   * `undefined` members), and the domain's `clearIcon`/`updateIcon` path is only
+   * reached for a real icon, so the wire shape stays `{ kind, value }`.
+   */
   const handleColor = (color: string | undefined) => {
     if (!value) return;
-    onChange(
-      color
-        ? { kind: value.kind, value: value.value, color }
-        : { kind: value.kind, value: value.value },
-    );
+    onChange({ kind: value.kind, value: value.value, color });
   };
 
   const handleUrlSubmit = (url: string) => {
@@ -232,7 +239,10 @@ export function IconSelectorPopover({
           its query belongs to the shell's `Command`, so it survives a tab switch. */}
       {tab === "upload" ? null : <MediaSearchInput autoFocus />}
       {tab === "upload" ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1">
+        // No `overflow-y-auto` of its own: the shell's body wrapper is the panel's
+        // single scrollport, so a nested one inside an auto-height parent would
+        // either be dead or clip the drop pane.
+        <div className="flex flex-col gap-1 p-1">
           <MediaDropPane
             nodeId={nodeId}
             variant="icon"
@@ -252,7 +262,7 @@ export function IconSelectorPopover({
           ) : null}
         </div>
       ) : (
-        <CommandList className="min-h-0 flex-1">
+        <CommandList>
           <MediaGrid
             items={tab === "emoji" ? EMOJI_ITEMS : ICON_ITEMS}
             onSelect={handleSelect}

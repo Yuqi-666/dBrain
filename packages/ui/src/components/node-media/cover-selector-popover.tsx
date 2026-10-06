@@ -11,8 +11,10 @@
  * `onChange` after an upload — the displayed value arrives back through the
  * host's store subscription.
  *
- * Three tabs, one "source" each (`上传` / `从节点选` / `URL`); `Or add via URL`
- * sits under the drop pane rather than as a fourth empty tab (sel §2).
+ * Two tabs, one "source" each (`上传` / `从节点选`) — G2-r1 第 3 条: the `URL` tab
+ * was a second entry to the same write target as `上传`, so it is gone and the
+ * `Or add via URL` row stays at the tail of `上传` (sel §2's "一个 tab 一个来源",
+ * which the icon selector already follows: URL is the tail of `上传`, not a tab).
  *
  * TODO(P2): `listNodes(query)` is currently called once with an empty query and
  * the filtering is left to `Command`. Per-keystroke re-query needs the shell to
@@ -42,7 +44,6 @@ import { cn } from "@workspace/ui/lib/utils";
 const COVER_TABS: MediaPopoverTab[] = [
   { value: "upload", label: "上传" },
   { value: "node", label: "从节点选" },
-  { value: "url", label: "URL" },
 ];
 
 export interface CoverSelectorPopoverProps {
@@ -190,7 +191,7 @@ export function CoverSelectorPopover({
       {tab === "node" ? (
         <>
           <MediaSearchInput placeholder="Click to filter…" autoFocus />
-          <CommandList className="max-h-80">
+          <CommandList>
             {candidates.map((candidate) => (
               <CommandItem
                 key={candidate.id}
@@ -209,21 +210,6 @@ export function CoverSelectorPopover({
             <CommandEmpty>没有可选节点</CommandEmpty>
           </CommandList>
         </>
-      ) : null}
-
-      {tab === "url" ? (
-        <div className="flex flex-col gap-1">
-          {previewBox}
-          <MediaUrlRow
-            value={url}
-            onValueChange={setUrl}
-            onSubmit={(next) => {
-              onChange({ kind: "image", url: next });
-              setUrl("");
-            }}
-            placeholder="https://example.com/cover.png"
-          />
-        </div>
       ) : null}
     </MediaPopoverShell>
   );
