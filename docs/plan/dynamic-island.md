@@ -67,6 +67,9 @@
 14. **探针锚点写进 DOM 契约。** `data-island`（胶囊本体）+ `data-island-panel`（当前形态）+ `data-island-content` + `data-island-nav` + `data-island-nav-disabled`：G4 第 1 条原话就是 `document.querySelector('[data-island]')`，这些属性让「量尺寸/判禁用/判形态」不必依赖类名或结构。
 15. **收起态导航的分隔线位置**（设计 §7.1 只写「3 个导航图标 + 1px 分隔线」）：分隔线放在**页面导航与搜索图标之间**（前两项是「去哪」，第三项是「打开面板」）。
 16. **窄屏只留图标、标签只在 `md:` 以上出现**（设计 §3.4 最后一行 + §7.1「触摸端不做标签展开」）：`panels/nav-panel.tsx` 的标签用 `hidden md:inline`，收窄时不改变图标命中区。
+17. **P0 不做 `nav-hover`（收起态悬停横向展开标签）。** 设计 §2.2 把它标为「可选」、优先级最低（§7.1 同），G4 的 9 条清单里没有一条测它；而「指针一进胶囊就变宽 / 出标签」会让 G4 第 1 条的「收起态宽度 ≤ 180px」在验收时变成「看你的指针在哪」。`IslandNavPanel`（`panels/nav-panel.tsx`）**保留**并只被**展开态**使用，收起态恒渲染图标行。
+18. **岛自己挂一个 scoped `TooltipProvider`。** 全仓今天没有任何地方挂它（`apps/web/app/layout.tsx` 不在本章白名单内），而 Radix 的 provider context **没有默认值** —— 自检探针实测 `` `Tooltip` must be used within `TooltipProvider` `` 会直接抛错、整岛白屏（`#content` 空、`[data-island]` 不存在）。`IslandNav` 里包一层 `<TooltipProvider delayDuration={0}>`（一个岛一个；Radix 的 Provider 不产出 DOM，锚点与 40px 行不变）。**副产物**：发现 `packages/ui/src/components/ui/sidebar.tsx:528` 是同类隐患（那条路径今天不可达），记进 G4 遗留。
+19. **两处按可运行等价写法落地**（设计样例的字面写法在本仓不成立，代码 JSDoc 已记录）：① `transformOrigin: { originX, originY }` 改写成 motion 12 style 的**顶层键** `originX`/`originY`（嵌套对象既过不了 `MotionStyle` 的类型、也不会被 `buildHTMLStyles` 合成为 `transform-origin`），渲染结果与设计意图一致（`50% 100% 0`，探针按「盒子底部中心」量）；② 底色第①层是 `bg-popover` + `supports-[backdrop-filter:blur(1px)]:bg-popover/85`（暗色 `/80`），而不是无条件的 `bg-popover/85` —— 否则 §3.4 第 2 行「不支持时改不透明」没有落点。
 
 ### M4.3 提交切分
 

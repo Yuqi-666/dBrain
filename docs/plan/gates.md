@@ -25,7 +25,7 @@
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 开发中 | —    | —    | —    |
+| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 待测 | 1    | 2026-10-07 | 见 §5 |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -485,6 +485,60 @@
   10. **页头文字列与正文列只在 pane ≥ 900px 时严格同源**（探针 ㉔ 在 1200px 对话框里逐像素一致）。窄 pane 下 grid 的 96px 边距 vs `mx-auto` 的 0 会差 ~50px；真要修得让头部复用 editor 的 `.notion-like-editor-layout` 列。
   11. **`readOnly` 会让封面一起消失**（今天无消费方）。`readOnly` 时不调用两个注入点，`{hasCover && coverEntry}` 渲染 `false`；要修就单开一条：`readOnly` 下用 `NodePreviewCover` 静态画封面。
 - 用户结论（原话，2026-10-07）：「**我修复了些瑕疵，提交后并测试G3通过，现在开始G4**」
+
+---
+
+### G4 — M4 灵动岛 P0
+
+- 状态：**待测**（第 1 轮；自检 + **15/15** 真浏览器探针全绿，等用户实测）
+- 提交：`382b7b0`（依赖：`packages/ui` 增 `motion ^12` + lockfile）→ `dbccaf2`（状态：`uiStore` 增 `islandPanel` 切片）→ `94ac393`（P0：七个组件文件 + 宿主 + `(main)/layout.tsx` 挂载 + 文档）
+- 自检：
+  - **typecheck diff**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失** ✅（typecheck 88 / lint 26）。逐包复核：`@workspace/ui` **19 条 = 基线**（探针期新增的 7 个文件**零 error**）、`@workspace/store` 干净（新切片零诊断）、`web` 段 37 条（新增的 `island-routes.ts` / `dynamic-island-host.tsx` 零 error；挂载先于宿主文件落地时那条 `app/(main)/layout.tsx(7,35) TS2307` 已随新文件消失，且它本就不在基线里 ⇒ diff 仍是 0/0）
+  - **lint diff**：`@workspace/ui` **26 problems (0 errors, 26 warnings)**，与基线逐条一致、新增文件零 warning；`web` 4 warnings 不变
+  - **越界检查**：`git status --short` 全程只有 §M4.1 白名单里的文件；`backend/**`、`packages/interfaces`、`pb/**`、`packages/ui/src/styles/globals.css`、`preview-block/**` 未触碰；`apps/web/app/**` 只动了 `(main)/layout.tsx` 的挂载
+  - **依赖**：`packages/ui/package.json` +`"motion": "^12"`（实装 **12.43.0**，即 framer-motion 12.43.0，peer 明确 `^18 || ^19`；`./react` 是合法子路径），lockfile 已入库
+  - **`pnpm --filter=web build`**：**编译阶段 ✓**（`✓ Compiled successfully in 70s`）⇒ `motion` × React 19 × Next 16 的打包无碍（总纲 §10 的风险行解除）；TS 阶段停在**基线里已有的** `app/(main)/graph/page.tsx` 「`theme` 不存在于 `GraphProps`」一条（[baseline/typecheck-errors.txt:2](./baseline/typecheck-errors.txt)）。**这是 M4 开工前就存在的既存缺陷**，判据因此按 §M4.4 前置说明 3 改写。副作用：`next build` 会把 `apps/web/next-env.d.ts` 由 `.next/dev/types` 改写成 `.next/types`，已 `git checkout --` 还原、未入库
+  - **未改 Tailwind `@source`**：新类全在 `packages/ui/src/**`（已在白名单内），dev server 的产物已含 `size-11` / `supports-[backdrop-filter:blur(1px)]:…` 等（探针直接吃这份真产物，不是自造 CSS）
+- **主 agent 预跑证据（真浏览器探针 15/15）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真 `<DynamicIsland />`**（真 `motion`、真 `island-surface` / `island-nav`、真 Radix `Dialog`）+ **真编译 CSS**，所有输入都是 CDP 的受信任事件；`chrome-headless-shell` 默认没有指点设备（`(hover: none)`），所以浏览器用 `--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4` 声明一只「细粒度、可悬停」的鼠标，触摸端再用 `Emulation.setTouchEmulationEnabled` 单独跑一轮：
+  ```
+  ✓ ① 真 <DynamicIsland /> 挂载（真 motion + 真 Tailwind 产物）：inline border-radius 9999px、transform-origin 50% 100% 0
+  ✓ ② 收起态：w=133（≤180）、h=40、全圆 pill（解析后的圆角 ≥ 半高）
+  ✓ ③ 收起态导航行：3 个图标按钮 + 1px 分隔线 + 当前项 aria-current=page + 禁用项 aria-disabled/opacity-40（=0.4）
+  ✓ ④ 禁用项点了不做事（onSelect 计数 0→0、面板不变）；搜索图标 → 面板变 search
+  ✓ ⑤ 展开态 search：560×440（视口 1280）、圆角 28px（motion 投影期是 `5.0049% 6.3715%`，解析后同为 28）、内容层与 data-island-placeholder 都在
+  ✓ ⑥ 形变原点在**底边中点**（transform-origin = 280px 440px = 盒子的底部中心，即 originY: 1）
+  ✓ ⑦ Esc：焦点在岛内时收起（局部 onKeyDown，回到 w=133）；焦点在岛外时**不动**（面板仍是 search）⇒ 不是全局监听
+  ✓ ⑧ 形变可打断：140ms 后改向时胶囊已在飞行途中（w=342.6），settledAt=741ms（若排队播完「展开+收起」需 ~1.4s）、终点 132.8
+  ✓ ⑨ 非降级下确实是弹簧：展开序列过冲到 607.7 再收敛到 560.0（欠阻尼）
+  ✓ ⑩ 指针：外层 pointer-events:none、胶囊 auto；胶囊左外侧 8px 命中 #canvas、胶囊中心命中岛；外层 z-index=40
+  ✓ ⑪ 层级：打开的 Radix Dialog 盖在岛之上（岛中心命中弹层）、Esc 关掉弹层且岛不受影响
+  ✓ ⑫ 桌面端（hover: hover）高光跟随：--light-x=34.95% / --light-y=50.00% 有值
+  ✓ ⑬ prefers-reduced-motion：尺寸**直接切换**（点击后第一帧已在 560.0）、整段无过冲、功能不变
+  ✓ ⑭ (hover: none)/(pointer: coarse)：三个导航按钮均 44×44、高光不跟随（--light-x 为空）
+  ✓ ⑮ 无未捕获报错、无 console error
+  ```
+  复跑：`bash /tmp/probe/run-island.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → 起/复用 `python3 -m http.server 8899 -d /tmp/probe` → 跑 `island-check.mjs`）。**工装踩到的三个坑**（复跑要带）：① `chrome-headless-shell` 默认报 `(hover: none)`/`(pointer: coarse)`，不加 blink-settings 就会把「桌面」那一轮全跑成触摸分支；② motion 的 `layout` 投影期间把 `border-radius` 写成**百分比对**（`5.0049% 6.3715%` = 560×440 上的 28px），`parseFloat` 会读成 5 —— 圆角断言必须按盒子解析百分比；③ headless 下**点击不会把焦点给按钮**（`document.activeElement` 仍是 `<body>`），局部 Esc 那条要显式 `focus()`（真机 Chrome/Windows/Linux 点击是会聚焦的，macOS 不会 —— 这也是 M9 要加全局 Esc 的原因之一）。
+- 用户操作清单：见 [dynamic-island.md §M4.4](./dynamic-island.md#m44-闸门-g4--用户操作清单)（**9 条** + 8 条前置说明；第 2 条在 P0 只有「搜索 → Esc 收起」两个动作，第 8 条的判据已按既存缺陷改写）
+- 用户实测结果：（待填 —— 9 条）
+- 失败项与归因：（待填）
+- 迭代：——（**闸门前的自检期**抓到两个真缺陷，都在交用户之前修掉，不计入闸门轮次，见下）
+- **闸门前自检抓到的两个真缺陷**（都不是笔误，且第一条本来会让 G4 第 1 条直接失败）：
+  1. **`Tooltip` 缺 `TooltipProvider` ⇒ 整个岛渲染抛错**。Radix 的 provider context **没有默认值**（`radix-ui@1.4.3`），`island-nav` 的「禁用项原因 tooltip」是**第一处可达**的 `Tooltip`：探针第一轮的控制台原文是 `` Uncaught Error: `Tooltip` must be used within `TooltipProvider` ``，`#root` 里什么都没渲染（`[data-island]` 不存在）。修法：`IslandNav` 内包一层 scoped `<TooltipProvider delayDuration={0}>`（一个岛一个；Provider 不产出 DOM，锚点与 40px 行不变）。**同时发现一处既存同类隐患**：`packages/ui/src/components/ui/sidebar.tsx:528` 的 `<Tooltip>` 也在没有 provider 的情况下渲染，而全仓没有任何地方挂 `TooltipProvider` —— 今天不可达（`MainSidebar` 没给那几个按钮传 `tooltip`），见遗留 5。
+  2. **`nav-hover`（收起态悬停横向展开标签）与 G4 第 1 条的判据冲突**。设计 §2.2 把它标为**可选**、优先级最低，G4 清单里没有一条测它；但「指针一进胶囊就变宽/出标签」会让「收起态宽度 ≤180px」在验收时变成「看你指针在哪」。已删除该分支（`IslandNavPanel` 保留给**展开态**用），并写进 `dynamic-island.tsx` 文件头与 [§M4.2-17](./dynamic-island.md)。
+- **两处「按可运行等价写法」而非逐字照抄设计样例**（都已在代码 JSDoc 记录，G4 不判）：
+  1. `transformOrigin: { originX, originY }` → 写成 motion 12 style 的**顶层键** `originX/originY`（`ISLAND_ORIGIN`）。理由：嵌套对象是 motion 的内部 `TransformOrigin` 记录，`motion-dom` 只对 `origin*` 顶层键合成 `transform-origin`，对象形式既过不了 `MotionStyle` 的类型、也不会渲染出目标值。渲染结果与设计意图一致：`transform-origin: 50% 100% 0`（探针 ⑥ 按「盒子底部中心」量）。
+  2. 底色第①层写成 `bg-popover` + `supports-[backdrop-filter:blur(1px)]:bg-popover/85`（暗色同款 `/80`），而不是把 `bg-popover/85` 当无条件底 —— 否则「不支持 `backdrop-filter` 时改不透明」就没有落点（§3.4 第 2 行）。因此按 `classList` 精确匹配 `bg-popover/85` 会落空，按计算样式量透明度才通过。
+- 遗留不阻塞项（初步，G4 通过后定稿）：
+  1. **`blurEnabled` 在 P0 没有消费方**（`island-surface.tsx`）：设计 §3.4 第 3 行要的「模拟运行中 / 岛上 300ms 无重绘 ⇒ 关模糊」按 R10 不接 `packages/graph`，`false` 分支今天从未被执行；归属：后续章节（那时才需要「谁是重绘源」的输入）。
+  2. **SNAP_SPRING 的嵌套是主 agent 的接法**（胶囊 `LIQUID_SPRING`、内层 `p-px` 用 `SNAP_SPRING`）：设计只把 SNAP 定位为「展开态内部」，未规定接在哪一层；若真机观感出现「内层追不上、被 `overflow-hidden` 裁一瞬」，一行退回默认即可。
+  3. **高光漂移（2.4s）是 P0 的实现选择**（`setInterval` + `transform` 过渡，避免 rAF 常驻）：设计 §3.3 只写「建议 2.4s 极缓漂移」。reduce 下不排定 interval。
+  4. **`--dynamic-island-height` 每次面板切换会 disconnect/re-observe**（宿主的 effect 依赖 `[islandPanel]`，为的是「首次取不到元素时下次渲染重试」）：中间帧变量短暂缺失，今天没有消费方；真要 mount-only 是一行。
+  5. **既存隐患：`sidebar.tsx:528` 的 `<Tooltip>` 同样缺 provider**（全仓无 `TooltipProvider`）：今天不可达（`MainSidebar` 未给那些按钮传 `tooltip`），但任何走通那条路径的改动都会白屏。归属：接入 tooltip 的那个人；或者在 `apps/web/app/layout.tsx` 挂一个全局 `TooltipProvider`（本轮没做：不在 M4 白名单内，且影响面是全部 tooltip）。
+  6. **`next build` 会改写 `apps/web/next-env.d.ts`**（`.next/dev/types` ⇄ `.next/types`）：`next dev` 与 `next build` 交替跑会来回抖。本轮已还原未入库；谁要跑 build 请留意别把它顺手提交。
+- 需要你决定的两条（不阻塞本轮实测，按你的回答进遗留或另开前置修复）：
+  1. **`web` 的 `pnpm --filter=web build` 今天不通过，但原因与本轮无关**：`app/(main)/graph/page.tsx:69` 传了 `theme`，而 `packages/graph` 的 `GraphProps` 只有 `viewId` / `view` / `className` / `style`（基线里的 TS2322）。要不要**单独开一条前置修复**（它会同时解锁 G7 / G10 的同名判据，代价是动 `apps/web/app/(main)/graph/page.tsx` 或 `packages/graph` —— 两者都不在本轮白名单内）。
+  2. **`/settings` 今天不进胶囊**（只有 middleware 保护、没有 page）：若你希望它也占一个位置（禁用态 + 原因），改 `apps/web/components/island-routes.ts` 一行并把 §M4.2-15 的分隔线位置口径一起改。
+- 用户结论：（待填）
 
 ---
 
