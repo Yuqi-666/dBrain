@@ -76,7 +76,9 @@ await mutation.mutateAsync(nodeData);
 
 ## IMPORTANT CONSTRAINTS
 
-- **Server URL**: `ws://localhost:3001` (all operations: queries, mutations, subscriptions)
+- **Server URL**: resolved at runtime by `resolveBackendUrls()` (`src/backend-urls.ts`) — `ws://localhost:3001`
+  on a loopback origin, `wss://<host>/trpc` on any other origin (reverse-proxy path). Do **not** hardcode it.
+- **PocketBase URL**: same helper — `http://localhost:8090` on loopback, `<origin>/pb` otherwise.
 - **AppRouter type**: Imported from `@workspace/adapter-front`
 - **Subscriptions**: Must be called inside React component context (hooks)
 - **Services**: Optimistic mutations with rollback now live in `@workspace/services`

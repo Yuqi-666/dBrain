@@ -36,6 +36,7 @@
 | 里程碑 | 交付（一句话）                                                                  | 来源阶段                                       | 依赖        | 闸门 | 后端 | 新依赖              |
 | ------ | ------------------------------------------------------------------------------- | ---------------------------------------------- | ----------- | ---- | ---- | ------------------- |
 | **M0** | 可用的验证闭环：修 turbo 任务图、修根 `check-types` 脚本、冻结迁移账本、核实版本、记录基线 | ——                                             | ——          | G0   | 否   | 否                  |
+| **M0.1** | 浏览器可达性前置：后端地址按 origin 解析（回环不变，代理下走 `/trpc` + `/pb`）+ 宿主 nginx 两条路由（**R37**，§6.3 子章） | G0 实测                                     | M0          | G0.1 | 否   | 否                  |
 | **M1** | 数据脊柱：`nodes` 四列 + `NodeIcon`/`NodeCover`/`TimestampNote`/`AnnotationLayerData` 全链路 + 前端共享写者（含属性侧栏整包抹除的修复，R13） | node-content:P0、selectors:P0（字段半）、annotation:P0（字段半） | M0          | G1   | **是** | 否                  |
 | **M2** | 图标与封面：两个弹层 + 编辑器头部按钮 + preview/卡片读取 + `FileDropZone` 新 variant + `NodePreviewBody` 抽取 | selectors:P0（UI）、P1、node-content:P0（`file-drop-zone`）、重排 R1 | M1          | G2   | 否   | 否                  |
 | **M3** | text 单 block（禅意）+ rich-text 头部挂载 + 旧形状惰性升级                        | node-content:P1                                | M1、M2      | G3   | 否   | 否                  |
@@ -305,6 +306,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | R34 | M2 **不登记** `packages/ui/src/components/index.ts`（公共出口不导出新组件）                              | dataview 消费 `NodePreviewCover` 本来就是按路径 import（`packages/dataview/src/shared/card-cover.tsx:26`）→ M2 沿用按路径 import，就不占用主 agent 的独占面                     | selectors §12                                     |
 | R35 | rich-text 会出现**两套**图标/封面入口（sel §4 的 `EditorHeader` 按钮 + nc §1.6/§2 的内容区头部），必须显式收口 | 两份设计文档各要求一套，且渲染的是同一份 `node.icon`/`node.cover`。方案 A（M2 预置「该类型是否有内容自带头部」集合，M3 只加 `"rich-text"`）/ 方案 B（M3 改 `editor-header.tsx`）——**由 G3 第 6 条判定，不许留成「看情况」** | selectors §4、node-content §1.6/§2                |
 | R36 | W1 的冻结清单具体化：**先落 `file-drop-zone.tsx` 的 `Variant` 两行**（否则 W1-A 的 `media-drop-pane` 用 `variant="cover"` 编不过）；M3 **不开**并行窗口，编辑器与只读渲染器同 owner | 总纲 §3.2 原话只说「先冻结 `node-media/` 导出」，粒度不够：`Variant` 是 W1-A 的编译前提；editor 侧两个文件共享同一份 schema/扩展集，拆开必然漂移 | 本 README §3.2                                    |
+| R37 | **新增 M0.1 子章**：浏览器侧后端地址改为**按 origin 解析**（回环仍走 `localhost:3001`/`localhost:8090`，非回环走同域 `/trpc` 与 `/pb`）；宿主 nginx 负责把这两条路由到本机端口 | M0/G0 实测发现应用**在反向代理下不可用**：`ws://localhost:3001`（`packages/api-client/src/trpc/client.ts:32`）与 `http://localhost:8090`（`apps/web/app/providers.tsx:15`）是**硬编码回环**，而用户浏览器是从 `https://dev.yuqi-666.cn`（宿主 openresty → 容器 `:3000`）访问的 ⇒ 浏览器里的 `localhost` 是用户自己的机器。这不是本轮功能需求，而是**所有浏览器闸门（G1–G13）的前置**：不修则每个闸门都只能由主 agent 用 curl 代验，用户无法实测手感。按 §6.3「允许把该章拆出 `M<n>.1` 子章并单独过闸」处理 | [§10 风险表](#10-风险登记)、dynamic-island/media/annotation 等**所有**需要用户肉眼的闸门 |
 
 ---
 
@@ -324,7 +326,45 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | 子 agent 伪造引用 / 越界改文件                                        | 任意并行窗口                               | §2.4 四步验收，逐条跑，不跳步                                                                             |
 | 后端在 M1 一次做完，改动面大（10 个 entity 子类 + 10 份 `baseProps` + 3 处白名单）导致 review 困难 | M1                                    | M1 内部按「interfaces → domain → application/DTO → infra」四段提交（同一章内的分段提交），每段 `typecheck` 过再进下一段；G1 仍是唯一的用户闸门 |
 | 五份设计文档的「待验证」项在真机/浏览器上被证伪                        | 各闸门                                     | 就地决策 + 登记 §9；不改设计文档正文                                                                      |
-| **浏览器侧后端地址硬编码 `localhost`**（`ws://localhost:3001`、`http://localhost:8090`） | 任何**非本机**浏览器的使用（首次暴露在 M1/G1 的「起服务看一眼」，真正的硬需求是 M5/G5 平板） | M0 实测。两条路：① 客户端设备做 SSH 本地转发 `-L 3000:127.0.0.1:3000 -L 3001:127.0.0.1:3001 -L 8090:127.0.0.1:8090`（零代码改动，推荐）；② 改这两个地址跟随 `window.location.hostname` 并把 PB 绑到非回环（要动 `packages/api-client` + `apps/web`，**不在本计划范围**，需用户单独决策）。G5 之前必须定下来，否则 R23 的降级结论（「用 localhost 就是 secure context」）站不住 |
+| **浏览器侧后端地址曾硬编码 `localhost`**（`ws://localhost:3001`、`http://localhost:8090`） | 任何**非本机**浏览器的使用 | **M0.1 已修**（R37）：改为按 origin 解析 —— 回环保持原样，非回环走同域 `/trpc` 与 `/pb`。**剩余依赖是宿主配置**：nginx 必须加下面两条 location，否则闸门仍只能由主 agent 用 curl 代验。SSH 本地转发降为备选（仍可行，且对改动前的老代码也有效） |
+
+---
+
+### 10.1 宿主 nginx 路由（M0.1 的配套配置，**由用户执行**）
+
+容器内的服务监听 `:3000`（web）/ `:3001`（tRPC WS）/ `:8090`（PocketBase）。宿主的 openresty 目前只把 `dev.yuqi-666.cn` 转到 `:3000`，所以浏览器能打开页面却连不上后端。在 `dev.yuqi-666.cn` 的 server 块里加两条：
+
+```nginx
+    # tRPC WebSocket → 容器 3001
+    # 不加尾斜杠 = 保留 /trpc 前缀。ws 服务是 new WebSocketServer({ port })，
+    # 不校验路径，所以保留前缀即可（容器内已实测 101 升级成功）。
+    location /trpc {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host       $host;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # PocketBase REST + /api/files + 后台 → 容器 8090
+    # 加尾斜杠 = 剥掉 /pb 前缀，PB 仍然看到 /api/...（容器内已实测）
+    location /pb/ {
+        proxy_pass http://127.0.0.1:8090/;
+        proxy_set_header Host       $host;
+        proxy_set_header X-Real-IP  $remote_addr;
+        client_max_body_size 1024m;   # 上传是「浏览器 → PB」直连，默认 1m 会挡大文件
+    }
+```
+
+`nginx -t && nginx -s reload` 之后：
+
+- 应用：`https://dev.yuqi-666.cn/register` → 注册 → 登录 → `/graph`
+- **PB 后台：`https://dev.yuqi-666.cn/pb/_/`**，账号 `admin@dbrain.dev`（密码在 gitignored 的 `pb/pb_data/.superuser-credentials.txt`）—— 顺带解决「PB 后台在你的机器上不可达」，G1 起所有「在 PB 后台核对」的条目你都能自己看
+- `client_max_body_size` 是必需的：上传不走 tRPC，是浏览器直接 `XMLHttpRequest` 打 PB（[upload.ts:194](../../packages/api-client/src/upload.ts)）
+
+**已在容器内用等价代理实测**（`/pb/api/health` → 200 且前缀已剥、`/pb/_/` → 200、`/trpc` → 101 且 tRPC 服务端打印 `Client connected`）。唯一未验的是宿主 nginx 本身（它在我的沙箱外，无 sudo）。
 
 ---
 

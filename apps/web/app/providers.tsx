@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { TRPCReactProvider } from "@workspace/api-client";
 import { useGraphSubscriptions } from "@workspace/api-client";
-import { createPocketbaseClient } from "@workspace/api-client";
+import { createPocketbaseClient, resolveBackendUrls } from "@workspace/api-client";
 
 function GraphSubscriptionProvider(): ReactNode {
   useGraphSubscriptions();
@@ -12,7 +12,9 @@ function GraphSubscriptionProvider(): ReactNode {
 
 function PocketbaseInitializer({ children }: { children: ReactNode }): ReactNode {
   useEffect(() => {
-    createPocketbaseClient({ url: "http://localhost:8090" });
+    // Loopback → http://localhost:8090; proxied origin → <origin>/pb.
+    // See packages/api-client/src/backend-urls.ts.
+    createPocketbaseClient({ url: resolveBackendUrls().pocketbase });
   }, []);
 
   return <>{children}</>;

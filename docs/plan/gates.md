@@ -21,6 +21,7 @@
 | 闸门 | 里程碑                     | 章文件                                     | 状态   | 轮次 | 日期 | 遗留 |
 | ---- | -------------------------- | ------------------------------------------ | ------ | ---- | ---- | ---- |
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 待测 | 1    | 2026-10-06 | 见 §5 |
+| G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 待测 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 未开工 | —    | —    | —    |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
@@ -135,4 +136,30 @@
 - 遗留不阻塞项：
   1. 「M0 可选修复」（7 个包补 flat config、`desktop` 的 `next lint`、拆包环、editor 的 67 个 lint error）按 [baseline.md §4](./baseline.md#4-m0-可选修复默认不做需要时单独开章) **不做**。
   2. [spine.md §附](./spine.md#附本章待验证回填清单) 的待验证 1 / 2 / 5（`new Field({type:"json"})`、`removeByName` 的 `down`、PB 版本一致性）**名义上归 M1 实跑**，不是 G0 的验收面。
-- 用户结论：**待填**（约定：用户原话，或明确判定）                    |
+- 用户实测结果补充（2026-10-06）：用户报告**「无法初始化数据库，初始注册链接从我的机器访问不了」**。归因：**环境**（不是实现缺陷）—— ① PB 的超级管理员安装确实**从未完成**（`_superusers` 只有 PB 自己的 `__pbinstaller@example.com` 占位账号 + 一个已打印到终端的 install token）；② PB 只绑 `127.0.0.1:8090`，用户浏览器在另一台机器（经宿主 openresty 访问 `dev.yuqi-666.cn` → 容器 `:3000`）。**处置**：主 agent 用 `./pb/pocketbase superuser upsert` 完成安装（`admin@dbrain.dev`，密码落 gitignored 的 `pb/pb_data/.superuser-credentials.txt`，REST 实测 200），并删除带泄漏 token 的占位账号。**install 链接从此不再需要。**
+  - ⚠️ **G0 第 4 条的期望要按实测改**：库里 `nodes` **0 行**（原计划假定有真实数据），所以 `/graph` 打开后是**空图**——空图不算失败；第 4 条只判「应用能起、路由能渲染、控制台无 `unknown field`」。另：G1 第 3/8/9 条需要「既有 text/image/audio 节点」，**这些节点不存在**，需用户在注册登录后先造几个（记入 G1 前提）。
+  - 该报告直接推出 **M0.1（R37）**：浏览器侧后端地址硬编码回环 ⇒ 用户浏览器连不上后端。见下条。
+- 用户结论：**待填**（约定：用户原话，或明确判定）
+
+### G0.1 — M0.1 浏览器可达性前置
+
+- 状态：**待测**（等用户在宿主加 nginx 路由后实测）
+- 提交：`86d5dd7`
+- 自检：
+  - 代码：新增 `packages/api-client/src/backend-urls.ts`（`resolveBackendUrls()`），`trpc/client.ts:32` 与 `apps/web/app/providers.tsx:15` 改为消费它；从 `@workspace/api-client` 导出
+  - 分支实测（`node` 直跑，5 个上下文）：`https://dev.yuqi-666.cn` → `wss://dev.yuqi-666.cn/trpc` + `https://dev.yuqi-666.cn/pb`；`http://<host>:8080` → `ws://…:8080/trpc` + `http://…:8080/pb`；`localhost` / `127.0.0.1` → **原样** `ws://localhost:3001` + `http://localhost:8090`（本地开发路径不变）；无 `window`（SSR）→ 回环默认值 ✅
+  - 路由语义：容器内起等价代理（`/trpc` 保前缀、`/pb/` 剥前缀），实测 `/pb/api/health` → `200 {"message":"API is healthy."}`、`/pb/_/` → `200`（**PB 后台也可达**）、`/trpc` → **`101 Switching Protocols`** 且 tRPC 服务端日志出现 `Client connected from ::ffff:127.0.0.1` ✅
+  - `pnpm --filter=@workspace/api-client typecheck` 通过；`lint` 仅剩既有的 1 条 `TOKEN_COOKIE` 警告 ✅
+  - 全仓 `bash docs/plan/baseline.sh` → 两段都 `✓ 与基线一致（0 新增，0 消失）` ✅
+  - **未做**：宿主 nginx 本身（在主 agent 沙箱外、无 sudo）；真实浏览器加载（无浏览器工具）
+- 用户操作清单：
+  1. 在 `dev.yuqi-666.cn` 的 nginx server 块加 [README §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) 的两条 `location`，`nginx -t && nginx -s reload`
+  2. 浏览器开 `https://dev.yuqi-666.cn/register` → 注册一个账号 → 登录
+  3. 期望：不再卡在登录/注册（改前会转圈或报错，因为 `localhost:3001` 指向你自己的机器）；登录后 `/graph` 可渲染（空图，因为库里 0 节点）
+  4. 顺手核一下 PB 后台：`https://dev.yuqi-666.cn/pb/_/`，账号 `admin@dbrain.dev`
+- 失败项与归因：暂无
+- 迭代：——
+- 遗留不阻塞项：
+  1. 上传大文件的 `client_max_body_size` 若漏配，表现为「上传到 100% 后失败」——属 nginx 配置，不是代码
+  2. 老数据若在 content 里存了**绝对** `http://localhost:8090/api/files/…`，`resolveFileUrl` 会原样返回（该分支刻意保留）。当前库是空的 ⇒ 无影响；将来导入老数据时要注意
+- 用户结论：**待填**                    |

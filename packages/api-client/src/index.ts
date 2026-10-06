@@ -20,4 +20,6 @@ export {
   getPocketbaseClient,
   resetPocketbaseClient,
 } from "./pocketbase-client";
+export { resolveBackendUrls } from "./backend-urls";
+export type { BackendUrls } from "./backend-urls";
 export * from "./auth";

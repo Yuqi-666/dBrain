@@ -4,6 +4,7 @@ import type { AppRouter } from "@workspace/adapter-front";
 import { useSourceIdStore } from "@workspace/store";
 import { isTokenExpired } from "pocketbase";
 import { setAuthSession, clearAuthSession, decodeJwtPayload } from "../auth/session";
+import { resolveBackendUrls } from "../backend-urls";
 
 const TOKEN_COOKIE = "pb_token";
 
@@ -29,7 +30,9 @@ function getConnectionParams() {
 }
 
 const wsClient: TRPCWebSocketClient = createWSClient({
-  url: "ws://localhost:3001",
+  // Loopback → ws://localhost:3001; proxied origin → wss://<host>/trpc.
+  // See ../backend-urls.ts.
+  url: resolveBackendUrls().trpc,
   connectionParams: getConnectionParams,
 });
 
