@@ -13,15 +13,62 @@
  */
 import type { ReactNode } from "react";
 import type { NodeData } from "@workspace/interfaces";
+import { cn } from "@workspace/ui/lib/utils";
+import { PreviewHeader } from "./preview-header";
+import { TextPreview } from "./previews/text-preview";
+import { ImagePreview } from "./previews/image-preview";
+import { VideoPreview } from "./previews/video-preview";
+import { PdfPreview } from "./previews/pdf-preview";
+import { AudioPreview } from "./previews/audio-preview";
+import { WebpagePreview } from "./previews/webpage-preview";
+import { WebsitePreview } from "./previews/website-preview";
+import { CollectionPreview } from "./previews/collection-preview";
+import { RichTextPreview } from "./previews/rich-text-preview";
+import { DatabasePreview } from "./previews/database-preview";
 
 export interface PreviewBodyProps {
   node: NodeData;
   className?: string;
 }
 
-export function NodePreviewBody({ node }: PreviewBodyProps): ReactNode {
-  // TODO(W1-C): move `PreviewHeader` + the `previews/*` dispatch out of
-  // `preview-block.tsx` (its `:68-93` switch) behind this signature, unchanged.
-  void node;
-  return null;
+/** The ten-way type dispatch; unmoved from `preview-block.tsx` (R1 is a move). */
+function renderNodePreview(node: NodeData): ReactNode {
+  switch (node.nodeType) {
+    case "text":
+      return <TextPreview node={node} />;
+    case "image":
+      return <ImagePreview node={node} />;
+    case "video":
+      return <VideoPreview node={node} />;
+    case "pdf":
+      return <PdfPreview node={node} />;
+    case "audio":
+      return <AudioPreview node={node} />;
+    case "webpage":
+      return <WebpagePreview node={node} />;
+    case "website":
+      return <WebsitePreview node={node} />;
+    case "collection":
+      return <CollectionPreview node={node} />;
+    case "rich-text":
+      return <RichTextPreview node={node} />;
+    case "database":
+      return <DatabasePreview node={node} />;
+    default:
+      return <TextPreview node={node} />;
+  }
+}
+
+export function NodePreviewBody({
+  node,
+  className,
+}: PreviewBodyProps): ReactNode {
+  return (
+    <>
+      <PreviewHeader node={node} />
+      <div className={cn("p-3 pt-2 overflow-y-auto", className)}>
+        {renderNodePreview(node)}
+      </div>
+    </>
+  );
 }

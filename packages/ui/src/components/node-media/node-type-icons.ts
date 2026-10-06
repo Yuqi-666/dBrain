@@ -3,8 +3,8 @@
 /**
  * The node-type → glyph table, as a **single source of truth**.
  *
- * It used to exist twice — `preview-header.tsx`'s local `nodeTypeIcons` and
- * `node-preview-cover.tsx`'s `NODE_TYPE_ICONS` — which is exactly how a local
+ * It used to exist twice — as a local table in `preview-header.tsx` and again in
+ * `node-preview-cover.tsx` — which is exactly how a local
  * copy grows back after one of them is touched (docs/plan/node-content-ui.md
  * §M2.2-3). Both now import this, and the icon selector uses it as
  * `NodeIconView`'s `fallback`.

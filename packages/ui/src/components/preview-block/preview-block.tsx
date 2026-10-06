@@ -2,20 +2,9 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
-import type { NodeData } from "@workspace/interfaces";
 import { useDataStore } from "@workspace/store";
 import { PREVIEW_WIDTH, PREVIEW_MAX_HEIGHT, PREVIEW_MARGIN } from "./types";
-import { PreviewHeader } from "./preview-header";
-import { TextPreview } from "./previews/text-preview";
-import { ImagePreview } from "./previews/image-preview";
-import { VideoPreview } from "./previews/video-preview";
-import { PdfPreview } from "./previews/pdf-preview";
-import { AudioPreview } from "./previews/audio-preview";
-import { WebpagePreview } from "./previews/webpage-preview";
-import { WebsitePreview } from "./previews/website-preview";
-import { CollectionPreview } from "./previews/collection-preview";
-import { RichTextPreview } from "./previews/rich-text-preview";
-import { DatabasePreview } from "./previews/database-preview";
+import { NodePreviewBody } from "./node-preview-body";
 
 let latestMousePosition = { x: 0, y: 0 };
 if (typeof window !== "undefined") {
@@ -62,34 +51,6 @@ function calculatePosition(
   );
 
   return { left, top };
-}
-
-// 渲染预览（不变）
-function renderNodePreview(node: NodeData): React.ReactNode {
-  switch (node.nodeType) {
-    case "text":
-      return <TextPreview node={node} />;
-    case "image":
-      return <ImagePreview node={node} />;
-    case "video":
-      return <VideoPreview node={node} />;
-    case "pdf":
-      return <PdfPreview node={node} />;
-    case "audio":
-      return <AudioPreview node={node} />;
-    case "webpage":
-      return <WebpagePreview node={node} />;
-    case "website":
-      return <WebsitePreview node={node} />;
-    case "collection":
-      return <CollectionPreview node={node} />;
-    case "rich-text":
-      return <RichTextPreview node={node} />;
-    case "database":
-      return <DatabasePreview node={node} />;
-    default:
-      return <TextPreview node={node} />;
-  }
 }
 
 export function PreviewBlock({
@@ -182,7 +143,6 @@ export function PreviewBlock({
       data-preview-block
       className="overflow-hidden rounded-xl border bg-background shadow-xl "
     >
-      <PreviewHeader node={node} />
       {onClose && (
         <button
           onClick={handleClose}
@@ -192,7 +152,7 @@ export function PreviewBlock({
           <X className="size-3.5 text-muted-foreground" />
         </button>
       )}
-      <div className="p-3 pt-2 overflow-y-auto">{renderNodePreview(node)}</div>
+      <NodePreviewBody node={node} />
     </div>
   );
 }

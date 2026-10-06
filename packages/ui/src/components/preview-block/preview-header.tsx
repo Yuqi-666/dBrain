@@ -1,42 +1,24 @@
 "use client";
 
-import * as React from "react";
 import { useDataStore } from "@workspace/store";
 import type { NodeData } from "@workspace/interfaces";
-import {
-  FileText,
-  Image,
-  Video,
-  FileType,
-  Volume,
-  Globe,
-  Folder,
-  FileEdit,
-  Table,
-} from "lucide-react";
-
-const nodeTypeIcons = {
-  text: FileText,
-  image: Image,
-  video: Video,
-  pdf: FileType,
-  audio: Volume,
-  webpage: Globe,
-  website: Globe,
-  collection: Folder,
-  "rich-text": FileEdit,
-  database: Table,
-};
+import { FileText } from "lucide-react";
+import { NodeIconView } from "@workspace/ui/components/node-media/node-icon-view";
+import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
 
 export function PreviewHeader({ node }: { node: NodeData }) {
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const semantic = nodeSemantics.get(node.semanticId);
-  const Icon = nodeTypeIcons[node.nodeType] || FileText;
+  const Icon = NODE_TYPE_ICONS[node.nodeType] ?? FileText;
 
   return (
     <div className="border-b px-3 py-2">
       <div className="flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground shrink-0" />
+        <NodeIconView
+          icon={node.icon ?? undefined}
+          fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />}
+          className="size-4 shrink-0 text-muted-foreground"
+        />
         <span className="font-medium truncate text-sm">{node.title}</span>
       </div>
       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
