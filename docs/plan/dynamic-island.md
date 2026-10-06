@@ -1,6 +1,6 @@
 # 灵动岛执行计划（M4 / M8 / M9）
 
-> 状态：**待开工**（前提：M0 已过 G0；M8 另需 M2 已过 G2）
+> 状态：**M4 待测**（前提：M0 已过 G0；M8 另需 M2 已过 G2 —— 两者都已满足）
 > 覆盖：M4 = 岛 P0、M8 = 岛 P1（预览面板）、M9 = 岛 P2+P3（搜索与清理）
 > 闸门：G4、G8、G9（各自独立过闸，W0 只免串行、不免闸门）
 > 契约：设计文档 [../dynamic-island/README.md](../dynamic-island/README.md)（下称「设计 §n」）、执行总纲 [./README.md](./README.md)（下称「总纲 §n」）
@@ -60,6 +60,13 @@
 7. **`IslandPanel` 有两份同形定义。** 设计 §6.1 要求 `packages/store/src/uiStore.ts` 导出它，设计 §5.2 要求 `dynamic-island.tsx` 导出它。依赖方向不允许 `packages/ui → @workspace/store`（设计 §0.2-2），所以两边各自用字面量联合、**结构等价**，宿主直接赋值即通过结构类型检查。落地时把这份契约写进两处 JSDoc，并在 G4 自检时用 `grep` 复核两份联合值一致。
 8. **`packages/ui` 的 `exports` 只映射 `.tsx`。** `packages/ui/package.json:61` 是 `"./components/*": "./src/components/*.tsx"`，所以 `.../dynamic-island/index.ts` 与 `.../preview-block/index.ts` 都**不是**消费者入口；`apps/web` 必须写显式子路径（现有范式见 `apps/web/app/(main)/graph/page.tsx:16` 与 `packages/graph/src/force/ForceGraph.tsx:78`）。`packages/ui/src/components/index.ts` 的增长是登记性导出（总纲 §3.1 单列该文件的理由），照做但不依赖它做运行时解析。
 9. **`backdrop-filter` 的动态降级需要一个「模拟是否在跑」的输入。** `packages/graph` 有 `simulation:stopped`（`ForceGraph.tsx:602`），但它只在 graph 包内消费；`packages/ui` 不能 import graph。P0 的可用实现是「岛上 300ms 无重绘即认为可开 blur」（设计 §3.4 第 3 行给出的等价条件之一），把「跟随 `simulation:stopped`」降为**待验证**项（见文末清单），避免 P0 为一个纯优化项新增跨包事件面。
+10. **P0 不注册任何全局键盘。** §M4.1 第 9 行与设计 §5.3-3 都要求宿主注册 `⌘K` / `⌘⇧K` / `Esc`，但设计 §6.3/§6.4 又写死「`⌘K` 在 P2 迁移，**必须与删掉 `quick-panel.tsx` 的全局监听同一次提交**，否则 `⌘K` 触发两次」。P0 的 `quick-panel.tsx:30-49` 仍然挂着，所以宿主**只**注册「局部 Esc」：胶囊根元素上一个 React `onKeyDown`（焦点在岛内才生效，不 `preventDefault`/`stopPropagation`），不碰 `window`。三个全局快捷键留到 M9（P0 的宿主仍然按 §M4.1 第 9 行写 `--dynamic-island-height`）。
+11. **P0 的四个面板是「形态」而不是「内容」。** 设计 §5.1 的 `panels/search-panel.tsx` 属于 P2、`node-preview-panel.tsx` 属于 P1，P0 只有 `nav-panel` / `agent-panel` 两个文件（§M4.1 第 5 行）。而 G4 第 2/3/4 条要测的恰恰是**展开态的形态与指针行为**，所以：`previewContent` / `searchContent` / `agentContent` 缺失时，岛在**正确尺寸**的容器里渲染自己的占位（`data-island-placeholder=<panel>`，文案点明属于后续里程碑）。宿主在 P0 不注入任何 `*Content`。这样 P0 的闸门 diff 里没有「半截的搜索/预览」，也不会与 P1/P2 的真实内容抢同一段代码。
+12. **P0 宿主不订阅 `previewBlock`。** §M4.1 第 9 行写了「订阅 `islandPanel` 与 `previewBlock`」，但设计 §6.2 的 `previewBlock → preview` 映射是 **P1（M8）** 的触发逻辑，且那天要同时**删掉** `ForceGraph` 的 `<PreviewBlock>` 浮层；P0 若先接，会在「悬停节点」时同时出现旧的跟随浮层与岛内空占位。⇒ P0 只订阅 `islandPanel`，`preview` 形态只能由 `setIslandPanel("preview")` 到达（P0 没有 UI 入口）。
+13. **`island-surface` 的「模拟运行中降级」在 P0 只是一个可选 prop。** 设计 §3.4 第三行要求「force 模拟运行中 / 岛上 300ms 无重绘 ⇒ 关掉 `backdrop-filter`」。`packages/ui` 不能 import `packages/graph`（§0.2-2），R10 已把「跟随 `simulation:stopped`」降为待验证项 ⇒ P0 落一个 `blurEnabled?: boolean`（默认 `true`）并写进 JSDoc，接线留给后续章节；G4 不判这一条（设计 §11 的手测项里它是性能项，不在 G4 清单里）。
+14. **探针锚点写进 DOM 契约。** `data-island`（胶囊本体）+ `data-island-panel`（当前形态）+ `data-island-content` + `data-island-nav` + `data-island-nav-disabled`：G4 第 1 条原话就是 `document.querySelector('[data-island]')`，这些属性让「量尺寸/判禁用/判形态」不必依赖类名或结构。
+15. **收起态导航的分隔线位置**（设计 §7.1 只写「3 个导航图标 + 1px 分隔线」）：分隔线放在**页面导航与搜索图标之间**（前两项是「去哪」，第三项是「打开面板」）。
+16. **窄屏只留图标、标签只在 `md:` 以上出现**（设计 §3.4 最后一行 + §7.1「触摸端不做标签展开」）：`panels/nav-panel.tsx` 的标签用 `hidden md:inline`，收窄时不改变图标命中区。
 
 ### M4.3 提交切分
 
@@ -73,6 +80,17 @@
 
 入口统一：`pnpm --filter=web dev` → `http://localhost:3000/graph`（需已登录；未登录会跳 `/login`）。
 
+> **按本机实测调整的口径（2026-10-07，与 G1–G3 同一套环境）**
+>
+> 1. **入口走同域**：web `https://dev.yuqi-666.cn/graph`，**每次改完代码必须 F5**（域名的 nginx 不代理 HMR，G2 已实测）。岛是 `(main)/layout.tsx` 的常驻节点，刷新后应在底部中央看到它。
+> 2. **P0 的展开内容全是占位**（§M4.2-11）：点搜索图标展开后看到的是「搜索面板将在 M9 接入」这类占位文案 —— 本阶段判的是**形态**（尺寸 / 圆角 / 可打断 / 指针 / 层级），不是内容；`preview` / `agent` 同理（preview 在 P0 没有 UI 入口）。
+> 3. **第 8 条（`pnpm --filter=web build`）在 M4 开工前就不通过**，实测证据：`next build` 的**编译阶段 ✓**（`✓ Compiled successfully in 70s`，含新装的 `motion`），随后 TS 阶段停在 `app/(main)/graph/page.tsx(L,C): error TS2322: … 'theme' does not exist on type 'IntrinsicAttributes & GraphProps'` —— 这一条**就在基线里**（[baseline/typecheck-errors.txt:2](./baseline/typecheck-errors.txt)，`GraphProps` 今天只有 `viewId`/`view`/`className`/`style`）。⇒ 第 8 条的判据改成「**编译阶段通过 + TS 阶段只允许停在基线里那一条**」；要不要把 `graph/page.tsx` 的 `theme` 作为**独立前置修复**（会同时解锁 G7/G10 的同名判据）请你定，**M4 不擅自扩大白名单**。
+> 4. **第 2 条的三个动作在 P0 只有两个可用**：`/dashboard` 是禁用项（§M4.2-6 有意如此），所以「搜索 → 导航 → 收起」实测走「**搜索 → Esc 收起**」。**Esc 只在焦点位于岛内时生效**（P0 不注册全局键盘，§M4.2-10）：点完搜索图标焦点还在胶囊上，直接按 Esc 即可；若你先点了画布，Esc 不会有反应（那是 M9 的全局语义）。
+> 5. **`⌘K` / `⌘⇧K` 在 P0 仍归 QuickPanel**：岛**不抢键**，按 `⌘K` 打开的仍是今天那个顶部对话框（设计 §6.3 的迁移纪律：双触发必须与删掉旧监听同一次提交 = M9）。所以第 9 条只判「触摸端命中区 ≥44×44 + 悬停不再自动展开」。
+> 6. **看不到玻璃感/高光时先查这两处**：`(hover: none)`（触摸仿真或平板真机）下指针高光**不跟随**；系统开了「减少动态效果」时高光跟随与漂移**关闭**、形变不做弹簧（尺寸直接切换 + 约 120ms 淡入）。两者都是设计（§3.4 降级矩阵），不是失效。
+> 7. **窄屏（≤640px）**：展开宽度收 `calc(100vw - 32px)`、导航只留图标（标签 `hidden md:inline`）。
+> 8. **DevTools 量尺寸的锚点**：`document.querySelector('[data-island]')`（胶囊本体）、`[data-island-panel]`（当前形态）、`[data-island-nav]`、`[data-island-nav-disabled]`。收起态 `getBoundingClientRect().height` 应为 **40**。
+
 | # | 用户做什么（具体入口） | 期望 | 判据或证据 | 失败先看哪 |
 | - | ---------------------- | ---- | ---------- | ---------- |
 | 1 | 打开 `/graph`，看屏幕底部中央 | 常驻胶囊：3 个图标（graph / dashboard / 搜索），当前页高亮；高度 ≤ 40px、宽度 ≤ 180px | 截图；`document.querySelector('[data-island]')` 的 `getBoundingClientRect()` 高 ≤ 40 | 岛的 `ISLAND_SHAPES.idle` 与 `island-nav.tsx` |
@@ -82,14 +100,14 @@
 | 5 | 在底部左侧 3px 热区向内划、打开侧边栏；再打开节点右键菜单 / NodeEditor（设计 §11-4） | 侧边栏热区仍可唤出；右键菜单与 NodeEditor 弹层**盖在岛之上**；岛不抢指针 | 逐项操作；弹层与岛的 `z-index` 关系 | `z-40`/`z-[45]` 与 Radix portal；胶囊是否超出 `max-width` 压到热区 |
 | 6 | 展开态点岛内某个导航图标 → `/dashboard` | 该图标为禁用态（`opacity-40` + `aria-disabled` + 「页面尚未实现」tooltip），**点了不跳 404**；点 `/graph` 图标不产生重挂载 | 悬停看 tooltip 文案；点禁用项 URL 不变；从 `/dashboard` 返回时胶囊 DOM 节点未重建（DevTools 看元素是否闪烁） | `apps/web/components/island-routes.ts` 的 `enabled: false`；`(main)/layout.tsx` 是否真的没被路由切换重挂 |
 | 7 | 系统开启「减少动态效果」，刷新 `/graph`（设计 §11-6） | 尺寸直接切换 + 约 120ms 淡入；高光跟随与漂移关闭；岛仍可用 | 手测；`matchMedia('(prefers-reduced-motion: reduce)').matches` 为 true | `island-config.ts` 的降级分支；高光 `pointermove` 是否漏判 |
-| 8 | `pnpm --filter=web build`（设计 §11-9） | 构建通过，无 React 19 peer / Next 16 打包错误 | 构建输出尾部 | 见总纲 §10 风险行：不通过就换方案（岛退回 CSS transition） |
+| 8 | `pnpm --filter=web build`（设计 §11-9） | **编译阶段**通过（`✓ Compiled successfully`），说明 `motion` 与 React 19 / Next 16 一起打包无碍；TS 阶段**只**允许停在基线里已有的 `graph/page.tsx` `theme` 一条 | 构建输出尾部 + 与 [baseline/typecheck-errors.txt](./baseline/typecheck-errors.txt) 的比对（前置说明 3） | 若编译阶段报 `motion` / peer / Turbopack 错误 ⇒ 触发总纲 §10 退路（岛退回 CSS transition）；若 TS 阶段多出**别的**行 ⇒ 真回归 |
 | 9 | DevTools 打开触摸仿真（`(hover: none)` / coarse pointer），刷新（设计 §11-6 后半段） | 悬停不再自动展开预览；导航图标命中区 ≥ 44×44 | 触摸仿真下点图标一次命中率；量命中框 | `island-nav.tsx` 的 coarse 分支（预览一侧在 G8 验） |
 
 **G4 与 G2/G3 必须各测一轮**（总纲 §6.4 / 并行窗口 W0 纪律），不许合并成一次「都过了」。
 
 ### M4.5 回归面
 
-1. `/graph` 画布：拖拽平移、滚轮缩放、双指捏合、节点拖拽与命中——岛不得吃掉底部区域的指针事件。
+1. `/graph` 画布：拖拽平移、滚轮缩放、双指捏合、节点拖拽与命中——岛不得吃掉底部区域的指针事件（岛外层 `pointer-events-none`、只有胶囊本体 `auto`；胶囊两侧的底部空白仍应命中画布）。
 2. 侧边栏：左侧 3px 唤出热区、`temp` 浮层模式、固定/关闭切换。
 3. `/graph` 现有弹层：`NodeEditor`、节点右键菜单、`NodeSemanticDialog`/`EdgeSemanticDialog`、`CreateWorkspaceDialog`、`ViewDialog` 全部仍可打开且层级正确。
 4. `apps/web/app/editor/page.tsx` 与 `(auth)` 路由**不应**出现岛（它们不在 `(main)` 布局内）；确认没有把宿主挂到根 `apps/web/app/layout.tsx`。

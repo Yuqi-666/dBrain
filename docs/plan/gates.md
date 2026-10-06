@@ -24,8 +24,8 @@
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
-| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 待测 | 1    | 2026-10-06 | 见 §5 |
-| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
+| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
+| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 开发中 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -40,7 +40,7 @@
 
 | 窗口 | 章        | 开启前提（必须已落地）                                                        | 登记状态 |
 | ---- | --------- | ----------------------------------------------------------------------------- | -------- |
-| W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | 未开启   |
+| W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | **不再需要**（2026-10-07：M2/M3 已过 G2/G3，M4 串行开工；`motion` 已装 `12.43.0`） |
 | W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已关闭**（2026-10-06；四路交付 + 四条提交） |
 | W2   | M5        | 主 agent 冻结 `annotation/types.ts` 与 `geometry.ts` 签名（另独占 `annotation-layer.tsx`） | 未开启   |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
@@ -342,8 +342,8 @@
 
 ### G3 — M3 text 单块 + rich-text 头部
 
-- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下。**再加两轮「追加交付」**：① 用户要求「单行 block 要有 rich-text 里 block 的能力」—— 选区浮条 + 行内 LaTeX，含一次前置别名修复；② 用户给定参考图，要求按图中的元素位置关系重排 rich-text 开头 —— 封面出列出血 + 图标骑封面下沿 + 「类型 • 语义」行，随后追加「图标大小应该和 emoji 一样大」（板不再按图标种类分档）。两轮都在下面各自的「追加交付」段）
-- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）→ `b8e3fb5`（**前置修复**：`packages/ui` 的 `@workspace/editor` 别名）→ `5954cfe`（单块内联能力：选区浮条 + 行内公式）→ `e89cc0e`（rich-text 页头按参考图重排）→ `60a45cc`（页头 r1：图标与 emoji 同尺寸；r2：语义胶囊改成下拉切换）
+- 状态：**通过**（2026-10-07 · 第 2 轮）。第 1 轮 = 实现 + 自检 + 23/23 真浏览器探针全绿；第 2 轮 = **用户自行修掉几处瑕疵后实测通过**（修复提交 `f7d0be1`，主 agent 复核见下「用户侧修复」），用户结论见本条目末。（第 1 轮原文：自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下。**再加两轮「追加交付」**：① 用户要求「单行 block 要有 rich-text 里 block 的能力」—— 选区浮条 + 行内 LaTeX，含一次前置别名修复；② 用户给定参考图，要求按图中的元素位置关系重排 rich-text 开头 —— 封面出列出血 + 图标骑封面下沿 + 「类型 • 语义」行，随后追加「图标大小应该和 emoji 一样大」（板不再按图标种类分档）。两轮都在下面各自的「追加交付」段）
+- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）→ `b8e3fb5`（**前置修复**：`packages/ui` 的 `@workspace/editor` 别名）→ `5954cfe`（单块内联能力：选区浮条 + 行内公式）→ `e89cc0e`（rich-text 页头按参考图重排）→ `60a45cc`（页头 r1：图标与 emoji 同尺寸；r2：语义胶囊改成下拉切换）→ `f7d0be1`（**用户自行修复**：页头文字列按 plate 反推的字号刻度重排 + 输入框回声不再抢光标 + 模态内菜单/浮层的层叠，见下「用户侧修复」）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅
   - **lint diff**：**0 新增 / 2 消失** ✅ —— `@workspace/ui` 28 → 26 problems（旧 `rich-text-node-content.tsx` 的 `cn` 与 `className` 两个 `no-unused-vars` 随重写消失，`pnpm eslint --stdin` 对 HEAD 版本复现过），`@workspace/editor` 仍是 **106 problems (67 errors, 39 warnings)** 与基线同数、**M3 新文件零 error**；基线已按脚本提示重采（`--accept`），所以现在两段都是 `0 新增 / 0 消失`
@@ -443,22 +443,48 @@
   ✓ ㉒ 无未捕获报错
   ```
 - 探针脚本的复跑口径（三个脚本）：**追加交付 二**用 `node /tmp/probe/header-check.mjs`（15 条，见上）；**追加交付**用 `node /tmp/probe/toolbar-check.mjs`（16 条，见上）；首轮的 `node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
-- 用户实测结果：（待填 —— 清单 **23** 条；13 条基础 + 14–17 追加一的内联能力/公式 + 18–23 追加二的页头布局（第 18/20 条含 r1 的「图标与 emoji 同尺寸」，第 23 条是 r2 的语义下拉））
-- 失败项与归因：（待填）
-- 迭代：——
-- 遗留不阻塞项（初步，G3 通过后定稿）：
-  1. **`SingleBlockRenderer` 已落地但没有消费方**：预览浮层的文本预览用自己的 `text-preview.tsx`（M3 不碰 `preview-block/**`，§M3.2-9 已说明它自动生效），只读展示路径留给后续章节接。不是死代码风险（它是 §M3.1 第 2 行的交付物），但"什么时候接上去"要有人认领。
-  2. **rich-text 有两个标题输入框**：对话框头的 `NodeTitle`（debounced，走 store 调度器）+ 内容区头部的 title（走共享 drain）写的是同一份 `nodes.title`。两条路本轮已证明不互相覆盖（写者写前会取消同节点的 pending payload，而 payload 都是从乐观 store 取的），但输入框重复是观感问题——等 G3 第 6 条判定要不要收口。
-  3. **Esc 被 ProseMirror 的 keymap 消费（preventDefault）**：无用户可见后果（Dialog 照常关，探针 ⑨），但 §M3.2「编辑器不消费 Esc」的措辞按实测应改成「不 stopPropagation」。原因未追到具体 binding（Tiptap / PM 的源码里都没有 `"Escape"` 字面量），登记为已知事实。
-  4. **`@tiptap/starter-kit` 仍是 `packages/editor` 的 devDependency 却被运行时 import**：M3 沿用既有形态（`notion-like-editor.tsx:10` 早就如此），未动 manifest（动它要碰 lockfile，属主 agent 独占面）。是否提升为 `dependencies` 待定。
-  5. **`@tiptap/static-renderer` 未安装**：只读渲染用 `@tiptap/core` 的 `generateHTML`（3.22.4 已导出），符合 §M3.2-4；上游若把 static renderer 变成必需包，届时按 §5 账本增依赖。
-  6. **内容宿主仍不按 `node.id` 挂载**：`f4e7357` 只在 `text-node-content.tsx` 内部用 `key={node.id}` 修掉 text→text；`node-content-editor.tsx` 本身没 key（§M3.5-5 冻结了该文件的路由），所以「对话框原地换节点」这条路上，其他宿主（rich-text 的正文靠 `NotionEditor` 自己的 `room` 变化，M2 形态、M3 未改；database / collection 的 `DataViewRoot` 靠宿主自己带 key）仍各有各的假设。要不要在 `node-content-editor.tsx` 统一加 `key={node.id}`（一行、不改路由）请 G3 一并判——本轮不动它，以免扩大白名单。
-  7. **`Typography` 的 `^2` / `^3` 输入规则在「一次插入多字符」时会抛 `RangeError`**：Tiptap 的 `textInputRule` 按单字符输入算替换范围，遇到一次性多字符文本输入（探针里的 `Input.insertText("E=mc^2")`；将来若有别的批量注入路径同理）会算出越界位置。rich-text 也注册了 `Typography`，所以这是**既存行为、不是本轮引入**，真机逐字输入不触发；公式源码写在 textarea 里、不经过 ProseMirror。要不要给 `Typography` 加白名单/去掉 `^2` 规则，留给后续章节（它同时是"输入 ^2 就变 ²"这个功能的来源，取舍要单独判）。
-  8. **浮条不做移动端回落**（§M3.2-15）：rich-text 在窄屏会藏掉浮条、改用底部 `MobileToolbar`，单块没有第二套入口所以照常显示。若平板实测发现浮条在触摸选区下不好用，下一步是给单块做一个紧凑的固定工具条，而不是照抄 rich-text 的隐藏策略。
-  9. **~~Lucide 图标在页头是「小板 + 小字形」~~（r1 已解决）**：`NodeIconView` 现在接受可选 `glyphClassName`，页头三种图标同类同尺寸（80px 板 + 48px 字形，§M3.2-21）。**剩下的**：默认值仍是 `size-4`，所以别的消费方（编辑器头部 36px 按钮、`preview-header` 16px 盒）在需要大盒子时同样要显式传字形类 —— 要不要改成「字形默认按盒子比例」是另一件事（会让 `preview-header` 的 16px 盒出现 9.6px 字形，需单独判）。
-  10. **页头文字列与正文列只在 pane ≥ 900px 时严格同源**（§M3.5-11）：头部用 `mx-auto max-w-[708px] px-12`，正文用 editor 的 grid（`minmax(96px,1fr) | minmax(auto,708px)`）。窄 pane 下两者会差 ~50px（grid 的边距是 96px、`mx-auto` 是 0）。1200px 的对话框里实测逐像素一致（探针 ㉔），所以本轮不修；真要修就是让头部复用 editor 的 `.notion-like-editor-layout` 列 —— 代价是 `packages/ui` 反向依赖 `packages/editor` 的全局类名。
-  11. **`readOnly` 会让封面一起消失**（§M3.5-13）：`readOnly` 时不调用两个注入点，`{hasCover && coverEntry}` 因此渲染 `false`。今天没有消费方（只有 rich-text 挂载且不传 `readOnly`），要修就单开一条：`readOnly` 下用 `NodePreviewCover` 静态画封面。
-- 用户结论：（待填）
+- 用户实测结果（2026-10-07，**23 条全通过**；用户原话见本条目末）：
+
+  | #     | 结果 | 证据                                                                                                                                                                                                             | 备注                                                                                                    |
+  | ----- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+  | 1–3   | ✅   | 单块居中、`Enter` 不新建第二个块；悬停预览能看到刚写的文字；旧形状 `{content:"旧文本"}` 惰性升级为 Tiptap doc                                                                                                        | 第 1 条的现场是「空块 + 占位」（seed 的 `docs` 是未识别形状，见前置说明 2）；探针 ①–⑪b 同口径            |
+  | 4     | ✅   | rich-text 五段顺序 + 封面出血 + 图标骑封面下沿                                                                                                                                                                    | 用户随后**自己把这一段的排版又重排了一遍**（`f7d0be1`：按 plate 反推字号刻度），见下「用户侧修复」       |
+  | 5     | ✅   | 头部 `title`/`abstract` 与侧栏「属性」双向同步                                                                                                                                                                     | `f7d0be1` 起两个输入框走 `useEchoSafeText`：光标不再被写者回声挪到行尾                                   |
+  | 6     | ✅   | **方案 A 判定成立**：对话框头部对 rich-text 不再渲染图标/封面按钮（R35 结案）                                                                                                                                      | title 例外：两个标题输入框**保留**（见遗留 2）                                                           |
+  | 7     | ✅   | 连续打字 + 500ms 内改 icon/title：正文与头部都在、控制台无 `autocancelled`                                                                                                                                         | 共用 drain（探针 ⑮⑯⑰）                                                                                  |
+  | 8     | ✅   | 抓包：头部改动只落顶层字段，`updates.content` 与改动前逐字段一致                                                                                                                                                   | 与第 22 条同一次操作                                                                                     |
+  | 9     | ✅   | 全屏（编辑器头部最左 `FullscreenButton`）下第 1 条同样成立                                                                                                                                                          | 单块在 `absolute inset-0` 宿主里同样居中、无内层滚动条                                                   |
+  | 10    | ✅   | 粘贴两行被压平成一段；`Esc` 交给 Dialog 关窗                                                                                                                                                                       | 遗留 3（PM 只 `preventDefault`、不 `stopPropagation`）                                                   |
+  | 11    | ✅   | image / database 节点的 node-content 与改动前一致                                                                                                                                                                 | M3 只动 text + rich-text                                                                                 |
+  | 12    | ✅   | `bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**（主 agent 复跑）                                                                                                                                              | typecheck 88 / lint 26                                                                                   |
+  | 13    | ✅   | text→text 原地换节点：正文换种子、待写内容落回旧节点                                                                                                                                                               | 探针 ⑲⑳㉑（`f4e7357`）                                                                                   |
+  | 14–17 | ✅   | 选区浮条（粗/斜/下划线/删除线/代码/链接/颜色/公式/更多）、`Mod-B`、上下标、`$ ` → 行内公式、F5 后仍在                                                                                                                | 追加交付一；探针 ③–⑫                                                                                     |
+  | 18–20 | ✅   | 封面出血、图标骑下沿且与标题左对齐、两处「移除」后的回落（无封面 → 标题行右端入口；无图标 → 80px 白板 + 48px 类型图形仍骑边）                                                                                       | 追加交付二 + `f7d0be1`；探针 ⑱–㉛                                                                         |
+  | 21    | ✅   | 「类型 • 语义」是灰色小字、语义 pill 保留分类色；**摘要仍保持 muted**（用户本轮把摘要调到 `text-lg`，未要求改色）                                                                                                   | 探针 ㉕；§M3.2-23                                                                                         |
+  | 22    | ✅   | 三次 `node.update` payload 只带顶层字段                                                                                                                                                                            | 回归面 1                                                                                                 |
+  | 23    | ✅   | 语义胶囊是按钮下拉（**无箭头**）、菜单 256px 不被裁、选中即换、F5 后仍是新语义                                                                                                                                     | 追加交付二 r2；探针 ㉝㉝b㉞                                                                                |
+
+- 失败项与归因：**无闸门失败项**。用户报的是**自己在实测中发现的瑕疵**（不是判定失败），归因 **实现缺陷**，由用户自己提交 `f7d0be1` 修复；主 agent 复核文件集与结论（见下）。
+- 迭代：
+  - G3-r1（第 1 轮实测）：报 `initialDoc.current` 运行时崩溃 → 归因**环境**（标签页停在 22:05 之前的中间构建：chunk 名按模块图取、被就地覆盖，当前工作树与服务端产物里都没有该表达式）；排查中顺手修掉一个**真回归** —— 对话框不按 `node.id` 重挂载，而侧栏「关系」页签能在对话框打开时改 `currentEditingNodeId` ⇒ text→text 串数据（`f4e7357`，探针 ⑲⑳㉑）→ 重测基础 13 条通过。
+  - G3-r2（**用户自行修复后通过**）：用户报「我修复了些瑕疵，提交后并测试 G3 通过」（`f7d0be1`），随即开工 M4。修复文件集与 M4 的相交面**为空**（改动在 `packages/editor` 的 notion-like SCSS、`tiptap-ui-primitive/menu/menu.tsx`、`floating-element/floating-element.tsx`、`ui/dialog.tsx`、新增 `lib/inner-layer.ts`、`node-content-header.tsx`；M4 只碰 `dynamic-island/**`、`store/src/uiStore.ts`、`store/src/index.ts`、`apps/web/components/island-*`、`apps/web/components/dynamic-island-host.tsx`、`(main)/layout.tsx`、`components/index.ts`、`packages/ui/package.json` + lockfile）。
+- **用户侧修复（`f7d0be1`，主 agent 复核）**：三类，都是后续章节的既定事实：
+  1. **页头排版按 plate 反推的刻度重排**（`node-content-header.tsx`）：去 `gap-4`，标题 `mt-6` + `text-4xl`，摘要 `text-lg`，meta 行 `text-xs → text-sm`，摘要/meta 各自 `mt-1.5`；参照系改成「plate 219px / `size-20`=80px ⇒ 截图像素 ×2.406 = CSS px」后取**比值**（标题 ≈32.6、摘要 ≈16.0、meta ≈12.7 ⇒ 标题的 0.49 / 0.39），行高节奏改按**「封面下沿以下的基线」**给（标题 ~73 / 摘要 ~107 / meta ~137）。`SEMANTIC_PILL` 去掉自带的 `text-[11px]`（跟行字号 `text-sm`），暗色输入框底色去掉。**口径修订**：M3 追加交付二记的绝对像素是「等比折到本仓」，本次的**比值 + 下沿基线**才是标准，判 G4 之后的页头一律用后者。
+  2. **输入框的回声不再抢光标**（同文件新增 `useEchoSafeText`）：`patchNode` 是**排队**写（`use-node-content-writer.ts` 微任务 drain），受控输入在 keystroke 结束时看到的 `value` 仍是上一帧 ⇒ React 把旧文本写回 DOM、光标被丢到行尾。做法 = 本地草稿 + 一个「本字段已发出、尚未回声」的队列（回声在队列任意位置命中即采纳并清到它为止；没命中就视为外部编辑并采纳）。头部与侧栏仍写同一份 `title`/`abstract`，两向同步不变。
+  3. **模态内菜单/浮层的层叠**（`menu.tsx`、`floating-element.tsx`、`ui/dialog.tsx` + 新增 `packages/ui/src/lib/inner-layer.ts`）：Radix 的 `DismissableLayer` 会给下层写**内联** `pointer-events: none`（模态下 `body` 也拿到 `none`）⇒ ① portal 到 `body` 的菜单点不动 → 菜单自带 `pointer-events: auto`；② `Esc` 改由 window capture 分层裁决，不再顺手关掉外层对话框；③ `focusin` 落在本菜单链（本层浮层/祖先浮层/触发按钮）不算「点到外面」，Radix 的 FocusScope 把 hover 焦点抢回触发按钮时不再 close/open 抖动；④ 手势**开始时**用 `isShieldedByInnerLayer`（沿祖先读最近的显式内联 `pointer-events`）判断这次 dismissal 是否归内层，被遮住就不关外层。**对 M4 的含义**：Radix 弹层的 portal 仍必须在岛之上（§M4.2-4 的 `z-40` 判据不变）；将来若岛的「点击岛外收起」要判「这次 pointerdown 是否归内层」，`isShieldedByInnerLayer` 是现成原语。
+- 遗留不阻塞项（G3 通过后定稿；**逐条给了归属，没有一条阻塞下一章**）：
+  1. **`SingleBlockRenderer` 已落地但没有消费方**（归属：接只读展示路径时认领；M8 的岛预览面板是下一个候选面）。理由同原记：预览浮层的文本预览用自己的 `text-preview.tsx`（M3 不碰 `preview-block/**`），它是 §M3.1 第 2 行的交付物，不是死代码。
+  2. **rich-text 有两个标题输入框**（归属：**用户未要求收口**；M10 动 `node-content-editor.tsx` 时可一并判）。对话框头的 `NodeTitle`（debounced，走 store 调度器）+ 内容区头部的 title（走共享 drain）写的是同一份 `nodes.title`；`f7d0be1` 之后两条路都回声安全（不再互相覆盖、不再抢光标），剩下的只是「一个字段两个输入框」的观感。
+  3. **Esc 被 ProseMirror 的 keymap 消费（`preventDefault`）**（归属：无，记为已知事实）。无用户可见后果（Dialog 照常关：探针 ⑨ / 第 10 条），§M3.2「编辑器不消费 Esc」的措辞按实测应改成「不 stopPropagation」。
+  4. **`@tiptap/starter-kit` 仍是 `packages/editor` 的 devDependency 却被运行时 import**（归属：主 agent，动 manifest 要碰 lockfile）。M3 沿用既有形态（`notion-like-editor.tsx:10` 早已如此）。
+  5. **`@tiptap/static-renderer` 未安装**（归属：上游若把它变成必需包时按 §5 账本增依赖）。只读渲染用 `@tiptap/core` 的 `generateHTML`（3.22.4 已导出）。
+  6. **内容宿主仍不按 `node.id` 挂载**（归属：**M10** —— `node-content-editor.tsx` 是 M10 的独占文件，加 `key={node.id}` 是一行且不改路由）。`f4e7357` 只在 `text-node-content.tsx` 内部修掉 text→text；rich-text 靠 `NotionEditor` 的 `room`、database/collection 靠各自宿主的 key。
+  7. **`Typography` 的 `^2`/`^3` 输入规则在「一次插入多字符」时会抛 `RangeError`**（归属：后续章节单判 —— 关掉它就等于关掉「输入 `^2` 变 `²`」）。既存行为、非本轮引入，真机逐字输入不触发。
+  8. **浮条不做移动端回落**（归属：若平板实测发现触摸选区下不好用，给单块做紧凑固定工具条）。rich-text 在窄屏藏浮条改用 `MobileToolbar`，单块没有第二套入口所以照常显示。
+  9. **`NodeIconView` 的字形默认仍是 `size-4`**（r1 已解决页头三档尺寸的问题）。别的消费方（编辑器头部 36px 按钮、`preview-header` 16px 盒）在大盒子里同样要显式传 `glyphClassName`；要不要改成「字形默认按盒子比例」需单独判（会让 `preview-header` 的 16px 盒出现 9.6px 字形）。
+  10. **页头文字列与正文列只在 pane ≥ 900px 时严格同源**（探针 ㉔ 在 1200px 对话框里逐像素一致）。窄 pane 下 grid 的 96px 边距 vs `mx-auto` 的 0 会差 ~50px；真要修得让头部复用 editor 的 `.notion-like-editor-layout` 列。
+  11. **`readOnly` 会让封面一起消失**（今天无消费方）。`readOnly` 时不调用两个注入点，`{hasCover && coverEntry}` 渲染 `false`；要修就单开一条：`readOnly` 下用 `NodePreviewCover` 静态画封面。
+- 用户结论（原话，2026-10-07）：「**我修复了些瑕疵，提交后并测试G3通过，现在开始G4**」
 
 ---
 

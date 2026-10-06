@@ -14,5 +14,11 @@ export type {
   CommandFormContext,
 } from "./command/command";
 export { PreviewBlock } from "./preview-block";
+export {
+  DynamicIsland,
+  type DynamicIslandProps,
+  type IslandNavItem,
+  type IslandPanel,
+} from "./dynamic-island/dynamic-island";
 export * from "./dialog/editor/loading-placeholder";
 export * from "./menu/upload-menu";

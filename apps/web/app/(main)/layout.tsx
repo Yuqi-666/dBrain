@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@workspace/store";
 import { trpc, clearAuthSession } from "@workspace/api-client";
+import { DynamicIslandHost } from "@/components/dynamic-island-host";
 
 export default function MainLayout({
   children,
@@ -55,5 +56,13 @@ export default function MainLayout({
       </div>
     );
   }
-  return children;
+  // The island is mounted **inside** the authenticated branch: an unauthenticated
+  // visitor must never see the capsule, and the confirmation must not flash it
+  // (docs/plan/dynamic-island.md §M4.2-1).
+  return (
+    <>
+      {children}
+      <DynamicIslandHost />
+    </>
+  );
 }
