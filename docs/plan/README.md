@@ -1,6 +1,6 @@
 # 执行总纲：五份设计文档的落地计划
 
-> 状态：**待开工**（M0 未开始）
+> 状态：**进行中**（M0 / M0.1 已过闸，M1 开工）
 > 范围：`docs/proposal/` 的六份提案 → `docs/{dynamic-island,node-content,dashboard}/` 的五份设计文档，共 13 个里程碑
 > 依赖：五份设计文档（执行期间视为**冻结契约**）；本机既有 `pb/pb_data`（**不得删库**）
 > 相关文档：[gates.md](./gates.md)（闸门台账）、[baseline.md](./baseline.md)（回归基线）、[spine.md](./spine.md)、[node-content-ui.md](./node-content-ui.md)、[annotation.md](./annotation.md)、[media.md](./media.md)、[dynamic-island.md](./dynamic-island.md)、[dashboard.md](./dashboard.md)
