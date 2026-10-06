@@ -109,6 +109,16 @@ body,
 .notion-like-editor-content .tiptap.ProseMirror.notion-like-editor {
   flex: 1;
   padding: 3rem 3rem 30vh;
+  // The正文 baseline, declared instead of inherited.
+  //
+  // `paragraph-node.scss` pins only `p:not(:first-child)` to `1rem`, so the
+  // **first** block used to take whatever its host set: inside the node dialog
+  // that is `text-sm` (14px), and the first paragraph rendered 14px while every
+  // later one was 16px (measured in the probe: `["14px","16px","16px"]` with the
+  // dialog at 14px, and `16px` for all of them outside it). Everything else that
+  // sizes itself in `em` — the headings are `1.5em`/`1.25em`/… — was scaled off
+  // that same inherited value, so the first heading was short by the same 2px.
+  font-size: 1rem;
 }
 
 @media screen and (max-width: 480px) {

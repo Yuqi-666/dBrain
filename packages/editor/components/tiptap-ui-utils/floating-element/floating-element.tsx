@@ -24,6 +24,7 @@ import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 import { useFloatingElement } from "@workspace/editor/hooks/use-floating-element";
 
 // --- Lib ---
+import { isShieldedByInnerLayer } from "@workspace/ui/lib/inner-layer";
 import {
   getSelectionBoundingRect,
   isSelectionValid,
@@ -129,19 +130,76 @@ export const FloatingElement = forwardRef<HTMLDivElement, FloatingElementProps>(
       [onOpenChange],
     );
 
-    const handleFloatingOpenChange = (open: boolean) => {
-      if (!open && editor && resetTextSelectionOnClose) {
-        // When the floating element closes, reset the selection.
-        // This lets the user place the cursor again and ensures the drag handle reappears,
-        // as it's intentionally hidden during valid text selections.
-        const tr = editor.state.tr.setSelection(
-          Selection.near(editor.state.doc.resolve(0)),
-        );
-        editor.view.dispatch(tr);
-      }
+    const handleFloatingOpenChange = useCallback(
+      (open: boolean) => {
+        if (!open && editor && resetTextSelectionOnClose) {
+          // When the floating element closes, reset the selection.
+          // This lets the user place the cursor again and ensures the drag handle reappears,
+          // as it's intentionally hidden during valid text selections.
+          const tr = editor.state.tr.setSelection(
+            Selection.near(editor.state.doc.resolve(0)),
+          );
+          editor.view.dispatch(tr);
+        }
 
-      handleOpenChange(open);
-    };
+        handleOpenChange(open);
+      },
+      [editor, resetTextSelectionOnClose, handleOpenChange],
+    );
+
+    /**
+     * Whether a layer above this element had taken the pointer when the in-flight
+     * gesture started — see {@link isShieldedByInnerLayer}.
+     *
+     * Sampled on the capture pass, because the layer that owns the gesture (a
+     * dropdown opened from this toolbar) dismisses itself from a `document`
+     * bubble listener: by the time floating-ui asks `outsidePress`, the shield is
+     * already gone and a live read would answer "nobody is above me" — which is
+     * exactly the reported bug, where the click that collapsed the dropdown also
+     * took the whole toolbar (and the text selection) with it.
+     */
+    const shieldedAtPointerDown = useRef(false);
+    useEffect(() => {
+      const snapshot = () => {
+        shieldedAtPointerDown.current = isShieldedByInnerLayer(
+          floatingElementRef.current,
+        );
+      };
+      window.addEventListener("pointerdown", snapshot, true);
+      return () => window.removeEventListener("pointerdown", snapshot, true);
+    }, []);
+
+    /**
+     * Escape, answered here rather than by floating-ui's own `escapeKey`.
+     *
+     * floating-ui closes on any Escape while this element is open, and its
+     * listener sits on `document`, i.e. behind the toolbar's dropdowns in the
+     * capture path: the dropdown dismisses itself first, then floating-ui sees an
+     * un-shielded element and tears the toolbar down as well. Reading the shield
+     * on the **window capture** pass answers before any layer can dismiss
+     * anything, so the innermost layer keeps the first Escape — the same rule
+     * Radix layers already follow inside the node-editor dialog.
+     *
+     * An Escape aimed at the editor itself is left to the editor's own
+     * `closeOnEscape` listener below, which closes without touching the
+     * selection.
+     */
+    useEffect(() => {
+      if (!editor || !open || !closeOnEscape) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || event.defaultPrevented) return;
+        if (isShieldedByInnerLayer(floatingElementRef.current)) return;
+
+        const target = event.target as Node | null;
+        if (target && isElementWithinEditor(editor, target)) return;
+
+        handleFloatingOpenChange(false);
+      };
+
+      window.addEventListener("keydown", handleKeyDown, true);
+      return () => window.removeEventListener("keydown", handleKeyDown, true);
+    }, [editor, open, closeOnEscape, handleFloatingOpenChange]);
 
     // Use referenceElement if provided, otherwise create dynamic rect function
     const reference = useMemo(() => {
@@ -165,10 +223,16 @@ export const FloatingElement = forwardRef<HTMLDivElement, FloatingElementProps>(
         onOpenChange: handleFloatingOpenChange,
         dismissOptions: {
           enabled: true,
-          escapeKey: true,
+          // Escape is answered by the shield-aware window listener above.
+          escapeKey: false,
           outsidePress(event) {
             const relatedTarget = event.target as Node;
             if (!relatedTarget) return false;
+
+            // The gesture started while a layer above this one had taken the
+            // pointer: that is how the toolbar's own dropdown collapses, not a
+            // reason to close the toolbar itself.
+            if (shieldedAtPointerDown.current) return false;
 
             // Don't close if clicking inside a portaled UI
             if (isElementWithinExternalPortal(relatedTarget)) return false;
@@ -206,6 +270,9 @@ export const FloatingElement = forwardRef<HTMLDivElement, FloatingElementProps>(
       }
     }, [editor, getBoundingClientRect, handleOpenChange, shouldShow]);
 
+    // Escape aimed at the editor itself: closes without resetting the selection
+    // (the window-capture listener above defers to this one for those events and
+    // covers everything else).
     useEffect(() => {
       if (!editor || !closeOnEscape) return;
 

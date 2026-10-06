@@ -43,6 +43,29 @@
  *    size is hard-coded into the geometry: {@link NODE_ICON_PLATE} decides how
  *    big the plate is, this file decides where its bottom edge lands.
  *
+ * **3–5 are a typographic scale, and the gaps follow it** (G4 修订，量图重排). The
+ * reference page's own numbers, read off the plate (219px over a `size-20`=80px
+ * plate ⇒ its CSS px are 2.406 of a screenshot pixel) and carried over by the
+ * title: title ≈ 32.6px, summary ≈ 16.0px, meta label ≈ 12.7px — i.e.
+ * **0.49 and 0.39 of the title**, which on this repo's `text-4xl` (36px) title is
+ * `text-lg` (18px) and `text-sm` (14px). The vertical rhythm is set by the same
+ * measurement, in *baselines below the cover's bottom edge* — the one ruler that
+ * does not move when the cover does:
+ *
+ * | element | baseline (reference ×1.09) | what lands it there |
+ * | ------- | -------------------------- | ------------------- |
+ * | title   | ~73px                      | band's bottom (+16) + `mt-6` |
+ * | summary | ~107px                     | `mt-1.5` under the title's 40px line box |
+ * | meta    | ~137px                     | `mt-1.5` under the summary's 28px line box |
+ *
+ * Both text fields therefore run `py-0` and the column is **gap-less**: the old
+ * `gap-4` (16px) plus the field's own `py-1` and half-leading put ~33px of air
+ * between the title and the summary, where the reference has ~14px of ink gap.
+ *
+ * The two fields the user types into are {@link useEchoSafeText}, not plain
+ * controlled inputs: `patchNode` echoes through a queued writer, so a controlled
+ * value put the caret back at the end of the line on every keystroke.
+ *
  * The body below element 5 is **not** this component's business: it writes
  * `content`, and it goes through the same queue as `patchNode`, which the host
  * owns. This component never writes `content` — the point of the split is that
@@ -77,7 +100,13 @@ import { NODE_TYPE_LABELS } from "@workspace/ui/components/menu/node/dataType-li
 import { NodeIconView } from "@workspace/ui/components/node-media/node-icon-view";
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
 import { cn } from "@workspace/ui/lib/utils";
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 
 /**
  * The box a node's icon draws in — the icon trigger's plate in
@@ -101,9 +130,15 @@ export const NODE_ICON_GLYPH = "size-3/5";
 /** The node-type glyph that stands in for a missing icon, sized to the plate. */
 export const NODE_ICON_FALLBACK = "size-12";
 
-/** The semantic capsule: one shape for the read-only pill and the trigger. */
+/**
+ * The semantic capsule: one shape for the read-only pill and the trigger, and
+ * **no size of its own** — the reference's "Page • Tag" draws both halves of the
+ * meta line at one size, so the pill takes the line's `text-sm`. It used to
+ * carry `text-[11px]` inside a `text-xs` line; once that line is 14px, a hard
+ * 11px would make the semantic the smallest text in the row.
+ */
 const SEMANTIC_PILL =
-  "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
+  "inline-flex w-fit items-center rounded-full px-2 py-0.5 font-medium";
 
 /**
  * The capsule's own colours — a tint of the category colour with the colour as
@@ -116,6 +151,63 @@ function pillStyle(color?: string) {
     backgroundColor: color ? `${color}20` : undefined,
     color: color || undefined,
   };
+}
+
+/**
+ * A controlled text field that cannot lose its caret to its own echo.
+ *
+ * `patchNode` is **not** a synchronous store write: the host's writer queues the
+ * patch and drains it in a microtask (`use-node-content-writer.ts:127-138`), so at
+ * the end of a keystroke's event the `node` prop still carries the *previous*
+ * text. React's controlled-input bookkeeping runs right after that event, sees
+ * the DOM disagree with the prop and writes the old text back — which parks the
+ * caret at the end of the line. Typing in the middle of the title therefore
+ * jumped to the tail on every keystroke (adding a character looked like it was
+ * appended, and the next one landed there too).
+ *
+ * Holding a draft updated in the same tick as the keystroke makes the rendered
+ * value agree with the DOM value when React checks them, so nothing is written
+ * back and the caret stays where the user put it. Store writes caused by this
+ * field itself are expected — they are matched against the queue below and leave
+ * the draft alone; a value it never emitted is an outside edit (the attributes
+ * sidebar, a remote sync) and **is** adopted, which is what keeps the header and
+ * the sidebar showing the same `title` / `abstract` in both directions
+ * (`docs/plan/node-content-ui.md` 第 5 条).
+ *
+ * @param value  the live store value, i.e. this render's `node.title` / `node.abstract`
+ * @param commit the host's patch entry point, called on every keystroke
+ */
+function useEchoSafeText(value: string, commit: (next: string) => void) {
+  const [draft, setDraft] = useState(value);
+  /** Values emitted here that the store has not echoed back yet, oldest first. */
+  const pending = useRef<string[]>([]);
+  /** The last store value this field has looked at. */
+  const seen = useRef(value);
+
+  if (value !== seen.current) {
+    seen.current = value;
+    // One drain can merge several keystrokes and jump straight to the newest
+    // value, so the echo is matched anywhere in the queue, not just at its head.
+    const echo = pending.current.lastIndexOf(value);
+    if (echo === -1) {
+      pending.current.length = 0;
+      setDraft(value);
+    } else {
+      pending.current.splice(0, echo + 1);
+    }
+  }
+
+  const onChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const next = event.target.value;
+      pending.current.push(next);
+      setDraft(next);
+      commit(next);
+    },
+    [commit],
+  );
+
+  return [draft, onChange] as const;
 }
 
 export interface NodeContentHeaderProps {
@@ -159,6 +251,16 @@ export function NodeContentHeader({
   const typeLabel = NODE_TYPE_LABELS[node.nodeType] ?? node.nodeType;
   const hasCover = node.cover != null;
 
+  // The two fields the user types into directly. Both keep a local draft so the
+  // store's echo cannot move the caret (`useEchoSafeText` above).
+  const [title, onTitleChange] = useEchoSafeText(node.title, (next) =>
+    patchNode({ title: next }),
+  );
+  const [summary, onSummaryChange] = useEchoSafeText(
+    node.abstract ?? "",
+    (next) => patchNode({ abstract: next }),
+  );
+
   const iconEntry = readOnly
     ? undefined
     : renderIconSelector?.({
@@ -194,7 +296,7 @@ export function NodeContentHeader({
           !hasCover && "pt-6",
         )}
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
           {/* 2 — icon. Its own row, bottom-aligned inside a 40px band that is
               pulled 24px up, so the plate's bottom edge lands 16px below the
               cover's: `items-end` keeps that edge put whatever the plate's
@@ -223,35 +325,48 @@ export function NodeContentHeader({
           </div>
 
           {/* 3 — title, with the empty-cover entry pinned to its right end. */}
-          <div className="flex items-center gap-2">
+          <div className="mt-6 flex items-center gap-2">
             {readOnly ? (
               <h1 className="min-w-0 flex-1 truncate text-4xl font-semibold">
                 {node.title}
               </h1>
             ) : (
               <Input
-                value={node.title}
-                onChange={(event) => patchNode({ title: event.target.value })}
+                value={title}
+                onChange={onTitleChange}
                 placeholder="未命名页面"
                 aria-label="节点标题"
-                className="h-auto min-w-0 flex-1 border-none px-0 text-4xl font-semibold shadow-none focus-visible:ring-0"
+                // `text-4xl` alone loses to the `Input` base's `md:text-sm` (a
+                // media-query rule of the same specificity, emitted later), so
+                // the page title rendered at 14px from `md` up — the one class
+                // pair that must stay in step is `text-4xl md:text-4xl`
+                // (tailwind-merge then drops the base's `md:text-sm`). `py-0` /
+                // `dark:bg-transparent` strip the rest of the field chrome: this
+                // is a page title, not a form control.
+                className="h-auto min-w-0 flex-1 border-none bg-transparent px-0 py-0 text-4xl font-semibold shadow-none focus-visible:ring-0 md:text-4xl dark:bg-transparent"
               />
             )}
             {!hasCover && coverEntry}
           </div>
 
-          {/* 4 — summary. */}
+          {/* 4 — summary. One step under the title (`text-lg`, the reference's
+              ~0.5 × title), not the input default: the reference's summary is
+              plainly larger than the meta line below it. */}
           {readOnly ? (
             node.abstract ? (
-              <p className="text-sm text-muted-foreground">{node.abstract}</p>
+              <p className="mt-1.5 text-lg text-muted-foreground">
+                {node.abstract}
+              </p>
             ) : null
           ) : (
             <Input
-              value={node.abstract ?? ""}
-              onChange={(event) => patchNode({ abstract: event.target.value })}
+              value={summary}
+              onChange={onSummaryChange}
               placeholder="添加摘要…"
               aria-label="节点摘要"
-              className="h-auto border-none px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+              // Same `md:` pair rule as the title: the `Input` base's
+              // `md:text-sm` would otherwise beat `text-lg`.
+              className="mt-1.5 h-auto border-none bg-transparent px-0 py-0 text-lg text-muted-foreground shadow-none focus-visible:ring-0 md:text-lg dark:bg-transparent"
             />
           )}
 
@@ -266,7 +381,7 @@ export function NodeContentHeader({
               catalogue + 「Add new type」), the same menu the attributes sidebar
               opens, so the two entries can never disagree about what a semantic
               is; the write still goes through the host's `patchNode` drain. */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
             <span>{typeLabel}</span>
             {semantic && <span aria-hidden>•</span>}
             {readOnly ? (

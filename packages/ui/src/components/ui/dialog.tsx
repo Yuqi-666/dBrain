@@ -4,6 +4,7 @@ import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@workspace/ui/lib/utils";
+import { isShieldedByInnerLayer } from "@workspace/ui/lib/inner-layer";
 import { Button } from "@workspace/ui/components/ui/button";
 import { XIcon } from "lucide-react";
 
@@ -89,11 +90,33 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
   const [container, setContainer] = React.useState<HTMLDivElement | null>(null);
+  /**
+   * Whether an inner layer was shielding this content when the in-flight
+   * pointerdown started — see {@link isShieldedByInnerLayer}.
+   *
+   * It has to be read at **capture** time, before any dismissal runs: the inner
+   * layer's own outside-pointerdown handler is a `document` listener in the
+   * bubble phase, and by the time the handlers below are asked, that layer has
+   * already been dismissed and unshielded this content (measured: the content's
+   * inline `pointer-events` is back to `auto`, but the gesture started under
+   * `none`).
+   */
+  const shieldedAtPointerDown = React.useRef(false);
+  React.useEffect(() => {
+    if (!container) return;
+    const snapshot = () => {
+      shieldedAtPointerDown.current = isShieldedByInnerLayer(container);
+    };
+    document.addEventListener("pointerdown", snapshot, true);
+    return () => document.removeEventListener("pointerdown", snapshot, true);
+  }, [container]);
   const { ref: forwardedRef, ...contentProps } = props;
   return (
     <DialogPortal>
@@ -109,6 +132,20 @@ function DialogContent({
           className,
         )}
         {...contentProps}
+        // A dismissal that started while an inner layer was up belongs to that
+        // layer: it is how the menu/popover closes, not a request to close this
+        // dialog. Both hooks are read because either one can be the one that
+        // dismisses (`DismissableLayer` asks `onPointerDownOutside`, then
+        // `onInteractOutside`, and only then `onDismiss` unless something
+        // prevented it).
+        onPointerDownOutside={(event) => {
+          onPointerDownOutside?.(event);
+          if (shieldedAtPointerDown.current) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          onInteractOutside?.(event);
+          if (shieldedAtPointerDown.current) event.preventDefault();
+        }}
       >
         <DialogContentContainerContext.Provider value={container}>
           {children}
