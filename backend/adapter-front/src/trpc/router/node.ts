@@ -2,7 +2,40 @@ import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
 import { normalizeDataViewType, DATABASE_FIELD_TYPES } from "@workspace/domain";
 import type { DataView } from "@workspace/interfaces/models/data-view";
+import type { NodeCover, NodeIcon } from "@workspace/interfaces";
 import { z } from "zod";
+
+/**
+ * A node's display icon (`NodeIcon`).
+ *
+ * Deliberately a `z.custom` and not a `z.object`: zod strips every key it does
+ * not declare, which would silently drop `color` (and any key added later) on
+ * the way in — the same lesson `dataViewSchema` records. The payload is passed
+ * through byte-for-byte; `null` is the R29 "clear this field" sentinel and is
+ * admitted by the `.nullable()` on the field declarations.
+ */
+const nodeIconSchema = z.custom<NodeIcon>((value) => {
+  if (typeof value !== "object" || value === null) return false;
+  const icon = value as Partial<NodeIcon>;
+  return (
+    (icon.kind === "emoji" || icon.kind === "icon" || icon.kind === "image") &&
+    typeof icon.value === "string" &&
+    (icon.color === undefined || typeof icon.color === "string")
+  );
+}, "Must be a node icon: { kind: 'emoji' | 'icon' | 'image', value, color? }");
+
+/**
+ * A node's display cover (`NodeCover`) — a discriminated union, so the check
+ * branches on `kind` instead of declaring an object schema. Same `z.custom`
+ * reason and same `null` sentinel as {@link nodeIconSchema}.
+ */
+const nodeCoverSchema = z.custom<NodeCover>((value) => {
+  if (typeof value !== "object" || value === null) return false;
+  const cover = value as { kind?: unknown; url?: unknown; nodeId?: unknown };
+  if (cover.kind === "image") return typeof cover.url === "string";
+  if (cover.kind === "node") return typeof cover.nodeId === "string";
+  return false;
+}, "Must be a node cover: { kind: 'image', url } | { kind: 'node', nodeId }");
 
 const baseNodeFields = {
   id: z.string(),
@@ -14,6 +47,10 @@ const baseNodeFields = {
   isPinned: z.boolean().optional(),
   stateData: z.any().optional(),
   workspaceId: z.string().optional(),
+  // `undefined` means "leave the field alone"; `null` is the write-side
+  // "clear" sentinel (R29-定), so both have to survive this whitelist.
+  icon: nodeIconSchema.nullable().optional(),
+  cover: nodeCoverSchema.nullable().optional(),
 };
 
 const textContentSchema = z.object({
@@ -268,6 +305,8 @@ const updateSchema = z.object({
     content: z.any().optional(),
     stateData: z.any().optional(),
     workspaceId: z.string().optional(),
+    icon: nodeIconSchema.nullable().optional(),
+    cover: nodeCoverSchema.nullable().optional(),
     ...fileMetaSchema,
   }),
 });
@@ -297,6 +336,8 @@ export const nodeRouter = router({
         permission: input.updates.permission,
         semanticId: input.updates.semanticId,
         isPinned: input.updates.isPinned,
+        icon: input.updates.icon,
+        cover: input.updates.cover,
         content: input.updates.content,
         stateData: input.updates.stateData,
         workspaceId: input.updates.workspaceId,

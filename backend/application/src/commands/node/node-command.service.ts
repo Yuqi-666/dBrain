@@ -74,6 +74,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: new TextContent(cmd.content.docs),
           workspaceId: cmd.workspaceId,
         });
@@ -88,6 +90,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           width: cmd.width,
           height: cmd.height,
           fileSize: cmd.fileSize,
@@ -107,6 +111,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           pageCount: cmd.pageCount,
           fileSize: cmd.fileSize,
           content: new PdfContent(cmd.content.url, cmd.content.coverUrl),
@@ -123,6 +129,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           duration: cmd.duration,
           source: cmd.source,
           sourceUrl: cmd.sourceUrl,
@@ -147,6 +155,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           duration: cmd.duration,
           fileSize: cmd.fileSize,
           content: new AudioContent(cmd.content.url),
@@ -163,6 +173,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: new WebpageContent(cmd.content),
           workspaceId: cmd.workspaceId,
         });
@@ -177,6 +189,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: new WebsiteContent(cmd.content.url, cmd.content.faviconUrl),
           workspaceId: cmd.workspaceId,
         });
@@ -191,6 +205,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: new CollectionContent(
             FilterConfig.create({
               selectedNodes:
@@ -215,6 +231,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: new RichTextContent(
             cmd.content.referencedNodes.map((n: string) => new NodeId(n)),
             cmd.content.docs,
@@ -232,6 +250,8 @@ export class NodeCommandService {
           tags: cmd.tags ?? [],
           isPinned: cmd.isPinned ?? false,
           stateData: cmd.stateData,
+          icon: cmd.icon,
+          cover: cmd.cover,
           content: DatabaseContent.fromData(cmd.content),
           workspaceId: cmd.workspaceId,
         });
@@ -290,6 +310,21 @@ export class NodeCommandService {
     if (cmd.isPinned !== undefined) {
       updatedNode = cmd.isPinned ? updatedNode.pin() : updatedNode.unpin();
     }
+    // `null` is the write path's "clear" sentinel, `undefined` means "leave it
+    // alone" — the same value judgement as `isPinned` above (R29-定). The
+    // client sends a merged node, so the two cannot be told apart otherwise.
+    if (cmd.icon !== undefined) {
+      updatedNode =
+        cmd.icon === null
+          ? updatedNode.clearIcon()
+          : updatedNode.updateIcon(cmd.icon);
+    }
+    if (cmd.cover !== undefined) {
+      updatedNode =
+        cmd.cover === null
+          ? updatedNode.clearCover()
+          : updatedNode.updateCover(cmd.cover);
+    }
     if (cmd.content !== undefined) {
       updatedNode = this.updateNodeContent(updatedNode, cmd.content);
     }
@@ -344,32 +379,65 @@ export class NodeCommandService {
     if (node instanceof TextNode && content.docs !== undefined) {
       return node.updateContent(new TextContent(content.docs));
     }
-    if (node instanceof ImageNode && content.url !== undefined) {
-      return node.updateContent(new ImageContent(content.url));
+    if (
+      node instanceof ImageNode &&
+      (content.url !== undefined || content.annotations !== undefined)
+    ) {
+      // The url and the annotation layer are independent halves: saving a
+      // batch of annotations must not require re-sending the url. A key the
+      // patch omits keeps the value already stored — the same half-merge the
+      // video branch below has always done.
+      return node.updateContent(
+        new ImageContent(
+          content.url ?? node.content.url,
+          content.annotations ?? node.content.annotations,
+        ),
+      );
     }
     if (
       node instanceof PdfNode &&
-      content.url !== undefined &&
-      content.coverUrl !== undefined
+      ((content.url !== undefined && content.coverUrl !== undefined) ||
+        content.annotations !== undefined)
     ) {
-      return node.updateContent(new PdfContent(content.url, content.coverUrl));
+      // Same halves as image: `url` + `coverUrl` travel together on upload,
+      // the annotation layer may be patched alone.
+      return node.updateContent(
+        new PdfContent(
+          content.url ?? node.content.url,
+          content.coverUrl ?? node.content.coverUrl,
+          content.annotations ?? node.content.annotations,
+        ),
+      );
     }
     if (
       node instanceof VideoNode &&
-      (content.url !== undefined || content.hlsUrl !== undefined)
+      (content.url !== undefined ||
+        content.hlsUrl !== undefined ||
+        content.timestampNotes !== undefined)
     ) {
-      // `hlsUrl` is patched in after the transcode finishes, so it may arrive on
-      // its own; a patch that omits a field keeps the value already stored.
+      // `hlsUrl` is patched in after the transcode finishes and the timestamp
+      // notes are saved on their own, so either may arrive alone; a patch that
+      // omits a field keeps the value already stored.
       return node.updateContent(
         new VideoContent(
           content.url ?? node.content.url,
           content.coverUrl ?? node.content.coverUrl,
           content.hlsUrl ?? node.content.hlsUrl,
+          content.timestampNotes ?? node.content.timestampNotes,
         ),
       );
     }
-    if (node instanceof AudioNode && content.url !== undefined) {
-      return node.updateContent(new AudioContent(content.url));
+    if (
+      node instanceof AudioNode &&
+      (content.url !== undefined || content.timestampNotes !== undefined)
+    ) {
+      // Same halves as video: a note may be added without re-sending the url.
+      return node.updateContent(
+        new AudioContent(
+          content.url ?? node.content.url,
+          content.timestampNotes ?? node.content.timestampNotes,
+        ),
+      );
     }
     if (node instanceof WebpageNode) {
       // The editor always writes source and language together; a partial patch
@@ -402,13 +470,17 @@ export class NodeCommandService {
     }
     if (
       node instanceof RichTextNode &&
-      content.referencedNodes !== undefined &&
-      content.docs !== undefined
+      (content.referencedNodes !== undefined || content.docs !== undefined)
     ) {
+      // `referencedNodes` and `docs` are two independent halves of the same
+      // content — either may be patched alone (the editor body without the
+      // reference list, and vice versa) — so an omitted half is carried over.
       return node.updateContent(
         new RichTextContent(
-          content.referencedNodes.map((n: string) => new NodeId(n)),
-          content.docs,
+          content.referencedNodes !== undefined
+            ? content.referencedNodes.map((n: string) => new NodeId(n))
+            : node.content.referencedNodes,
+          content.docs ?? node.content.docs,
         ),
       );
     }

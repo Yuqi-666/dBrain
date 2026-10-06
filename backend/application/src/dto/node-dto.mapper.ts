@@ -33,6 +33,10 @@ export function toNodeDTO(node: Node): NodeDTO {
     semanticId: node.semanticId,
     tags: node.tags,
     isPinned: node.isPinned,
+    // The getters normalise the write-only `null` clear sentinel to
+    // `undefined`, so the read path never hands `null` to a client (R29-定).
+    icon: node.icon,
+    cover: node.cover,
     stateData: node.stateData,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
@@ -55,7 +59,10 @@ export function toNodeDTO(node: Node): NodeDTO {
         fileSize: image.fileSize,
         location: image.location,
         shootingTime: image.shootingTime,
-        content: { url: image.content.url },
+        content: {
+          url: image.content.url,
+          annotations: image.content.annotations,
+        },
       };
     }
     case "pdf": {
@@ -65,7 +72,11 @@ export function toNodeDTO(node: Node): NodeDTO {
         nodeType: "pdf" as const,
         pageCount: pdf.pageCount,
         fileSize: pdf.fileSize,
-        content: { url: pdf.content.url, coverUrl: pdf.content.coverUrl },
+        content: {
+          url: pdf.content.url,
+          coverUrl: pdf.content.coverUrl,
+          annotations: pdf.content.annotations,
+        },
       };
     }
     case "video": {
@@ -83,6 +94,8 @@ export function toNodeDTO(node: Node): NodeDTO {
           url: video.content.url,
           coverUrl: video.content.coverUrl,
           hlsUrl: video.content.hlsUrl,
+          // Named here or dropped here — see the `hlsUrl` note above.
+          timestampNotes: video.content.timestampNotes,
         },
       };
     }
@@ -93,7 +106,10 @@ export function toNodeDTO(node: Node): NodeDTO {
         nodeType: "audio" as const,
         duration: audio.duration,
         fileSize: audio.fileSize,
-        content: { url: audio.content.url },
+        content: {
+          url: audio.content.url,
+          timestampNotes: audio.content.timestampNotes,
+        },
       };
     }
     case "webpage": {

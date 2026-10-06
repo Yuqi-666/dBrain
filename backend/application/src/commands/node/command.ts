@@ -2,6 +2,8 @@ import type {
   DataView,
   DatabaseContent,
   FilterConfig,
+  NodeCover,
+  NodeIcon,
   NodeStateData,
   WebpageContent,
 } from "@workspace/interfaces";
@@ -16,6 +18,8 @@ export interface CreateTextNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: { docs: Record<string, any> };
   userId: string;
   sourceId?: string;
@@ -32,6 +36,8 @@ export interface CreateImageNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   width: number;
   height: number;
   fileSize: number;
@@ -53,6 +59,8 @@ export interface CreatePdfNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   pageCount: number;
   fileSize: number;
   content: { url: string; coverUrl: string };
@@ -71,6 +79,8 @@ export interface CreateVideoNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   duration: number;
   source: "local" | "online";
   sourceUrl?: string;
@@ -93,6 +103,8 @@ export interface CreateAudioNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   duration: number;
   fileSize: number;
   content: { url: string };
@@ -111,6 +123,8 @@ export interface CreateWebpageNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: WebpageContent;
   userId: string;
   sourceId?: string;
@@ -127,6 +141,8 @@ export interface CreateWebsiteNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: { url: string; faviconUrl?: string };
   userId: string;
   sourceId?: string;
@@ -143,6 +159,8 @@ export interface CreateCollectionNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: {
     filterConfig?: FilterConfig;
     /** Data views of this collection; absent means "start with none". */
@@ -163,6 +181,8 @@ export interface CreateRichTextNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: { referencedNodes: string[]; docs: Record<string, any> };
   userId: string;
   sourceId?: string;
@@ -183,6 +203,8 @@ export interface CreateDatabaseNodeCommand {
   tags?: string[];
   isPinned?: boolean;
   stateData?: NodeStateData;
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   content: DatabaseContent;
   userId: string;
   sourceId?: string;
@@ -209,8 +231,22 @@ export interface UpdateNodeCommand {
   permission?: "private" | "public" | "restricted";
   semanticId?: string;
   isPinned?: boolean;
+  /**
+   * Partial content patch. Every key is an independent half: only the keys
+   * present in the patch are written, and an omitted key keeps the value
+   * already stored. The rich-text `referencedNodes` / `docs` pair is two such
+   * independent halves — either may be patched alone — not one.
+   */
   content?: any;
   stateData?: NodeStateData;
+  /**
+   * Display icon / cover, same value judgement as `isPinned`: `null` asks this
+   * write to clear the field (the R29 sentinel — once the client's merged node
+   * arrives, `undefined` cannot be told apart from "do not touch this field"),
+   * while `undefined` leaves the stored value untouched.
+   */
+  icon?: NodeIcon | null;
+  cover?: NodeCover | null;
   /**
    * File metadata measured by the upload flow (dimensions, duration, page
    * count, …). These are immutable everywhere else in the domain, so they ride

@@ -1,6 +1,14 @@
 import type { DataView } from "@workspace/interfaces/models/data-view";
 import type { FilterConfig } from "@workspace/interfaces/models/filter";
-import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+import type {
+  NodeStateData,
+  NodeIcon,
+  NodeCover,
+} from "@workspace/interfaces/models/node/base";
+import type {
+  AnnotationLayerData,
+  TimestampNote,
+} from "@workspace/interfaces/models/node/nodes";
 import type { WebpageContent } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import type { DatabaseContent } from "@workspace/interfaces/models/node/nodes/complex/database";
 
@@ -13,6 +21,12 @@ export interface BaseNodeDTO {
   semanticId: string;
   tags: string[];
   isPinned: boolean;
+  /**
+   * Display icon / cover. Both are `undefined` when the node has none: the
+   * read path never carries the write-only `null` "clear" sentinel.
+   */
+  icon?: NodeIcon;
+  cover?: NodeCover;
   stateData?: NodeStateData;
   createdAt: string;
   updatedAt: string;
@@ -30,14 +44,14 @@ export interface ImageNodeDTO extends BaseNodeDTO {
   fileSize: number;
   location?: string;
   shootingTime?: string;
-  content: { url: string };
+  content: { url: string; annotations?: AnnotationLayerData };
 }
 
 export interface PdfNodeDTO extends BaseNodeDTO {
   nodeType: "pdf";
   pageCount: number;
   fileSize: number;
-  content: { url: string; coverUrl: string };
+  content: { url: string; coverUrl: string; annotations?: AnnotationLayerData };
 }
 
 export interface VideoNodeDTO extends BaseNodeDTO {
@@ -48,14 +62,19 @@ export interface VideoNodeDTO extends BaseNodeDTO {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
-  content: { url: string; coverUrl: string; hlsUrl?: string };
+  content: {
+    url: string;
+    coverUrl: string;
+    hlsUrl?: string;
+    timestampNotes?: TimestampNote[];
+  };
 }
 
 export interface AudioNodeDTO extends BaseNodeDTO {
   nodeType: "audio";
   duration: number;
   fileSize: number;
-  content: { url: string };
+  content: { url: string; timestampNotes?: TimestampNote[] };
 }
 
 export interface WebpageNodeDTO extends BaseNodeDTO {
