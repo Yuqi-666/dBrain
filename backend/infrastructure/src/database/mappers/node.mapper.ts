@@ -1,7 +1,13 @@
 import type { RecordModel } from "pocketbase";
 
-import type { NodeStateData } from "@workspace/interfaces/models/node/base";
+import type {
+  NodeStateData,
+  NodeIcon,
+  NodeCover,
+} from "@workspace/interfaces/models/node/base";
 import type { DataView } from "@workspace/interfaces/models/data-view";
+import type { AnnotationLayerData } from "@workspace/interfaces/models/node/nodes/annotation";
+import type { TimestampNote } from "@workspace/interfaces/models/node/nodes/single/timestamp-note";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import type {
   DatabaseField as DatabaseFieldData,
@@ -34,6 +40,7 @@ import {
   CollectionNode,
   RichTextNode,
   DatabaseNode,
+  type NodeBaseProps,
 } from "@workspace/domain/models/node/entities";
 import {
   filterConfigFromRecord,
@@ -48,6 +55,18 @@ export interface BaseNodeRecord extends RecordModel {
   tags: string[];
   isPinned: boolean;
   stateData?: NodeStateData;
+  /**
+   * Display icon (`NodeIcon` JSON). Top-level, not part of `content`, so every
+   * one of the 10 node types carries it.
+   *
+   * JSON column, optional, created by `1700000001_node_extras.js`. A record
+   * written before the column (or explicitly cleared) reads back as `null` or
+   * is simply absent — `toDomain` maps both to `undefined` (see `baseProps`),
+   * the same way `record.views` is handled.
+   */
+  icon?: NodeIcon | null;
+  /** Display cover (`NodeCover` JSON); see {@link BaseNodeRecord.icon}. */
+  cover?: NodeCover | null;
   created: string;
   updated: string;
   nodeType: string;
@@ -67,6 +86,14 @@ interface ImageNodeRecord extends BaseNodeRecord {
   fileSize: number;
   location?: string;
   shootingTime?: string;
+  /**
+   * Pen / highlight layer (`AnnotationLayerData` JSON) drawn on the image.
+   *
+   * Optional; a missing column or an explicit `null` both read as `undefined`
+   * (see `BaseNodeRecord.icon`). The shape is copied through as-is — normalising
+   * a malformed value is the frontend's `doc-normalize.ts`, not the mapper's.
+   */
+  annotations?: AnnotationLayerData | null;
 }
 
 interface PdfNodeRecord extends BaseNodeRecord {
@@ -75,6 +102,8 @@ interface PdfNodeRecord extends BaseNodeRecord {
   coverUrl: string;
   pageCount: number;
   fileSize: number;
+  /** Pen / highlight layer (`AnnotationLayerData` JSON); see `ImageNodeRecord.annotations`. */
+  annotations?: AnnotationLayerData | null;
 }
 
 interface VideoNodeRecord extends BaseNodeRecord {
@@ -89,6 +118,14 @@ interface VideoNodeRecord extends BaseNodeRecord {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
+  /**
+   * Notes anchored to points on the timeline (`TimestampNote[]` JSON).
+   *
+   * Optional; a missing column or an explicit `null` both read as `undefined`
+   * (see `BaseNodeRecord.icon`), and a value of an unexpected shape is passed
+   * through untouched.
+   */
+  timestampNotes?: TimestampNote[] | null;
 }
 
 interface AudioNodeRecord extends BaseNodeRecord {
@@ -96,6 +133,8 @@ interface AudioNodeRecord extends BaseNodeRecord {
   content: string;
   duration: number;
   fileSize: number;
+  /** Notes anchored to points on the timeline (`TimestampNote[]` JSON); see `VideoNodeRecord.timestampNotes`. */
+  timestampNotes?: TimestampNote[] | null;
 }
 
 interface WebpageNodeRecord extends BaseNodeRecord {
@@ -196,72 +235,88 @@ export class NodeMapper {
       id: new NodeId(record.id),
       title: record.title,
       abstract: record.abstract || undefined,
-      permission: new Permission(record.permission as "private" | "public" | "restricted"),
+      permission: new Permission(
+        record.permission as "private" | "public" | "restricted",
+      ),
       semanticId: record.semanticId as string,
       tags: (record.tags as string[]) || [],
       isPinned: record.isPinned as boolean,
       stateData: record.stateData as NodeStateData | undefined,
+      // `icon` / `cover` are JSON columns added after the fact: a missing column
+      // (old record) and an explicit `null` (cleared field) both mean "no
+      // value", and `undefined` is the only shape the domain understands. Same
+      // read-compat contract as `record.views` below.
+      icon: record.icon ?? undefined,
+      cover: record.cover ?? undefined,
       createdAt: record.created as string,
       updatedAt: record.updated as string,
       workspaceId: record.workspaceId as string | undefined,
-    };
+    } satisfies NodeBaseProps;
 
     switch (nodeType) {
       case "text":
         return this.mapTextNode(record as unknown as TextNodeRecord, baseProps);
       case "image":
-        return this.mapImageNode(record as unknown as ImageNodeRecord, baseProps);
+        return this.mapImageNode(
+          record as unknown as ImageNodeRecord,
+          baseProps,
+        );
       case "pdf":
         return this.mapPdfNode(record as unknown as PdfNodeRecord, baseProps);
       case "video":
-        return this.mapVideoNode(record as unknown as VideoNodeRecord, baseProps);
+        return this.mapVideoNode(
+          record as unknown as VideoNodeRecord,
+          baseProps,
+        );
       case "audio":
-        return this.mapAudioNode(record as unknown as AudioNodeRecord, baseProps);
+        return this.mapAudioNode(
+          record as unknown as AudioNodeRecord,
+          baseProps,
+        );
       case "webpage":
-        return this.mapWebpageNode(record as unknown as WebpageNodeRecord, baseProps);
+        return this.mapWebpageNode(
+          record as unknown as WebpageNodeRecord,
+          baseProps,
+        );
       case "website":
-        return this.mapWebsiteNode(record as unknown as WebsiteNodeRecord, baseProps);
+        return this.mapWebsiteNode(
+          record as unknown as WebsiteNodeRecord,
+          baseProps,
+        );
       case "collection":
-        return this.mapCollectionNode(record as unknown as CollectionNodeRecord, baseProps);
+        return this.mapCollectionNode(
+          record as unknown as CollectionNodeRecord,
+          baseProps,
+        );
       case "rich-text":
-        return this.mapRichTextNode(record as unknown as RichTextNodeRecord, baseProps);
+        return this.mapRichTextNode(
+          record as unknown as RichTextNodeRecord,
+          baseProps,
+        );
       case "database":
-        return this.mapDatabaseNode(record as unknown as DatabaseNodeRecord, baseProps);
+        return this.mapDatabaseNode(
+          record as unknown as DatabaseNodeRecord,
+          baseProps,
+        );
       default:
         throw new Error(`Unhandled node type: ${nodeType}`);
     }
   }
 
-  private mapTextNode(record: TextNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): TextNode {
+  private mapTextNode(
+    record: TextNodeRecord,
+    baseProps: NodeBaseProps,
+  ): TextNode {
     return TextNode.create({
       ...baseProps,
       content: new TextContent(record.content || {}),
     });
   }
 
-  private mapImageNode(record: ImageNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): ImageNode {
+  private mapImageNode(
+    record: ImageNodeRecord,
+    baseProps: NodeBaseProps,
+  ): ImageNode {
     return ImageNode.create({
       ...baseProps,
       width: record.width || 0,
@@ -269,42 +324,32 @@ export class NodeMapper {
       fileSize: record.fileSize || 0,
       location: record.location,
       shootingTime: record.shootingTime,
-      content: new ImageContent(record.content || ""),
+      // Absent column / `null` → `undefined`: no annotation layer is an absent
+      // half, and an unexpected shape is handed through untouched.
+      content: new ImageContent(
+        record.content || "",
+        record.annotations ?? undefined,
+      ),
     });
   }
 
-  private mapPdfNode(record: PdfNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): PdfNode {
+  private mapPdfNode(record: PdfNodeRecord, baseProps: NodeBaseProps): PdfNode {
     return PdfNode.create({
       ...baseProps,
       pageCount: record.pageCount || 0,
       fileSize: record.fileSize || 0,
-      content: new PdfContent(record.content || "", record.coverUrl || ""),
+      content: new PdfContent(
+        record.content || "",
+        record.coverUrl || "",
+        record.annotations ?? undefined,
+      ),
     });
   }
 
-  private mapVideoNode(record: VideoNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): VideoNode {
+  private mapVideoNode(
+    record: VideoNodeRecord,
+    baseProps: NodeBaseProps,
+  ): VideoNode {
     return VideoNode.create({
       ...baseProps,
       duration: record.duration || 0,
@@ -313,82 +358,57 @@ export class NodeMapper {
       fileSize: record.fileSize,
       location: record.location,
       shootingTime: record.shootingTime,
+      // `timestampNotes` is a JSON column added after the fact: absent / `null`
+      // → `undefined` (no notes), never an empty array patched in here.
       content: new VideoContent(
         record.content || "",
         record.coverUrl || "",
         record.hlsUrl || "",
+        record.timestampNotes ?? undefined,
       ),
     });
   }
 
-  private mapAudioNode(record: AudioNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): AudioNode {
+  private mapAudioNode(
+    record: AudioNodeRecord,
+    baseProps: NodeBaseProps,
+  ): AudioNode {
     return AudioNode.create({
       ...baseProps,
       duration: record.duration || 0,
       fileSize: record.fileSize || 0,
-      content: new AudioContent(record.content || ""),
+      // See `mapVideoNode`: absent / `null` → `undefined`, no empty array.
+      content: new AudioContent(
+        record.content || "",
+        record.timestampNotes ?? undefined,
+      ),
     });
   }
 
-  private mapWebpageNode(record: WebpageNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): WebpageNode {
+  private mapWebpageNode(
+    record: WebpageNodeRecord,
+    baseProps: NodeBaseProps,
+  ): WebpageNode {
     return WebpageNode.create({
       ...baseProps,
       content: new WebpageContent(resolveWebpageContent(record)),
     });
   }
 
-  private mapWebsiteNode(record: WebsiteNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): WebsiteNode {
+  private mapWebsiteNode(
+    record: WebsiteNodeRecord,
+    baseProps: NodeBaseProps,
+  ): WebsiteNode {
     return WebsiteNode.create({
       ...baseProps,
       content: new WebsiteContent(record.content || "", record.faviconUrl),
     });
   }
 
-  private mapCollectionNode(record: CollectionNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): CollectionNode {
+  private mapCollectionNode(
+    record: CollectionNodeRecord,
+    baseProps: NodeBaseProps,
+  ): CollectionNode {
     return CollectionNode.create({
       ...baseProps,
       content: new CollectionContent(
@@ -402,37 +422,23 @@ export class NodeMapper {
     });
   }
 
-  private mapRichTextNode(record: RichTextNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): RichTextNode {
-    const referencedNodes = (record.referencedNodes || []).map((id) => new NodeId(id));
+  private mapRichTextNode(
+    record: RichTextNodeRecord,
+    baseProps: NodeBaseProps,
+  ): RichTextNode {
+    const referencedNodes = (record.referencedNodes || []).map(
+      (id) => new NodeId(id),
+    );
     return RichTextNode.create({
       ...baseProps,
       content: new RichTextContent(referencedNodes, record.docs || {}),
     });
   }
 
-  private mapDatabaseNode(record: DatabaseNodeRecord, baseProps: {
-    id: NodeId;
-    title: string;
-    abstract?: string;
-    permission: Permission;
-    semanticId: string;
-    tags: string[];
-    isPinned: boolean;
-    stateData?: NodeStateData;
-    createdAt: string;
-    updatedAt: string;
-  }): DatabaseNode {
+  private mapDatabaseNode(
+    record: DatabaseNodeRecord,
+    baseProps: NodeBaseProps,
+  ): DatabaseNode {
     // Both columns are created by the 0 script and `toRecord` always writes
     // them, so a `database` record that reaches here without them was not
     // written by this application (hand-edited DB / raw REST insert). Fail loud:
@@ -465,6 +471,10 @@ export class NodeMapper {
       tags: node.tags,
       isPinned: node.isPinned,
       stateData: node.stateData,
+      // Top-level JSON columns shared by every node type; the domain normalises
+      // a cleared field to `undefined`, and `undefined` keys are not written.
+      icon: node.icon,
+      cover: node.cover,
       created: node.createdAt,
       updated: node.updatedAt,
       nodeType: node.nodeType.value,
@@ -487,6 +497,7 @@ export class NodeMapper {
         fileSize: node.fileSize,
         location: node.location,
         shootingTime: node.shootingTime,
+        annotations: node.content.annotations,
       };
     }
 
@@ -497,6 +508,7 @@ export class NodeMapper {
         coverUrl: node.content.coverUrl,
         pageCount: node.pageCount,
         fileSize: node.fileSize,
+        annotations: node.content.annotations,
       };
     }
 
@@ -512,6 +524,7 @@ export class NodeMapper {
         fileSize: node.fileSize,
         location: node.location,
         shootingTime: node.shootingTime,
+        timestampNotes: node.content.timestampNotes,
       };
     }
 
@@ -521,6 +534,7 @@ export class NodeMapper {
         content: node.content.url,
         duration: node.duration,
         fileSize: node.fileSize,
+        timestampNotes: node.content.timestampNotes,
       };
     }
 
