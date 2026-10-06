@@ -22,7 +22,7 @@
 | ---- | -------------------------- | ------------------------------------------ | ------ | ---- | ---- | ---- |
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
-| G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 待测 | 1    | 2026-10-06 | 见 §5 |
+| G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -36,16 +36,25 @@
 | G12  | M12 selectors P2 收尾      | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G13  | M13 dashboard P2+P3        | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
 
-**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：目前**无开启**。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
+**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启**（G1 通过 + 冻结已提交，见下）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
 
 | 窗口 | 章        | 开启前提（必须已落地）                                                        | 登记状态 |
 | ---- | --------- | ----------------------------------------------------------------------------- | -------- |
 | W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | 未开启   |
-| W1   | M2        | 主 agent 冻结 `node-media/` 的导出与 props 形状                                | 未开启   |
+| W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已开启**（2026-10-06） |
 | W2   | M5        | 主 agent 冻结 `annotation/types.ts` 与 `geometry.ts` 签名（另独占 `annotation-layer.tsx`） | 未开启   |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
 | W5   | M6        | 主 agent 冻结 `media/types.ts`（`MediaController` / `TimestampNoteMarks` / `formatTimeMs`） | 未开启   |
+
+**W1 的四路白名单与「相交面为空」的依据**（owner 均为子 agent，主 agent 只持有冻结面）：
+
+| 路 | 文件白名单 | 与另三路的相交面 |
+| -- | ---------- | ---------------- |
+| W1-A | 新增 `node-media/**`（`node-icon-view.tsx` 的**函数体**、`node-type-icons.ts`、`emoji-set.ts`、`media/**` 五个原子件的**函数体**）；**不含**两个 `*-selector-popover.tsx` | 只改自己目录下的文件体；冻结的 props 签名不得改 |
+| W1-B | `dialog/editor/content/file-drop-zone.tsx`（`buildNodeUpdates` 两个新分支、`DisplayFieldDropZone` 函数体、`UploadDropZone` 的 `onUploaded` 透传） | 唯一副本；与 A 只通过 `variant="cover"` 的**类型**相交（冻结已定） |
+| W1-C | `preview-block/**`（`node-preview-body.tsx` 函数体、`preview-block.tsx`、`preview-header.tsx`、`node-preview-cover.tsx`、`index.ts`） | A 提供 `node-type-icons.ts`；冻结已钉死 `NODE_TYPE_ICONS` 的**导入路径**，A 只负责让该文件存在 |
+| W1-D | 新增 `node-media/icon-selector-popover.tsx` | 只用 A 的原子件与冻结签名；与 A 的文件集不相交 |
 
 **明确不开窗的章**：M7（pdfjs 渲染 / 批注坐标链 / toolbar 三面都改 `geometry.ts` 或 `annotation-canvas.tsx`）、M3（编辑器与只读渲染器共享同一 schema 文件）。
 
@@ -241,11 +250,16 @@
   === 结果：24 通过 / 0 失败 ===
   ```
   关键事实：`update` 的 `content` 是 **`z.any()`**（`node.ts:305`），不是会剥键的 `z.object` —— 这正是批注 / 笔记半边合并能在浏览器里成立的前提；而 `add` 的 content 是各类 `z.object` 字面量，`annotations` / `timestampNotes` 不在其中，故 **遗留 1 是真实缺口**（新建时带批注会被静默剥掉），已在 [spine.md](./spine.md) / 下方遗留 1 登记。
-- 失败项与归因：暂无（用户实测前）
+- 失败项与归因：暂无
 - 迭代：——
+- 用户实测结果（2026-10-06）：用户在浏览器里实测后**一次性判定通过**（原话见下）；**未逐条留下截图或控制台证据**，因此下表按「用户整体判定」记，不虚构逐项证据。10 条清单的实际执行口径以本条上方「按实测调整四处」为准（第 1/2/4/5/6/10 条的后端面已由主 agent 用四条真机探针代验并留证；第 3/7/8/9 条为浏览器实测）。
+
+  | # | 结果 | 证据 | 备注 |
+  | - | ---- | ---- | ---- |
+  | 1–10 | ✅（整体判定） | 用户原话「g1通过」，无逐条证据 | 后端面另有主 agent 的四条探针证据（6/6、168/168、8/8、24/24） |
 - 遗留不阻塞项：
   1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键（`imageContentSchema = z.object({ url })` 等），`createNode` 也不透传 `annotations` / `timestampNotes`；探针 #4 已实测确认这个缺口是真的（经 router `add` 一条带 `annotations` 的 image，落库后 `annotations` 为 `null`）。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
   2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。探针 #2 给出实测口径：**27/27 条节点的两次读取时间戳都不同**（同一进程内相隔 10ms 的 `list` 与 `getById`），所以「按更新时间排序」今天恒等于「随机序」；这条不是 G1 的失败项，但它是 M12 的硬前提。
   3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
   4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
-- 用户结论：**待填**
+- 用户结论：**「g1通过」**（2026-10-06）。据此判定 `通过`；三条通过判据：① 10 条清单由用户整体判定通过（后端 6 条另有主 agent 探针证据）；② `bash docs/plan/baseline.sh` 两段均 0 新增；③ 回归面（`/graph` 可用性、dataview 七视图、四后端层 typecheck）无退化。⇒ **M2 开工前提已满足**，W1 窗口随之开启（见 §1 并行窗口登记）。

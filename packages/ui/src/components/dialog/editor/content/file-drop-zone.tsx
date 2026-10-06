@@ -7,6 +7,8 @@ import {
   ImageIcon,
   FileTextIcon,
   FileCode2Icon,
+  ImagePlusIcon,
+  SmileIcon,
   X,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -30,7 +32,19 @@ type UploadVariant = "audio" | "video" | "image" | "pdf";
  * node's `code` field instead of being uploaded as a blob, because what the
  * editor needs is its text, not its address.
  */
-type Variant = UploadVariant | "webpage-source";
+type Variant = UploadVariant | "webpage-source" | DisplayVariant;
+
+/**
+ * Display-field variants (R4): the uploaded blob becomes the node's **top-level**
+ * `icon` / `cover` (`{ icon: { kind: "image", value } }` /
+ * `{ cover: { kind: "image", url } }`) rather than its `content`. Routing them
+ * through the `image` branch would replace the node's content with the new
+ * picture — the one way this component can corrupt data (sel §6.1).
+ *
+ * Shapes frozen by the main agent (`docs/plan/node-content-ui.md` §0-2);
+ * **W1-B owns the branches** in `buildNodeUpdates`.
+ */
+type DisplayVariant = "icon" | "cover";
 
 /**
  * Variants whose metadata is read in the browser. PDFs and videos are excluded:
@@ -75,6 +89,16 @@ const VARIANT_CONFIG = {
     icon: FileCode2Icon,
     label: "HTML / 代码文件",
     minHeight: "min-h-[300px]",
+  },
+  icon: {
+    icon: SmileIcon,
+    label: "图标",
+    minHeight: "min-h-[100px]",
+  },
+  cover: {
+    icon: ImagePlusIcon,
+    label: "封面",
+    minHeight: "min-h-[160px]",
   },
 } as const;
 
@@ -535,5 +559,26 @@ export function FileDropZone(props: FileDropZoneProps) {
     return <LocalTextDropZone {...props} />;
   }
 
+  if (props.variant === "icon" || props.variant === "cover") {
+    return <DisplayFieldDropZone {...props} variant={props.variant} />;
+  }
+
   return <UploadDropZone {...props} variant={props.variant} />;
+}
+
+/**
+ * The `icon` / `cover` variants of {@link FileDropZone}.
+ *
+ * Signature frozen by the main agent (`docs/plan/node-content-ui.md` §0-2) so
+ * `MediaDropPane` can pass `variant="cover"`; **W1-B owns the body**: upload as
+ * usual, then write only the top-level field —
+ * `cover → { cover: { kind: "image", url } }`, `icon → { icon: { kind: "image", value: url } }`
+ * — never `content`, and never `width` / `height` / `fileSize`.
+ */
+function DisplayFieldDropZone({
+  variant,
+}: FileDropZoneProps & { variant: DisplayVariant }) {
+  // TODO(W1-B): 上传成功后只写顶层 `icon` / `cover`（不落 content）。
+  void variant;
+  return null;
 }
