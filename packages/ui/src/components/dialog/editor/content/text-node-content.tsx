@@ -8,10 +8,10 @@
  * Three things are worth knowing here:
  *
  * 1. **The editor owns the document, the store is only the sink.** The block is
- *    seeded once from `normalizeDoc(node.content.docs)` — lazy upgrade, never a
- *    migration: an old `{ content: "字符串" }` record is translated on read and
- *    the first edit persists the `{ type:"doc", content:[…] }` shape
- *    (`doc-normalize.ts`).
+ *    seeded once **per mount** from `normalizeDoc(node.content.docs)` — lazy
+ *    upgrade, never a migration: an old `{ content: "字符串" }` record is
+ *    translated on read and the first edit persists the
+ *    `{ type:"doc", content:[…] }` shape (`doc-normalize.ts`).
  * 2. **Writes are debounced, but never dropped.** The shared writer serializes
  *    them (`patchContent`), and a trailing debounce keeps one write per pause
  *    instead of one per keystroke; the unmount flush is what makes the last
@@ -21,6 +21,11 @@
  *    racing an in-flight body write.
  * 3. **Only the `docs` half is written** — `patchContent` merges onto the live
  *    content, so nothing else on the node is at risk.
+ * 4. **A node switch is a remount.** The dialog is *not* keyed by node id, so the
+ *    关系 tab of the attributes sidebar can retarget it in place; the editor is
+ *    therefore keyed **here** (`key={node.id}`) and the debounce carries the
+ *    writer it was armed with, so neither the document nor a pending write can
+ *    cross over to the node the dialog was pointed at next.
  */
 import { useCallback, useEffect, useRef } from "react";
 import type { TextNodeData } from "@workspace/interfaces";
@@ -51,8 +56,19 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
     node.content,
   );
 
-  // The document the editor is about to persist, and the timer that will do it.
-  const pendingDoc = useRef<TextContent["docs"] | undefined>(undefined);
+  // The document the editor is about to persist, **together with the writer that
+  // owns it**, and the timer that will send it.
+  //
+  // Carrying the writer is what makes a node switch safe: the attributes sidebar
+  // can point the *same* dialog at another node (`attributes-sidebar.tsx`, the
+  // 关系 tab calls `setCurrentEditingNodeId`) without remounting this component,
+  // so a debounce armed for the old node would otherwise fire through the *new*
+  // node's writer and copy one node's text into another. The captured function is
+  // bound to the node that was being typed in.
+  const pending = useRef<{
+    patchContent: (patch: Partial<TextContent>) => void;
+    docs: TextContent["docs"];
+  } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // `patchContent` changes identity whenever the store does (its live-content
@@ -68,15 +84,18 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
       clearTimeout(timer.current);
       timer.current = null;
     }
-    const docs = pendingDoc.current;
-    if (docs === undefined) return;
-    pendingDoc.current = undefined;
-    patchRef.current({ docs });
+    const queued = pending.current;
+    if (queued === null) return;
+    pending.current = null;
+    queued.patchContent({ docs: queued.docs });
   }, []);
 
   const handleChange = useCallback(
     (doc: unknown) => {
-      pendingDoc.current = doc as TextContent["docs"];
+      pending.current = {
+        patchContent: patchRef.current,
+        docs: doc as TextContent["docs"],
+      };
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = setTimeout(flush, TEXT_WRITE_DEBOUNCE_MS);
     },
@@ -86,8 +105,6 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
   // Unmount (closing the dialog) persists whatever the debounce still holds.
   useEffect(() => flush, [flush]);
 
-  const initialDoc = useRef(normalizeDoc(node.content?.docs)).current;
-
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       <div className="flex-1 overflow-y-auto">
@@ -96,8 +113,19 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
             Tailwind), the editor only fills it. No viewport units: node-content
             is mounted both in a dialog and in `absolute inset-0` (plan §M3.2-12). */}
         <div className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col px-8 py-16 text-center text-2xl leading-relaxed">
+          {/* Keyed by node id: the editor is **uncontrolled** and seeds itself
+              once per mount (that is the whole point — `SingleBlockEditor` reads
+              `initialContent` in a lazy `useState`), so pointing the same dialog
+              at another node has to remount it. Without the key, a text → text
+              switch through the sidebar kept the first node's document while the
+              writer moved to the second — and a keystroke then persisted one
+              node's text into the other. The seed is recomputed per render on
+              purpose: the key makes the editor read the value it mounts with,
+              and a re-render of this component (every store change) must not
+              reset a live editor. */}
           <SingleBlockEditor
-            initialContent={initialDoc}
+            key={node.id}
+            initialContent={normalizeDoc(node.content?.docs)}
             onContentChange={handleChange}
             placeholder="写下这句话…"
             className="flex-1"
