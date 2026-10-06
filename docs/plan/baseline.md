@@ -25,20 +25,21 @@
 
 ## 1. 怎么读这份基线
 
-- `baseline/typecheck-errors.txt` / `baseline/lint-errors.txt` 是**归一化后的错误清单**（每行一条，已排序，去掉了时间/缓存命中等每次都会变的行）。
-- 闸门判定 = 把当前输出跑同一套归一化，再 `diff`。**新增行 = 新增错误**；消失行 = 顺手修好了（是好事，但要 `--accept` 更新基线，免得下次看花眼）。
+- `baseline/typecheck-errors.txt` / `baseline/lint-errors.txt` 是**归一化后的错误清单**（每行 = `N× <错误>`，已排序，去掉了时间/缓存命中/行号等每次都会变的成分）。
+- 闸门判定 = 把当前输出跑同一套归一化，再 `diff`。**新增行 = 新增错误（或同一文案多了一条）**；消失行 = 顺手修好了（是好事，但要 `--accept` 更新基线，免得下次看花眼）。
 - `docs/plan/baseline.sh` 会打印 diff；`server:` 前缀的重复错误是 `apps/server` 跨包 typecheck 后端源码所致（`server` 把 `backend/**` 一起编），diff 时当噪声看即可——它同时也是后端改动的**第二道哨兵**。
 
-### 1.1 归一化里必须抹掉的**两类假差异**（M0 实测补充）
+### 1.1 归一化里必须抹掉的**三类假差异**（M0 两类 + M1 一类）
 
-判据是「错误清单」的 diff，所以任何**在同一错误集上仍会抖动**的输出都必须先归一化，否则每个闸门都会看到假新增。M0 实测到两类，均已写进 `baseline.sh`：
+判据是「错误清单」的 diff，所以任何**在同一错误集上仍会抖动**的输出都必须先归一化，否则每个闸门都会看到假新增。均已写进 `baseline.sh`：
 
 | 类 | 现象 | 证据 | 归一化 |
 | -- | ---- | ---- | ------ |
-| pnpm 退出码 | 同一份错误清单，`ELIFECYCLE Command failed with exit code 2` 会变成 `1` | `apps/web` 的 `tsc --noEmit`：**冷跑 exit 2、热跑 exit 1**（连跑四次：2/1/1/1）；`web:typecheck` 这行因此在上一次采集与本次之间无端变化 | `s/exit code [0-9]+/exit code N/` —— 保留「该包脚本失败」的信号，只抹掉会变的数字 |
-| TS 对象字面量成员顺序 | 同一处 `TS2345` 的错误文案里 `{ userId; sourceId; color?; category?; }` 的成员顺序两次运行不同 | `server: ../../backend/adapter-front/src/trpc/router/edge-semantic.ts(31,80)`，两次采集的差异**只**在成员顺序 | `canon_type_literals`：把每个 `{...}` 内的 `a: T; b: U` 按字典序排序（先摘掉结尾 `;` 再排，否则空元素会被排到最前——这是第一版的 bug） |
+| ① pnpm 退出码 | 同一份错误清单，`ELIFECYCLE Command failed with exit code 2` 会变成 `1` | `apps/web` 的 `tsc --noEmit`：**冷跑 exit 2、热跑 exit 1**（连跑四次：2/1/1/1）；`web:typecheck` 这行因此在上一次采集与本次之间无端变化 | `s/exit code [0-9]+/exit code N/` —— 保留「该包脚本失败」的信号，只抹掉会变的数字 |
+| ② TS 对象字面量成员顺序 | 同一处 `TS2345` 的错误文案里 `{ userId; sourceId; color?; category?; }` 的成员顺序两次运行不同 | `server: ../../backend/adapter-front/src/trpc/router/edge-semantic.ts(31,80)`，两次采集的差异**只**在成员顺序 | `canon_type_literals`：把每个 `{...}` 内的 `a: T; b: U` 按字典序排序（先摘掉结尾 `;` 再排，否则空元素会被排到最前——这是第一版的 bug） |
+| ③ **行/列号漂移** | 里程碑编辑一个**本身带基线错误**的文件时，那些既存错误的行号必然跟着挪，于是同一份错误集在 diff 里表现为「删 9 行 / 加 10 行」 | M1 实测：`backend/domain/src/models/node/value-objects.ts` 的 3 条 TS7006 从 `(931,8)/(937,14)/(943,8)` 挪到 `(1019,8)/(1025,14)/(1031,8)`；`entities.ts` 的 3 条 TS2307 从 `(1,31)/(6,8)/(9,8)` 挪到 `(2,31)/(7,8)/(10,8)`。它们全在 `server:` 段（`apps/server` 编 `backend/**` 时解析不到 `@workspace/interfaces` 的深路径/裸入口） | `s/\([0-9]+,[0-9]+\)/(L,C)/g` **＋ 保留出现次数**（`sort \| uniq -c`，快照写成 `N× <错误>`）。判据因此是「**file + error code + message + 出现次数**」的集合比较：新文件、新文案、或同一文案多一条，都仍然会被 diff 抓到；丢掉的只有「同一 file+文案 内部换了行号」这一件无信息量的事 |
 
-> 两类都**只影响文案、不影响错误集**：真有字段增删时排序后的清单依然会变，所以不掩盖真实回归。归一化后的基线：typecheck **213** 条、lint **26** 条。
+> 三类都**只影响文案/位置、不影响错误集**：真有字段增删时清单依然会变，所以不掩盖真实回归。归一化后的基线（M1-T2/T5 后重采）：typecheck **183** 条、lint **26** 条。
 
 ---
 
@@ -91,9 +92,11 @@
 
 | 项                | 值                                                              |
 | ----------------- | --------------------------------------------------------------- |
-| 采集时间          | 2026-10-06（初采 @ `907521f`；**M0 落地后重采 @ `ac6a0f0`**）    |
-| 分支 / HEAD       | `develop` @ `ac6a0f0`                                           |
+| 采集时间          | 2026-10-06（初采 @ `907521f`；M0 落地后重采 @ `ac6a0f0`；**M1-T2/T5 后为「行号漂移」重采 @ `2b6bbf7`+ 工作树**） |
+| 分支 / HEAD       | `develop`（M1 进行中）                                           |
+| 快照格式          | `N× <file>(L,C): error TSxxxx: <message>` —— 行/列号已归一化，出现次数保留（见 §1.1 类③） |
+| 归一化后条数      | typecheck **183** 条（计数行）／ lint **26** 条                    |
 | node / pnpm / turbo | v24.15.0 / 9.0.0 / 2.9.6                                      |
 | PocketBase        | `pb/pocketbase`（31 MB 二进制）；`pb/pb_data/` 已存在 —— **但库是空的**：`nodes`/`users`/`workspaces`/`edges` 全 0 行（M0 直读 sqlite 实测）。superuser 安装已于 M0 用 CLI 完成（`admin@dbrain.dev`，密码见 gitignored 的 `pb/pb_data/.superuser-credentials.txt`） |
-| 迁移现状          | `pb/pb_data/data.db` 的 `_migrations` 只有 `1700000000_initial_schema.js`（另 8 条是 PB 自带迁移）；M1 之后应多一条 `1700000001_node_extras.js` |
-| dev server        | 初采时 3000 / 3001 / 8090 均未监听；M0 重采时三者均在监听（`pnpm dev:full`） |
+| 迁移现状          | `pb/pb_data/data.db` 的 `_migrations` 已含 `1700000000_initial_schema.js` + **M1 的 `1700000001_node_extras.js`**（另 8 条是 PB 自带迁移）；`nodes` 字段 32 → 36（`annotations`/`timestampNotes`/`icon`/`cover`），`up`/`down` 双向实跑通过 |
+| dev server        | 初采时 3000 / 3001 / 8090 均未监听；M0 重采时三者均在监听（`pnpm dev:full`）；M1-T6 跑迁移时已停，验完再起 |

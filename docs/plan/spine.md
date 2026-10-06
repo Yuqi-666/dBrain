@@ -267,11 +267,11 @@ selectors.md §7 的写回表写的是「移除 → `upsert(id, { icon: undefine
 
 | # | 待验证项                                                                    | 何时可判 | 判定方式                                                                 |
 | - | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
-| 1 | `new Field({ name, type: "json" })` 是否被 PB 0.40 接受                      | **M0/M1 已可判** | 已核实 `Field` 签名为 `constructor(data?: Partial<core.Field>)`（[types.d.ts:441](../../pb/pb_data/types.d.ts)）；迁移实跑是最终确认 |
-| 2 | `FieldsList.removeByName` 的 `down` 是否真能跑                               | M1       | 已核实存在（[types.d.ts:12473](../../pb/pb_data/types.d.ts)）；需要时手工 `migrate:revert` 一次 |
+| 1 | `new Field({ name, type: "json" })` 是否被 PB 0.40 接受                      | **M1 · 已结案** | 已核实 `Field` 签名为 `constructor(data?: Partial<core.Field>)`（[types.d.ts:441](../../pb/pb_data/types.d.ts)）；**M1-T6 实跑确认**：`migrate up` 输出 `Applied 1700000001_node_extras.js`，`nodes` 字段数 32 → 36 |
+| 2 | `FieldsList.removeByName` 的 `down` 是否真能跑                               | **M1 · 已结案** | 已核实存在（[types.d.ts:12473](../../pb/pb_data/types.d.ts)）；M1-T6 实跑 `printf 'y\n' \| ./pb/pocketbase migrate down 1` → `Reverted 1700000001_node_extras.js`，字段数回到 32，再 `migrate up` 回到 36 |
 | 3 | 依赖版本范围（`motion@^12` 等五个）是否存在                                   | **M0 · 已结案** | 见下                                                                    |
 | 4 | `@workspace/editor` 的 67 个 lint error 是否会被 M3 的新文件推高             | M3       | `bash docs/plan/baseline.sh` 的 lint 段                                  |
-| 5 | `pb_data/types.d.ts` 与 `pb/pocketbase` 的实际版本是否一致（文件头写 0.40）    | M1       | 迁移实跑通过即视为一致                                                    |
+| 5 | `pb_data/types.d.ts` 与 `pb/pocketbase` 的实际版本是否一致（文件头写 0.40）    | **M1 · 已结案** | `./pb/pocketbase --version` = `0.40.4`，与 types.d.ts 的 0.40 同 minor；M1-T6 迁移实跑通过即视为一致 |
 | 6 | `react-grid-layout@^2.3.0` 是否导出 `useContainerWidth` / `verticalCompactor` | **M0 · 已结案** | 见下（README §10 的 M10 预设第一失败点已提前解除）                          |
 
 ### 待验证 3 的结案：依赖版本核实（2026-10-06）

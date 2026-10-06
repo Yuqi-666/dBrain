@@ -51,14 +51,23 @@ canon_type_literals() {
 
 # 只保留「可比较的错误清单」：TS 错误 + eslint 汇总/致命错误。
 # 丢掉时间、缓存命中等每次都会变的行，最后排序 —— 这样 diff 才只反映真实变化。
+#
+# 归一化三类假差异（前两类见 baseline.md §1.1，第三类是 M1 实测补充）：
+#   ① pnpm 的 `exit code N` 数字；② TS 对象字面量成员顺序；
+#   ③ 行/列号 —— 里程碑**编辑一个本身带基线错误的文件**时，行号必然漂移
+#      （M1 实测：`backend/domain/src/models/node/entities.ts` 与
+#      `value-objects.ts` 的 TS2307/TS7006 只是从 (931,8) 挪到 (1019,8)）。
+#      抹掉 `(line,col)` 后，判据变成「**file + error code + message + 出现次数**」
+#      的集合比较：新错误（新文件 / 新文案 / 同文案多一条）依然会被 diff 抓到。
 normalize() {
   grep -aE "error TS|✖ +[0-9]+ problem|ESLint couldn't find|Invalid project directory|Command failed with exit code" "$1" |
     sed -E \
       -e 's/^([A-Za-z@/._-]+)(:|#)(typecheck|lint)(: typecheck)?: /\1: /' \
       -e 's/[0-9]+\.[0-9]+m?s/…/g' \
-      -e 's/exit code [0-9]+/exit code N/' |
+      -e 's/exit code [0-9]+/exit code N/' \
+      -e 's/\([0-9]+,[0-9]+\)/(L,C)/g' |
     canon_type_literals |
-    sort -u
+    sort | uniq -c | sed -E 's/^ *([0-9]+) /\1× /'
 }
 
 run_and_report() {

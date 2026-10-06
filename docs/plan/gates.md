@@ -115,7 +115,7 @@
 - 自检：
   - `pnpm check-types` → `Tasks: 14 successful, 19 total`，无 `Cyclic dependency detected`，非 `0 total` ✅
   - `pnpm lint` → `Tasks: 11 successful, 20 total`，`Failed:` 9 个包与 [baseline.md §3](./baseline.md#3-lint-基线20-任务11-通过--9-失败) 逐条一致 ✅
-  - `bash docs/plan/baseline.sh` → 两段都打印 `✓ 与基线一致（0 新增，0 消失）` ✅（重采后基线：typecheck 213 条 / lint 26 条）
+  - `bash docs/plan/baseline.sh` → 两段都打印 `✓ 与基线一致（0 新增，0 消失）` ✅（M0 重采时的基线：typecheck 213 行 / lint 26 行；**M1 又为「行号漂移」加了第三类归一化并重采为 `N× <错误>` 计数格式 → typecheck 183 条 / lint 26 条**，见 [baseline.md §1.1](./baseline.md#11-归一化里必须抹掉的三类假差异m0-两类--m1-一类)）
   - `pnpm dev:full` 起三方：PB `127.0.0.1:8090` / web `:3000`（Next 16.1.6 + Turbopack）/ tRPC `:3001` 均在监听 ✅
   - `_migrations`（直读 `pb/pb_data/data.db`）：应用迁移只有 `1700000000_initial_schema.js`，另有 8 条 PB 自带迁移，无多余条目 ✅
   - `agent-browser` 预跑：**未做**（G0 无手感项；`/graph` 在登录墙后，主 agent 无凭据）
