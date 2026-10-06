@@ -23,7 +23,7 @@
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 1    | 2026-10-06 | 见 §5 |
+| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 2    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -266,7 +266,7 @@
 
 ### G2 — M2 图标与封面
 
-- 状态：**待测**（第 1 轮；自检全绿 + 主 agent 的 M2 写路径探针 13/13）
+- 状态：**待测**（第 2 轮；第 1 轮实测报 3 条 → 已按 **G2-r1** 回改并重跑自检）
 - 提交：`17ab977`（主 agent 冻结：`NodeIconViewProps` / `media/**` 五原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody` / `NODE_TYPE_ICONS` 单一真源）→ `f4801bd`（§M2.3-3 preview-block 抽取）→ `18fbcfc`（§M2.3-2 file-drop-zone 变体 + R4 半边合并）→ `a3dc123`（§M2.3-1 node-media 骨架 + `IconSelectorPopover`）→ `92229f7`（§M2.3-4 `CoverSelectorPopover` + 编辑器头部两按钮）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅；`pnpm --filter=@workspace/ui typecheck` = **76 error**，与基线同数，且全部仍落在 `../editor/**`（非 editor 命中 **0**）。
@@ -292,14 +292,24 @@
   | W1-B | `file-drop-zone.tsx`：`DisplayFieldDropZone` 真实现（只写顶层字段）、三 helper 退化为纯 patch、`writeContentPatch` 在 **await 之后**读活 content 再合并 | 通过，**但修掉一个缺陷**：icon 上传会重置已有 `color`，改为 `{ ...liveIcon, kind:"image", value }`（sel §7「换图但保留底色」是不变式）；`cover` 侧不合并（`{kind:"image"}` 无其他字段，展入 `{kind:"node"}` 会造出非法联合成员） |
   | W1-C | R1 抽取 `NodePreviewBody`（十路 dispatch 原样搬移）；`preview-header`/`node-preview-cover` 改读 `icon`/`cover`；`resolveCover()` 深度上限 1 的环保护 | 通过。逐处推演过 `A→A` / `A→B→A` / `A→B(image)` / `A→B(无 cover)` / 无 `resolveNode` 五种情形，均不递归；定位、`Esc`、`isFocus`、`data-preview-block` 未动 |
   | W1-D | `icon-selector-popover.tsx`：三 tab + 色板（8 色 + 无）+ 移除 + `aria-disabled` + 错误条，props 与 sel §4 逐字段一致 | 通过，**退回一处**：它自带第二份图标名表（~75 条），已改为消费 `LUCIDE_ICON_ENTRIES`（否则选中不在 A 表里的名字会静默回落，直接威胁第 3 条） |
-- 用户操作清单：见 [node-content-ui.md §M2.4](./node-content-ui.md#m24-闸门-g2--用户操作清单)。**按实测调整几处**（入口改同域、可用节点、已知偏差）——见该节开头的前置说明。
-- 失败项与归因：暂无（用户实测前）
-- 迭代：——
+- 用户操作清单：见 [node-content-ui.md §M2.4](./node-content-ui.md#m24-闸门-g2--用户操作清单)。**按实测调整几处**（入口改同域、可用节点、已知偏差、G2-r1 三条口径）——见该节开头前置说明的第 2/3/4/6 点。
+- **第 1 轮实测（2026-10-06，G2-r1）**：用户报 3 条，全部定位到根因并回改；提交 `e463c89`。
+
+  | #   | 现象                                              | 根因                                                                                                                                                                                                                              | 处理                                                                                                                                                                                                                                                                                     |
+  | --- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 1   | `icon-selector` **内部内容不能滚动**（溢出被裁）  | 上限压在 `Command` 的 inline `maxHeight` 上，却指望宿主 `flex-1 min-h-0` 的 `CommandList` 去滚。`height: auto` 的 flex 容器**不会**因自己的 `max-height` 收缩子项：368 格内容先按 max-content 算出 ≈1900px、再被钳到 384px，`Command` 的 `overflow-hidden` 把它裁掉，**整条链上没有任何滚动视口** | 上限压回 `CommandList` 自身（`[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)-2.25rem)]`，恢复仓库里既有的 `Popover + Command + CommandList` 滚动形状——`dataview/shared/field-picker.tsx`、`settings-panel.tsx` 在同一个编辑器弹窗里就是这么滚的）；外层包裹 `div` 用同一上限 + `overflow-y-auto` 作非 `CommandList` 体（上传 tab）的安全网；上限折入 `var(--radix-popover-content-available-height)`；`Command` 让出 `overflow-hidden`；搜索行 `sticky top-0 z-10 bg-popover` 钉在滚动视口顶 |
+  | 2   | `icon-selector` 的**底色不能切回空**              | `handleColor(undefined)` 发的是 `{kind,value}`（**缺** `color` 键），宿主按 sel §7 用活值基底合并（`{ ...live, ...next }`）时保留旧色——**缺键与「别动颜色」不可区分**                                                                     | `handleColor` **总是**写 `color` 键（清除即 `undefined`）；对象展开会把显式 `undefined` 覆盖上去，PB 边界 `JSON.stringify` 再去掉该键，线上形状仍是 `{kind,value}`                                                                                                                            |
+  | 3   | `cover-selector` 的 `URL` tab 多余（与上传同写一处） | 设计稿把 URL 当第三个来源，但它与 `上传` 写的是同一个目标（顶层 `cover`），tab 之间没有行为差异                                                                                                                                     | 删掉 `URL` tab 与其预览分支，`Or add via URL` 留在 `上传` tab 尾部；`COVER_TABS` 剩 上传 / 从节点选；`MediaPopoverTab` 的 id 注释去掉 `url`；sel §2/§6.3 与 §M2.4 同步改口径                                                                                                                  |
+
+- 第 2 轮自检（回改后重跑，口径同首轮）：`bash docs/plan/baseline.sh` → typecheck / lint 两段 **0 新增 / 0 消失** ✅；已核对 Tailwind 实际产出 `[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)_-_2.25rem)] [cmdk-list]` 规则、以及客户端 chunk（`apps/web/.next/dev/static/chunks/packages_ui_src_components_node-media_*.js`）含新代码；改动仅 `node-media/**` 的 4 个文件 + 2 份文档，`ui/**` 基座、`backend/**`、`interfaces` 未碰，**零新依赖**。
+- **测试环境提醒（已实测核实，非推断）**：本机 `http://127.0.0.1:3000/_next/webpack-hmr` 的 WebSocket 握手是 `101 Switching Protocols`，而经域名 `https://dev.yuqi-666.cn/_next/webpack-hmr` 是 **404**（`server: openresty`）——用户浏览器的 **HMR 通道不通**，页面不手动刷新就一直跑旧 bundle（同时可见新旧两份 chunk：`..._67d0d257._.js` 与 `..._ca112602._.js`）。第 1 轮的「依然不行」极可能就是在旧 bundle 上复测（推断：未硬刷新）。⇒ **后续每轮实测前请 `Ctrl/Cmd+Shift+R` 硬刷新**；要免刷新需在宿主 nginx 给 `/_next/webpack-hmr` 加 `Upgrade`/`Connection` 透传（属用户侧 M0.1 路由，主 agent 不改）。
+- 失败项与归因：第 1 轮 3 条见上表，都属于**骨架滚动契约 / 组件与宿主的合并约定 / 设计口径**层面（W1 四路已在首轮交付并关闭，回改由主 agent 直接做，不需要重开窗口）。
+- 迭代：**第 2 轮待测**（清单第 1、5、6、7 条含 G2-r1 的新增判据）
 - 遗留不阻塞项：
   1. **分类条 / 每分类 `CommandGroup` 未做**：设计文档 §2 的骨架图底部画了分类条，但本计划的 W1-D 验收条款与 G2 的 13 条都不含它；当前是扁平网格 + 把类名并入 `keywords`（搜「食物」仍命中）。要与骨架图完全一致需扩 `MediaGrid`（新增一条 `CommandGroup` + 滚动锚），由后续章节或用户反馈决定。
   2. **`MediaGrid` 的 `aria-selected` 由 cmdk 掌握**，无法与 roving 焦点同步（cmdk 未暴露 setter）。可见的焦点环与 `data-media-active` 高亮跟 roving 走，G2 第 11 条只判 tab 遍历与「不是 300 个 tab stop」，不受影响。要彻底同步得放弃 cmdk 过滤或给 shell 加受控 `value`。
-  3. **`PopoverContent` 的 `container` 透传未做**（§M2.1 第 7 行标「按需」）：等 G2 第 10 条实测两种宿主形态后再定，届时若需要则属主 agent 独占的 shadcn 基座改动。
+  3. **`PopoverContent` 的 `container` 透传未做**（§M2.1 第 7 行标「按需」）：等 G2 第 10 条实测两种宿主形态后再定，届时若需要则属主 agent 独占的 shadcn 基座改动。G2-r1 已确认**滚动与它无关**（窗口模式的模态 `Dialog` 会挂 `react-remove-scroll`，但它对「目标自身可滚」的元素是放行的：`locationCouldBeScrolled` + `handleScroll` 只拦无处可滚的滚轮事件，而 `body` 的上限已落在 `CommandList` 自己身上），`container` 仍只在第 10 条判定「被裁切 / 偏移错误」时才动。
   4. **`webpage-source` 仍整份替换 `content`**：`WebpageContent` 今天只有 `code`/`language`，合并在行为上是 no-op，按 §M2.5-1「语义逐字不变」保留原样。
   5. **`listNodes(query)` 只被调用一次（空串）**：`从节点选` 的首屏由宿主给最近节点、过滤交给 `Command`；逐键回源查询需要 shell 暴露搜索串（`media-popover-shell.tsx` 拥有那个 `Command`），标为 P2。
   6. **最近使用 `dbrain:icon-recent` 未做**（sel §5 标 P2），仅在文件 JSDoc 留了落点。
-- 用户结论：**待填**
+- 用户结论：**待填（第 2 轮）**
