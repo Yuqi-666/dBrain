@@ -38,6 +38,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Popover, PopoverTrigger } from "@workspace/ui/components/ui/popover";
 import { TagList, TagPill } from "@workspace/ui/components/menu/node/tag-list";
 import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
+import { useNodeContentWriter } from "@workspace/ui/components/dialog/editor/content/use-node-content-writer";
 
 interface AttributesSidebarProps {
   className?: string;
@@ -213,32 +214,33 @@ function MetadataTabContent({
     );
   };
 
+  /**
+   * Content writes go through the shared writer: it merges each patch into the
+   * **live** `content` and serializes the upserts. Building a whole `content`
+   * object here from this render's `node.content` snapshot (the old behaviour)
+   * wiped every sibling half — `annotations`, `timestampNotes` — on a single
+   * 内容链接 edit.
+   */
+  const { liveContent, patchContent } = useNodeContentWriter<
+    Record<string, unknown>
+  >(nodeId, node.nodeType, node.content as unknown as Record<string, unknown>);
+
   const handleContentUrlChange = (field: string, value: string) => {
-    if (!node.content) return;
-    // `node.content` is a union over every node type, so spreading it with a
-    // dynamic key widens past what `Partial<NodeData>` accepts on its own.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const content = { ...node.content, [field]: value } as any;
-    void NodeService.upsert(nodeId, { content }, { debounce: true });
+    patchContent({ [field]: value } as Record<string, unknown>);
   };
 
   const handleCollectionTypeChange = (value: string) => {
     if (node.nodeType !== "collection") return;
     const newCollectionType = value as "ordered" | "unordered" | "cards";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void NodeService.upsert(
-      nodeId,
-      {
-        content: {
-          ...node.content,
-          filterConfig: {
-            ...(node.content as any)?.filterConfig,
-            collectionType: newCollectionType,
-          },
-        },
-      } as any,
-      { debounce: true },
-    );
+    // The filter config is its own half of `content`, so read the live value and
+    // merge into it rather than replacing it with this render's copy.
+    const current = liveContent();
+    patchContent({
+      filterConfig: {
+        ...(current.filterConfig as Record<string, unknown>),
+        collectionType: newCollectionType,
+      },
+    });
   };
 
   // Helper to get content url based on node type. A webpage node holds source
