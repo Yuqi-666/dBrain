@@ -1,6 +1,6 @@
 # 回归基线（M0 产出）
 
-> 状态：**已采集**（2026-10-06，`develop` @ 907521f）
+> 状态：**已重采**（2026-10-06，M0 落地后；`develop` @ `ac6a0f0`）
 > 用途：每个闸门（[gates.md](./gates.md)）的判据是「**相对本基线无新增错误**」，不是「干净」
 > 重跑：`bash docs/plan/baseline.sh`（`--accept` 可把当前结果晋升为新基线）
 > 原始输出：`.baseline-raw/{typecheck,lint}.txt`（已 gitignore，脚本可重新生成）｜归一化快照：[baseline/typecheck-errors.txt](./baseline/typecheck-errors.txt)、[baseline/lint-errors.txt](./baseline/lint-errors.txt)
@@ -17,7 +17,7 @@
 | 2 | 根 `check-types` 脚本是 `turbo run check-types`，但**没有一个包**定义 `check-types` 脚本（包里叫 `typecheck`） | 去掉 `dependsOn` 后 turbo 输出 `No tasks were executed as part of this run. Tasks: 0 successful, 0 total`                                                        | 即使修了环，`pnpm check-types` 仍是**空跑**，什么都不检查             |
 | 3 | 大量既存类型/lint 错误（见 §2、§3）                                                          | 见下                                                                                                                                                            | 「typecheck 干净」这种验收标准在本仓**今天不可能成立**，判据必须改成 diff |
 
-**M0 的最小修法**（[spine.md §M0](./spine.md#1-m0--基线与验证闭环)）：让 turbo 的任务名与包脚本名对齐、去掉 `^` 依赖边、给两个命令加 `--continue`（否则 turbo 遇第一个失败就中止，拿不到完整清单）。**不拆环**——那是独立重构（会在 §5 风险里留一条）。
+**M0 的最小修法**（[spine.md §M0](./spine.md#1-m0--基线与验证闭环)）：让 turbo 的任务名与包脚本名对齐、去掉 `^` 依赖边、给两个命令加 `--continue`（否则 turbo 遇第一个失败就中止，拿不到完整清单）。**不拆环**——那是独立重构（会在 §5 风险里留一条）。**已落地**：`turbo.json` + 根 `package.json` 见提交 `578f4e5`。
 
 修完实测：typecheck 跑 **19** 个任务、lint 跑 **20** 个任务，均能拿到完整失败清单（`Tasks: 14 successful, 19 total` / `11 successful, 20 total`）。
 
@@ -29,13 +29,24 @@
 - 闸门判定 = 把当前输出跑同一套归一化，再 `diff`。**新增行 = 新增错误**；消失行 = 顺手修好了（是好事，但要 `--accept` 更新基线，免得下次看花眼）。
 - `docs/plan/baseline.sh` 会打印 diff；`server:` 前缀的重复错误是 `apps/server` 跨包 typecheck 后端源码所致（`server` 把 `backend/**` 一起编），diff 时当噪声看即可——它同时也是后端改动的**第二道哨兵**。
 
+### 1.1 归一化里必须抹掉的**两类假差异**（M0 实测补充）
+
+判据是「错误清单」的 diff，所以任何**在同一错误集上仍会抖动**的输出都必须先归一化，否则每个闸门都会看到假新增。M0 实测到两类，均已写进 `baseline.sh`：
+
+| 类 | 现象 | 证据 | 归一化 |
+| -- | ---- | ---- | ------ |
+| pnpm 退出码 | 同一份错误清单，`ELIFECYCLE Command failed with exit code 2` 会变成 `1` | `apps/web` 的 `tsc --noEmit`：**冷跑 exit 2、热跑 exit 1**（连跑四次：2/1/1/1）；`web:typecheck` 这行因此在上一次采集与本次之间无端变化 | `s/exit code [0-9]+/exit code N/` —— 保留「该包脚本失败」的信号，只抹掉会变的数字 |
+| TS 对象字面量成员顺序 | 同一处 `TS2345` 的错误文案里 `{ userId; sourceId; color?; category?; }` 的成员顺序两次运行不同 | `server: ../../backend/adapter-front/src/trpc/router/edge-semantic.ts(31,80)`，两次采集的差异**只**在成员顺序 | `canon_type_literals`：把每个 `{...}` 内的 `a: T; b: U` 按字典序排序（先摘掉结尾 `;` 再排，否则空元素会被排到最前——这是第一版的 bug） |
+
+> 两类都**只影响文案、不影响错误集**：真有字段增删时排序后的清单依然会变，所以不掩盖真实回归。归一化后的基线：typecheck **213** 条、lint **26** 条。
+
 ---
 
 ## 2. typecheck 基线（19 任务：14 通过 / 5 失败）
 
 | 包 / 应用                  | 结果 | 说明                                                                        | 本轮是否触碰 |
 | -------------------------- | ---- | --------------------------------------------------------------------------- | ------------ |
-| `@workspace/interfaces`    | ❌ 4 条 | 3 条是 `nodes/complex/index.ts:5-7` 的**死 re-export**（`RichTextBlock` / `BaseBlock` / `ReferenceBlock` 已从 `rich-text.ts` 删除）；1 条是环的产物 `../utils/src/filter.ts(7,8) TS2307` | **是**（M1；M0 修掉那 3 条） |
+| `@workspace/interfaces`    | ❌ 1 条 | M0 前是 4 条；其中 3 条是 `nodes/complex/index.ts:5-7` 的**死 re-export**，已在 M0 删除。剩下 1 条是环的产物 `../utils/src/filter.ts(7,8) TS2307`，**M1 之后这里必须仍然只有这 1 条** | **是**（M1） |
 | `@workspace/editor`        | ❌ 多条 | `@workspace/adapter-front` / `@workspace/store` / `next/dynamic` 解析不到的 TS2307，以及 tRPC hooks 的 TS2339 | **是**（M3） |
 | `@workspace/ui`            | ❌ 多条 | 与 `editor` 同源的跨包解析错误（`ui` 把 `../editor/**` 一起编）               | **是**（M2–M13） |
 | `web`                      | ❌ 多条 | 同族 TS2307（`@workspace/hooks`、`@workspace/infrastructure`、`@workspace/domain/...`）+ 若干 TS18047/TS2322 | **是**（M4、M10 加路由） |
@@ -80,9 +91,9 @@
 
 | 项                | 值                                                              |
 | ----------------- | --------------------------------------------------------------- |
-| 采集时间          | 2026-10-06                                                      |
-| 分支 / HEAD       | `develop` @ `907521f`                                           |
-| node / pnpm / turbo | v24.21.0 / 9.0.0 / 2.9.6                                      |
+| 采集时间          | 2026-10-06（初采 @ `907521f`；**M0 落地后重采 @ `ac6a0f0`**）    |
+| 分支 / HEAD       | `develop` @ `ac6a0f0`                                           |
+| node / pnpm / turbo | v24.15.0 / 9.0.0 / 2.9.6                                      |
 | PocketBase        | `pb/pocketbase`（31 MB 二进制）；`pb/pb_data/` 已存在（`data.db` 372 KB，**有真实数据，不得删**） |
-| 迁移现状          | `pb/pb_migrations/` 只有 `1700000000_initial_schema.js`          |
-| dev server        | 采集时 3000 / 3001 / 8090 均未监听                              |
+| 迁移现状          | `pb/pb_data/data.db` 的 `_migrations` 只有 `1700000000_initial_schema.js`（另 8 条是 PB 自带迁移）；M1 之后应多一条 `1700000001_node_extras.js` |
+| dev server        | 初采时 3000 / 3001 / 8090 均未监听；M0 重采时三者均在监听（`pnpm dev:full`） |

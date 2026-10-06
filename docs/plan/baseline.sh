@@ -19,13 +19,45 @@ ACCEPT=0
 FAILED=0
 [ "${1:-}" = "--accept" ] && ACCEPT=1
 
+# TypeScript 打印对象字面量类型的**成员顺序不稳定**（实测 server:typecheck 的
+# edge-semantic.ts(31,80) TS2345 两次运行给出不同顺序）。成员顺序无语义，却会让
+# diff 出现「假新增」—— 这里把每个 {...} 内的 "a: T; b: U" 按字典序排序。
+canon_type_literals() {
+  awk '
+    function trim(s) { gsub(/^[ \t]+/, "", s); gsub(/[ \t]+$/, "", s); return s }
+    function sortblk(s,   n, i, j, t, parts, out, tail) {
+      tail = ""
+      # TS 常写成 "{ a: T; b: U; }"：先把结尾的 ";" 摘掉，否则空元素会被排到最前
+      if (s ~ /;[ \t]*$/) { tail = ";"; sub(/;[ \t]*$/, "", s) }
+      n = split(s, parts, ";")
+      if (n <= 1) return trim(s) tail
+      for (i = 1; i <= n; i++) parts[i] = trim(parts[i])
+      for (i = 1; i <= n; i++)
+        for (j = i + 1; j <= n; j++)
+          if (parts[j] < parts[i]) { t = parts[i]; parts[i] = parts[j]; parts[j] = t }
+      out = parts[1]
+      for (i = 2; i <= n; i++) out = out "; " parts[i]
+      return out tail
+    }
+    {
+      out = ""; rest = $0
+      while (match(rest, /\{[^{}]*\}/)) {
+        out = out substr(rest, 1, RSTART - 1) "{" sortblk(substr(rest, RSTART + 1, RLENGTH - 2)) "}"
+        rest = substr(rest, RSTART + RLENGTH)
+      }
+      print out rest
+    }'
+}
+
 # 只保留「可比较的错误清单」：TS 错误 + eslint 汇总/致命错误。
 # 丢掉时间、缓存命中等每次都会变的行，最后排序 —— 这样 diff 才只反映真实变化。
 normalize() {
   grep -aE "error TS|✖ +[0-9]+ problem|ESLint couldn't find|Invalid project directory|Command failed with exit code" "$1" |
     sed -E \
       -e 's/^([A-Za-z@/._-]+)(:|#)(typecheck|lint)(: typecheck)?: /\1: /' \
-      -e 's/[0-9]+\.[0-9]+m?s/…/g' |
+      -e 's/[0-9]+\.[0-9]+m?s/…/g' \
+      -e 's/exit code [0-9]+/exit code N/' |
+    canon_type_literals |
     sort -u
 }
 

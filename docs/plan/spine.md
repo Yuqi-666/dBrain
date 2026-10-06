@@ -267,6 +267,21 @@ selectors.md §7 的写回表写的是「移除 → `upsert(id, { icon: undefine
 | - | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
 | 1 | `new Field({ name, type: "json" })` 是否被 PB 0.40 接受                      | **M0/M1 已可判** | 已核实 `Field` 签名为 `constructor(data?: Partial<core.Field>)`（[types.d.ts:441](../../pb/pb_data/types.d.ts)）；迁移实跑是最终确认 |
 | 2 | `FieldsList.removeByName` 的 `down` 是否真能跑                               | M1       | 已核实存在（[types.d.ts:12473](../../pb/pb_data/types.d.ts)）；需要时手工 `migrate:revert` 一次 |
-| 3 | 依赖版本范围（`motion@^12` 等五个）是否存在                                   | **M0**   | 先修 `npm`/`pnpm` 缓存目录可写，再 `npm view <pkg> version`               |
+| 3 | 依赖版本范围（`motion@^12` 等五个）是否存在                                   | **M0 · 已结案** | 见下                                                                    |
 | 4 | `@workspace/editor` 的 67 个 lint error 是否会被 M3 的新文件推高             | M3       | `bash docs/plan/baseline.sh` 的 lint 段                                  |
 | 5 | `pb_data/types.d.ts` 与 `pb/pocketbase` 的实际版本是否一致（文件头写 0.40）    | M1       | 迁移实跑通过即视为一致                                                    |
+| 6 | `react-grid-layout@^2.3.0` 是否导出 `useContainerWidth` / `verticalCompactor` | **M0 · 已结案** | 见下（README §10 的 M10 预设第一失败点已提前解除）                          |
+
+### 待验证 3 的结案：依赖版本核实（2026-10-06）
+
+[README.md §5](./README.md#5-依赖安装账本) 原本记「本机 registry 访问不可用（`EROFS ... /home/lyq/.npm/_cacache/tmp`）」。M0 实测**该判断不成立**：`/home/lyq/.npm/_cacache` 可写，`npm view` 直接可用，无需改 `npm_config_cache` / `store-dir`。逐条核实结果：
+
+| 包 | 设计文档要求的范围 | registry 实测 | 结论 |
+| -- | ------------------ | ------------- | ---- |
+| `motion` | `^12` | 最高 `12.43.0` 存在 | ✅ 可装；peer 为 `react: ^18.0.0 \|\| ^19.0.0`，与本仓 React 19.2.4 兼容 |
+| `perfect-freehand` | `^1.2` | `1.2.1` / `1.2.2` / `1.2.3` 存在（store 已有 `1.2.0`） | ✅ 可装 |
+| `pdfjs-dist` | `^4.10` | `4.10.38`（与 `backend/infrastructure/package.json:13` 的 `^4.10.38` 同 major） | ✅ 可装，无第二份 major 风险 |
+| `react-grid-layout` | `^2.3.0` | `2.3.0` 存在；peer `react: >= 16.3.0` | ✅ 可装 |
+| `react-easy-crop` / `frimousse`（M12 用） | 未定 | `6.2.4` / `0.4.0` 存在 | ⏸ 到 M12 再定（M12 若改用内置方案则不需要） |
+
+**待验证 6 的结案**：`npm pack react-grid-layout@2.3.0` 后读 `dist/index.d.ts`，第 1 行即 `export { …, UseContainerWidthResult, useContainerWidth, useGridLayout, useResponsiveLayout }`，第 5 行 `export { …, horizontalCompactor, verticalCompactor }` —— 两者**都是具名导出**。README §10 那条「M10 的预设第一失败点」提前解除；M10 开工时只需跑一次 `pnpm --filter=web build` 确认打包（RGL 与 React 19 的实际风险仍在打包，不在导出名）。

@@ -20,7 +20,7 @@
 
 | 闸门 | 里程碑                     | 章文件                                     | 状态   | 轮次 | 日期 | 遗留 |
 | ---- | -------------------------- | ------------------------------------------ | ------ | ---- | ---- | ---- |
-| G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 未开工 | —    | —    | —    |
+| G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 待测 | 1    | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 未开工 | —    | —    | —    |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
@@ -101,4 +101,38 @@
 | G10  | [dashboard.md](./dashboard.md)                                       | RGL 交互手感；**刷新丢几何是预期**（R6），不判失败              |
 | G11  | [dashboard.md](./dashboard.md)                                       | 只读 widget（`canEditViews=false`）+ 刷新后几何不变            |
 | G12  | [node-content-ui.md](./node-content-ui.md)                           | 裁剪不改原 blob + 离线时 P0 的 tab 不受影响                    |
-| G13  | [dashboard.md](./dashboard.md)                                       | 抽屉拖入落点 + 多页面深链 + worker 数量 = 1                    |
+| G13  | [dashboard.md](./dashboard.md)                                       | 抽屉拖入落点 + 多页面深链 + worker 数量 = 1
+
+---
+
+## 5. 闸门记录
+
+### G0 — M0 基线与验证闭环
+
+- 状态：**待测**（等待用户实测第 4 条）
+- 提交：`578f4e5`（turbo 任务图 + 根脚本）、`ac6a0f0`（interfaces 死 re-export）
+- 自检：
+  - `pnpm check-types` → `Tasks: 14 successful, 19 total`，无 `Cyclic dependency detected`，非 `0 total` ✅
+  - `pnpm lint` → `Tasks: 11 successful, 20 total`，`Failed:` 9 个包与 [baseline.md §3](./baseline.md#3-lint-基线20-任务11-通过--9-失败) 逐条一致 ✅
+  - `bash docs/plan/baseline.sh` → 两段都打印 `✓ 与基线一致（0 新增，0 消失）` ✅（重采后基线：typecheck 213 条 / lint 26 条）
+  - `pnpm dev:full` 起三方：PB `127.0.0.1:8090` / web `:3000`（Next 16.1.6 + Turbopack）/ tRPC `:3001` 均在监听 ✅
+  - `_migrations`（直读 `pb/pb_data/data.db`）：应用迁移只有 `1700000000_initial_schema.js`，另有 8 条 PB 自带迁移，无多余条目 ✅
+  - `agent-browser` 预跑：**未做**（G0 无手感项；`/graph` 在登录墙后，主 agent 无凭据）
+- 用户操作清单：见 [spine.md §M0.4](./spine.md#m04-闸门-g0--用户操作清单)
+- 用户实测结果：
+
+  | # | 结果 | 证据 | 备注 |
+  | - | ---- | ---- | ---- |
+  | 1 | ⏳ | `Tasks: 14 successful, 19 total` | 主 agent 已跑，待用户复核 |
+  | 2 | ⏳ | `Tasks: 11 successful, 20 total` | 同上 |
+  | 3 | ⏳ | 两段 `✓ 与基线一致` | 同上 |
+  | 4 | ⏳ | 待用户登录后打开 `http://localhost:3000/graph` | **唯一需要用户会话的一条**：`/graph` → 307 → `/login?redirect=%2Fgraph` |
+  | 5 | ⏳ | `_migrations` 只有 0 号应用迁移 | 主 agent 已直读 sqlite；用户可在 PB 后台复核 |
+
+- 失败项与归因：暂无
+- 迭代：
+  - G0-r0（开工前的工具修正，不是失败轮次）：`baseline.sh` 的归一化补了两条**假差异**规则 —— ① pnpm 的 `exit code N` 数字（`apps/web` 的 `tsc --noEmit` 冷跑 2 / 热跑 1）；② TS 对象字面量成员顺序（`server:` 的 `edge-semantic.ts(31,80)` TS2345）。证据见 [baseline.md §1.1](./baseline.md#11-归一化里必须抹掉的两类假差异m0-实测补充)。**这不是实现缺陷，是采集工具的噪声**，不改变任何错误集。
+- 遗留不阻塞项：
+  1. 「M0 可选修复」（7 个包补 flat config、`desktop` 的 `next lint`、拆包环、editor 的 67 个 lint error）按 [baseline.md §4](./baseline.md#4-m0-可选修复默认不做需要时单独开章) **不做**。
+  2. [spine.md §附](./spine.md#附本章待验证回填清单) 的待验证 1 / 2 / 5（`new Field({type:"json"})`、`removeByName` 的 `down`、PB 版本一致性）**名义上归 M1 实跑**，不是 G0 的验收面。
+- 用户结论：**待填**（约定：用户原话，或明确判定）                    |

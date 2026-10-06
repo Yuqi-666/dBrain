@@ -194,7 +194,7 @@
 | `react-grid-layout` / `react-resizable` | **不在 store**            | M0 必须联网核实 `^2.3.0`                  |
 | `react-easy-crop` / `frimousse` | **不在 store**                   | 到 M12 再核实（M12 若改用内置方案则不需要） |
 
-本机 `npm`/`pnpm` 的 registry 访问当前不可用（`npm view` 报 `EROFS: read-only file system, open '/home/lyq/.npm/_cacache/tmp/***'` —— 缓存目录不可写，非纯网络问题）。M0 必须先解决（改 `npm_config_cache` / `pnpm config set store-dir` 到工作区可写路径）。**M4 的天花板**：`motion` 装不上，M4 与 W0 都不能开工。
+**版本核实已在 M0 完成**（结果见 [spine.md §附](./spine.md#待验证-3-的结案依赖版本核实2026-10-06)）：初稿记的「本机 `npm`/`pnpm` registry 访问不可用（`EROFS ... /home/lyq/.npm/_cacache/tmp`）」**实测不成立** —— 该缓存目录可写，`npm view` 直接可用，无需改 `npm_config_cache` / `store-dir`。五个版本范围全部存在（`motion` 最高 `12.43.0`、`perfect-freehand` `1.2.3`、`pdfjs-dist` `4.10.38` 与后端同 major、`react-grid-layout` `2.3.0`、`react-easy-crop` `6.2.4` / `frimousse` `0.4.0`）。**M4 的天花板随之降低**：`motion` 装得上，剩下的风险是 React 19 + Next 16 的**打包**（每章装完立刻跑 `pnpm --filter=web build`），不是「装不上」。
 
 ---
 
@@ -314,7 +314,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | 属性侧栏抹掉批注/笔记（整包 content 覆盖）                            | M5/M6/M7 在属性侧栏改「内容链接」           | **已由 R13 在 M1 消除**（改用活值 + 半边合并）；G1 第 8/9 条就是它的回归验收。若 G1 时发现改不动，M5/M6/M7 开工前必须先解决 |
 | 真机（一加平板 + 手写笔）不可用，批注手感无法验收                      | M5/G5                                      | 先按 R23 用 `http://localhost:3000` 试（同 netns ⇒ 平板 localhost = 容器监听 = secure context）；仍不行则降级为「DevTools 指针伪造（annotation §8.2 的 getter 覆写）+ 鼠标」，并把 P95 延迟标为「环境受限，未验收」 |
 | `motion` / RGL 与 React 19 + Next 16 打包不兼容                        | M4/G4、M10/G10                             | 每章装完依赖立刻跑一次 `pnpm --filter=web build`，不通过就换方案（岛退回 CSS transition + `linear()`；网格退回自研 + `@dnd-kit`） |
-| `react-grid-layout@^2.3.0` 的 `useContainerWidth` 不是 named export     | M10 第一步                                 | 这是 M10 的**预设第一失败点**（包未安装，无法离线核实）。失败即读已装包的类型声明改写法，并把「不装 RGL 自研网格」作为已登记的退路 |
+| `react-grid-layout@^2.3.0` 的 `useContainerWidth` 不是 named export     | M10 第一步                                 | **M0 已解除**（`npm pack` 读 `dist/index.d.ts`：`useContainerWidth` / `verticalCompactor` 都是具名导出，见 [spine.md §附](./spine.md#待验证-6-的结案)）。剩余风险只在**打包**：M10 装完立刻跑 `pnpm --filter=web build`；不通过就退回「不装 RGL 自研网格 + `@dnd-kit`」这条已登记的退路 |
 | `packages/ui` 的 `exports` 通配（`./components/*` → `./src/components/*.tsx`）**跨两级目录**匹配无先例 | M8/M10 按路径 import `preview-block/previews/*`、`dynamic-island/panels/*` | 已有同级先例（`packages/dataview/src/shared/card-cover.tsx:26`）。M10 第一次 typecheck 就是它的判定点；失败则在 `exports` 里补一条具体子路径（主 agent 独占文件） |
 | `NodePreviewBody` 的**文件名与导出名尚未冻结**（M2 的交付物）           | M8、M10 都要 import 它                     | 两章都写成「先按路径 import `preview-block/previews/*`，M2 的 `NodePreviewBody` 落地后替换是纯替换」。**M2 的 G2 通过时应把最终文件名写进本表**，否则 M8/M10 的 import 会各写一个 |
 | HLS 打包后的时间轴与原始文件不一致                                     | M6/G6 的笔记跳转                           | 已给可执行取数步骤（PB 后台临时删/恢复 `hlsUrl`，两次 `Mod-Enter` 读数比 `\|t1−t2\|`，本机 `ffprobe` 交叉验证）。>1s 且归因到打包参数（`-copyts` / `-start_at_zero` / `HLS_SEGMENT_SECONDS`）即**挑战 R3**：停手报主 agent，不许顺手改 `backend/` |
