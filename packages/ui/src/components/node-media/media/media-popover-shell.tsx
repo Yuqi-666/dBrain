@@ -8,7 +8,9 @@
  *
  *   ┌─ [tab] [tab] [tab]                       [动词区] ─┐  ← tab 行，动词右锚定
  *   ├─────────────────────────────────────────────────────┤
- *   │ 搜索  →  网格 / 落地区 / URL 行                     │  ← 体，`bodyMaxHeight` 封顶
+ *   │ 搜索  →  网格 / 落地区 / URL 行                     │  ← 体，`bodyMaxHeight` 封顶、内部滚
+ *   ├─────────────────────────────────────────────────────┤
+ *   │ 底色 …（`footer`，钉在滚动区之外）                   │  ← 常驻行，长网格压不下去
  *   └─────────────────────────────────────────────────────┘
  *
  * Three load-bearing decisions:
@@ -21,10 +23,16 @@
  *    body, so a host may render either a `CommandList` + `MediaGrid` pair or a
  *    plain upload pane as `children`.
  * 2. **`side="bottom"` + `align="start"`** — the panel is left-aligned with the
- *    trigger (sel §2 形态常量). The shell deliberately does **not** pass
- *    `container` to `PopoverContent`: whether the panel must be portalled into
- *    the transformed editor dialog is G2 第 10 条 / §M2.2-8, a main-agent
- *    decision, and the default portal is tried first.
+ *    trigger (sel §2 形态常量). The panel **opts into the enclosing
+ *    `DialogContent` as its portal target** instead of letting Radix use
+ *    `document.body`, and that is load-bearing rather than cosmetic (G2-r2 实测):
+ *    a `modal` Radix dialog installs `react-remove-scroll` with
+ *    `shards: [contentRef]`, and that library `preventDefault()`s every `wheel` /
+ *    `touchmove` whose target is outside every shard — so a panel left on the
+ *    body portal **cannot be scrolled at all** inside the window-mode editor, no
+ *    matter how correct its own overflow is (one finger is no better than a
+ *    wheel). The full-screen editor has no dialog, so `container` stays `null`
+ *    and the panel keeps the body portal (§M2.2-8 / §M2.1 第 7 行).
  * 3. **The tab row is a recessed segmented track, not a coloured tab strip.**
  *    The active item is the raised one (`bg-background` + `shadow-xs`) and
  *    `--primary` is never used here: it is reserved for state the user activated
@@ -40,6 +48,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { Command } from "@workspace/ui/components/ui/command";
+import { useDialogContentContainer } from "@workspace/ui/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -72,6 +81,14 @@ export interface MediaPopoverShellProps {
   width?: number;
   /** Body ceiling: `min(384px, 52vh)` / `min(360px, 52vh)`. */
   bodyMaxHeight?: string;
+  /**
+   * **Pinned below the body**, i.e. outside its scrollport (the icon selector's
+   * 底色 row). A row passed as `children` scrolls with the body and can therefore
+   * sit out of sight under the fold on a long grid tab — G2-r1 第 1 轮的
+   * 「底色只在上传 tab 有了」现场。 The caller styles it (`shrink-0` is what keeps
+   * it from being squashed by the popover's column layout).
+   */
+  footer?: ReactNode;
   children: ReactNode;
   className?: string;
 }
@@ -86,6 +103,7 @@ export function MediaPopoverShell({
   actions,
   width = 320,
   bodyMaxHeight = "min(384px, 52vh)",
+  footer,
   children,
   className,
 }: MediaPopoverShellProps) {
@@ -93,18 +111,27 @@ export function MediaPopoverShell({
    * The body ceiling with Radix's own measurement folded in.
    *
    * `--radix-popover-content-available-height` is written by the popper onto the
-   * content element (children inherit it), so `min(...)` keeps the design's
-   * `min(384px, 52vh)` on a roomy viewport while never letting the panel outgrow
-   * the space Radix found for it — the same trick `dataview`'s settings panel
-   * uses. It is also the value the list's cap is derived from, so both
-   * mechanisms agree.
+   * content element (children inherit it), the same variable `dataview`'s
+   * settings panel uses. Radix measures it for the **whole panel**, so the tab
+   * row and the pinned `footer` (`p-1` + `h-6`/`size-6` each, ≈4.125rem with
+   * their borders) are subtracted before the design's `min(384px, 52vh)` is
+   * applied: on a roomy viewport the result is unchanged, and on a cramped one
+   * the body gives way instead of pushing the footer off the panel.
    */
-  const bodyCap = `min(${bodyMaxHeight}, var(--radix-popover-content-available-height, 100vh))`;
+  const bodyCap = `min(${bodyMaxHeight}, calc(var(--radix-popover-content-available-height, 100vh) - 4.125rem))`;
+
+  /**
+   * Opt into the enclosing dialog as the portal target (see the header note 2).
+   * `null` outside a dialog — the full-screen editor — where `PopoverContent`
+   * falls back to `document.body`.
+   */
+  const dialogContainer = useDialogContentContainer();
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
+        container={dialogContainer}
         side="bottom"
         align="start"
         style={{ minWidth: width, maxWidth: "calc(100vw - 2rem)" }}
@@ -198,6 +225,9 @@ export function MediaPopoverShell({
             {children}
           </Command>
         </div>
+        {/* Pinned rows (底色) — outside the scrollport above, so a long grid can
+            never push them out of sight. */}
+        {footer}
       </PopoverContent>
     </Popover>
   );

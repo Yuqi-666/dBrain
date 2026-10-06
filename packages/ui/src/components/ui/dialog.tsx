@@ -47,6 +47,44 @@ function DialogOverlay({
   );
 }
 
+/**
+ * The DOM node a popover **inside this dialog** should portal into.
+ *
+ * Load-bearing, not a convenience (G2-r2 实测): a `modal` Radix dialog mounts
+ * `react-remove-scroll` with `shards: [contentRef]`, and that library cancels —
+ * `preventDefault()`, both `wheel` and `touchmove` — every event whose target
+ * is **outside** every shard. A `PopoverContent` portalled to `document.body`
+ * therefore cannot be scrolled *at all* while a modal dialog is open, however
+ * correct its own CSS is. Portalling it into the dialog content puts it inside
+ * the shard, which is also the only way `position: fixed` + the dialog's own
+ * `transform` stay consistent.
+ *
+ * **Opt-in**: a consumer that needs this passes the value to `PopoverContent`'s
+ * `container` (`MediaPopoverShell` is the one that does today). It is not read
+ * centrally in `ui/popover.tsx` because some dialogs are scroll containers
+ * themselves (`max-h-[85vh] overflow-y-auto`, `quick-panel`'s `overflow-hidden`),
+ * where a portalled panel would be clipped rather than merely unscrollable.
+ * Plan §M2.2-8 / §M2.1 第 7 行.
+ */
+const DialogContentContainerContext = React.createContext<HTMLElement | null>(
+  null,
+);
+
+/** The nearest enclosing `DialogContent` element, or `null` outside a dialog. */
+function useDialogContentContainer() {
+  return React.useContext(DialogContentContainerContext);
+}
+
+/** Keeps both the context ref and a caller-supplied `ref` alive. */
+function composeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
+  return (node: T | null) => {
+    for (const ref of refs) {
+      if (typeof ref === "function") ref(node);
+      else if (ref) (ref as { current: T | null }).current = node;
+    }
+  };
+}
+
 function DialogContent({
   className,
   children,
@@ -55,18 +93,26 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const [container, setContainer] = React.useState<HTMLDivElement | null>(null);
+  const { ref: forwardedRef, ...contentProps } = props;
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        ref={composeRefs<HTMLDivElement>(
+          setContainer,
+          forwardedRef as React.Ref<HTMLDivElement> | undefined,
+        )}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
-        {...props}
+        {...contentProps}
       >
-        {children}
+        <DialogContentContainerContext.Provider value={container}>
+          {children}
+        </DialogContentContainerContext.Provider>
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
@@ -161,4 +207,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  useDialogContentContainer,
 };

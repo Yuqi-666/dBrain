@@ -125,6 +125,10 @@ export type NodeCover =
 
 CoverSelectorPopover 同骨架，tab 换成 [上传] [从节点选]：上传 tab 是落地区 (MediaDropPane → `<FileDropZone variant="cover" />`)，下半部分是 "Or add via URL"(MediaUrlRow)。**URL 不单列 tab**（G2-r1 第 3 条：与「上传」写同一处、同一种来源，一个 tab 一个来源），与图标弹层同形。
 
+底色的 8 色 + 「无」那一行是**钉在体之外的 footer**（`MediaPopoverShell` 的 `footer` 槽，`:footer`），不随网格滚动。G2-r2 实测过反例：把它当 `children` 的最后一项时它落在**滚动体之内**，46 行的 emoji 网格会把它挤到折叠线以下（现场现象是「底色只在上传 tab 有了」——上传 tab 内容短，所以那一行才看得见）。
+
+**弹层必须 portal 进模态对话框的 `DialogContent`**（G2-r2 实测的硬约束）：`modal` 的 Radix Dialog 会挂 `react-remove-scroll`（`shards: [contentRef]`），它对**落在 shard 之外**的任何 `wheel` / `touchmove` 直接 `preventDefault()` —— portal 到 `document.body` 的弹层因此**怎么都滚不动**，与自身 overflow 是否写对无关（触屏同理）。落地：`ui/dialog.tsx` 暴露 `DialogContentContainerContext`（`useDialogContentContainer`），`ui/popover.tsx` 的 `PopoverContent` 新增 `container` 透传，`MediaPopoverShell` **显式**把该节点传进去；**有意不做成全局默认**——filter / view 对话框自己就是滚动容器（`max-h-[85vh] overflow-y-auto`）、`quick-panel` 是 `overflow-hidden`，把弹层 portal 进去反而会被裁切。全屏编辑器没有 Dialog，`container` 为 `null`，仍是 body portal。
+
 ```text
 packages/ui/src/components/node-media/
 ├── icon-selector-popover.tsx / cover-selector-popover.tsx   # 两个弹层（各自实现 tab 与提交）

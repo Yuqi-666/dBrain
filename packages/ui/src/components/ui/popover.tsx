@@ -21,10 +21,29 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /**
+   * Portal target; default `document.body` (Radix's own default).
+   *
+   * **Opt-in on purpose.** A consumer rendered inside a `DialogContent` should
+   * pass that element (see `dialog.tsx`'s `useDialogContentContainer`), because a
+   * `modal` Radix dialog installs `react-remove-scroll` with
+   * `shards: [contentRef]` and that library `preventDefault()`s every `wheel` /
+   * `touchmove` whose target is outside every shard — a panel portalled to
+   * `document.body` inside a modal dialog therefore cannot be scrolled at all,
+   * whatever its own overflow says (G2-r2 实测; plan §M2.2-8). `MediaPopoverShell`
+   * is the consumer that opts in today. It stays opt-in instead of being read
+   * from the dialog context here because some dialogs **are** scroll containers
+   * (`max-h-[85vh] overflow-y-auto` on the filter / view dialogs,
+   * `quick-panel`'s `overflow-hidden`): a panel portalled inside those would be
+   * clipped rather than merely unscrollable.
+   */
+  container?: HTMLElement | null;
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container ?? undefined}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

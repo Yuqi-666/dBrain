@@ -49,6 +49,33 @@ canon_type_literals() {
     }'
 }
 
+# ④ 联合类型成员的**顺序**：`theme: "light" | "dark"` 与 `"dark" | "light"` 是同一份
+#    代码在不同 TS 缓存状态下的两条消息（G2-r2 实测，`web: app/(main)/graph/page.tsx`
+#    那一行会自己翻面）。把「两个以上、以 ` | ` 相连的字面量/标识符」按字典序排好。
+canon_unions() {
+  awk '
+    function trim(s) { gsub(/^[ \t]+/, "", s); gsub(/[ \t]+$/, "", s); return s }
+    function sortunion(seg,   n, i, j, t, parts, out) {
+      n = split(seg, parts, /[ \t]*\|[ \t]*/)
+      for (i = 1; i <= n; i++) parts[i] = trim(parts[i])
+      for (i = 1; i <= n; i++)
+        for (j = i + 1; j <= n; j++)
+          if (parts[j] < parts[i]) { t = parts[i]; parts[i] = parts[j]; parts[j] = t }
+      out = parts[1]
+      for (i = 2; i <= n; i++) out = out " | " parts[i]
+      return out
+    }
+    {
+      alt = "\"[^\"]*\"|[A-Za-z_$][A-Za-z0-9_$.]*"
+      out = ""; rest = $0
+      while (match(rest, "(" alt ")([ \t]+[|][ \t]+(" alt "))+")) {
+        out = out substr(rest, 1, RSTART - 1) sortunion(substr(rest, RSTART, RLENGTH))
+        rest = substr(rest, RSTART + RLENGTH)
+      }
+      print out rest
+    }'
+}
+
 # 只保留「可比较的错误清单」：TS 错误 + eslint 汇总/致命错误。
 # 丢掉时间、缓存命中等每次都会变的行，最后排序 —— 这样 diff 才只反映真实变化。
 #
@@ -59,6 +86,7 @@ canon_type_literals() {
 #      `value-objects.ts` 的 TS2307/TS7006 只是从 (931,8) 挪到 (1019,8)）。
 #      抹掉 `(line,col)` 后，判据变成「**file + error code + message + 出现次数**」
 #      的集合比较：新错误（新文件 / 新文案 / 同文案多一条）依然会被 diff 抓到。
+#   ④ 联合类型成员顺序（见 `canon_unions`）。
 normalize() {
   grep -aE "error TS|✖ +[0-9]+ problem|ESLint couldn't find|Invalid project directory|Command failed with exit code" "$1" |
     sed -E \
@@ -67,6 +95,7 @@ normalize() {
       -e 's/exit code [0-9]+/exit code N/' \
       -e 's/\([0-9]+,[0-9]+\)/(L,C)/g' |
     canon_type_literals |
+    canon_unions |
     sort | uniq -c | sed -E 's/^ *([0-9]+) /\1× /'
 }
 

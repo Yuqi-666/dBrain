@@ -23,7 +23,7 @@
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 2    | 2026-10-06 | 见 §5 |
+| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -302,14 +302,55 @@
   | 3   | `cover-selector` 的 `URL` tab 多余（与上传同写一处） | 设计稿把 URL 当第三个来源，但它与 `上传` 写的是同一个目标（顶层 `cover`），tab 之间没有行为差异                                                                                                                                     | 删掉 `URL` tab 与其预览分支，`Or add via URL` 留在 `上传` tab 尾部；`COVER_TABS` 剩 上传 / 从节点选；`MediaPopoverTab` 的 id 注释去掉 `url`；sel §2/§6.3 与 §M2.4 同步改口径                                                                                                                  |
 
 - 第 2 轮自检（回改后重跑，口径同首轮）：`bash docs/plan/baseline.sh` → typecheck / lint 两段 **0 新增 / 0 消失** ✅；已核对 Tailwind 实际产出 `[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)_-_2.25rem)] [cmdk-list]` 规则、以及客户端 chunk（`apps/web/.next/dev/static/chunks/packages_ui_src_components_node-media_*.js`）含新代码；改动仅 `node-media/**` 的 4 个文件 + 2 份文档，`ui/**` 基座、`backend/**`、`interfaces` 未碰，**零新依赖**。
-- **测试环境提醒（已实测核实，非推断）**：本机 `http://127.0.0.1:3000/_next/webpack-hmr` 的 WebSocket 握手是 `101 Switching Protocols`，而经域名 `https://dev.yuqi-666.cn/_next/webpack-hmr` 是 **404**（`server: openresty`）——用户浏览器的 **HMR 通道不通**，页面不手动刷新就一直跑旧 bundle（同时可见新旧两份 chunk：`..._67d0d257._.js` 与 `..._ca112602._.js`）。第 1 轮的「依然不行」极可能就是在旧 bundle 上复测（推断：未硬刷新）。⇒ **后续每轮实测前请 `Ctrl/Cmd+Shift+R` 硬刷新**；要免刷新需在宿主 nginx 给 `/_next/webpack-hmr` 加 `Upgrade`/`Connection` 透传（属用户侧 M0.1 路由，主 agent 不改）。
-- 失败项与归因：第 1 轮 3 条见上表，都属于**骨架滚动契约 / 组件与宿主的合并约定 / 设计口径**层面（W1 四路已在首轮交付并关闭，回改由主 agent 直接做，不需要重开窗口）。
-- 迭代：**第 2 轮待测**（清单第 1、5、6、7 条含 G2-r1 的新增判据）
+- **测试环境提醒（已实测核实，非推断）**：本机 `http://127.0.0.1:3000/_next/webpack-hmr` 的 WebSocket 握手是 `101 Switching Protocols`，而经域名 `https://dev.yuqi-666.cn/_next/webpack-hmr` 是 **404**（`server: openresty`）——用户浏览器的 **HMR 通道不通**，页面不手动刷新就一直跑旧 bundle（同时可见新旧两份 chunk：`..._67d0d257._.js` 与 `..._ca112602_.js`）。⇒ **每轮实测前请刷新**（chunk 是 `cache-control: no-store`，普通 F5 即可）；要免刷新需在宿主 nginx 给 `/_next/webpack-hmr` 加 `Upgrade`/`Connection` 透传（属用户侧 M0.1 路由，主 agent 不改）。
+- **第 2 轮实测（2026-10-06，G2-r2）**：用户报 2 点（「底色只在上传 tab 有了」「emoji / 图标 / 封面内容依然不能滚动」），并明确要求「写脚本自己检查」。据此搭了**真浏览器探针**（配方见 §6），定位到 G2-r1 **只修了一半**；提交 `95689e4`。
+
+  | # | 现象 | 根因（探针实测定位） | 处理 |
+  | - | ---- | -------------------- | ---- |
+  | 1 | 底色行只在「上传」tab 可见 | 它是 `children` 的最后一项，因此落在**滚动体内部**：46 行的 emoji 网格把它顶到折叠线以下（上传 tab 内容短，所以只有那一行看得见） | `MediaPopoverShell` 新增 **`footer` 槽**（渲染在滚动区之外、常驻），图标选择器把底色行交给它；sel §2 同步 |
+  | 2 | emoji / 图标 / 封面**内容不能滚动** | **两个叠加根因，只改 CSS 永远修不好**：**(i)** G2-r1 修的一半（上限压在 `Command` 上 → 内容被裁且无滚动视口）；**(ii)** `modal` 的 Radix Dialog 挂的 `react-remove-scroll` 带 `shards: [contentRef]`，它会 `preventDefault()` **所有落在 shard 之外**的 `wheel` / `touchmove` —— portal 到 `document.body` 的 `PopoverContent` 在窗口模式下**必然**滚不动（触屏同理，所以平板上也划不动）；探针实测该车轮事件 `defaultPrevented=true`，且 `preventDefault` 的调用栈就落在 `react-remove-scroll` 的 `shouldPrevent` 里 | `ui/dialog.tsx` 新增 `DialogContentContainerContext`（`DialogContent` 把自己的 DOM 节点放进 context，并兼容外部 `ref`）；`ui/popover.tsx` 的 `PopoverContent` 新增可选 `container` 透传，`MediaPopoverShell` **显式**把该节点传进去（全屏编辑器没有 Dialog → `null` → 仍是 `document.body`）——即 §M2.1 第 7 行标「按需」的那次 `container` 透传，判据由实测给出。**有意不做成全局默认**：filter / view 对话框自身是 `max-h-[85vh] overflow-y-auto`、`quick-panel` 是 `overflow-hidden`，全局 portal 进去会把「滚不动」换成「被裁切」 |
+- **G2-r2 自检（真浏览器探针，`chrome-headless-shell` + CDP）**：把**真组件**（`IconSelectorPopover` / `CoverSelectorPopover`）挂进**真模态 Dialog**、用应用**真编译 CSS**，再用 CDP 派发**受信任**鼠标事件。**12/12 通过**：
+  ```
+  ✓ 探针页挂载（真组件 + 真 CSS + 真模态 Dialog）
+  ✓ ① 上限压回 CommandList：list.max-height=348px = wrapper 384px − 搜索行 36px
+  ✓ ② 列表可滚：overflow-y=auto，client 348 < scrollHeight 1840
+  ✓ ③ Command overflow=visible（旧版是 hidden）
+  ✓ ④ 外层包裹是安全网：max-height + overflow-y=auto，且自身不溢出
+  ✓ ⑤ 底色行钉在面板内：wrapper.bottom=563 ≤ footer.top=563 < footer.bottom=596 = panel.bottom
+  ✓ ⑥ 受信任滚轮滚动 emoji 网格：scrollTop 0 → 400（wheel defaultPrevented=false）
+  ✓ ⑦ 图标 tab 同：400 → 492
+  ✓ ⑧ 封面「从节点选」：client 324 < scrollHeight 2640，scrollTop 0 → 400
+  ✓ ⑨ 反向对照：用 CSS 还原旧形状（Command 裁剪 + list 无上限）后滚不动（0 → 0）
+  ✓ ⑩ 无未捕获报错
+  ✓ 封面弹层能打开（data-state closed → open）
+  ```
+  探针同时验证了 `container` 改动**没有破坏定位**：弹层仍紧贴触发器（截图与坐标都对得上）。`bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**。
+- **波及面登记（由 opt-in 限制住，第 3 轮顺带瞄一眼）**：`container` 是**显式**透传，只有 `MediaPopoverShell` 传了它，其余 ~20 个 `PopoverContent` 消费方仍是 `document.body` portal、行为与本轮之前逐字一致 ⇒ §M2.5-6 要求的「20 个既有消费方不受影响」成立。**已知遗留**：那些弹层在模态对话框里**同样滚不动**（同一类 shard 限制，`dataview` 的字段 / 筛选面板就在这一批），哪天需要滚动就照 `MediaPopoverShell` 的样子 opt-in —— 已记入遗留项 7。另外注意 `MediaGrid` 的 `CommandItem` 现在落在 `[data-slot=dialog-content]` 之内，`command.tsx` 的 `in-data-[slot=dialog-content]:rounded-lg!` 会命中它（单元格圆角从 `rounded-md` 变 `rounded-lg`，探针截图已确认视觉正常）。
+- 失败项与归因：第 1 轮 3 条见上表（骨架滚动契约 / 合并约定 / 设计口径）；第 2 轮 2 条见上表，其中滚动的第二半是**框架层**根因（Radix Dialog 的 `react-remove-scroll` shard），不是某个组件的实现疏漏。W1 四路已在首轮交付并关闭，回改由主 agent 直接做，不需要重开窗口。
+- 迭代：**第 3 轮待测**（清单第 1、5、6、7 条含 G2-r1/r2 的新增判据）
 - 遗留不阻塞项：
   1. **分类条 / 每分类 `CommandGroup` 未做**：设计文档 §2 的骨架图底部画了分类条，但本计划的 W1-D 验收条款与 G2 的 13 条都不含它；当前是扁平网格 + 把类名并入 `keywords`（搜「食物」仍命中）。要与骨架图完全一致需扩 `MediaGrid`（新增一条 `CommandGroup` + 滚动锚），由后续章节或用户反馈决定。
   2. **`MediaGrid` 的 `aria-selected` 由 cmdk 掌握**，无法与 roving 焦点同步（cmdk 未暴露 setter）。可见的焦点环与 `data-media-active` 高亮跟 roving 走，G2 第 11 条只判 tab 遍历与「不是 300 个 tab stop」，不受影响。要彻底同步得放弃 cmdk 过滤或给 shell 加受控 `value`。
-  3. **`PopoverContent` 的 `container` 透传未做**（§M2.1 第 7 行标「按需」）：等 G2 第 10 条实测两种宿主形态后再定，届时若需要则属主 agent 独占的 shadcn 基座改动。G2-r1 已确认**滚动与它无关**（窗口模式的模态 `Dialog` 会挂 `react-remove-scroll`，但它对「目标自身可滚」的元素是放行的：`locationCouldBeScrolled` + `handleScroll` 只拦无处可滚的滚轮事件，而 `body` 的上限已落在 `CommandList` 自己身上），`container` 仍只在第 10 条判定「被裁切 / 偏移错误」时才动。
+  3. **`PopoverContent` 的 `container` 透传已随 G2-r2 落地**（`MediaPopoverShell` 显式 opt-in）——「按需」的判据由实测给出：**在模态对话框里不 portal 进去就滚不动**（radix Dialog 的 `react-remove-scroll` shard 会吞掉落在 shard 外的 `wheel`/`touchmove`）。属主 agent 独占的 shadcn 基座改动（`ui/dialog.tsx` + `ui/popover.tsx`），`ui` 与 `dataview` 的 typecheck 零新增。第 10 条仍要按「被裁切 / 偏移」复核两种宿主形态。
   4. **`webpage-source` 仍整份替换 `content`**：`WebpageContent` 今天只有 `code`/`language`，合并在行为上是 no-op，按 §M2.5-1「语义逐字不变」保留原样。
   5. **`listNodes(query)` 只被调用一次（空串）**：`从节点选` 的首屏由宿主给最近节点、过滤交给 `Command`；逐键回源查询需要 shell 暴露搜索串（`media-popover-shell.tsx` 拥有那个 `Command`），标为 P2。
   6. **最近使用 `dbrain:icon-recent` 未做**（sel §5 标 P2），仅在文件 JSDoc 留了落点。
-- 用户结论：**待填（第 2 轮）**
+  7. **其余弹层在模态对话框里仍滚不动**：`react-remove-scroll` 只放行落在 Radix Dialog shard 内的事件，任何仍 portal 到 `document.body` 的 `PopoverContent`（dataview 的字段 / 筛选面板、tag-list 等）在窗口模式下都受同一限制。本轮只让**媒体弹层** opt-in（`container` 透传），因为全局改会把 filter / view 对话框里那些弹层从「滚不动」换成「被裁切」。要收掉这条得逐个确认宿主对话框不是滚动容器。
+- 用户结论：**待填（第 3 轮）**
+
+---
+
+## 6. 自检探针配方（主 agent 用，不进仓库）
+
+计划原本的验证面是「`baseline.sh` + 用户手测」；G2-r2 起多一层**真浏览器探针**，用来在交用户之前自己把行为钉死（用户要求「写脚本自己检查」）。它是临时工装，**不进仓库**（本仓反模式明确不要 JS 测试设施），全部落在 `/tmp`：
+
+1. **浏览器**：从 Chrome for Testing 下 `chrome-headless-shell`（本容器没有 GTK/X11，装不了常规浏览器，但这台机器只缺 10 个 `.so`）：
+   `curl -o /tmp/cft/chs.zip https://storage.googleapis.com/chrome-for-testing-public/<ver>/linux64/chrome-headless-shell-linux64.zip`（版本号取 <https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json>）；
+   `cat chrome-headless-shell-linux64/deb.deps` 给了包清单，`apt-get download <pkg> && dpkg-deb -x <deb> /tmp/cftlibs` 逐个解包（无需 root），`LD_LIBRARY_PATH=/tmp/cftlibs/usr/lib/x86_64-linux-gnu:/tmp/cftlibs/lib/x86_64-linux-gnu`，`ldd chrome-headless-shell | grep 'not found'` 迭代到 0。
+2. **页面**：`apps/web/.probe-g2/entry.tsx`（用完即删）用**真组件** + **真模态 `Dialog`** 搭最小场景，数据层用 alias 换成 stub：
+   `esbuild apps/web/.probe-g2/entry.tsx --bundle --outfile=/tmp/probe/bundle.js --tsconfig=apps/web/tsconfig.json --alias:@workspace/store=…stub --alias:@workspace/services=… --alias:@workspace/api-client=… --alias:@workspace/ui/components/menu/upload-menu=…`
+   CSS 直接复用 dev server 编出来的那份：`apps/web/.next/dev/static/chunks/[root-of-the-server]__*.css`。
+3. **驱动**：`/tmp/probe/check.mjs` 用**裸 CDP**（Node 内置 `WebSocket`，零依赖）：`Target.attachToTarget(flatten)` → `Runtime.evaluate` 量 `clientHeight/scrollHeight/getComputedStyle` → `Input.dispatchMouseEvent{type:"mouseWheel"}` 派发**受信任**滚轮并读回 `scrollTop` → `Page.captureScreenshot` 存证据。关键技巧：给 `Event.prototype.preventDefault` 打桩记录调用栈，可以直接指认「谁吞了滚轮」。
+4. **必须带反向对照**：用注入 CSS 还原旧形状，断言同一探针**失败**（否则探针可能空过）。
+
+复跑：`node /tmp/probe/check.mjs`（脚本自己拉起 / 关闭浏览器）。

@@ -205,6 +205,61 @@ export function IconSelectorPopover({
 
   const selectedNoColor = Boolean(value) && !value?.color;
 
+  /**
+   * The 底色 row is **pinned chrome**, not part of the body: it goes through the
+   * shell's `footer` slot so a 46-row grid cannot push it under the fold (that
+   * was G2-r1's 「底色只在上传 tab 有了」). It must stay always-rendered and merely
+   * `disabled` when there is no icon — a control that appears and disappears
+   * pushes its left-hand neighbours around (sel §5 清除).
+   */
+  const colorRow = (
+    <div
+      role="group"
+      aria-label="底色"
+      className="flex shrink-0 items-center gap-1 border-t border-border/60 p-1"
+    >
+      <span className="px-1 text-xs text-muted-foreground">底色</span>
+      {ICON_COLORS.map((entry) => {
+        const selected = value?.color === entry.value;
+        return (
+          <Button
+            key={entry.value}
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`底色 ${entry.label}`}
+            aria-pressed={selected}
+            disabled={!value}
+            className={cn(
+              "p-0 hover:opacity-90",
+              // `--primary` = 用户已激活 (sel §0.3-8); it never means "has icon".
+              selected &&
+                "ring-2 ring-primary ring-offset-1 ring-offset-popover",
+            )}
+            style={{ backgroundColor: entry.value }}
+            onClick={() => handleColor(entry.value)}
+          />
+        );
+      })}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="无底色"
+        aria-pressed={selectedNoColor}
+        disabled={!value}
+        className={cn(
+          "hover:opacity-90",
+          selectedNoColor &&
+            "ring-2 ring-primary ring-offset-1 ring-offset-popover",
+        )}
+        onClick={() => handleColor(undefined)}
+      >
+        <Ban className="size-4" />
+      </Button>
+    </div>
+  );
+
   return (
     <MediaPopoverShell
       open={open && !disabled}
@@ -219,6 +274,7 @@ export function IconSelectorPopover({
       width={320}
       bodyMaxHeight="min(384px, 52vh)"
       className={className}
+      footer={colorRow}
       actions={
         // Always rendered, merely disabled when empty: a control that appears and
         // disappears pushes its left-hand neighbours around (sel §5 清除).
@@ -239,9 +295,9 @@ export function IconSelectorPopover({
           its query belongs to the shell's `Command`, so it survives a tab switch. */}
       {tab === "upload" ? null : <MediaSearchInput autoFocus />}
       {tab === "upload" ? (
-        // No `overflow-y-auto` of its own: the shell's body wrapper is the panel's
-        // single scrollport, so a nested one inside an auto-height parent would
-        // either be dead or clip the drop pane.
+        // No `overflow-y-auto` of its own: the shell caps the body and lets either
+        // the body wrapper or the `CommandList` scroll it, so a second viewport in
+        // here would either be dead or clip the drop pane.
         <div className="flex flex-col gap-1 p-1">
           <MediaDropPane
             nodeId={nodeId}
@@ -275,51 +331,6 @@ export function IconSelectorPopover({
           />
         </CommandList>
       )}
-      <div
-        role="group"
-        aria-label="底色"
-        className="flex shrink-0 items-center gap-1 border-t border-border/60 p-1"
-      >
-        <span className="px-1 text-xs text-muted-foreground">底色</span>
-        {ICON_COLORS.map((entry) => {
-          const selected = value?.color === entry.value;
-          return (
-            <Button
-              key={entry.value}
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`底色 ${entry.label}`}
-              aria-pressed={selected}
-              disabled={!value}
-              className={cn(
-                "p-0 hover:opacity-90",
-                // `--primary` = 用户已激活 (sel §0.3-8); it never means "has icon".
-                selected &&
-                  "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-              )}
-              style={{ backgroundColor: entry.value }}
-              onClick={() => handleColor(entry.value)}
-            />
-          );
-        })}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label="无底色"
-          aria-pressed={selectedNoColor}
-          disabled={!value}
-          className={cn(
-            "hover:opacity-90",
-            selectedNoColor &&
-              "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-          )}
-          onClick={() => handleColor(undefined)}
-        >
-          <Ban className="size-4" />
-        </Button>
-      </div>
     </MediaPopoverShell>
   );
 }
