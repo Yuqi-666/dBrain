@@ -35,9 +35,10 @@ import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-i
 import { NodePreviewCover } from "@workspace/ui/components/preview-block/node-preview-cover";
 import { cn } from "@workspace/ui/lib/utils";
 import {
+  NODE_ICON_FALLBACK,
+  NODE_ICON_GLYPH,
+  NODE_ICON_PLATE,
   NodeContentHeader,
-  nodeIconGlyphClass,
-  nodeIconPlateClass,
 } from "./node-content-header";
 import { useNodeContentWriter } from "./use-node-content-writer";
 
@@ -118,20 +119,14 @@ export function RichTextNodeContent({
               type="button"
               variant="ghost"
               size="icon"
-              className={cn(
-                "p-0",
-                nodeIconPlateClass(target.icon ?? undefined),
-              )}
+              className={cn("p-0", NODE_ICON_PLATE)}
               aria-label={target.icon ? "更换节点图标" : "设置节点图标"}
             >
               <NodeIconView
                 icon={target.icon ?? undefined}
-                fallback={
-                  <TypeIcon
-                    className={nodeIconGlyphClass(target.icon ?? undefined)}
-                  />
-                }
-                className={nodeIconPlateClass(target.icon ?? undefined)}
+                fallback={<TypeIcon className={NODE_ICON_FALLBACK} />}
+                className={NODE_ICON_PLATE}
+                glyphClassName={NODE_ICON_GLYPH}
               />
             </Button>
           </IconSelectorPopover>

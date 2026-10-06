@@ -40,7 +40,7 @@
  *    fixed-height box (`h-10`) with `items-end`, pulled up by a negative margin;
  *    the plate is bottom-aligned inside it, so *any* plate size ends the same
  *    distance below the cover's edge. Nothing is absolutely positioned and no
- *    size is hard-coded into the geometry: {@link nodeIconPlateClass} decides how
+ *    size is hard-coded into the geometry: {@link NODE_ICON_PLATE} decides how
  *    big the plate is, this file decides where its bottom edge lands.
  *
  * The body below element 5 is **not** this component's business: it writes
@@ -49,21 +49,30 @@
  * changing an icon can never roll the正文 back a frame (§2 纪律 ①).
  *
  * It deliberately does not read the *node* from the store: `node` is a prop and
- * every write goes through `patchNode`. The one store read is `nodeSemantics`, the
- * semantic **catalogue** element 5 renders from — the same read `preview-header.tsx`
- * does, and not a node lookup.
+ * every write to it goes through `patchNode`. The one store read is `nodeSemantics`,
+ * the semantic **catalogue** element 5 renders from — the same read `preview-header.tsx`
+ * does, and not a node lookup. Element 5's dropdown body is the shared
+ * `SemanticList`, which reads that same catalogue (and can open the global
+ * 「新建语义」 dialog); picking a row comes back as `patchNode({ semanticId })`, so the
+ * node is still only written by the host's drain.
  *
  * The two selectors are injected (`renderCoverSelector` / `renderIconSelector`), so
  * this header stays a leaf of the node type it decorates. The injected node *is*
  * the trigger; because it receives `node`, it draws the empty state itself (a
  * compact 「添加封面」 button) — the header only decides where the entry sits.
- * {@link nodeIconPlateClass} is exported for exactly one reason: the injected
+ * {@link NODE_ICON_PLATE} is exported for exactly one reason: the injected
  * icon trigger and the `fallback` box below are two drawings of the same plate,
  * and an unshared size would make them drift apart.
  */
 import { useDataStore } from "@workspace/store";
 import type { NodeCover, NodeData, NodeIcon } from "@workspace/interfaces";
 import { Input } from "@workspace/ui/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/ui/dropdown-menu";
+import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
 import { NODE_TYPE_LABELS } from "@workspace/ui/components/menu/node/dataType-list";
 import { NodeIconView } from "@workspace/ui/components/node-media/node-icon-view";
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
@@ -73,32 +82,40 @@ import type { ReactNode } from "react";
 /**
  * The box a node's icon draws in — the icon trigger's plate in
  * `rich-text-node-content.tsx` and the `fallback` plate below must be the same
- * box, so both ask this function instead of spelling classes twice.
+ * box, so both ask these constants instead of spelling classes twice.
  *
- * The plate follows the icon's own scale: an **emoji** is text and an **image**
- * fills its box, so either one gets the big plate of the reference page; a
- * Lucide glyph is a fixed 16px inside `NodeIconView` (sel §5) and would swim in
- * that box, so `kind:"icon"` keeps the compact plate — the same 36px-scale look
- * the editor header uses. `bg-background` is the point of the plate: it is the
- * page colour showing through the cover, which is what lifts the icon off it.
+ * **One size for every icon kind** (G3 追加交付 二 r1): the page-header plate is
+ * the reference page's, and the reference draws its icon at one size whatever it
+ * is. An emoji is text (`text-5xl` = 48px in an 80px plate) and an image fills
+ * the box, so the Lucide branch is the only one that needs telling — it gets
+ * {@link NODE_ICON_GLYPH} through `NodeIconView`'s `glyphClassName`, which is a
+ * share of the box rather than that component's 16px small-box default.
+ * `bg-background` is the point of the plate: it is the page colour showing
+ * through the cover, which is what lifts the icon off it.
  */
-function fillsPlate(icon?: NodeIcon): boolean {
-  return (
-    icon != null &&
-    icon.value !== "" &&
-    (icon.kind === "emoji" || icon.kind === "image")
-  );
-}
+export const NODE_ICON_PLATE = "size-20 rounded-lg bg-background text-5xl";
 
-export function nodeIconPlateClass(icon?: NodeIcon): string {
-  return fillsPlate(icon)
-    ? "size-20 rounded-lg bg-background text-5xl"
-    : "size-11 rounded-lg bg-background text-2xl";
-}
+/** A Lucide glyph's share of {@link NODE_ICON_PLATE} (48px of the 80px plate). */
+export const NODE_ICON_GLYPH = "size-3/5";
 
-/** The node-type glyph that stands in for a missing icon, sized to its plate. */
-export function nodeIconGlyphClass(icon?: NodeIcon): string {
-  return fillsPlate(icon) ? "size-9" : "size-5";
+/** The node-type glyph that stands in for a missing icon, sized to the plate. */
+export const NODE_ICON_FALLBACK = "size-12";
+
+/** The semantic capsule: one shape for the read-only pill and the trigger. */
+const SEMANTIC_PILL =
+  "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
+
+/**
+ * The capsule's own colours — a tint of the category colour with the colour as
+ * the text (`preview-header.tsx:43-60`'s rule), or nothing at all when the
+ * category has none. Radix merges its trigger props into the same element, so
+ * the two states have to come from one function.
+ */
+function pillStyle(color?: string) {
+  return {
+    backgroundColor: color ? `${color}20` : undefined,
+    color: color || undefined,
+  };
 }
 
 export interface NodeContentHeaderProps {
@@ -141,7 +158,6 @@ export function NodeContentHeader({
   const TypeIcon = NODE_TYPE_ICONS[node.nodeType];
   const typeLabel = NODE_TYPE_LABELS[node.nodeType] ?? node.nodeType;
   const hasCover = node.cover != null;
-  const plate = nodeIconPlateClass(node.icon ?? undefined);
 
   const iconEntry = readOnly
     ? undefined
@@ -193,17 +209,14 @@ export function NodeContentHeader({
               <span
                 className={cn(
                   "flex items-center justify-center text-muted-foreground",
-                  plate,
+                  NODE_ICON_PLATE,
                 )}
               >
                 <NodeIconView
                   icon={node.icon ?? undefined}
-                  fallback={
-                    <TypeIcon
-                      className={nodeIconGlyphClass(node.icon ?? undefined)}
-                    />
-                  }
-                  className={plate}
+                  fallback={<TypeIcon className={NODE_ICON_FALLBACK} />}
+                  className={NODE_ICON_PLATE}
+                  glyphClassName={NODE_ICON_GLYPH}
                 />
               </span>
             )}
@@ -246,25 +259,60 @@ export function NodeContentHeader({
               reference page's "Page • Tag". The type label is the shared
               `NODE_TYPE_LABELS` table (a second copy would drift the way the
               icon table once did, §M2.2-3); the semantic half keeps
-              `preview-header.tsx:43-60`'s coloured pill, because the colour is
-              the category's own (sel §4), not decoration this line may drop. */}
+              `preview-header.tsx:43-60`'s coloured pill — the colour is the
+              category's own (sel §4), not decoration this line may drop — and is
+              now the **switch** for it (G3 追加交付 二 r2): a dropdown trigger that
+              writes `semanticId`. Its body is the shared `SemanticList` (search +
+              catalogue + 「Add new type」), the same menu the attributes sidebar
+              opens, so the two entries can never disagree about what a semantic
+              is; the write still goes through the host's `patchNode` drain. */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{typeLabel}</span>
-            {semantic && (
-              <>
-                <span aria-hidden>•</span>
+            {semantic && <span aria-hidden>•</span>}
+            {readOnly ? (
+              semantic ? (
                 <span
-                  className="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                  style={{
-                    backgroundColor: semantic.color
-                      ? `${semantic.color}20`
-                      : undefined,
-                    color: semantic.color || undefined,
-                  }}
+                  className={SEMANTIC_PILL}
+                  style={pillStyle(semantic.color)}
                 >
                   {semantic.name}
                 </span>
-              </>
+              ) : null
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      SEMANTIC_PILL,
+                      "cursor-pointer transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    )}
+                    style={pillStyle(semantic?.color)}
+                    aria-label={semantic ? "切换语义" : "选择语义"}
+                  >
+                    {semantic ? (
+                      semantic.name
+                    ) : (
+                      <span className="text-muted-foreground">选择语义</span>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                {/* `min-w-64`: the menu's own default is
+                    `w-(--radix-dropdown-menu-trigger-width)`, and a semantic
+                    capsule is ~90-190px wide — the shared list is `w-64`
+                    (256px), so it would overflow the menu's own
+                    `overflow-x-hidden` box and its rows would be clipped *and*
+                    unclickable (the probe caught exactly that: the row's box was
+                    240px inside a 128px menu, so the click landed on the Dialog
+                    overlay). `min-w-*` is a different property from `w-*`, so it
+                    cannot lose to the Radix width on stylesheet order — `w-64`
+                    could. */}
+                <DropdownMenuContent align="start" className="min-w-64">
+                  <SemanticList
+                    onSelect={(semanticId) => patchNode({ semanticId })}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>

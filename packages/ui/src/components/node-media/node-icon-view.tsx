@@ -19,10 +19,14 @@
  *
  * `className` sizes the **box**, not the glyph: emoji / Lucide / image all draw
  * inside a wrapper that carries it (`size-9 rounded-md` for the 36px trigger,
- * `size-5` for the header, the card corner) and the Lucide glyph is a fixed
- * `size-4` capped by that box. The `fallback` is returned untouched — the caller
- * owns its size, exactly like the `<Icon className="size-4" />` in
- * `preview-header.tsx` that it replaces.
+ * `size-5` for the header, the card corner), and the Lucide glyph defaults to a
+ * fixed `size-4` capped by that box — the small-box scale this component was
+ * born with. A consumer that draws a **large** box passes `glyphClassName`
+ * (`size-3/5`, i.e. a share of the box) so the glyph grows with it instead of
+ * swimming in a mostly empty plate; the default stays `size-4`, so every
+ * existing caller is unchanged (G3 追加交付 二 r1: the node page header's plate).
+ * The `fallback` is returned untouched — the caller owns its size, exactly like
+ * the `<Icon className="size-4" />` in `preview-header.tsx` that it replaces.
  *
  * ---------------------------------------------------------------------------
  * Why the name table lives in this file (W1-D, read this)
@@ -223,6 +227,13 @@ export interface NodeIconViewProps {
   fallback?: ReactNode;
   /** Sizing and rounding: 36px trigger button, 20px header, card corner. */
   className?: string;
+  /**
+   * Optional size for the Lucide glyph (`kind:"icon"`), **relative to
+   * `className`'s box** — `size-3/5` in a `size-20` plate is a 48px glyph. Only
+   * this branch needs it: an emoji is text (its size is the box's font-size) and
+   * an image fills the box. Omitted ⇒ `size-4`, the small-box default.
+   */
+  glyphClassName?: string;
 }
 
 /** One entry of the curated icon library (sel §3.2 / §5 `图标` tab). */
@@ -1153,6 +1164,7 @@ export function NodeIconView({
   icon,
   fallback,
   className,
+  glyphClassName,
 }: NodeIconViewProps): ReactNode {
   if (!icon || !icon.value) return fallback ?? null;
 
@@ -1188,7 +1200,10 @@ export function NodeIconView({
         >
           <Glyph
             aria-hidden
-            className="size-4 max-h-full max-w-full shrink-0"
+            className={cn(
+              "size-4 max-h-full max-w-full shrink-0",
+              glyphClassName,
+            )}
           />
         </span>
       );
