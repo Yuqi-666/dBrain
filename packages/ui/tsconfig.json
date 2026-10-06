@@ -25,10 +25,10 @@
         "../services/src/*"
       ],
       "@workspace/editor": [
-        "../editor/src"
+        "../editor"
       ],
       "@workspace/editor/*": [
-        "../editor/src/*"
+        "../editor/*"
       ],
       "@workspace/dataview": [
         "../dataview/src"
