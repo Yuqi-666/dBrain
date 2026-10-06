@@ -342,16 +342,22 @@
 
 ### G3 — M3 text 单块 + rich-text 头部
 
-- 状态：**待测**（第 1 轮；自检 + 20/20 真浏览器探针全绿）
-- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）
+- 状态：**待测**（第 1 轮；自检 + 23/23 真浏览器探针全绿。交付后首轮实测报的一次运行时崩溃已归因到**未进提交的在飞构建**，并顺手堵掉一个真回归，见下）
+- 提交：`e5ef141`（editor 单块：受限单块编辑器 + 只读渲染器 + SCSS）→ `8cc8d36`（text 内容换芯 + 共享写者 `patchNode`）→ `8ea92e2`（rich-text 头部挂载 + `editor-header` 收口）→ `f4e7357`（text 编辑器按 `node.id` 重挂载 + 防抖写跟随被编辑的节点）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅
   - **lint diff**：**0 新增 / 2 消失** ✅ —— `@workspace/ui` 28 → 26 problems（旧 `rich-text-node-content.tsx` 的 `cn` 与 `className` 两个 `no-unused-vars` 随重写消失，`pnpm eslint --stdin` 对 HEAD 版本复现过），`@workspace/editor` 仍是 **106 problems (67 errors, 39 warnings)** 与基线同数、**M3 新文件零 error**；基线已按脚本提示重采（`--accept`），所以现在两段都是 `0 新增 / 0 消失`
   - **越界检查**：`git status --short` 全程只有 §M3.1 白名单内的文件 + `use-node-content-writer.ts`（登记见下）；`backend/**`、`packages/interfaces`、`pb/**`、`preview-block/**`、`apps/**`、`package.json`/lockfile 均未触碰；**零新依赖**
   - **`globals.css` 的 `@source` 未改**：M3.1 第 8 行是「按需」项，落码后按 §M3.2-3 的结论把 Tailwind 类全部放在 `packages/ui` 侧（禅意容器在 `text-node-content.tsx`），`packages/editor` 侧只有结构 + 自己的 SCSS ⇒ 该行**未触发**。已实测域名侧编译产物里有 `max-w-\[42rem\]`（`packages_ui_src_styles_globals_css_*.single.css`），且新 SCSS 被 dev server 编成独立 chunk
   - **白名单登记（§M3.1 表格漏列的一行）**：`use-node-content-writer.ts` 是 M1 的交付文件，M3 必须扩它才能满足 §M3.2-10「`patchNode` 与 `useNodeContentWriter` 共用同一个 drain」——第 6 行的描述点明了这件事，但白名单只列了 `rich-text-node-content.tsx`。改动是**纯增量**：`+patchNode(top-level patch)`、`+` 写前 `cancelPendingUpdate(nodeId)`（被 debounce 的旧 payload 是本次写入的严格子集，留着它只会在稍后把新值覆盖回旧副本），`patchContent` 的语义逐字不变，database / collection 两个既有宿主零改动
-- 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)。**按实测调整 8 处**（开头前置说明），其中两条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面。
-- **主 agent 预跑证据（真浏览器探针 20/20）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真组件**（`TextNodeContent` / `NodeContentHeader` / `SingleBlockRenderer` / `useNodeContentWriter` + 真模态 `Dialog`）+ **真编译 CSS**（dev server 编出的 Tailwind globals + 新的 single-block SCSS 两份产物拼起来），数据层换成行为等价的 stub（`upsert` 乐观同步落 store、网络调用是 await、单次 25ms），所有输入都是 CDP 的**受信任**事件：
+- **交付后首轮实测报的崩溃：归因 + 顺手抓到的真回归**（`f4e7357`）：
+  - **现场**：用户实测时报 `TypeError: undefined is not an object (evaluating 'initialDoc.current')`，栈顶 `TextNodeContent (text-node-content.tsx:99:11)`。
+  - **归因（不是当前代码的错）**：dev server 日志的页面加载在 `03:07:34`（= 本地 **21:57:18**，日志时钟 = 本地 − 18:49:44，已用进程启动时间 18:49:43 校准），而 M3 最终构建落在 **22:05:53**；`packages_ui_src_components_dialog_bad17e46._.js` 的 chunk 名是**按模块图取的、不随内容变**，21:56 那份被 22:05 就地覆盖 ⇒ 21:57 打开的标签页内存里留着**中间态**模块。当前工作树、服务端当前产物（graph 路由的 `page_client-reference-manifest.js` → `bad17e46`，其内容与 SSR 侧 `ef222363`）里都**不存在** `initialDoc.current`（全仓 grep 只有日志里那一行）。Next 的 overlay 读的是**当前**源码映射，所以它的代码框显示的是修好后的 99 行 —— 这一点不要用来判断"哪个版本在跑"。
+  - **顺手堵掉的真回归（M3 引入、M2 没有）**：`node-content-editor.tsx` **不按 `node.id` 挂载**（该文件被 §M3.5-5 冻结），而侧栏「关系」页签在对话框打开时直接改 `currentEditingNodeId`（`attributes-sidebar.tsx:519`）⇒ text→text 切换时：① 单块编辑器是无控的、种子只读一次，**会继续显示上一个节点的正文**；② 为旧节点武装的 400ms 防抖会经**新节点**的写者落到新节点（串数据）。M2 的 `<Textarea>` 是受控的，跟着 `node` prop 走，所以这是 M3 的回归。
+  - **修法（只在白名单文件里）**：编辑器在宿主内 `key={node.id}` 重挂载（种子每挂载读一次 ⇒ 渲染期不再读 ref，改用 lazy `useState` 的等价形态）；待写内容与「它属于哪个写者」一起入队，flush 用当时捕获的 `patchContent` —— 于是旧节点的待写内容只会写回旧节点。rich-text 那一侧 M3 未改（M2 就是 `room={node.id}` + `getInitialContent`），同名风险登记为遗留 6。
+  - **复跑**：探针 23/23（新增 ⑲⑳㉑ 覆盖切换路径 + 反向对照，原「无未捕获报错」改为 ㉒）；`baseline.sh` 仍 **0 新增 / 0 消失**。
+- 用户操作清单：见 [node-content-ui.md §M3.4](./node-content-ui.md#m34-闸门-g3--用户操作清单)。**按实测调整 9 处**（开头前置说明），其中三条要特别看：① 第 1 条的现场与设计文档假设不同（seed 的 text 节点 `docs` 是未识别形状 ⇒ 打开是空块 + 占位文案，不是 bug）；② 第 6 条除判定方案 A 之外，请顺带判「rich-text 的 **title** 要不要也一起收口」——本轮只收了图标/封面；③ 第 1 条之前**必须整页刷新**（标签页可能还停在 21:5x 的中间构建上，见上）。
+- **主 agent 预跑证据（真浏览器探针 23/23）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真组件**（`TextNodeContent` / `NodeContentHeader` / `SingleBlockRenderer` / `useNodeContentWriter` + 真模态 `Dialog`）+ **真编译 CSS**（dev server 编出的 Tailwind globals + 新的 single-block SCSS 两份产物拼起来），数据层换成行为等价的 stub（`upsert` 乐观同步落 store、网络调用是 await、单次 25ms），所有输入都是 CDP 的**受信任**事件：
   ```
   ✓ ① 探针页挂载（真 TextNodeContent / Header / Renderer / Writer + 真 CSS）
   ✓ ② 禅意排版落在 ui 侧：text-align=center、font-size=24px(text-2xl)、max-width=672px(42rem)、padding-top=64px(py-16)
@@ -371,10 +377,14 @@
   ✓ ⑮ 同一 tick 的 patchContent + patchNode 合并成**一次** upsert：{content:{docs:{v:1}}, title:"T1"}
   ✓ ⑯ 连续写串行化：4 次写、任一时刻在飞请求数 = 1、无时间重叠（PB 同记录会互相 abort 的根因面）
   ✓ ⑰ 顶层 patch 也走同一队列并落进 store（最后一次 title = "T2"）
+  ✓ ⑲ 切到另一个 text 节点后编辑器换种子：DOM 文本 = 新节点的「第二个节点的正文」，不含刚在旧节点输入的「甲」
+  ✓ ⑳ 旧节点的待写内容落回旧节点：切换到新节点后，防抖把「甲」写进 probe-text（旧），probe-text-2 的 upsert 数为 0
+  ✓ ㉑ 反向对照：切过去并点进新编辑器后输入「丙」确实写进 probe-text-2，且旧节点 payload 里没有「丙」（⑳ 不是空过）
   ✓ ⑱ 卸载 flush：防抖窗口（400ms）内卸载编辑器，最后一次输入「末」仍落库
-  ✓ ⑲ 无未捕获报错
+  ✓ ㉒ 无未捕获报错
   ```
-- 用户实测结果：（待填 —— 清单 12 条）
+- 探针脚本的复跑口径：`node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
+- 用户实测结果：（待填 —— 清单 13 条）
 - 失败项与归因：（待填）
 - 迭代：——
 - 遗留不阻塞项（初步，G3 通过后定稿）：
@@ -383,6 +393,7 @@
   3. **Esc 被 ProseMirror 的 keymap 消费（preventDefault）**：无用户可见后果（Dialog 照常关，探针 ⑨），但 §M3.2「编辑器不消费 Esc」的措辞按实测应改成「不 stopPropagation」。原因未追到具体 binding（Tiptap / PM 的源码里都没有 `"Escape"` 字面量），登记为已知事实。
   4. **`@tiptap/starter-kit` 仍是 `packages/editor` 的 devDependency 却被运行时 import**：M3 沿用既有形态（`notion-like-editor.tsx:10` 早就如此），未动 manifest（动它要碰 lockfile，属主 agent 独占面）。是否提升为 `dependencies` 待定。
   5. **`@tiptap/static-renderer` 未安装**：只读渲染用 `@tiptap/core` 的 `generateHTML`（3.22.4 已导出），符合 §M3.2-4；上游若把 static renderer 变成必需包，届时按 §5 账本增依赖。
+  6. **内容宿主仍不按 `node.id` 挂载**：`f4e7357` 只在 `text-node-content.tsx` 内部用 `key={node.id}` 修掉 text→text；`node-content-editor.tsx` 本身没 key（§M3.5-5 冻结了该文件的路由），所以「对话框原地换节点」这条路上，其他宿主（rich-text 的正文靠 `NotionEditor` 自己的 `room` 变化，M2 形态、M3 未改；database / collection 的 `DataViewRoot` 靠宿主自己带 key）仍各有各的假设。要不要在 `node-content-editor.tsx` 统一加 `key={node.id}`（一行、不改路由）请 G3 一并判——本轮不动它，以免扩大白名单。
 - 用户结论：（待填）
 
 ---

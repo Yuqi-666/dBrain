@@ -1,6 +1,6 @@
 # node-content UI 执行计划（M2 / M3）
 
-> 状态：**M2 已过 G2（2026-10-06 · 第 3 轮）**；**M3 已实现、待 G3 实测**（提交 `e5ef141` / `8cc8d36` / `8ea92e2`，自检与 20/20 真浏览器探针见 [gates.md §5 G3](./gates.md)）
+> 状态：**M2 已过 G2（2026-10-06 · 第 3 轮）**；**M3 已实现、待 G3 实测**（提交 `e5ef141` / `8cc8d36` / `8ea92e2` / `f4e7357`，自检与 23/23 真浏览器探针见 [gates.md §5 G3](./gates.md)；首轮实测报的 `initialDoc.current` 崩溃已归因到标签页里的中间构建，并顺手修掉「对话框原地换节点」的回归）
 > 覆盖：M2 = 图标与封面（selectors P0 UI + P1 + node-content P0 的 `file-drop-zone` + 重排 R1/R4）；M3 = text 单 block（禅意）+ rich-text 头部挂载（node-content P1）
 > 闸门：G2、G3（各自独立过闸；可与 W0 的 G4 共用一次用户会话，但结果**分别记录、分别判定**，总纲 §6.4）
 > 契约：设计文档 [../node-content/selectors.md](../node-content/selectors.md)（下称「sel §n」）、[../node-content/README.md](../node-content/README.md)（下称「nc §n」）、执行总纲 [./README.md](./README.md)（下称「总纲 §n」）
@@ -196,6 +196,7 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 > 6. **第 9 条**：全屏入口是编辑器头部最左的 `FullscreenButton`（`mainViewType === "editor"`）。
 > 7. **第 12 条**：`bash docs/plan/baseline.sh` 的判据是两段 diff；本轮基线已重采（见 gates.md G3），预期 **0 新增 / 0 消失**。
 > 8. **已知偏差（不算失败）**：① 只读渲染器 `SingleBlockRenderer` 已落地但没有消费方——预览浮层的文本预览用自己的 `text-preview.tsx`（M3 不碰 `preview-block/**`，`§M3.2-9`），该组件留给后续只读展示路径；② 触摸端没有 hover，封面入口只有「有封面 → 点封面 / 无封面 → 点按钮」两种形态。
+> 9. **交付后首轮实测报过一次 `initialDoc.current` 崩溃（已修，清单不受影响）**：那次崩溃来自**你标签页里 21:5x 的中间构建**（dev server 的 chunk 名按模块图取、21:56 那份被 22:05 的最终构建就地覆盖，页面在 22:05 之前加载就留着旧模块），当前代码与服务端产物里都没有那个表达式。**所以第 1 条之前请整页刷新一次**（普通刷新即可，chunk 是 `no-store`；域名下 HMR 不通，站点内跳转不算）。排查时还顺手发现并修掉一个真回归：对话框不按 `node.id` 重挂载，而侧栏「关系」页签能在对话框打开时把同一个对话框指向另一个节点 ⇒ text→text 切换会显示上一个节点的正文、且防抖会把旧节点的内容写进新节点（提交 `f4e7357`，探针 ⑲⑳㉑ 覆盖）。这就是第 13 条的来历。
 
 | #   | 用户做什么（具体入口）                                                                                                         | 期望                                                                                                     | 判据或证据                                                                                                                              | 失败先看哪                                                                        |
 | --- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -211,6 +212,7 @@ M1 改了 `node.ts` / `node-command.service.ts` / `node.mapper.ts` / `file-drop-
 | 10  | 在单块编辑器里粘贴两行文本；按 `Esc`                                                                                            | 粘贴被压平成一段（不落 `hardBreak`）；`Esc` 交给 Dialog 关闭编辑器，编辑器自己不消费                        | 操作后 DOM 只有一个 `<p>`；`Esc` 后编辑器关闭                                                                                             | nc §1.1 的交互表；`handleKeyDown` 是否拦了 `Esc`                                  |
 | 11  | 回归：双击一个 image / database 节点                                                                                            | 它们的 node-content 与改动前一致（M3 只动 text 与 rich-text）                                             | 逐项操作；PB 数据无变化                                                                                                                  | `node-content-editor.tsx:29-62` 的路由是否被改                                    |
 | 12  | 跑三条命令：`pnpm --filter=@workspace/editor lint`、`--filter=@workspace/editor typecheck`、`--filter=@workspace/ui typecheck`（或 `bash docs/plan/baseline.sh`） | 相对 [baseline.md](./baseline.md) **无新增行**；`@workspace/editor` 的 lint 计数不超过 `106 problems (67 errors)`，且 M3 新增文件零 error | 贴三条输出的尾部 + `.baseline-raw` 的 diff                                                                                                | 新文件里的 `any`（editor 不走 `eslint-plugin-only-warn`）；未使用的 import         |
+| 13  | 打开一个 text 节点 → 在右侧「属性」面板切到「关系」页签 → 点列表里的**另一个 text 节点**（对话框不关）；在新正文里输入几个字；再切回第一个节点 | 正文**换成新节点的内容**（不是上一个节点的草稿）；刚输入的字写进**新节点**；切回后旧节点里没有新节点的那几个字 | 两次切换后的截图；PB `nodes` 表两行的 `content` 各是什么                                                                               | `SingleBlockEditor` 的 `key={node.id}`；待写内容是否带着「它属于哪个写者」                   |
 
 ### M3.5 回归面
 
