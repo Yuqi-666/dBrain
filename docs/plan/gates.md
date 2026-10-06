@@ -186,10 +186,11 @@
   - **`agent-browser` 预跑**：未做（无浏览器工具）。替代物是四条**真机探针**（`tsx` 起真 `AppContainer` + 真 PocketBase，不是 mock），全绿 —— 明细见「主 agent 预跑证据」：① 写路径/哨兵 6/6；② **既有 27 条数据的读路径 168/168**（覆盖库里现存的 9 种节点类型，正是 G1 第 3/7 条用户要打开的那批数据）；③ **半边合并 8/8**（拿 `database` / `rich-text` 两条**活**记录做同值写，证明另一半不被抹除，且落库快照零漂移）；④ **tRPC 路由层 24/24**（`appRouter.createCaller` 直打浏览器真正走的那条链：`protectedProcedure` 鉴权 + zod 白名单 + command service + PB 落库，跑完把两条探针节点原样恢复）。
   - **G1 第 3 条因此提前拿到硬证据**：`nodeQueryService.listByWorkspace` → `NodeMapper.toDomain` → `toNodeDTO` 对现有 `image ×6 / audio ×4 / website ×4 / text ×4 / pdf ×3 / video ×3 / database ×1 / rich-text ×1 / webpage ×1` 全部无抛错、无 `null` 哨兵泄漏、`getById` 与 `list` 逐字段一致（时间戳除外，见遗留 2）。
   - **G1 第 4/5/8/9/10 条也提前在「浏览器真正走的层」验过**：`node.update` 的 content 是 `z.any()`（不是会剥键的 `z.object`）⇒ 批注/笔记半边合并、`icon: null` 哨兵、非法 icon 被拒，全部在 router 层成立；`getById` / `listByWorkspace` 的输出也没有被剥键。
-- 用户操作清单：见 [spine.md §M1.4](./spine.md#m14-闸门-g1--用户操作清单)。**按实测调整三处**：
+- 用户操作清单：见 [spine.md §M1.4](./spine.md#m14-闸门-g1--用户操作清单)。**按实测调整四处**：
   1. 第 1/2 条**已经由主 agent 代跑并留证**（迁移已应用、四列已在）；你只需在 PB 后台复核一眼。
   2. 第 3/8/9 条**不要用 text 节点**：库里的 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞在 `content` 的**字符串**里，打开会显示 `{` —— 这是 seeder 的形状，不是 M1 引入的；M3 的 `normalizeDoc` 才会修它。请改用 **image / audio / pdf** 节点（它们的数据是好的）。
   3. 第 4/5/8/9 条的「既有节点」直接用主 agent 造的两条探针节点（在你的工作区里，标题以 `M1 自检 ·` 开头，可删）：`M1 自检 · image（可删）` 已经带了一层 `annotations`，`M1 自检 · audio（可删）` 已经带了一条 `timestampNotes`。
+  4. 第 7 条的 **collection 半条跳过**：实测库里没有 `collection` 节点（只有 1 个 `database`：`Component Inventory`），「切两个视图」没有现场对象；database 那半条照验。探针 #3 已在后端侧代跑过这条的写路径。
 - 主 agent 端到端预跑证据（`apps/server/src/__m1-probe.ts`，跑完即删；真 `AppContainer` + 真 PocketBase，不是 mock）：
   ```
   1) createNode(image) → DTO icon/cover = {"icon":{"kind":"emoji","value":"🧠"},"cover":{"kind":"image","url":"…"}}

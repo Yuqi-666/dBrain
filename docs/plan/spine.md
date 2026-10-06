@@ -262,8 +262,10 @@ selectors.md §7 的写回表写的是「移除 → `upsert(id, { icon: undefine
 
 > ① 主 agent 已起好 `pnpm dev:full`（PB `:8090` / web `:3000` / tRPC `:3001`），迁移已应用；PB 后台走 **`https://dev.yuqi-666.cn/pb/_/`**（`admin@dbrain.dev`，密码在 gitignored 的 `pb/pb_data/.superuser-credentials.txt`）——**不要用 `127.0.0.1:8090`**，那是这台机器的回环，不在你的浏览器那侧。
 > ② 主 agent 造了两条探针节点，标题以 `M1 自检 ·` 开头（在你的工作区，**可随时删**）：`M1 自检 · image（可删）` 带 `annotations` + 一个 emoji `icon`（第 10 条跑完已被清成 `null`）+ 一个 `cover`；`M1 自检 · audio（可删）` 带 `timestampNotes`。第 4/5/8/9/10 条可以直接拿它们当现场。
-> ③ **别用 text 节点验第 3 条**：库里那 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞进 `content` 的**字符串**里，界面会显示 `{` —— 那是 seeder 的形状问题（不是 M1 的回归；M3 的 `normalizeDoc` 才会修它）。image / audio / pdf / video / database / collection 的数据是好的。
+> ③ **别用 text 节点验第 3 条**：库里那 25 条是 `packages/dev` 的演示数据，其中 `text` 节点的 `docs` 是 `null`、正文被 seeder 塞进 `content` 的**字符串**里，界面会显示 `{` —— 那是 seeder 的形状问题（不是 M1 的回归；M3 的 `normalizeDoc` 才会修它）。image / audio / pdf / video / database 的数据是好的。
 > ④ G1 不验「批注长什么样」「图标显示成什么样」——那两件事 M5 / M2 才有 UI。第 4、5 条只用 PB 后台验**写路径确实落库**，可见性留到各自章节的闸门；第 10 条同理，只验哨兵在**服务端**真的生效，UI 上的「移除」按钮是 G2 第 7 条。
+> ⑤ **第 7 条的 collection 半条跳过**：实测库里**没有 `collection` 节点**（演示数据里只有 1 个 `database`：`Component Inventory`，另有 rich-text / webpage / website 各若干），所以「切两个视图」这一子项没有现场对象；database 那半条（表格改单元格）照验即可。要留现场就自己新建一个 collection 节点，但**非必需**。
+
 
 ### M1.5 回归面
 
