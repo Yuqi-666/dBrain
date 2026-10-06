@@ -23,10 +23,11 @@
 | G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 待测 | 3    | 2026-10-06 | 见 §5 |
+| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
+| G5.1 | M5.1 image 照片编辑        | [image-editor.md](./image-editor.md)       | 未开工 | —    | —    | —    |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -46,6 +47,7 @@
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
 | W5   | M6        | 主 agent 冻结 `media/types.ts`（`MediaController` / `TimestampNoteMarks` / `formatTimeMs`） | 未开启   |
+| W6   | M5.1      | 主 agent 冻结 `ImageEditRecipe` / `image-editor/types.ts` / `recipe.ts`+`bake.ts`+`encode.ts` 签名，并跑通 `1700000002` 迁移 | 未开启   |
 
 **W1 的四路白名单与「相交面为空」的依据**（owner 均为子 agent，主 agent 只持有冻结面）：
 
@@ -104,6 +106,7 @@
 | G3   | [node-content-ui.md](./node-content-ui.md)                           | text 旧形状惰性升级 + 头部与正文不互相覆盖                     |
 | G4   | [dynamic-island.md](./dynamic-island.md)                             | 形变可打断 / 原点从底部 / `prefers-reduced-motion` 降级        |
 | G5   | [annotation.md](./annotation.md)                                     | **真机笔测试**是主闸门；第一步先实测 `http://localhost:3000` 能否从平板访问（R23：同 netns 下它就是 secure context） |
+| G5.1 | [image-editor.md](./image-editor.md)                                 | 贴边裁剪的「预览 = 保存结果」+ 原图永不覆盖（PB 后台看 `files` 与 `imageEdits`）+ 有批注时裁剪的坐标随动（第 9 条） |
 | G6   | [media.md](./media.md)                                               | 时间戳跳转 ±0.5s + HLS 时间轴偏移 + 并发写者不互相抹除         |
 | G7   | [annotation.md](./annotation.md)                                     | 第 3 页的圈在缩放/翻页/旋转后仍贴合 + worker 不 404 + iframe 降级 |
 | G8   | [dynamic-island.md](./dynamic-island.md)                             | `isFocus` 语义与今天一致 + 触摸端点击触发                      |
@@ -266,7 +269,7 @@
 
 ### G2 — M2 图标与封面
 
-- 状态：**待测**（第 2 轮；第 1 轮实测报 3 条 → 已按 **G2-r1** 回改并重跑自检）
+- 状态：**通过**（第 3 轮；第 1 轮实测报 3 条 → **G2-r1** 回改；第 2 轮报 2 条 → **G2-r2** 回改并做真浏览器探针 13/13；第 3 轮用户回复「G2 全通过」）
 - 提交：`17ab977`（主 agent 冻结：`NodeIconViewProps` / `media/**` 五原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody` / `NODE_TYPE_ICONS` 单一真源）→ `f4801bd`（§M2.3-3 preview-block 抽取）→ `18fbcfc`（§M2.3-2 file-drop-zone 变体 + R4 半边合并）→ `a3dc123`（§M2.3-1 node-media 骨架 + `IconSelectorPopover`）→ `92229f7`（§M2.3-4 `CoverSelectorPopover` + 编辑器头部两按钮）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → **0 新增 / 0 消失** ✅；`pnpm --filter=@workspace/ui typecheck` = **76 error**，与基线同数，且全部仍落在 `../editor/**`（非 editor 命中 **0**）。
@@ -329,7 +332,7 @@
   探针同时验证了 `container` 改动**没有破坏定位**：弹层仍紧贴触发器（截图与坐标都对得上）。`bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**。
 - **波及面登记（由 opt-in 限制住，第 3 轮顺带瞄一眼）**：`container` 是**显式**透传，只有 `MediaPopoverShell` 传了它，其余 ~20 个 `PopoverContent` 消费方仍是 `document.body` portal、行为与本轮之前逐字一致 ⇒ §M2.5-6 要求的「20 个既有消费方不受影响」成立。**已知遗留**：那些弹层在模态对话框里**同样滚不动**（同一类 shard 限制，`dataview` 的字段 / 筛选面板就在这一批），哪天需要滚动就照 `MediaPopoverShell` 的样子 opt-in —— 已记入遗留项 7。另外注意 `MediaGrid` 的 `CommandItem` 现在落在 `[data-slot=dialog-content]` 之内，`command.tsx` 的 `in-data-[slot=dialog-content]:rounded-lg!` 会命中它（单元格圆角从 `rounded-md` 变 `rounded-lg`，探针截图已确认视觉正常）。
 - 失败项与归因：第 1 轮 3 条见上表（骨架滚动契约 / 合并约定 / 设计口径）；第 2 轮 2 条见上表，其中滚动的第二半是**框架层**根因（Radix Dialog 的 `react-remove-scroll` shard），不是某个组件的实现疏漏。W1 四路已在首轮交付并关闭，回改由主 agent 直接做，不需要重开窗口。
-- 迭代：**第 3 轮待测**（清单第 1、5、6、7 条含 G2-r1/r2 的新增判据）
+- 迭代：**第 3 轮实测通过**（清单第 1、5、6、7 条含 G2-r1/r2 的新增判据；用户 2026-10-06 回复「G2全通过」）
 - 遗留不阻塞项：
   1. **分类条 / 每分类 `CommandGroup` 未做**：设计文档 §2 的骨架图底部画了分类条，但本计划的 W1-D 验收条款与 G2 的 13 条都不含它；当前是扁平网格 + 把类名并入 `keywords`（搜「食物」仍命中）。要与骨架图完全一致需扩 `MediaGrid`（新增一条 `CommandGroup` + 滚动锚），由后续章节或用户反馈决定。
   2. **`MediaGrid` 的 `aria-selected` 由 cmdk 掌握**，无法与 roving 焦点同步（cmdk 未暴露 setter）。可见的焦点环与 `data-media-active` 高亮跟 roving 走，G2 第 11 条只判 tab 遍历与「不是 300 个 tab stop」，不受影响。要彻底同步得放弃 cmdk 过滤或给 shell 加受控 `value`。
@@ -338,7 +341,7 @@
   5. **`listNodes(query)` 只被调用一次（空串）**：`从节点选` 的首屏由宿主给最近节点、过滤交给 `Command`；逐键回源查询需要 shell 暴露搜索串（`media-popover-shell.tsx` 拥有那个 `Command`），标为 P2。
   6. **最近使用 `dbrain:icon-recent` 未做**（sel §5 标 P2），仅在文件 JSDoc 留了落点。
   7. **其余弹层在模态对话框里仍滚不动**：`react-remove-scroll` 只放行落在 Radix Dialog shard 内的事件，任何仍 portal 到 `document.body` 的 `PopoverContent`（dataview 的字段 / 筛选面板、tag-list 等）在窗口模式下都受同一限制。本轮只让**媒体弹层** opt-in（`container` 透传），因为全局改会把 filter / view 对话框里那些弹层从「滚不动」换成「被裁切」。要收掉这条得逐个确认宿主对话框不是滚动容器。
-- 用户结论：**待填（第 3 轮）**
+- 用户结论：**通过**（2026-10-06，用户回复「G2全通过」）。本章 7 条遗留不阻塞项全部转入后续章节，不阻塞 M3 开工。
 
 ---
 
