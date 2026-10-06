@@ -40,7 +40,10 @@ export function SingleBlockRenderer({ doc, className }: SingleBlockRendererProps
       type: "doc",
       content: [{ type: "paragraph" }],
     };
-    return generateHTML(content, createSingleBlockExtensions());
+    // `static: true` swaps the formula node view for KaTeX HTML — `generateHTML`
+    // cannot mount node views, and the editable `latexInline` renders an empty
+    // span that only its node view fills.
+    return generateHTML(content, createSingleBlockExtensions({ static: true }));
   }, [doc]);
 
   return (

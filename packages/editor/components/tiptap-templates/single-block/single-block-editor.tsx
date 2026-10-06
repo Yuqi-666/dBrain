@@ -21,6 +21,16 @@
  * There is no Yjs collaboration here, so `undoRedo` (disabled in the Notion
  * template because the collaboration extension owns history) stays on.
  *
+ * **The block is one paragraph, not one capability.** Rich text inside that
+ * paragraph is the same as inside a `rich-text` paragraph — the same inline marks,
+ * the same link / colour controls, the same inline formula — which is why
+ * {@link createSingleBlockExtensions} registers the inline half of the Notion
+ * template's extension set and `single-block-toolbar.tsx` assembles the same
+ * `tiptap-ui` controls into a selection bubble (design §1.1 「整块内容是一个居中的、
+ * 字号明显大于正文的富文本块」). What stays out is what a single paragraph cannot
+ * hold: headings / lists / quotes / tables / images / emoji / mentions / block
+ * formulas, the slash menu, the drag handle, AI and comments.
+ *
  * The container styles (centering, type scale, whitespace) belong to the
  * **consumer** (`packages/ui`), per plan §M3.2-3: `packages/editor` is not in the
  * Tailwind `@source` list, so only structure and SCSS live here.
@@ -30,14 +40,19 @@ import type { Extensions, JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
+import { Highlight } from "@tiptap/extension-highlight";
+import { Subscript } from "@tiptap/extension-subscript";
+import { Superscript } from "@tiptap/extension-superscript";
 import { TextAlign } from "@tiptap/extension-text-align";
+import { Color, TextStyle } from "@tiptap/extension-text-style";
+import { Typography } from "@tiptap/extension-typography";
 import { Fragment, Slice } from "@tiptap/pm/model";
 import type { EditorView } from "@tiptap/pm/view";
+import katex from "katex";
 import { useEffect, useMemo, useRef, useState } from "react";
-// Relative, not `@workspace/editor/…`: `packages/ui`'s tsconfig maps that alias to
-// `../editor/src/*` (which does not exist) and therefore reports every such import
-// as an unresolved module (42 of them are already in the regression baseline).
-import { cn } from "../../../lib/tiptap-utils";
+import { LatexInline } from "@workspace/editor/components/tiptap-node/latex-node";
+import { cn } from "@workspace/editor/lib/tiptap-utils";
+import { SingleBlockToolbar } from "./single-block-toolbar";
 import "./single-block-editor.scss";
 
 /**
@@ -55,15 +70,60 @@ const SingleBlockDocument = TiptapNode.create({
 });
 
 /**
+ * `LatexInline` with the formula **baked into the HTML**.
+ *
+ * `generateHTML` never mounts React node views, so the editable extension's own
+ * `renderHTML` — an empty `span[data-type="latexInline"]` that only the node view
+ * fills — would render an invisible formula in a read-only surface. KaTeX renders
+ * it at generation time instead. This adds no environment requirement:
+ * `generateHTML` is already DOM-bound (`@tiptap/core`'s `getHTMLFromFragment` uses
+ * `document.implementation`).
+ */
+const StaticLatexInline = LatexInline.extend({
+  renderHTML({ node }) {
+    const latex = String(node.attrs.text ?? "");
+    const span = document.createElement("span");
+    span.className = "single-block-latex";
+    span.setAttribute("data-latex", latex);
+    // KaTeX escapes what it emits; `throwOnError: false` draws invalid TeX in red
+    // instead of throwing in the middle of a render.
+    span.innerHTML = katex.renderToString(latex, { throwOnError: false });
+    return span;
+  },
+});
+
+export interface SingleBlockExtensionOptions {
+  /** Placeholder text; omit it and no `Placeholder` decoration is registered. */
+  placeholder?: string;
+  /**
+   * Static rendering (`SingleBlockRenderer`): node views cannot run, so the
+   * formula is baked to HTML ({@link StaticLatexInline}) instead of mounted.
+   */
+  static?: boolean;
+}
+
+/**
  * The one extension set both the editor and the read-only renderer use.
  *
- * Taste is fixed here on purpose: only inline marks survive (bold / italic /
- * strike / code / underline / link / colour are what `StarterKit` + the text
- * style kit give), every block-level node is off, `hardBreak` is off (soft
- * wrapping is the consumer's `white-space`), and `document` is replaced by
+ * Taste is fixed here on purpose: only inline marks and inline nodes survive
+ * (bold / italic / underline / strike / code / link from `StarterKit`, plus text
+ * colour, highlight, superscript, subscript, typography and the inline formula),
+ * every block-level node is off, `hardBreak` is off (soft wrapping is the
+ * consumer's `white-space`), and `document` is replaced by
  * {@link SingleBlockDocument}.
+ *
+ * The inline half mirrors the Notion template's set (`notion-like-editor.tsx`
+ * `:279-320`) one-for-one where the schema allows it — so a `text` block's `docs`
+ * stays a legal **subset** of a `rich-text` document (design §0.2-1) and the two
+ * editors offer the same affordances for the text they both hold. `latexBlock` is
+ * the one exclusion: it is a `group: "block"` node, and this document is one
+ * paragraph.
  */
-export function createSingleBlockExtensions(placeholder?: string): Extensions {
+export function createSingleBlockExtensions(
+  options: SingleBlockExtensionOptions = {},
+): Extensions {
+  const { placeholder, static: isStatic = false } = options;
+
   const extensions: Extensions = [
     StarterKit.configure({
       document: false,
@@ -83,6 +143,14 @@ export function createSingleBlockExtensions(placeholder?: string): Extensions {
     }),
     SingleBlockDocument,
     TextAlign.configure({ types: ["paragraph"] }),
+    // --- inline capability, shared with rich-text ---
+    TextStyle,
+    Color,
+    Highlight.configure({ multicolor: true }),
+    Superscript,
+    Subscript,
+    Typography,
+    isStatic ? StaticLatexInline : LatexInline,
   ];
 
   if (placeholder !== undefined) {
@@ -167,6 +235,11 @@ export interface SingleBlockEditorProps {
  * The single-block editor. Uncontrolled by design: it takes the stored document
  * once (the caller remounts it with `key` when the node changes) and reports every
  * new document through `onContentChange`.
+ *
+ * The selection bubble ({@link SingleBlockToolbar}) is a child of `EditorContent`,
+ * exactly like the Notion template's floating toolbar: it has to live inside the
+ * editor wrapper for `isElementWithinEditor` to treat clicks on it as "inside the
+ * editor" (they must not dismiss it).
  */
 export function SingleBlockEditor({
   initialContent,
@@ -183,7 +256,7 @@ export function SingleBlockEditor({
   }, [onContentChange]);
 
   const extensions = useMemo(
-    () => createSingleBlockExtensions(placeholder),
+    () => createSingleBlockExtensions({ placeholder }),
     [placeholder],
   );
 
@@ -222,7 +295,9 @@ export function SingleBlockEditor({
       <EditorContent
         editor={editor}
         className="single-block-editor-content"
-      />
+      >
+        <SingleBlockToolbar editor={editor} />
+      </EditorContent>
     </div>
   );
 }
