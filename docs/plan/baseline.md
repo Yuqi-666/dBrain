@@ -94,6 +94,6 @@
 | 采集时间          | 2026-10-06（初采 @ `907521f`；**M0 落地后重采 @ `ac6a0f0`**）    |
 | 分支 / HEAD       | `develop` @ `ac6a0f0`                                           |
 | node / pnpm / turbo | v24.15.0 / 9.0.0 / 2.9.6                                      |
-| PocketBase        | `pb/pocketbase`（31 MB 二进制）；`pb/pb_data/` 已存在（`data.db` 372 KB，**有真实数据，不得删**） |
+| PocketBase        | `pb/pocketbase`（31 MB 二进制）；`pb/pb_data/` 已存在 —— **但库是空的**：`nodes`/`users`/`workspaces`/`edges` 全 0 行（M0 直读 sqlite 实测）。superuser 安装已于 M0 用 CLI 完成（`admin@dbrain.dev`，密码见 gitignored 的 `pb/pb_data/.superuser-credentials.txt`） |
 | 迁移现状          | `pb/pb_data/data.db` 的 `_migrations` 只有 `1700000000_initial_schema.js`（另 8 条是 PB 自带迁移）；M1 之后应多一条 `1700000001_node_extras.js` |
 | dev server        | 初采时 3000 / 3001 / 8090 均未监听；M0 重采时三者均在监听（`pnpm dev:full`） |

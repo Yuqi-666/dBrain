@@ -151,7 +151,9 @@
 
 ## 4. 迁移编号账本
 
-现状：`pb/pb_migrations/` 只有 `1700000000_initial_schema.js`；`pb/pb_data/` 已存在（`data.db` 有真实节点数据）。PocketBase **只按文件名去重**，改 0 号脚本对既有库无效（[1700000000_initial_schema.js:170-176](../../pb/pb_migrations/1700000000_initial_schema.js)）。
+现状：`pb/pb_migrations/` 只有 `1700000000_initial_schema.js`；`pb/pb_data/` 已存在。PocketBase **只按文件名去重**，改 0 号脚本对既有库无效（[1700000000_initial_schema.js:170-176](../../pb/pb_migrations/1700000000_initial_schema.js)）。
+
+> **M0 实测更正（2026-10-06）：`pb/pb_data/data.db` 里没有真实数据。** 直读 sqlite：`nodes` / `users` / `workspaces` / `workspace_members` / `edges` **全部 0 行**；`nodes` 集合已有 32 个字段（含 `views`/`fields`/`rows`/`filterConfig`）但无记录。初稿「有真实数据，删库会毁掉回归面」的**前提不成立**，删库的代价只有「重建 schema + 重新初始化 PB」。本轮仍**不删库**，理由改为下面第 1 条。另：PB 的超级管理员安装**从未完成**（`_superusers` 里只有 PocketBase 自己的 `__pbinstaller@example.com` 占位账号，带一个已打印到终端的 install token）——M0 已用 `pocketbase superuser upsert` 完成安装并删掉占位账号，账号 `admin@dbrain.dev`，密码落在 gitignored 的 `pb/pb_data/.superuser-credentials.txt`。
 
 本轮**只新增两个**迁移文件：
 
@@ -162,7 +164,7 @@
 
 三条硬规矩：
 
-1. **不得改 `1700000000_initial_schema.js`。** 设计文档里 selectors.md §8 留了「或改 0 号 + 删 `pb_data`」这个选项 —— **本轮不采用**：既有 `data.db` 有真实数据，删库会同时毁掉 M2–M7 的回归面。
+1. **不得改 `1700000000_initial_schema.js`。** 设计文档里 selectors.md §8 留了「或改 0 号 + 删 `pb_data`」这个选项 —— **本轮不采用**。初稿理由是「既有 `data.db` 有真实数据」，该前提已被 M0 实测推翻（见上）；现在的理由是：① 空库上「改 0 号 + 删库」与「新增迁移」得到的 schema **等价**，而后者对将来任何有数据的库都正确，没有理由选更脆的那条；② 删库会连带清掉刚装好的 superuser 与 workspace，每次都要重新初始化；③ 新增迁移在空库上跑一次就等于验证了迁移本身，正好是 G1 第 1/2 条的验收对象。
 2. **新列一律可选、不设 required；mapper 缺列读作 `undefined`**（照 `views` 的既有写法），旧记录天然读作空。
 3. **`down` 必须真能跑**（PB 0.40 的 `FieldsList` 只有 `removeById` / `removeByName`，见 [types.d.ts:12473](../../pb/pb_data/types.d.ts)）；迁移里禁止用 `new TextField(...)` 之类的具体字段构造器（0 号脚本 `:209-210` 记录了 `FileField` 被静默丢弃的坑），统一 `new Field({ name, type: "json" })` —— 已核实 `Field` 的签名是 `constructor(data?: Partial<core.Field>)`，且 `core.Field` 带 `[key:string]: any`（[types.d.ts:441](../../pb/pb_data/types.d.ts)、[:10129](../../pb/pb_data/types.d.ts)），null 号脚本 §4.5 的「待验证」由此**结案**。
 
@@ -289,7 +291,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | R20 | 「M7 承担 toolbar 工具扩展 + `annotation-text-layer.tsx`」作为口径澄清                                   | 设计 §6 把「toolbar 扩展到荧光笔/套索/文本/箭头/形状」放在 P1（即 M7），而总纲 §1 的 M5 行没点名工具集范围                                                                 | annotation §6（P1 行）、annotation §9             |
 | R21 | W2 的装配点 owner 定为**主 agent**；`geometry.ts` 的「冻结」**只对 W2 期间有效**，G5 通过后解冻给 M7        | ① W2 三条线都要消费宿主契约（`items`/`onItemsChange`/`tool`/`getBaseRect()`），必须有唯一 owner 才谈得上「先冻结再派发」；② 若把冻结理解成跨章永久，就与设计 §6「P1 的反向改写」直接冲突                                | annotation §6、本 README §3.2                     |
 | R22 | `readOnly` 时隐藏批注 toolbar 的**链路本轮不建、G5 不测**                                                | `node-content-editor.tsx:26-34` 只传 `node` + `className`，宿主没有可传的 `readOnly`；只保留可选 prop 并记为后续                                                              | annotation §2.4                                   |
-| R23 | G5 的 secure context 结论：**用 `http://localhost:3000` 从平板访问**，不做 https                         | 容器与安卓同网络命名空间（容器 netns = 初始 netns；可见 `wlan0 10.21.239.179` / `vgate0`），平板上的 `localhost` 就是同一个监听，而 localhost 是浏览器**引擎级**可信源 ⇒ 天然 secure context。佐证：仓库自己的 PB baseUrl 也硬编码 localhost（`apps/web/app/providers.tsx:15`）。`next dev --experimental-https` 因本机无 `mkcert` 排除。**须在 G5 第一步实测确认** | annotation §8.2（原文按「非 secure context」给出告警） |
+| R23 | G5 的 secure context 结论：**用 `http://localhost:3000` 从平板访问**，不做 https                         | 容器与安卓同网络命名空间（容器 netns = 初始 netns；可见 `wlan0 10.21.239.179` / `vgate0`），平板上的 `localhost` 就是同一个监听，而 localhost 是浏览器**引擎级**可信源 ⇒ 天然 secure context。佐证：仓库自己的 PB baseUrl 也硬编码 localhost（`apps/web/app/providers.tsx:15`）。`next dev --experimental-https` 因本机无 `mkcert` 排除。**须在 G5 第一步实测确认**。**M0 补注（2026-10-06）：这条推理有问题，G5 前必须先解决。** 平板的 `localhost` 是**平板自己**，不是这台机器（容器 netns 只影响本机的 `localhost`，管不到另一台设备的解析）。而应用**浏览器侧的两个后端地址都是硬编码**：`ws://localhost:3001`（[client.ts:32](../../packages/api-client/src/trpc/client.ts)）与 `http://localhost:8090`（[providers.tsx:15](../../apps/web/app/providers.tsx)）。⇒ 从任何**别的**设备打开 `http://<本机地址>:3000` 只会得到一个连不上后端的外壳；唯二出路是「在客户端设备上做 SSH 本地转发」或「把这两个地址改成跟随 `window.location.hostname`」（后者要动 `packages/api-client` + `apps/web`，不在本计划范围内）。见 §10 风险表 | annotation §8.2（原文按「非 secure context」给出告警） |
 | R24 | dashboard P0 的假数据来源 = 当前 workspace 的**前 6 个节点**合成一页（`createPreviewPage`），M11 起被 `listByWorkspace` 取代 | 设计 §7 只写「手写一页假数据」，没说假数据放哪。从 `dataStore.nodes` 合成能让 `resolveNode` 拿到真节点，G10 不必额外造种子数据 —— 代价是**该 workspace 需已有 ≥6 个节点**，已写进 G10 前提 | dashboard §7（P0 行）                             |
 | R25 | `NodeBodyRouter` **单一入口、两张路由表**（`mode: "edit" \| "widget"`），不拆成两个文件                  | 设计 §4.2 给的 `WidgetBody` 是独立 switch，§6 又说抽 `NodeBodyRouter` —— 合并为一个文件的双表，才有「类型路由表只有一个真相源」                                                          | dashboard §4.2、§6                                |
 | R26 | **不做侧边栏 dashboard 导航项**                                                                         | 设计 §10 把它标为「可选」。真读 `main-sidebar.tsx`：唯一路由跳转是 `:1005` 的 `location.href = "/login"`，没有任何指向应用路由的导航项；给它单开一种范式不划算，且该文件是 M4/M9 的地盘 | dashboard §10（修改表）                           |
@@ -310,7 +312,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 
 | 风险                                                                 | 触发条件                                   | 处置                                                                                                     |
 | -------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| 迁移在既有 `pb_data` 上失败（`unknown field`）                        | M1/G1 写第一批新字段                       | 迁移**先跑通再写码**；失败即停，检查 `_migrations` 表与文件名去重；**不许**用「删库重建」绕                        |
+| 迁移在既有 `pb_data` 上失败（`unknown field`）                        | M1/G1 写第一批新字段                       | 迁移**先跑通再写码**；失败即停，检查 `_migrations` 表与文件名去重。**默认仍不用「删库重建」绕**，但注意爆炸半径已比初稿小得多：M0 实测库里 0 条业务数据，最坏代价是重建 schema + 重新 `superuser upsert` 一次 |
 | 属性侧栏抹掉批注/笔记（整包 content 覆盖）                            | M5/M6/M7 在属性侧栏改「内容链接」           | **已由 R13 在 M1 消除**（改用活值 + 半边合并）；G1 第 8/9 条就是它的回归验收。若 G1 时发现改不动，M5/M6/M7 开工前必须先解决 |
 | 真机（一加平板 + 手写笔）不可用，批注手感无法验收                      | M5/G5                                      | 先按 R23 用 `http://localhost:3000` 试（同 netns ⇒ 平板 localhost = 容器监听 = secure context）；仍不行则降级为「DevTools 指针伪造（annotation §8.2 的 getter 覆写）+ 鼠标」，并把 P95 延迟标为「环境受限，未验收」 |
 | `motion` / RGL 与 React 19 + Next 16 打包不兼容                        | M4/G4、M10/G10                             | 每章装完依赖立刻跑一次 `pnpm --filter=web build`，不通过就换方案（岛退回 CSS transition + `linear()`；网格退回自研 + `@dnd-kit`） |
@@ -322,6 +324,7 @@ M0 实测发现两个既有缺陷，**五个设计文档里写的 `pnpm check-ty
 | 子 agent 伪造引用 / 越界改文件                                        | 任意并行窗口                               | §2.4 四步验收，逐条跑，不跳步                                                                             |
 | 后端在 M1 一次做完，改动面大（10 个 entity 子类 + 10 份 `baseProps` + 3 处白名单）导致 review 困难 | M1                                    | M1 内部按「interfaces → domain → application/DTO → infra」四段提交（同一章内的分段提交），每段 `typecheck` 过再进下一段；G1 仍是唯一的用户闸门 |
 | 五份设计文档的「待验证」项在真机/浏览器上被证伪                        | 各闸门                                     | 就地决策 + 登记 §9；不改设计文档正文                                                                      |
+| **浏览器侧后端地址硬编码 `localhost`**（`ws://localhost:3001`、`http://localhost:8090`） | 任何**非本机**浏览器的使用（首次暴露在 M1/G1 的「起服务看一眼」，真正的硬需求是 M5/G5 平板） | M0 实测。两条路：① 客户端设备做 SSH 本地转发 `-L 3000:127.0.0.1:3000 -L 3001:127.0.0.1:3001 -L 8090:127.0.0.1:8090`（零代码改动，推荐）；② 改这两个地址跟随 `window.location.hostname` 并把 PB 绑到非回环（要动 `packages/api-client` + `apps/web`，**不在本计划范围**，需用户单独决策）。G5 之前必须定下来，否则 R23 的降级结论（「用 localhost 就是 secure context」）站不住 |
 
 ---
 
