@@ -90,11 +90,21 @@
 21. **image 宿主的 `getBaseRect` 从 `<img>` 元素自己的盒算 `containRect`**，而不是从外层容器：容器有 `p-4`，而 `<img>` 的盒就是内容盒，`containRect(imgBox, natural)` 就是用户看到的那块图（G5 第 9 条的 letterbox 判据靠它）。
 22. **`<img>` 补了 `h-full w-full`**（原来是一个没有尺寸约束的裸 `<img>` + 外层 `overflow-hidden`，高图会被裁而不是 letterbox）。现在 letterbox 由 `object-contain` 决定，绘制矩形 = `containRect` 的结果 = 批注层的矩形，三者同一份算术。**这是本章唯一改到既有 DOM 契约的地方**（G2/G3 的回归面里 image 不在其中）。
 
+### 5.2b G5 首测后的修复（2026-10-07，同一章，不新开里程碑）
+
+首测回来三条实测缺陷（原话见 [gates.md](./gates.md) 的 G5 条目「用户实测结果」）。三条都落在 M5 自己的白名单里，因此不回炉子章、不动冻结面，只改实现 + 补测试：
+
+23. **测量的分母是 root 自己的 layout 尺寸，不是「1」**（缺陷二，`geometry.ts` 新增纯函数 `toLayerBox`，4 条测试）。`getBoundingClientRect()` 报的是**被祖先 transform 画过**的像素，而 `/graph` 打开节点的 Dialog 自带 `zoom-in-95`（100ms、0.95→1）：落在动画窗口里的第一次测量因此**两轴同时小 ~5%**，而 `ResizeObserver` 看不见 transform ⇒ 这个错误尺寸会一直用到卸载。用户截图实测宽 0.961 / 高 0.961（= 0.95 缩放的平方，两轴等比 ⇒ 确认是缩放而不是别的偏移）。修法：`root.offsetWidth/offsetHeight` 是 layout 像素，`getBoundingClientRect() ÷ offsetWidth` 就是当前累计缩放，把整份测量除以它即回到 canvas 元素被布局的那个空间；canvas 是同一 transform 子树的孩子，因此**动画进行中两者一起被缩放，那一刻起就是准的**。两轴各算各的（`scale(sx, sy)` 也对）；`offsetWidth` 取整，误差 ≤ 0.5px ÷ root 宽度（亚像素）。另补 `transitionend`/`animationend`（capture，且只认 root 自己或它的祖先链）作为非等比/旋转类动画的兜底重测。
+24. **折叠行永远保留「笔 + 橡皮」**（缺陷一）：设计 §2.4 的折叠只吃掉 粗细 / 隐藏批注 / 重做（它们进「更多」）；笔是「当前工具之外那一支」，橡皮选中时把它从行里删掉等于让手指只能靠 `P`/`1` 回去——真机没有键盘。原实现写的是「当前工具 + 橡皮」，已改回固定两支。
+25. **橡皮是「先预览、抬笔才删」**（用户建议三）：`drawAnnotations` 新增 `DrawOptions.ghostIds`，命中「将被擦除」的图元按 `ERASER_GHOST_ALPHA = 0.3` 半透明重放（**保持原 z 序**），`pointerup` 才发一次 remove（§M5.2-17 不变）。这同时修掉一个自检没覆盖的口径偏差：`gesture.tick` 只是 ref，**ref 变化不会触发 render**，所以旧代码里「命中即重放 committed」其实要等 `active` 变化搭便车——现在把缓存重放抽成 `replayCommitted()`，由 `onGestureChange`（**只在橡皮命中新图元时**调用，笔的采样不调）直接调用：既立刻出预览，又不至于每帧重放。
+26. **宿主在 `url` 变化时清空 `natural`**：`node-content-editor` 今天不按 `node.id` 重挂载（§M5.2-18；`key={node.id}` 是 M10 的事），在同一个 Dialog 里从一张图切到另一张图时，旧的 `naturalWidth/Height` 会被拿去算 letterbox，批注区会与图片不匹配（比例不同时更明显）。清空后 `getBaseRect()` 返回 `null` ⇒ 批注层短暂不渲染：一个几帧的空层好过画在错的盒子上。
+
 ### 5.3 提交切分
 
 1. `annotation 契约与依赖：冻结 UI 侧 types/geometry 签名，装 perfect-freehand，补 --annotation-1..6 令牌`
 2. `annotation 绘制与输入：draw 纯函数 + committed/live 双层 canvas + pointer 状态机（笔手分离/pinch 仲裁/断线收笔）`
 3. `image 批注接入：toolbar + 批注层挂进 image-node-content，annotations 半边经共享写者落库并在三处 flush`
+4. `annotation G5 修复：测量回到 layout 空间（toLayerBox）+ 折叠行保留两支工具 + 橡皮半透明预览 + 宿主 natural 随 url 重置`
 
 ### 5.4 闸门 G5 — 用户操作清单
 
@@ -111,6 +121,7 @@
 > 7. **第 2 条（跟手 P95）与第 3 条（笔/手掌手感）只有真机能判**：桌面探针只能证明逻辑面（指针类型分支、断线收笔、撤销重做、归一化、持久化回调），`pointerType`/`pressure` 在桌面是伪造的。真机确实不可用时按总纲 §6.3 把这两条记为「环境受限，未验收」并写进遗留列。
 > 8. **第 9 条的 EXIF 样张**：需要一张手机竖拍（`Orientation=6`）的照片 —— 从相册上传一张即可；「极宽/极高」两张可以用同一条路径造（截图工具拉长）。
 > 9. **第 11 条 = 主 agent 的真浏览器探针 25/25**（见 [gates.md](./gates.md) 的 G5 条目）：真 `<AnnotationLayer />` + 真 Tailwind 产物 + CDP 受信任指针事件，覆盖 letterbox 几何、位置与令牌色、归一化换尺寸、手指/笔分离、`手指=书写` 反向对照、橡皮整笔删除 + 撤销原样恢复、五条收笔路径、dpr 翻倍、隐藏开关、compact 可达性、颜色 Popover、JSON 体积与零异常。
+> 10. **G5 首测后的修复轮（2026-10-07）**：修了三条实测缺陷——① Dialog 形态点橡皮后**笔的按钮消失**（折叠行错删了一支工具）；② **反复打开同一 image 节点时批注区小于图片**（Dialog 的 `zoom-in-95` 被 `getBoundingClientRect` 测进去，`ResizeObserver` 又看不见 transform）；③ 按建议把橡皮改成**先半透明预览、抬笔才擦**。第 13–15 条是这三条的复测项，口径见 §M5.2b；①③ 的机器判据在 [gates.md](./gates.md) 的 G5 条目。
 
 | # | 用户做什么（必须含具体入口） | 期望 | 判据或证据 | 失败先看哪 |
 | --- | --- | --- | --- | --- |
@@ -126,6 +137,9 @@
 | 10 | **桌面**：浏览器缩放 50% / 100% / 200% 各画一笔；（若有两块不同 DPI 屏）把窗口拖到另一块屏再画 | 笔迹不变糊；跨屏后不出现「旧的缓存尺寸」 | 三档缩放下笔迹边缘清晰度截图 | dpr 变化是否重建了 `committed`（§0.3-6） |
 | 11 | 无需动手：看主 agent 的桌面预跑结论（真组件 + 真 CDP 受信任指针事件：`Input.dispatchMouseEvent` 带 `pointerType: "pen"` + `force`，`Input.dispatchTouchEvent` 走手指分支） | 3/4/5/6/7 的逻辑分支在桌面上先成立；`pointerType` 为 pen 时能画、touch 默认不画、开了「手指=书写」才画 | 预跑 **25/25** + console 无报错（gates.md 的 G5 条目逐条贴了读数） | 覆写是否被 React 重渲染丢掉（本轮的 pen 分支用的是 CDP 的 `pointerType`，不是 getter 覆写）；`pressure` 是否真的进了 `p` |
 | 12 | **降级登记**（仅当 1 不成立或真机不可用）：按总纲 §6.3 把「P95 延迟」与「笔手感」判为「环境受限，未验收」 | 剩余逻辑面全部通过，缺口逐条写进 `gates.md` 的遗留列 | `gates.md` 的遗留列有具体条目 | 不许口头放过（总纲 §6.2-1） |
+| 13 | **复测①（原缺陷一）**：在 `/graph` 的 Dialog 里点「橡皮」 | 「笔」的按钮**还在**，随时能点回笔；折叠行 = 笔 + 橡皮 + 撤销 + 颜色 + 更多 | 目视；`[data-annotation-tool=pen]` 与 `[data-annotation-tool=eraser]` 同时存在 | `annotation-toolbar.tsx` 的 `tools` 是否又被写成「当前工具 + 橡皮」 |
+| 14 | **复测②（原缺陷二）**：同一个 image 节点反复关掉再打开 5–8 次（每次都等打开动画结束）；再在同一个 Dialog 里从一个 image 节点切到**宽高比不同**的另一个 image 节点 | 批注可见区与图片绘制区四边对齐（右上/右下不出现缺口）；切节点后不会画到旧比例的区域 | 目视 + 沿图片四角各点一下：笔迹落在角上 | 测量是否又只取 `getBoundingClientRect()`（`toLayerBox` 的分母）；`image-node-content.tsx` 的 `natural` 是否随 `url` 清空 |
+| 15 | **复测③（原建议三）**：画两笔 → 选橡皮，**按住并经过**其中一笔（先别抬） | 被经过的笔迹立刻变**半透明**（还看得见，能判断要擦哪一笔），抬笔后才真正消失；一次 `⌘Z` 把那一次经过的所有笔迹**按原位**放回 | 按住时的截屏 vs 抬笔后的截屏；图元计数变化 | `drawAnnotations` 的 `ghostIds` 与 `ERASER_GHOST_ALPHA`；抬笔才 emit remove（§M5.2-25） |
 
 ### 5.5 回归面
 

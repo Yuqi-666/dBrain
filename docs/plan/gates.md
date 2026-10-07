@@ -26,7 +26,7 @@
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 待测 | 1    | 2026-10-07 | 见 §5 |
+| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 待测 | 2    | 2026-10-07 | 见 §5 |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -554,7 +554,7 @@
 
 ### G5 — M5 image 批注
 
-- 状态：**待测**（第 1 轮；自检 + **25/25** 真浏览器探针全绿，等用户实测）
+- 状态：**待测**（第 2 轮 —— 首测回来 3 条缺陷已修，等复测；第 1 轮自检 + **25/25** 探针全绿，修复后 **7/7**（新宿主探针）+ **25/25**（原探针复跑），见下「第 2 轮（修复）」）
 - 提交：`aa31083`（契约与依赖：`annotation/types.ts` + `geometry.ts` + 21 条纯函数测试 + `perfect-freehand ^1.2` + `--annotation-1..6`）→ `543a609`（绘制与输入：`draw.ts` + 9 条测试 + 双层 canvas + pointer 状态机）→ `dd0617f`（接入：`annotation-layer.tsx` + `annotation-toolbar.tsx` + `image-node-content.tsx` + 文档）
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失** ✅。逐包复核：`@workspace/ui` **19 条 = 基线**（全部在 `packages/editor/**`，`src/components/annotation/**` 零 error、零 warning）、`web` 段与 `store` 段不变
@@ -584,10 +584,16 @@
   ✓ ⑬b 无未捕获异常、无 console error
   ```
   复跑：`bash /tmp/anno/run.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → `python3 -m http.server 8898 -d /tmp/anno` → 跑 `anno-check.mjs`）。**这一轮工装踩到的坑**（复跑要带）：① 一条笔迹的「位置」必须断言，只断言「有非透明像素」会漏掉整体偏移——第一版复核发现的画布内部 origin 偏移（`rect.left - box.left` 其实是层根在视口里的 left，约等于容器的 40px padding）就是靠 `x∈[min,max]` 抓住的；② Radix 的 `DropdownMenu` 用 **pointerdown** 打开，只派发 `click` 的探针打不开「更多」，CDP 的真实按下/抬起序列才行（`PopoverTrigger` 是 `onClick`，两者不同）；③ 菜单内容关闭即卸载 ⇒ 「compact 下 hide/size/redo 存在」必须先打开菜单再查；④ `Emulation.setDeviceMetricsOverride` 改 dpr 后要自己派发 `resize`，且组件的 dpr 监听必须是 `matchMedia('(resolution: Ndppx)')` 而不是 render 期读一次常量（不然 backing store 不会翻倍）
-- 用户操作清单：见 [annotation.md §M5.4](./annotation.md#m54-闸门-g5--用户操作清单)（**12 条** + 9 条前置说明；第 1 条改成同域 https、第 2/3 条只有真机能判、第 11 条就是本条目上面的 25/25）
-- 用户实测结果：（待填 —— 12 条）
-- 失败项与归因：（待填）
-- 迭代：**闸门前的复核**让两路各改了一轮（不计入闸门轮次，见下）
+- 用户操作清单：见 [annotation.md §M5.4](./annotation.md#m54-闸门-g5--用户操作清单)（**15 条** = 首测 12 条 + 修复后的 3 条复测；10 条前置说明。第 1 条改成同域 https、第 2/3 条只有真机能判、第 11 条就是本条目上面的 25/25）
+- 用户实测结果（2026-10-07，第 1 轮，原话）：**未通过** —— 三条缺陷：
+  1. 「点击橡皮后，笔的图标消失了」
+  2. 「多次反复打开同一 image 节点，有概率可批注区域与实际图片不匹配，该区域保持固定左上角，但宽高缩小，如图红线标注缩小的边界」（附截图）
+  3. 「建议按下橡皮经过的笔划变半透明，以表示将被擦除，抬起橡皮后擦除」（建议）
+- 失败项与归因：
+  1. **折叠行错删一支工具**（`annotation-toolbar.tsx`）：compact 分支写的是「当前工具 + 橡皮」——橡皮选中时 `tools` 变成 `["eraser"]`，笔的按钮从 DOM 里消失，而真机没有 `P`/`1` 可按 ⇒ 只能用键盘回去。设计 §2.4 的折叠行本来就是「笔 + 橡皮 + 撤销 + 颜色 + 更多」（只吃掉 粗细/隐藏/重做）。修复：`tools` 固定两支。
+  2. **Dialog 打开动画被测量进去**（`annotation-layer.tsx` 的 `measure()`）：宿主 Dialog 自带 `zoom-in-95`（100ms、0.95→1），而 `new Image()` 的 decode 回调用时通常落在这 100ms 内（图片有缓存时必然如此，这解释了「反复打开、有概率」）；`getBoundingClientRect()` 报的是**被 transform 画过**的像素，于是第一次测量两轴同时小 5%，而 `ResizeObserver` 只认 layout 变化、看不见 transform ⇒ 这个错误 box 一直留到卸载。**用户截图实测**：红线框/图片 = 宽 0.961 × 高 0.961（两轴等比 ⇒ 正好是 0.95 缩放），左/上只差亚像素、右/下缺 ~90px/~58px —— 与「左上角不动、宽高缩小」的描述逐字吻合。修复：新增纯函数 `geometry.toLayerBox`，用 `getBoundingClientRect() ÷ offsetWidth/offsetHeight` 把测量换算回 root 的 layout 空间（canvas 与底图在同一 transform 子树里，动画期间也准）；另补 `transitionend`/`animationend` 兜底重测。
+  3. **（建议）橡皮没有「将被擦除」预览**：旧实现在命中时把图元从缓存重放里**剔除**，而 `erasedIds` 变更是 ref 变化、不触发 render ⇒ 「立刻消失」其实要等 `active` 变化搭便车，中间态反而是「原样不动」。修复：`drawAnnotations({ ghostIds })` 把命中的图元按 `ERASER_GHOST_ALPHA = 0.3` 半透明重放（保 z 序），抬笔才 emit 一次 remove；把缓存重放抽成 `replayCommitted()` 并由 `onGestureChange`（只在命中新图元时）直接调用。
+- 迭代：**闸门前的复核**让两路各改了一轮（不计入闸门轮次）+ **第 2 轮**（首测缺陷修复，见下）。
 - **复核抓到的真缺陷（交用户之前修掉）**：
   1. **画布内部 origin 偏移（W2-B）**：`renderFrame` 与重放 effect 都把 `rect.left - box.left` 当成画布内部的 letterbox 偏移，而那是**层根在视口里的 left**（≈ 容器的 `p-4` + 边框，40px）。画布本身已按 `box.left` 摆好、且 `box.width/height === rect.width/height`（layer 就是这么算的）⇒ 画布内部偏移恒为 0。若不修，所有笔迹整体偏 ~40px、右侧还会被裁出画布。修法：`drawImage(committed, 0, 0, box.width, box.height)` + 去掉 translate（探针 ③ 的 `x∈[min,max]` 就是它的判据）。
   2. **`touchDraws` 被硬编码成 `false`（W2-B）**：`AnnotationCanvasProps` 里当时没有这个 prop，而设计 §2.1 的「手指=书写」兜底开关必须在 canvas 才能生效。修法：冻结面补 `touchDraws?: boolean`、layer 传下去、canvas 改读 props（探针 ⑥b/⑥c 的对照）。
@@ -595,16 +601,29 @@
   4. **dpr 变化不会重建缓存（W2-B）**：原实现 render 期读一次 `devicePixelRatio`，跨屏/缩放时没有任何东西会 re-render。修法：`useState` + `matchMedia('(resolution: Ndppx)')` 的 change 监听（探针 ⑩）。
   5. **橡皮删除会把刚擦掉的笔迹放回屏幕（W2-B 自查发现）**：`endGesture` 在发出 `remove` 前就清了跳过集合，而父层落库晚一拍 ⇒ 中间帧闪回。修法：收笔时**故意不清**，`items` prop 一变（父层已落地）才清。
   6. **compact 下「隐藏批注 / 粗细 / 重做」没有任何入口（W2-A）**：设计 §2.4 的折叠行只有「笔 + 橡皮 + 撤销 + 颜色 + 更多」，而 `/graph` 打开节点就是 Dialog 形态 ⇒ G5 第 8 条会找不到按钮。修法：compact 时把这三样收进「更多」（锚点不变，同一时刻各恰好一个），展开态仍是一行。
+- **第 2 轮（修复，2026-10-07）**：4 条提交，白名单内（`annotation/**` 的 5 个文件 + `image-node-content.tsx` + 两个 `docs/plan/*`）：
+  - 实现：`geometry.ts` 新增 `toLayerBox`（+ 4 条测试）；`annotation-layer.tsx` 的 `measure()` 改用它，并加 `transitionend`/`animationend`（capture + 只认 root 或祖先链）兜底重测；`annotation-toolbar.tsx` 的折叠行固定「笔 + 橡皮」；`draw.ts` 新增 `DrawOptions.ghostIds` / `ERASER_GHOST_ALPHA = 0.3`（+ 2 条测试）；`annotation-canvas.tsx` 把缓存重放抽成 `replayCommitted()`（dpr 进依赖）并由 `useAnnotationInput` 的 `onGestureChange` 在橡皮命中新图元时直接调用；`use-annotation-input.ts` 不再对普通采样调 `onGestureChange`；`image-node-content.tsx` 在 `url` 变化时清空 `natural`（同一 Dialog 内换 image 节点）
+  - **格式面**：对 9 个改动文件跑了一次 `prettier --write`。这 9 个里有 **8 个在 HEAD 上本来就是 prettier-dirty**（`prettier --check` 在 HEAD 就报它们，本仓没有 prettier 配置、`pnpm format` 也没有 CI 约束），所以本提交的 diff 里有一部分是**纯换行**（函数签名/`useState` 泛型/import 列表），未改语义；好处是 M5 这层从此 `prettier --check` 干净，M7 再格式化不会重复产生这份噪声。
+  - **自检**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失**；`@workspace/ui` typecheck **19 = 基线**（annotation 零 error）、lint **26 problems (0 errors, 26 warnings) = 基线**（annotation 零 warning）；`pnpm --filter=@workspace/ui test` → **69/69**（岛 33 + 批注 36 = 原 30 + 4 条 `toLayerBox` + 2 条 ghost）
+  - **新宿主探针（7/7，`/tmp/anno/host-check.mjs`）**：把**真 `ImageNodeContent`**（真 `getBaseRect`/letterbox/compact 判定）挂进**真 Radix Dialog**（`dialog.tsx` 的原类 + 节点编辑器同一个 `h-[80vh]`），store/services/api-client 用 esbuild alias 打桩（`data:` 图、内存 writes），并且把 Dialog 的**打开动画拉长到 30s**，让「测量落在缩放窗口里」从概率事件变成必然事件：
+    ```
+    修前：first(in-anim)=0.95  settled=0.95（left −0.81 / top −6.0）  tools after 橡皮=["eraser"]   ghost: maxAlpha 255（没有预览）
+    修后：first(in-anim)=1.000 settled=1.000（left 0.00 / top 0.00）  tools after 橡皮=["pen","eraser"]  ghost: 2122px / maxAlpha 77（=255×0.3）→ 抬笔 0px
+    ✓ ②/②b ink 矩形 == 图片绘制矩形（动画中与动画后都成立）  ✓ ① 折叠行保留笔  ✓ ③a 半透明预览  ✓ ③b 预览期零写入  ✓ ③c 抬笔后清空  ✓ ③d 抬笔恰好一次写入
+    ```
+  - **原 25 条探针复跑：25/25**（`bash /tmp/anno/run.sh`）。复跑抓到一条**新引入**的回归并已修：缓存重放抽成 `replayCommitted()` 后 `dpr` 掉出了依赖数组 ⇒ `Emulation.setDeviceMetricsOverride` 改 dpr 时新缓存不再被重放（第 ⑩ 条 ink=0）。修法：`dpr` 进依赖并用**状态**值而不是 `readDpr()` 写 transform（与 sizing effect 同源）
+  - 探针工装本身的两个坑（复跑要带）：① `drawAnnotations` 的 ghost 断言必须读「`fill()` 那一刻的 `globalAlpha`」——记录型 stub 若不在 `save/restore` 里真的保存/恢复状态，断言的是 stub 的漏洞而不是代码；② 拉长 Dialog 动画只能拉**打开**那一段（`[data-state="open"]`），Radix 会等退场动画结束再卸载节点，把关闭动画也拉长会让后面每一次 Escape 都卡住 30s
 - 遗留不阻塞项（初步，G5 通过后定稿）：
   1. **颜色触发器与「更多」触发器没有 tooltip**（`annotation-toolbar.tsx`）：`TooltipTrigger asChild > PopoverTrigger asChild` 是两层 Slot 复合、全仓无先例，按「功能优先于 tooltip」降级为单层 asChild + `aria-label`（颜色触发器的 `aria-label` 带当前色名）。其余按钮的 tooltip 正常。
   2. **笔画进行中打开「隐藏批注」仍会按已采样点落一笔**（不丢数据，但没有取消分支）。触发条件要求「笔按下的同时用另一只手点工具栏」，真机几乎不可达；要改就是 `hidden` 变化时取消手势（在 `use-annotation-input.ts` 内）。
-  3. **父层若不换 `items` 引用（原地 mutate），橡皮的跳过集合不会释放**：M5 的宿主每次都产生新数组（`[...current, item]` / `filter`），所以路径不通；M7/M8 复用这套组件时要守住这条。
+  3. **父层若不换 `items` 引用（原地 mutate），橡皮的 ghost 集合不会释放**（第 2 轮起图标是「半透明预览」而不是「跳过」）：M5 的宿主每次都产生新数组（`[...current, item]` / `filter`），所以路径不通；M7/M8 复用这套组件时要守住这条。
   4. **compact 菜单里的粗细是三档 `ToggleGroupItem`（不是 `DropdownMenuRadioItem`）**：方向键不达（Radix 的 roving focus 不登记它们），点击/触摸正常。保留它是因为设计 §2.1 把粗细定义成 `ToggleGroup`，且锚点语义不变。
   5. **选色后 Popover 不自动关**：`popover.tsx` 没有导出 `Close`，受控 `open` 会引入第二份本地 state；靠点外面关。设计 §2.1 只要求「6 个 swatch」。
   6. **禁用的撤销/重做 hover 不出 tooltip**：基础 `Button` 带 `disabled:pointer-events-none`；设计 §2.1 要求禁用态，属有意。
   7. **image 的 `crossOrigin` 未加**：`<img>` 仍是同源之外的另一端口（PB 8090 / 同域 `/pb`），P0 不需要读回像素（不导出、不烘焙）；G7 第 5 条的 taint 探测会结案（设计 §5.3 的 PNG 烘焙是 P2）。
   8. **`readOnly` 有实现、无宿主**（§5.2-9）：layer 在 `readOnly` 时不渲染 toolbar 并忽略键盘，但 `node-content-editor.tsx` 今天不传它 —— G5 不测，留给接只读分享的那个人。
-- 需要你决定的一条（不阻塞实测）：**跟手 P95 与笔感只能真机判**。若平板这次不方便连，就按总纲 §6.3 把第 2、3 条记为「环境受限，未验收」写进遗留列（其余 10 条含全部逻辑面都可以在桌面/真机上判）。
+- 需要你决定的一条（不阻塞实测）：**跟手 P95 与笔感只能真机判**。若平板这次不方便连，就按总纲 §6.3 把第 2、3 条记为「环境受限，未验收」写进遗留列（其余各条含全部逻辑面都可以在桌面/真机上判）。
+- **修复轮顺带发现的既存缺陷（不属 M5，未改）**：⌘K 快速面板的**节点条目点不动** —— `quick-panel/search-mode.tsx` 给节点 match 只填了 `id/title/...`，没有 `onSelect`，而渲染处是 `<button onClick={item.onSelect}>` ⇒ 点节点无反应（命令/类型条目有 `onSelect`，正常）。这一条挡住的是「按标题打开节点」这条入口，M8/M9 若要用快速面板跳转必须先补。另：`MainSidebar` 的「最近打开」列表在当前数据下是空的（DOM 里只有「默认工作区」与用户名）。
 - 用户结论：（待填）
 
 ---
