@@ -1,6 +1,6 @@
 # M6 — 媒体：播放器与时间戳笔记
 
-> 状态：**待开工**（前提见 §1；G6 见 §M6.4）
+> 状态：**开发中**（W5 并行窗口已开启，见 [gates.md](./gates.md) §1 的并行窗口登记；冻结提交见 gates.md §5 的 G6 条目）
 > 覆盖：node-content 设计文档 P2 的 **audio/video 半步**——自绘音频播放器 + `<VideoPlayer>` 当前时间订阅 + 共享时间戳笔记（`Mod-Enter` 捕获、点笔记跳转、删除）。**image/pdf 批注属 M5/M7，不在本章**（[设计文档](../node-content/README.md) §5 P2 的另一半）
 > 契约：[总纲](./README.md) §1 M6 行（后端＝否、新依赖＝否）、§9 R3（后端 M1 冻结）→ 本章**不改 `backend/**`、不改 `packages/interfaces/**`、不加迁移、不加依赖**；时间基准与数据形状由设计文档 §0.3-10 / §4.3-4 定死
 > 相关：[node-content 设计文档](../node-content/README.md) §0.3-9/§0.3-10、§1.3、§1.4、§4.2-12、§4.3-4、§6、§7 手测 6–8、§8；[总纲](./README.md) §2–§4、§6、§8、§9；[gates.md](./gates.md)
@@ -23,18 +23,19 @@
 
 | 前提                                                                                     | 状态                                                                                       | 谁负责（引总纲 §）             |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------ |
-| `nodes.timestampNotes` 列 + `TimestampNote` 类型 + audio/video content 半边 + 后端全链路   | **未落地**：`timestampNotes`/`TimestampNote`/`timeMs` 在 `packages/*/src`、`backend/*/src`、`pb/pb_migrations` 里 grep 均为零命中 | M1（§1、§4 `1700000001_node_extras.js`、§9 R3） |
-| `content/use-node-content-writer.ts`（M6 唯一的写者入口）                                  | **文件不存在**（glob `content/*.ts*` 已核）→ 由 M1 交付                                     | M1（§2.2 未列入独占，可派子 agent） |
-| `content/doc-normalize.ts` 的 `normalizeNotes(value)`（脏数组/缺 `timeMs` 丢弃并 warn）    | **文件不存在**（同上）→ 由 M1 交付；M6 只消费                                                | M1（设计文档 §4.2-14）         |
-| `file-drop-zone.tsx` 的上传回填改为「读 live content + 合并本半边」                        | **未落地**：audio 分支今天直接写 `content: { url }`（`file-drop-zone.tsx:179-184`），会整包抹掉笔记 | **M2**（§9 R4）                |
-| `attributes-sidebar.tsx` 的 content 写路径改读 live content（否则改一次「内容链接」就整包抹掉笔记） | **由 M1 交付**（§9 **R13**：M1 的 T5 白名单已含该文件；本批次把这条修复提前到 M1，好过 M5/M6/M7 各自打补丁） | **M1**（§9 R13）；M6 只做 G6-6 的回归验证 |
+| `nodes.timestampNotes` 列 + `TimestampNote` 类型 + audio/video content 半边 + 后端全链路   | **✅ 已落地（M1）**：`TimestampNote` 在 `packages/interfaces/src/models/node/nodes/single/timestamp-note.ts`，`AudioContent.timestampNotes?` / `VideoContent.timestampNotes?` 已声明 | M1（§1、§4 `1700000001_node_extras.js`、§9 R3） |
+| `content/use-node-content-writer.ts`（M6 唯一的写者入口）                                  | **✅ 已落地（M1/M3）**：`packages/ui/src/components/dialog/editor/content/use-node-content-writer.ts`，导出 `useNodeContentWriter`（**实际签名是 3 个必填参数** —— `(nodeId, nodeType, fallback, label?)`，不是 §1 初稿写的 `(nodeId)`）与 `patchContent` / `patchNode` / `liveContent` | M1（§2.2 未列入独占，可派子 agent） |
+| `content/doc-normalize.ts` 的 `normalizeNotes(value)`（脏数组/缺 `timeMs` 丢弃并 warn）    | **✅ 已落地（M1）**：`doc-normalize.ts:90`，非数组 warn 后读作 `[]`，缺 `timeMs` 的成员丢弃 | M1（设计文档 §4.2-14）         |
+| `file-drop-zone.tsx` 的上传回填改为「读 live content + 合并本半边」                        | **✅ 已落地（M2）**：`:370` 用 `useNodeContentWriter` 的 `liveContent`（§9 R4）             | **M2**（§9 R4）                |
+| `attributes-sidebar.tsx` 的 content 写路径改读 live content（否则改一次「内容链接」就整包抹掉笔记） | **✅ 已落地（M1）**：`:224` 已是 `const { liveContent, patchContent } = useNodeContentWriter<…>`，全文件无 `{ ...node.content, ... }`；M6 只做 G6-6 的行为回归 | **M1**（§9 R13）；M6 只做 G6-6 的回归验证 |
 | `hls.js ^1.7.3` 已在 `packages/ui`                                                        | 已核（`packages/ui/package.json:33`）；M6 无新依赖（§5 无 M6 行）                            | 无需动作                       |
 | M5 / M7（image、pdf 批注）                                                                 | 与本章文件零重叠，**不阻塞**；按 §1 执行顺序先于 M6                                          | 主 agent（§6.4）               |
 
-M6 开工前必须由主 agent 冻结的两处签名（M1 未开工，今天无法读取，**不得在落码时猜**）：
+M6 开工前由主 agent 冻结的两处签名 —— **已冻结（2026-10-07，§M6.1-1 落地）**：
 
-1. `useNodeContentWriter(nodeId)` 必须提供 `patchContent(patch)`（读 live content → 展开 → 覆盖传入的半边 → 微任务 drain 串行发车）。M6 只用这一个方法写 `timestampNotes`。
-2. `MediaController`（本章 §M6.1-1 冻结）：`getCurrentTimeMs()` / `getDurationMs()` / `isPaused()` / `play()` / `pause()` / `seek(timeMs)` / `subscribe(listener)`。`seek` 内部 clamp 到 `[0, duration]`，`subscribe` 返回取消订阅。
+1. `useNodeContentWriter(nodeId, nodeType, fallback, label?)` 提供 `patchContent(patch)`（读 live content → 展开 → 覆盖传入的半边 → 微任务 drain 串行发车）。M6 只用这一个方法写 `timestampNotes`。**与 §1 初稿的差异**：实际签名需要 `nodeType` 与 `fallback` 两个额外参数（`nodeType` 用于 `liveContent` 的类型守卫），初稿的单参形态从未存在 —— 就地按实际签名接线，不改 M1 的成品。
+2. `MediaController`（`media/types.ts` 冻结）：`getCurrentTimeMs()` / `getDurationMs()` / `isPaused()` / `play()` / `pause()` / `seek(timeMs)` / `subscribe(listener)`。`seek` 内部 clamp 到 `[0, duration]`，`subscribe` 返回取消订阅。
+3. **同批冻结的还有**：`createMediaController(element)`（唯一的控制器实现，audio 与 video 共用）、`formatTimeMs(ms)`、`sortTimestampNotes(notes)`（`timeMs` → `createdAt` → `id` 三级排序，返回新数组）、`createTimestampNote(timeMs, text?, now?)`（`note_<uuid>`），以及三个组件的 props 契约 `AudioPlayerProps` / `TimestampNotesProps` / `TimestampNoteMarksProps`（含 `TimestampAddRequest` 的 `Mod-Enter` 语义）。冻结文件零 React 运行时依赖（只 `import type { ReactNode }`），因此其纯函数部分被 `media/types.test.ts` 的 5 条测试钉住（`pnpm --filter=@workspace/ui test` 69 → **74/74**）。
 
 ---
 
