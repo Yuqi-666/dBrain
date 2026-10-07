@@ -170,7 +170,12 @@ function fillOutline(
   ctx.restore();
 }
 
-function drawStroke(ctx: InkContext, item: Stroke, rect: BaseRect, color: string): void {
+function drawStroke(
+  ctx: InkContext,
+  item: Stroke,
+  rect: BaseRect,
+  color: string,
+): void {
   fillOutline(
     ctx,
     strokeOutline(item.points, rect, {
@@ -212,7 +217,12 @@ function drawHighlight(
   );
 }
 
-function drawArrow(ctx: InkContext, item: ArrowAnno, rect: BaseRect, color: string): void {
+function drawArrow(
+  ctx: InkContext,
+  item: ArrowAnno,
+  rect: BaseRect,
+  color: string,
+): void {
   const from = { x: item.from[0] * rect.width, y: item.from[1] * rect.height };
   const to = { x: item.to[0] * rect.width, y: item.to[1] * rect.height };
   const nib = Math.max(toDisplaySize(item.size, rect), 1);
@@ -231,7 +241,10 @@ function drawArrow(ctx: InkContext, item: ArrowAnno, rect: BaseRect, color: stri
   // up over it.
   ctx.beginPath();
   ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x - Math.cos(angle) * head * 0.6, to.y - Math.sin(angle) * head * 0.6);
+  ctx.lineTo(
+    to.x - Math.cos(angle) * head * 0.6,
+    to.y - Math.sin(angle) * head * 0.6,
+  );
   ctx.stroke();
 
   // A filled triangle, not two short strokes (design §2.1: "尾部带箭头（三角）").
@@ -248,7 +261,12 @@ function drawArrow(ctx: InkContext, item: ArrowAnno, rect: BaseRect, color: stri
   ctx.restore();
 }
 
-function drawShape(ctx: InkContext, item: ShapeAnno, rect: BaseRect, color: string): void {
+function drawShape(
+  ctx: InkContext,
+  item: ShapeAnno,
+  rect: BaseRect,
+  color: string,
+): void {
   const x0 = item.from[0] * rect.width;
   const y0 = item.from[1] * rect.height;
   const x1 = item.to[0] * rect.width;
@@ -288,7 +306,12 @@ function drawShape(ctx: InkContext, item: ShapeAnno, rect: BaseRect, color: stri
   ctx.restore();
 }
 
-function drawText(ctx: InkContext, item: TextAnno, rect: BaseRect, color: string): void {
+function drawText(
+  ctx: InkContext,
+  item: TextAnno,
+  rect: BaseRect,
+  color: string,
+): void {
   const fontPx = Math.max(toDisplaySize(item.fontSize, rect), 1);
 
   ctx.save();
@@ -340,14 +363,47 @@ export function drawAnnotation(
   }
 }
 
+/**
+ * How much of its alpha a mark keeps while the eraser is over it — the
+ * "将被擦除" preview of design §3.3. Low enough to read as doomed next to a
+ * fully-opaque neighbour, high enough to still recognise the mark under the nib.
+ */
+export const ERASER_GHOST_ALPHA = 0.3;
+
+/**
+ * `drawAnnotations` extras. Both default to "no preview", so every existing caller
+ * (and the P2 PNG bake) keeps the plain replay.
+ */
+export interface DrawOptions {
+  /** Ids the eraser hit during the pass in flight; drawn faded. */
+  ghostIds?: ReadonlySet<string> | null;
+  /** Overrides {@link ERASER_GHOST_ALPHA}. */
+  ghostAlpha?: number;
+}
+
 /** Render order is array order (design §3.1: "渲染顺序即数组顺序"). */
 export function drawAnnotations(
   ctx: InkContext,
   items: readonly Annotation[],
   rect: BaseRect,
   resolveColor: ColorResolver,
+  options: DrawOptions = {},
 ): void {
-  for (const item of items) drawAnnotation(ctx, item, rect, resolveColor);
+  const { ghostIds, ghostAlpha = ERASER_GHOST_ALPHA } = options;
+  const ghosts = ghostIds && ghostIds.size > 0 ? ghostIds : null;
+  for (const item of items) {
+    // A mark the eraser is currently over stays on screen as a fading preview, in
+    // its own z-position — it is removed for real when the gesture is committed
+    // (design §3.3's whole-stroke erase, seen from the user's side).
+    drawAnnotation(
+      ctx,
+      ghosts && ghosts.has(item.id)
+        ? { ...item, opacity: item.opacity * ghostAlpha }
+        : item,
+      rect,
+      resolveColor,
+    );
+  }
 }
 
 /**
@@ -358,7 +414,9 @@ export function drawAnnotations(
  * constant `0` or `1`; both are indistinguishable from a perfectly even pen, and
  * simulating from velocity is the better default for them.
  */
-export function shouldSimulatePressure(points: readonly AnnotationPoint[]): boolean {
+export function shouldSimulatePressure(
+  points: readonly AnnotationPoint[],
+): boolean {
   if (points.length < 2) return true;
   const first = points[0]!.p;
   if (first === undefined) return true;

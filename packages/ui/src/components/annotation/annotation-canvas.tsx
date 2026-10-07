@@ -294,18 +294,34 @@ export function AnnotationCanvas({
     committedRef.current = committed;
 
     requestFrame();
-  }, [box.left, box.top, box.width, box.height, dpr, outsideWidth, outsideHeight, requestFrame]);
+  }, [
+    box.left,
+    box.top,
+    box.width,
+    box.height,
+    dpr,
+    outsideWidth,
+    outsideHeight,
+    requestFrame,
+  ]);
 
   /**
-   * Replay the committed marks.
+   * Replay the committed marks into the offscreen cache.
    *
-   * Runs when the data, the rectangle, the dpr, the hidden flag or the cache
-   * changes — **not** per frame. Items the eraser hit during the pass in flight
-   * are skipped, so a mark vanishes under the eraser the instant it is touched
-   * rather than when the layer commits the removal; while `hidden` the cache is
-   * left empty, which is what makes hiding cost nothing per frame.
+   * Two callers, and they are the two reasons the cache can go stale:
+   *
+   * 1. the effect below, i.e. a prop changed (the data, the rectangle, the dpr,
+   *    the hidden flag);
+   * 2. `onGestureChange`, i.e. the eraser just touched a mark. That one is a
+   *    *discrete input event*, not a sample, and it must repaint without a render:
+   *    a ref cannot re-run an effect, so "the ghost set grew" has to be a direct
+   *    call. Replaying once per hit is what the cache is for — replaying per pointer
+   *    sample is what it exists to avoid.
+   *
+   * While `hidden` the cache is left empty, which is what makes hiding cost nothing
+   * per frame.
    */
-  useEffect(() => {
+  const replayCommitted = useCallback(() => {
     const committed = committedRef.current;
     if (!committed) return;
     if (!hasSize(rect) || !hasSize(box)) return;
@@ -313,40 +329,38 @@ export function AnnotationCanvas({
     const ctx = context2d(committed);
     if (!ctx) return;
 
-    const currentDpr = readDpr();
     // A theme change rewrites the tokens' computed values, so the cache is
     // dropped on every replay: six `getComputedStyle` calls cost far less than
     // the replay itself, and a stale colour is a wrong colour.
     colorCacheRef.current.clear();
 
-    ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
+    // The *state* ratio, not `readDpr()`: the cache must be written at the same
+    // density the sizing effect just gave both stores, and a live read could differ
+    // from it for the frame between the screen change and the media query firing.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, box.width, box.height);
     if (!hidden) {
       // No translate: the cache and the base rectangle share an origin (§3.4).
-      const erased = gesture.erasedIds;
-      drawAnnotations(
-        ctx,
-        erased.size === 0 ? items : items.filter((item) => !erased.has(item.id)),
-        rect,
-        resolveColor,
-      );
+      // Marks the eraser hit are passed along as ghosts: they stay visible at
+      // reduced alpha until the layer lands the removal, so the user can see what
+      // the pass is about to delete (G5's third report).
+      drawAnnotations(ctx, items, rect, resolveColor, {
+        ghostIds: gesture.erasedIds,
+      });
     }
+  }, [box, dpr, gesture, hidden, items, rect, resolveColor]);
 
+  useEffect(() => {
+    replayCommitted();
     requestFrame();
-    // The list names the scalars this effect actually reads off `rect`/`box`
-    // plus the gesture's revision counter; depending on the objects themselves
-    // would replay on every render. `gesture.tick` is the eraser's signal (it
-    // bumps the moment a mark is hit).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, hidden, rect.left, rect.top, rect.width, rect.height, box.left, box.top, box.width, box.height, dpr, resolveColor, requestFrame, gesture.tick]);
+  }, [replayCommitted, requestFrame]);
 
-  /**
-   * A new `items` array means the parent has landed the last gesture.
+  /** A new `items` array means the parent has landed the last gesture.
    *
-   * This is where the eraser's skip set is released: it was kept alive at
-   * release so the deleted marks could not flash back, and it must go as soon as
-   * the deletion is real, because an id that no longer exists in `items` has
-   * nothing left to skip.
+   * This is where the eraser's ghost set is released: it was kept alive at release
+   * so the deleted marks could not flash back, and it must go as soon as the
+   * deletion is real, because an id that no longer exists in `items` has nothing
+   * left to fade.
    */
   const lastItemsRef = useRef(items);
   useEffect(() => {
@@ -377,7 +391,9 @@ export function AnnotationCanvas({
 
   // The options object is rebuilt every render on purpose: the hook mirrors the
   // latest one into a ref, so a callback that outlives its render still reads the
-  // current tool, nib, colour and 手指=书写 switch.
+  // current tool, nib, colour and 手指=书写 switch. `onGestureChange` is the eraser's
+  // discrete signal (a mark was just hit): it replays the cached layer at once,
+  // without a render — the hook never calls it for a plain pen sample.
   const input = useAnnotationInput({
     gesture: gestureRef,
     tool,
@@ -390,6 +406,7 @@ export function AnnotationCanvas({
     onOperation,
     onActiveChange,
     requestFrame,
+    onGestureChange: replayCommitted,
   });
 
   return (

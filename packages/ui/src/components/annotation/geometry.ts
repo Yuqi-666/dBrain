@@ -24,7 +24,7 @@
  */
 import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
 
-import type { BaseRect } from "./types";
+import type { BaseRect, LayerBox } from "./types";
 
 /**
  * How far a persisted point must be from the previously kept one before it is
@@ -104,6 +104,59 @@ export function containRect(
 }
 
 /**
+ * One measured viewport size ÷ the same size in layout pixels = the scale the
+ * whole subtree is currently painted at. `1` when either half is unusable.
+ */
+function axisScale(measured: number, layout: number): number {
+  if (
+    !Number.isFinite(measured) ||
+    !Number.isFinite(layout) ||
+    measured <= 0 ||
+    layout <= 0
+  ) {
+    return 1;
+  }
+  return measured / layout;
+}
+
+/**
+ * A viewport measurement → the layer root's **own layout space**.
+ *
+ * `getBoundingClientRect()` reports *painted* pixels, so any ancestor transform is
+ * baked into it — and the node editor's Dialog opens with `zoom-in-95`, i.e. a
+ * 100 ms scale from 0.95 to 1 over the whole subtree. A measurement taken inside
+ * that window is ~5% small in **both** axes; `ResizeObserver` then never corrects
+ * it, because a transform is not a layout change. The result was reported at G5:
+ * the ink area is a scaled-down rectangle anchored near the image's top-left, and
+ * it does not grow when the animation ends.
+ *
+ * The root's `offsetWidth`/`offsetHeight` are layout pixels, so their ratio to the
+ * measured rect *is* that accumulated scale. Dividing the measurement by it puts
+ * every number back into the space the canvas element is laid out in — and since
+ * the canvas is a child of the same transformed subtree, both are then scaled
+ * together at every moment, so the correction is exact **during** the animation
+ * too, not just after it.
+ *
+ * The axes are corrected separately so a non-uniform animation (`scale(sx, sy)`)
+ * is handled as well as a uniform one. `offsetWidth` is an integer, so the scale
+ * carries up to ~0.5px of rounding over the root's width — sub-pixel in the box.
+ */
+export function toLayerBox(
+  rect: BaseRect,
+  origin: BaseRect,
+  layout: { width: number; height: number },
+): LayerBox {
+  const scaleX = axisScale(origin.width, layout.width);
+  const scaleY = axisScale(origin.height, layout.height);
+  return {
+    left: (rect.left - origin.left) / scaleX,
+    top: (rect.top - origin.top) / scaleY,
+    width: rect.width / scaleX,
+    height: rect.height / scaleY,
+  };
+}
+
+/**
  * Viewport point → normalized storage point (design §3.4 step 2).
  *
  * Out-of-rect samples are **clamped**, not rejected: a stroke that grazes the
@@ -177,9 +230,7 @@ export function distanceToSegment(
 }
 
 /** The tight box around a point list, or `null` when there is nothing to box. */
-export function pointsBBox(
-  points: readonly AnnotationPoint[],
-): BBox | null {
+export function pointsBBox(points: readonly AnnotationPoint[]): BBox | null {
   if (points.length === 0) return null;
 
   let x0 = Infinity;
@@ -196,7 +247,12 @@ export function pointsBBox(
 }
 
 export function inflateBBox(bbox: BBox, amount: number): BBox {
-  return [bbox[0] - amount, bbox[1] - amount, bbox[2] + amount, bbox[3] + amount];
+  return [
+    bbox[0] - amount,
+    bbox[1] - amount,
+    bbox[2] + amount,
+    bbox[3] + amount,
+  ];
 }
 
 /**
@@ -301,7 +357,10 @@ export function simplifyPoints(
 
   const last = points[points.length - 1]!;
   const keptLast = kept[kept.length - 1]!;
-  if (kept.length === 1 || distance(last.x, last.y, keptLast.x, keptLast.y) > 0) {
+  if (
+    kept.length === 1 ||
+    distance(last.x, last.y, keptLast.x, keptLast.y) > 0
+  ) {
     kept.push({ ...last });
   }
   return kept;
@@ -344,7 +403,11 @@ function hitTestPoints(
   return false;
 }
 
-function hitTestShape(item: Extract<Annotation, { kind: "shape" }>, point: AnnotationPoint, reach: number) {
+function hitTestShape(
+  item: Extract<Annotation, { kind: "shape" }>,
+  point: AnnotationPoint,
+  reach: number,
+) {
   const [x0, y0] = item.from;
   const [x1, y1] = item.to;
   const left = Math.min(x0, x1);
@@ -354,7 +417,10 @@ function hitTestShape(item: Extract<Annotation, { kind: "shape" }>, point: Annot
 
   if (item.shape === "rect") {
     const inside =
-      point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
+      point.x >= left &&
+      point.x <= right &&
+      point.y >= top &&
+      point.y <= bottom;
     if (inside) {
       if (item.filled) return true;
       // On the outline only: inside the outer box but within `reach` of an edge.
@@ -365,10 +431,13 @@ function hitTestShape(item: Extract<Annotation, { kind: "shape" }>, point: Annot
         bottom - point.y <= reach
       );
     }
-    return distanceToSegment(point.x, point.y, left, top, right, top) <= reach ||
+    return (
+      distanceToSegment(point.x, point.y, left, top, right, top) <= reach ||
       distanceToSegment(point.x, point.y, right, top, right, bottom) <= reach ||
-      distanceToSegment(point.x, point.y, right, bottom, left, bottom) <= reach ||
-      distanceToSegment(point.x, point.y, left, bottom, left, top) <= reach;
+      distanceToSegment(point.x, point.y, right, bottom, left, bottom) <=
+        reach ||
+      distanceToSegment(point.x, point.y, left, bottom, left, top) <= reach
+    );
   }
 
   const cx = (left + right) / 2;
@@ -394,7 +463,8 @@ export function hitTestItem(
   point: AnnotationPoint,
   radius: number,
 ): boolean {
-  if (!bboxContainsPoint(itemBBox(item), point.x, point.y, radius)) return false;
+  if (!bboxContainsPoint(itemBBox(item), point.x, point.y, radius))
+    return false;
 
   switch (item.kind) {
     case "stroke":

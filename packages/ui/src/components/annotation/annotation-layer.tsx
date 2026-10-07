@@ -24,12 +24,20 @@
  * pointers, and they are **siblings** — the toolbar floats in its own corner rather
  * than inside the canvas, so a click on a button never reaches the state machine.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Annotation } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { AnnotationCanvas } from "./annotation-canvas";
 import { AnnotationToolbar } from "./annotation-toolbar";
+import { toLayerBox } from "./geometry";
 import type {
   AnnotationColorKey,
   AnnotationLayerProps,
@@ -91,7 +99,10 @@ function sameRect(a: BaseRect | null, b: BaseRect | null): boolean {
  * cheap, honest comparison: same ids means same set, and only a real edit — ours
  * or another client's — changes them.
  */
-function sameItems(a: readonly Annotation[], b: readonly Annotation[]): boolean {
+function sameItems(
+  a: readonly Annotation[],
+  b: readonly Annotation[],
+): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
@@ -113,23 +124,28 @@ export function AnnotationLayer({
 
   // `items` is controlled when the host can persist it, and mirrored locally when
   // it cannot (a read-only view with no writer) so the layer is still usable.
-  const [localItems, setLocalItems] = useState<Annotation[]>(itemsProp ?? NO_ITEMS);
+  const [localItems, setLocalItems] = useState<Annotation[]>(
+    itemsProp ?? NO_ITEMS,
+  );
   const items = onItemsChange ? (itemsProp ?? NO_ITEMS) : localItems;
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
   const [history, setHistory] = useState<History>(EMPTY_HISTORY);
   const [tool, setTool] = useState<AnnotationTool>(defaultTool);
-  const [color, setColor] = useState<AnnotationColorKey>(DEFAULT_ANNOTATION_COLOR);
+  const [color, setColor] = useState<AnnotationColorKey>(
+    DEFAULT_ANNOTATION_COLOR,
+  );
   const [size, setSize] = useState<number>(DEFAULT_ANNOTATION_SIZE);
   const [hidden, setHidden] = useState(false);
   const [touchDraws, setTouchDraws] = useState(false);
   const [active, setActive] = useState(false);
 
   /** The base rectangle (viewport) and its box (container) — always in one read. */
-  const [geometry, setGeometry] = useState<{ rect: BaseRect; box: LayerBox } | null>(
-    null,
-  );
+  const [geometry, setGeometry] = useState<{
+    rect: BaseRect;
+    box: LayerBox;
+  } | null>(null);
 
   /**
    * Re-measure the base layer.
@@ -137,6 +153,13 @@ export function AnnotationLayer({
    * Both rectangles come out of the same tick so they cannot describe different
    * frames: `getBaseRect()` is the host's answer (the image's drawn rect, letterbox
    * excluded) and the root's own rect turns it into the canvas's local box.
+   *
+   * The root's **layout** size goes along with it: `getBoundingClientRect()` bakes
+   * in any ancestor transform, and the node editor's Dialog opens with
+   * `zoom-in-95`, so a measurement taken inside that 100 ms window would otherwise
+   * be 5% small forever — a transform is invisible to `ResizeObserver`. See
+   * {@link toLayerBox}, which re-expresses the whole measurement in the space the
+   * canvas element is laid out in (and is pinned by `geometry.test.ts`).
    */
   const measure = useCallback(() => {
     const root = rootRef.current;
@@ -147,12 +170,16 @@ export function AnnotationLayer({
       return;
     }
     const origin = root.getBoundingClientRect();
-    const box: LayerBox = {
-      left: rect.left - origin.left,
-      top: rect.top - origin.top,
-      width: rect.width,
-      height: rect.height,
-    };
+    const box = toLayerBox(
+      rect,
+      {
+        left: origin.left,
+        top: origin.top,
+        width: origin.width,
+        height: origin.height,
+      },
+      { width: root.offsetWidth, height: root.offsetHeight },
+    );
     setGeometry((previous) =>
       previous && sameRect(previous.rect, rect) && sameRect(previous.box, box)
         ? previous
@@ -184,6 +211,36 @@ export function AnnotationLayer({
   }, [measure]);
 
   /**
+   * The other half of the transform story: an animation or transition that ends on
+   * the layer root **or on one of its ancestors** — the Dialog's open animation is
+   * the one that matters today — re-measures when it settles.
+   *
+   * `toLayerBox` already makes a *scale* measurement exact while it is running, so
+   * this is not what fixes the reported defect; it is the cheap safety net for the
+   * transforms the ratio cannot describe (a rotation, a skew, a scale applied to
+   * the image but not to the root) and it keeps the layer correct if a host
+   * animates something other than a uniform scale. The listener is filtered to the
+   * layer's own ancestor chain so the Dialog's hover transitions cannot turn into a
+   * measurement per frame.
+   */
+  useEffect(() => {
+    const onSettled = (event: Event) => {
+      const root = rootRef.current;
+      const target = event.target;
+      if (!root || !(target instanceof Node)) return;
+      if (target === root || target.contains(root) || root.contains(target)) {
+        measure();
+      }
+    };
+    document.addEventListener("transitionend", onSettled, true);
+    document.addEventListener("animationend", onSettled, true);
+    return () => {
+      document.removeEventListener("transitionend", onSettled, true);
+      document.removeEventListener("animationend", onSettled, true);
+    };
+  }, [measure]);
+
+  /**
    * External-change detection. When the host swaps the whole layer — another node
    * opened in the same dialog, an upload that replaced the content, a remote
    * write — the undo stack describes edits that are no longer on screen and must
@@ -204,9 +261,10 @@ export function AnnotationLayer({
       // A new gesture discards the redo tail — there is no redo of "the future
       // that never happened".
       setHistory((previous) => {
-        const entries = [...previous.entries.slice(0, previous.index), entry].slice(
-          -HISTORY_LIMIT,
-        );
+        const entries = [
+          ...previous.entries.slice(0, previous.index),
+          entry,
+        ].slice(-HISTORY_LIMIT);
         return { entries, index: entries.length };
       });
       if (onItemsChange) onItemsChange(next);
@@ -270,7 +328,8 @@ export function AnnotationLayer({
       entry.kind === "add"
         ? [...current, entry.item]
         : current.filter(
-            (item) => !entry.removed.some(({ item: gone }) => gone.id === item.id),
+            (item) =>
+              !entry.removed.some(({ item: gone }) => gone.id === item.id),
           );
     emittedRef.current = next;
     setHistory({ entries: history.entries, index: history.index + 1 });
@@ -421,7 +480,9 @@ function reinsert(
   removed: readonly { item: Annotation; index: number }[],
 ): Annotation[] {
   const next = [...items];
-  for (const { item, index } of [...removed].sort((a, b) => a.index - b.index)) {
+  for (const { item, index } of [...removed].sort(
+    (a, b) => a.index - b.index,
+  )) {
     next.splice(Math.min(index, next.length), 0, item);
   }
   return next;

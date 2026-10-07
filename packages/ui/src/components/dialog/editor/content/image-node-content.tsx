@@ -23,7 +23,11 @@
  * makes a rotated photo line up (G5 #9).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Annotation, ImageContent, ImageNodeData } from "@workspace/interfaces";
+import type {
+  Annotation,
+  ImageContent,
+  ImageNodeData,
+} from "@workspace/interfaces";
 import { NodeService } from "@workspace/services";
 import { useUIStore } from "@workspace/store";
 import { resolveFileUrl } from "@workspace/api-client";
@@ -47,9 +51,10 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [mediaLoading, setMediaLoading] = useState(hasUrl);
   /** Natural size of the decoded image — EXIF already applied by the browser. */
-  const [natural, setNatural] = useState<{ width: number; height: number } | null>(
-    null,
-  );
+  const [natural, setNatural] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const { patchContent } = useNodeContentWriter<ImageContent>(
     node.id,
@@ -72,6 +77,13 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
     }
 
     setMediaLoading(true);
+    // The decoded size belongs to the *previous* url. This host is not keyed by
+    // `node.id` yet (that is M10's `key={node.id}`), so opening another image node in
+    // the same Dialog keeps the component mounted: without this reset the letterbox
+    // would be measured against the last picture's aspect ratio until the new one
+    // decodes. `null` makes `getBaseRect` return `null`, i.e. no ink until the new
+    // size is known — a missing layer for a few frames beats ink on the wrong box.
+    setNatural(null);
     const image = new Image();
     image.onload = () => {
       setNatural({ width: image.naturalWidth, height: image.naturalHeight });
@@ -104,7 +116,12 @@ export function ImageNodeContent({ node, className }: ImageNodeContentProps) {
     if (!image || !natural) return null;
     const rect = image.getBoundingClientRect();
     return containRect(
-      { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
       natural.width,
       natural.height,
     );

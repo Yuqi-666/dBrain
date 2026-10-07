@@ -65,21 +65,21 @@ export interface GestureHandle {
   /** Already normalized and clamped by the canvas's `onPoint`. */
   readonly points: AnnotationPoint[];
   /**
-   * Ids the eraser hit during **this** pass; the renderer skips them.
+   * Ids the eraser hit during **this** pass; the renderer fades them.
    *
    * Written by the eraser branch below and cleared by the **renderer** once the
-   * `items` prop reflects the removal — never by the state machine at release,
-   * or the marks would flash back for the frames between the emitted operation
-   * and the parent landing it.
+   * `items` prop reflects the removal — never by the state machine at release, or
+   * the marks would flash back to full alpha for the frames between the emitted
+   * operation and the parent landing it.
    */
   readonly erasedIds: Set<string>;
   /**
-   * Bumped whenever a sample lands or the eraser's set grows.
+   * Bumped whenever a sample lands.
    *
-   * A ref cannot trigger a render, so this is the renderer's only way to learn
-   * that the un-committed state changed: it is a plain number in a dependency
-   * array, which lets a discrete input event (the eraser touching a mark) repaint
-   * the cached layer without a per-frame replay.
+   * A debugging/`renderFrame` convenience rather than a render trigger: the eraser's
+   * discrete repaint goes through `onGestureChange` (see below), because a ref
+   * cannot re-run an effect and an effect dependency is only re-read when React
+   * renders for some other reason.
    */
   tick: number;
   /** `true` from `pointerdown` until the gesture is committed. */
@@ -110,17 +110,21 @@ export interface AnnotationInputOptions {
     pressure: number,
   ) => AnnotationPoint;
   /** One finished gesture, reported once (design §1.2 boundary 2). */
-  onOperation: (operation:
-    | { kind: "add"; item: Annotation }
-    | { kind: "remove"; items: Annotation[] }) => void;
+  onOperation: (
+    operation:
+      | { kind: "add"; item: Annotation }
+      | { kind: "remove"; items: Annotation[] },
+  ) => void;
   /** A gesture started / ended — the layer uses it for the cursor and ⌘Z focus. */
   onActiveChange?: (active: boolean) => void;
   /** Ask the canvas for a frame. Called from input callbacks; never mutates. */
   requestFrame: () => void;
   /**
-   * Called after every mutation of `gesture` **before** the frame request, so a
-   * renderer can react to a discrete input event (the eraser's live removal)
-   * without polling. Must not `setState` — it runs inside a pointer callback.
+   * Called when `gesture` changed in a way a *frame* cannot express — today: the
+   * eraser hit at least one new mark, so the cached layer must be replayed with the
+   * new ghost set. Never called for an ordinary sample (the live stroke is drawn
+   * every frame anyway), so a renderer may do real work here. Must not `setState`
+   * — it runs inside a pointer callback.
    */
   onGestureChange?: () => void;
 }
@@ -180,7 +184,9 @@ function coalescedPoints(event: PointerEvent): PointerEvent[] {
  * (`visibilitychange`, `blur`) are effects, and their cleanup is a plain
  * remove.
  */
-export function useAnnotationInput(options: AnnotationInputOptions): AnnotationInput {
+export function useAnnotationInput(
+  options: AnnotationInputOptions,
+): AnnotationInput {
   // `tool` / `size` / `color` / `touchDraws` / `hidden` / `itemsRef` are read
   // through `latest` rather than bound here on purpose: a handler that lives for
   // one render would capture the tool selected when it was created, and the pen
@@ -223,8 +229,12 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
     const current = gesture.current;
     if (!current || !current.active) return;
 
-    const { tool: activeTool, size: activeSize, color: activeColor, onOperation: emit } =
-      latest.current;
+    const {
+      tool: activeTool,
+      size: activeSize,
+      color: activeColor,
+      onOperation: emit,
+    } = latest.current;
 
     current.active = false;
     onActiveChange?.(false);
@@ -317,7 +327,11 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
 
       const pointerType = event.pointerType;
       // Palm rejection: while the pen is down every touch is dropped.
-      if (pointerType === "touch" && (penIsDown() || !latest.current.touchDraws)) return;
+      if (
+        pointerType === "touch" &&
+        (penIsDown() || !latest.current.touchDraws)
+      )
+        return;
       if (!isDrawable(pointerType)) return;
 
       activePointers.current.set(event.pointerId, pointerType);
@@ -340,17 +354,9 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
       );
       current.tick += 1;
       onActiveChange?.(true);
-      onGestureChange?.();
       requestFrame();
     },
-    [
-      gesture,
-      isDrawable,
-      onActiveChange,
-      onGestureChange,
-      penIsDown,
-      requestFrame,
-    ],
+    [gesture, isDrawable, onActiveChange, penIsDown, requestFrame],
   );
 
   const onPointerMove = useCallback(
@@ -363,7 +369,11 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
 
       const native = event.nativeEvent;
       const samples = coalescedPoints(native);
-      const { onPoint: toPoint, tool: activeTool, size: activeSize } = latest.current;
+      const {
+        onPoint: toPoint,
+        tool: activeTool,
+        size: activeSize,
+      } = latest.current;
 
       let last: AnnotationPoint | null = null;
       for (const sample of samples) {
@@ -372,6 +382,7 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
       }
       current.tick += 1;
 
+      let hit = false;
       if (activeTool === "eraser" && last) {
         // Whole-stroke erase, reach = nib × 2 (design §3.3). The reach is
         // normalized like the nib, so it stays a constant fraction of the image.
@@ -383,16 +394,18 @@ export function useAnnotationInput(options: AnnotationInputOptions): AnnotationI
             if (current.erasedIds.has(item.id)) continue;
             if (hitTestItem(item, last, radius)) {
               current.erasedIds.add(item.id);
-              // The pass is not over yet, but this mark must already be gone
-              // from the screen (design §3.3): bumping the tick makes the
-              // cached layer replay without it.
-              current.tick += 1;
+              hit = true;
             }
           }
         }
       }
 
-      onGestureChange?.();
+      // The eraser's set growing is the one mutation a paint cannot pick up on its
+      // own: `order` is a ref, so nothing re-renders and the cached layer would
+      // keep showing the mark at full alpha until the next render (the gesture's own
+      // `active` change on pointerup). The pen needs no such signal — its samples
+      // are drawn live every frame.
+      if (hit) onGestureChange?.();
       requestFrame();
     },
     [gesture, onGestureChange, penIsDown, requestFrame],

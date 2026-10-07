@@ -33,6 +33,7 @@ import {
   strokeMargin,
   toDisplayPoint,
   toDisplaySize,
+  toLayerBox,
   toNormalizedSize,
   withBBox,
 } from "./geometry.ts";
@@ -64,6 +65,60 @@ test("containRect refuses to divide by an unloaded image", () => {
   );
 });
 
+test("toLayerBox undoes the scale an opening Dialog paints under", () => {
+  // The G5 defect, in numbers: the layer root is 800×400 in layout pixels and the
+  // Dialog is `zoom-in-95`, so every `getBoundingClientRect()` in that subtree
+  // comes back 5% small. A box measured now must still come out in *layout* pixels
+  // (16, 16, 768, 368) — the numbers a ResizeObserver can never correct, because a
+  // transform is not a layout change.
+  const layout = { width: 800, height: 400 };
+  const scale = 0.95;
+  const origin = {
+    left: 195,
+    top: 195,
+    width: 800 * scale,
+    height: 400 * scale,
+  };
+  const rect = {
+    left: 195 + 16 * scale,
+    top: 195 + 16 * scale,
+    width: 768 * scale,
+    height: 368 * scale,
+  };
+  const box = toLayerBox(rect, origin, layout);
+  approx([box.left, box.top, box.width, box.height], [16, 16, 768, 368]);
+});
+
+test("toLayerBox corrects the axes separately", () => {
+  // A `scale(sx, sy)` animation is not uniform; correcting with one number would
+  // leave the other axis wrong.
+  const box = toLayerBox(
+    { left: 110, top: 130, width: 200, height: 100 },
+    { left: 100, top: 100, width: 400, height: 400 },
+    { width: 800, height: 400 }, // sx = 0.5, sy = 1
+  );
+  approx([box.left, box.top, box.width, box.height], [20, 30, 400, 100]);
+});
+
+test("toLayerBox is the identity without a transform", () => {
+  const origin = { left: 40, top: 10, width: 800, height: 400 };
+  const rect = { left: 56, top: 26, width: 768, height: 368 };
+  const box = toLayerBox(rect, origin, { width: 800, height: 400 });
+  approx([box.left, box.top, box.width, box.height], [16, 16, 768, 368]);
+});
+
+test("toLayerBox falls back to 1:1 when the layout size is unusable", () => {
+  const origin = { left: 0, top: 0, width: 800, height: 400 };
+  const rect = { left: 16, top: 16, width: 768, height: 368 };
+  for (const layout of [
+    { width: 0, height: 0 },
+    { width: Number.NaN, height: 400 },
+  ]) {
+    const box = toLayerBox(rect, origin, layout);
+    approx([box.left, box.top, box.width, box.height], [16, 16, 768, 368]);
+  }
+});
+
 test("normalizePoint and toDisplayPoint are inverse", () => {
   const point = normalizePoint(BOX, 300, 250); // exactly the box centre
   assert.deepEqual(point, { x: 0.5, y: 0.5 });
@@ -86,7 +141,10 @@ test("a stored size is a fraction of the short edge", () => {
   const wide: BaseRect = { left: 0, top: 0, width: 1000, height: 500 };
   assert.equal(toDisplaySize(0.01, wide), 5);
   assert.equal(toNormalizedSize(5, wide), 0.01);
-  assert.equal(toNormalizedSize(5, { left: 0, top: 0, width: 0, height: 0 }), 0);
+  assert.equal(
+    toNormalizedSize(5, { left: 0, top: 0, width: 0, height: 0 }),
+    0,
+  );
 });
 
 test("distanceToSegment projects onto the segment, not the line", () => {
@@ -134,9 +192,13 @@ function approx(actual: readonly number[], expected: readonly number[]): void {
 }
 
 test("bbox helpers inflate, test, and intersect", () => {
-  approx(pointsBBox([{ x: 0.2, y: 0.4 }, { x: 0.6, y: 0.1 }])!, [
-    0.2, 0.1, 0.6, 0.4,
-  ]);
+  approx(
+    pointsBBox([
+      { x: 0.2, y: 0.4 },
+      { x: 0.6, y: 0.1 },
+    ])!,
+    [0.2, 0.1, 0.6, 0.4],
+  );
   assert.equal(pointsBBox([]), null);
   approx(inflateBBox([0.2, 0.1, 0.6, 0.4], 0.05), [0.15, 0.05, 0.65, 0.45]);
   assert.equal(bboxContainsPoint([0, 0, 1, 1], 0.5, 0.5), true);
@@ -209,9 +271,18 @@ test("filled shapes hit from inside, outline shapes only near the edge", () => {
     to: [0.8, 0.8] as [number, number],
     size: 0.01,
   };
-  assert.equal(hitTestItem({ ...base, filled: false }, { x: 0.5, y: 0.5 }, 0), false);
-  assert.equal(hitTestItem({ ...base, filled: false }, { x: 0.2, y: 0.5 }, 0), true);
-  assert.equal(hitTestItem({ ...base, filled: true }, { x: 0.5, y: 0.5 }, 0), true);
+  assert.equal(
+    hitTestItem({ ...base, filled: false }, { x: 0.5, y: 0.5 }, 0),
+    false,
+  );
+  assert.equal(
+    hitTestItem({ ...base, filled: false }, { x: 0.2, y: 0.5 }, 0),
+    true,
+  );
+  assert.equal(
+    hitTestItem({ ...base, filled: true }, { x: 0.5, y: 0.5 }, 0),
+    true,
+  );
   // An ellipse is not a rectangle: the box corner is outside the curve.
   const ellipse: Annotation = { ...base, shape: "ellipse", filled: true };
   assert.equal(hitTestItem(ellipse, { x: 0.5, y: 0.5 }, 0), true);

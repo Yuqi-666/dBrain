@@ -275,10 +275,12 @@ export function AnnotationToolbar({
   const empty = itemCount === 0;
   const colorVar = `var(${ANNOTATION_COLORS.find((spec) => spec.key === color)?.cssVar ?? ANNOTATION_COLORS[0]!.cssVar})`;
 
-  // Folded layout (design §2.4, `compact`): 当前工具 + 橡皮 + 撤销 + 颜色 + 更多.
-  // When the current tool *is* the eraser it is rendered once, not twice.
-  const tools: readonly AnnotationTool[] =
-    compact && tool === "eraser" ? ["eraser"] : ["pen", "eraser"];
+  // Folded layout (design §2.4, `compact`): 笔 + 橡皮 + 撤销 + 颜色 + 更多.
+  // Both tools stay in the row — 粗细 / 隐藏批注 / 重做 are what the fold removes
+  // (they move into 更多 below). Dropping the pen while the eraser is selected
+  // leaves `P` / `1` as the only way back, which a finger cannot press: the tool
+  // row is exactly the control a touch device has. (Reported at G5.)
+  const tools: readonly AnnotationTool[] = ["pen", "eraser"];
 
   // Radix reports "" when the active single-toggle is pressed again; a tool is
   // never "none", so the empty report is dropped and the button stays on.

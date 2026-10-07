@@ -20,6 +20,7 @@ import type { Annotation } from "@workspace/interfaces";
 
 import {
   drawAnnotation,
+  drawAnnotations,
   shouldSimulatePressure,
   strokeOutline,
   type InkContext,
@@ -42,18 +43,50 @@ class RecordingContext implements InkContext {
   textBaseline: CanvasTextBaseline = "alphabetic";
 
   readonly ops: string[] = [];
+  /**
+   * The paint state at the moment of every `fill()`. Recorded *inside* `fill()`
+   * because a real context restores it on `restore()` — asserting after the call
+   * would only test the stub's teardown.
+   */
+  readonly fills: {
+    alpha: number;
+    color: string | CanvasGradient | CanvasPattern;
+    blend: GlobalCompositeOperation;
+  }[] = [];
   readonly points: [number, number][] = [];
   readonly texts: string[] = [];
   saveCount = 0;
   restoreCount = 0;
+  /** `save()` / `restore()` carry the paint state, as a real context does. */
+  private readonly stack: {
+    globalAlpha: number;
+    fillStyle: string | CanvasGradient | CanvasPattern;
+    strokeStyle: string | CanvasGradient | CanvasPattern;
+    lineWidth: number;
+    globalCompositeOperation: GlobalCompositeOperation;
+  }[] = [];
 
   save(): void {
     this.saveCount += 1;
     this.ops.push("save");
+    this.stack.push({
+      globalAlpha: this.globalAlpha,
+      fillStyle: this.fillStyle,
+      strokeStyle: this.strokeStyle,
+      lineWidth: this.lineWidth,
+      globalCompositeOperation: this.globalCompositeOperation,
+    });
   }
   restore(): void {
     this.restoreCount += 1;
     this.ops.push("restore");
+    const state = this.stack.pop();
+    if (!state) return;
+    this.globalAlpha = state.globalAlpha;
+    this.fillStyle = state.fillStyle;
+    this.strokeStyle = state.strokeStyle;
+    this.lineWidth = state.lineWidth;
+    this.globalCompositeOperation = state.globalCompositeOperation;
   }
   beginPath(): void {
     this.ops.push("beginPath");
@@ -77,6 +110,11 @@ class RecordingContext implements InkContext {
   }
   fill(): void {
     this.ops.push("fill");
+    this.fills.push({
+      alpha: this.globalAlpha,
+      color: this.fillStyle,
+      blend: this.globalCompositeOperation,
+    });
   }
   stroke(): void {
     this.ops.push("stroke");
@@ -122,20 +160,35 @@ test("strokeOutline works in pixel space, so its size follows the short edge", (
   // normalized size being handed to the library.
   const xs = outline.map(([x]) => x!);
   const ys = outline.map(([, y]) => y!);
-  assert.ok(Math.min(...xs) > 95 && Math.min(...xs) < 105, `min x ${Math.min(...xs)}`);
-  assert.ok(Math.max(...xs) > 895 && Math.max(...xs) < 905, `max x ${Math.max(...xs)}`);
-  assert.ok(Math.min(...ys) > 95 && Math.min(...ys) < 105, `min y ${Math.min(...ys)}`);
-  assert.ok(Math.max(...ys) > 295 && Math.max(...ys) < 305, `max y ${Math.max(...ys)}`);
+  assert.ok(
+    Math.min(...xs) > 95 && Math.min(...xs) < 105,
+    `min x ${Math.min(...xs)}`,
+  );
+  assert.ok(
+    Math.max(...xs) > 895 && Math.max(...xs) < 905,
+    `max x ${Math.max(...xs)}`,
+  );
+  assert.ok(
+    Math.min(...ys) > 95 && Math.min(...ys) < 105,
+    `min y ${Math.min(...ys)}`,
+  );
+  assert.ok(
+    Math.max(...ys) > 295 && Math.max(...ys) < 305,
+    `max y ${Math.max(...ys)}`,
+  );
 });
 
 test("an empty stroke has no outline and is not drawn", () => {
-  assert.deepEqual(strokeOutline([], RECT, {
-    size: 0.02,
-    thinning: 0.5,
-    smoothing: 0.5,
-    streamline: 0.5,
-    simulatePressure: true,
-  }), []);
+  assert.deepEqual(
+    strokeOutline([], RECT, {
+      size: 0.02,
+      thinning: 0.5,
+      smoothing: 0.5,
+      streamline: 0.5,
+      simulatePressure: true,
+    }),
+    [],
+  );
 });
 
 test("shouldSimulatePressure is decided once, on release", () => {
@@ -157,7 +210,10 @@ test("shouldSimulatePressure is decided once, on release", () => {
   );
   // A missing sample makes the whole stroke simulated rather than half-real.
   assert.equal(
-    shouldSimulatePressure([{ x: 0, y: 0, p: 0.4 }, { x: 1, y: 0 }]),
+    shouldSimulatePressure([
+      { x: 0, y: 0, p: 0.4 },
+      { x: 1, y: 0 },
+    ]),
     true,
   );
   assert.equal(shouldSimulatePressure([{ x: 0, y: 0, p: 0.4 }]), true);
@@ -196,10 +252,45 @@ test("drawAnnotation fills a pen stroke with its token colour and opacity", () =
   });
 
   assert.deepEqual(asked, ["red"]);
-  assert.equal(ctx.fillStyle, "oklch(0.58 0.22 27)");
-  assert.equal(ctx.globalAlpha, 0.8);
+  assert.deepEqual(ctx.fills, [
+    { alpha: 0.8, color: "oklch(0.58 0.22 27)", blend: "source-over" },
+  ]);
   assert.ok(ctx.ops.includes("fill"));
   assert.equal(ctx.saveCount, ctx.restoreCount);
+});
+
+test("ghosted marks keep their alpha fraction, everything else is untouched", () => {
+  const ctx = new RecordingContext();
+  const other: Annotation = {
+    ...(nibPen as Extract<Annotation, { kind: "stroke" }>),
+    id: "s2",
+    opacity: 1,
+  };
+  drawAnnotations(ctx, [nibPen, other], RECT, () => "red", {
+    ghostIds: new Set(["s1"]),
+  });
+  // Two strokes were drawn (save/restore around each fill), and the ghost is the
+  // only one whose alpha was scaled: 0.8 → 0.24, the other stays 1.
+  assert.equal(ctx.saveCount, 2);
+  assert.equal(ctx.saveCount, ctx.restoreCount);
+  assert.deepEqual(
+    ctx.fills.map((f) => f.alpha),
+    [0.24, 1],
+  );
+});
+
+test("an empty ghost set draws every mark at full alpha", () => {
+  const ctx = new RecordingContext();
+  drawAnnotations(ctx, [nibPen], RECT, () => "red", { ghostIds: new Set() });
+  assert.deepEqual(
+    ctx.fills.map((f) => f.alpha),
+    [0.8],
+  );
+  drawAnnotations(ctx, [nibPen], RECT, () => "red", { ghostIds: null });
+  assert.deepEqual(
+    ctx.fills.map((f) => f.alpha),
+    [0.8, 0.8],
+  );
 });
 
 test("a highlighter blends instead of darkening with alpha", () => {
@@ -211,8 +302,9 @@ test("a highlighter blends instead of darkening with alpha", () => {
     blend: "multiply",
   };
   drawAnnotation(ctx, highlight, RECT, () => "yellow");
-  assert.equal(ctx.globalCompositeOperation, "multiply");
-  assert.equal(ctx.globalAlpha, 0.35);
+  assert.deepEqual(ctx.fills, [
+    { alpha: 0.35, color: "yellow", blend: "multiply" },
+  ]);
 });
 
 test("an arrow draws a shaft plus a filled triangular head", () => {
@@ -265,7 +357,12 @@ test("an outlined shape strokes and a filled one fills", () => {
   assert.ok(!filled.ops.includes("stroke"));
 
   const ellipse = new RecordingContext();
-  drawAnnotation(ellipse, { ...base, shape: "ellipse", filled: true }, RECT, () => "blue");
+  drawAnnotation(
+    ellipse,
+    { ...base, shape: "ellipse", filled: true },
+    RECT,
+    () => "blue",
+  );
   assert.ok(ellipse.ops.includes("ellipse"));
 });
 
