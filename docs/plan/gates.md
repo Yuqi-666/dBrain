@@ -490,8 +490,8 @@
 
 ### G4 — M4 灵动岛 P0
 
-- 状态：**待测**（第 1 轮；自检 + **15/15** 真浏览器探针全绿，等用户实测）
-- 提交：`382b7b0`（依赖：`packages/ui` 增 `motion ^12` + lockfile）→ `dbccaf2`（状态：`uiStore` 增 `islandPanel` 切片）→ `94ac393`（P0：七个组件文件 + 宿主 + `(main)/layout.tsx` 挂载 + 文档）
+- 状态：**通过**（2026-10-07 · 第 2 轮：第 1 轮用户实测提出瑕疵 → 用户本人修复并重构（`48f4e5d`）→ 重测通过；三条通过判据全部满足）
+- 提交：`382b7b0`（依赖：`packages/ui` 增 `motion ^12` + lockfile）→ `dbccaf2`（状态：`uiStore` 增 `islandPanel` 切片）→ `94ac393`（P0：七个组件文件 + 宿主 + `(main)/layout.tsx` 挂载 + 文档）→ `8f4cd21`（G4 待测记录 + 决策 17–19）→ `693fb7b`（build 证据 + 第 9 条口径）→ **`48f4e5d`（用户侧：形变分层重构 + 实测瑕疵修复，见下「用户侧修复」）**
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失** ✅（typecheck 88 / lint 26）。逐包复核：`@workspace/ui` **19 条 = 基线**（探针期新增的 7 个文件**零 error**）、`@workspace/store` 干净（新切片零诊断）、`web` 段 37 条（新增的 `island-routes.ts` / `dynamic-island-host.tsx` 零 error；挂载先于宿主文件落地时那条 `app/(main)/layout.tsx(7,35) TS2307` 已随新文件消失，且它本就不在基线里 ⇒ diff 仍是 0/0）
   - **lint diff**：`@workspace/ui` **26 problems (0 errors, 26 warnings)**，与基线逐条一致、新增文件零 warning；`web` 4 warnings 不变
@@ -519,26 +519,36 @@
   ```
   复跑：`bash /tmp/probe/run-island.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → 起/复用 `python3 -m http.server 8899 -d /tmp/probe` → 跑 `island-check.mjs`）。**工装踩到的三个坑**（复跑要带）：① `chrome-headless-shell` 默认报 `(hover: none)`/`(pointer: coarse)`，不加 blink-settings 就会把「桌面」那一轮全跑成触摸分支；② motion 的 `layout` 投影期间把 `border-radius` 写成**百分比对**（`5.0049% 6.3715%` = 560×440 上的 28px），`parseFloat` 会读成 5 —— 圆角断言必须按盒子解析百分比；③ headless 下**点击不会把焦点给按钮**（`document.activeElement` 仍是 `<body>`），局部 Esc 那条要显式 `focus()`（真机 Chrome/Windows/Linux 点击是会聚焦的，macOS 不会 —— 这也是 M9 要加全局 Esc 的原因之一）。
 - 用户操作清单：见 [dynamic-island.md §M4.4](./dynamic-island.md#m44-闸门-g4--用户操作清单)（**9 条** + 8 条前置说明；第 2 条在 P0 只有「搜索 → Esc 收起」两个动作，第 8 条的判据已按既存缺陷改写）
-- 用户实测结果：（待填 —— 9 条）
-- 失败项与归因：（待填）
-- 迭代：——（**闸门前的自检期**抓到两个真缺陷，都在交用户之前修掉，不计入闸门轮次，见下）
+- 用户实测结果（原话，2026-10-07）：「**我修复了些瑕疵，提交后并测试G4通过，现在开始G5**」——9 条清单随那一次修复一并通过；用户未逐条回传读数（与 G3-r2 同一处理），故本条以用户结论为准，主 agent 的 15/15 探针是第 1–6、10 条逻辑面的底稿。
+- 失败项与归因：**无清单判定失败项**。用户在实测中提的是自己发现的瑕疵（不是把某条判为不通过），归因 **实现缺陷**，由用户自己提交 `48f4e5d` 修复；主 agent 在记录前复核了该提交的文件集与行为面（见「用户侧修复」），并确认它没有改坏 M4 的三条边界。
+- 迭代：
+  - G4-r1（第 1 轮实测，用户执行）：用户按 9 条清单实测 → 提出瑕疵并**自行完成一次形变实现的重构 + 修复**（`48f4e5d`：几何/弹簧/换层/时机拆成独立模块、`tuning.ts` 唯一数字源 + `__island` 调参台、展开态可点击关闭、点击岛外收起、`IslandPanel` 上移到 `packages/interfaces`）→ 重测通过，随即开工 M5。
+  - **闸门前的自检期**抓到两个真缺陷，都在交用户之前修掉，不计入闸门轮次（见下）。
+- **用户侧修复（`48f4e5d`，主 agent 复核；31 个文件，+2971/−1145）**：
+  1. **分层**：`island-config.ts` / `island-nav.tsx` / `island-surface.tsx` / `panels/*` 删除，换成 `forms.ts`（四形态几何 + 三种交棒策略）/ `geometry.ts`（纯几何、proximity、层不透明度）/ `motion.ts`（盒子与层的弹簧）/ `layers.ts`（换层状态机，保留被降级层的 key）/ `stage.tsx`（渲染哪一层）/ `surface.ts` / `nav.tsx` / `panels.tsx` / `use-pill-box.ts` / `environment.ts` / `tuning.ts` / `use-tuning.ts` / `types.ts`；`dynamic-island.tsx` 只剩壳。**M4.2-14 的 `data-*` 锚点全部保留**（`data-island` / `data-island-panel` / `data-island-nav` / `data-island-nav-item` / `data-island-nav-disabled` / `data-island-placeholder` / `data-island-content`），新增 `data-island-layer{,-side}` 两个；M8/M9 的探针锚点不变。
+  2. **公开面收敛**：props = `panel` + `onPanelChange` + `nav` + **`content?: Partial<Record<IslandExpandedPanel, ReactNode>>`** + `actions` + `backdrop?: "auto" | "opaque"` + `ref`；`IslandNavItem` 增 `separator`（分隔线由宿主标记，不再由 `key` 推断）；宿主改为用 `ref` 观察胶囊写 `--dynamic-island-height`（不再 `document.querySelector`，effect 回到 mount-only）。**⇒ M8/M9 的内容注入点是 `content={{ preview: … }}` / `content={{ search: … }}`，不是 M4 文档里的 `previewContent` / `searchContent` / `agentContent`；两条边界（不读 store、不注册全局键盘）未变。**
+  3. **类型收敛**：`IslandPanel` / `IslandExpandedPanel` 移到 `packages/interfaces/src/models/island.ts`，`@workspace/store` 只重新导出 —— **M4.2-7「两处结构等价副本」的约定作废**。
+  4. **时机重做**：内容交棒统一由 `proximity` 驱动（grow 硬切 / shrink 在 `pillHandover` 处切换 / swap 走溶解窗口）；`timingOf` 生成三行策略表，`handoverFor` 只选行（纯函数，测试钉住）—— **M4.2-18/19 的口径被这条取代**。
+  5. **手感与调参**：`tuning.ts` 是唯一一份数字与纯数学（`applyPatch` 校验、`ringOf` 推导回弹圈、`scaleSpring` 保 ζ、`sourceOf` 打印可粘贴源码）；`use-tuning.ts` 提供 dev 控制台 `__island`（`help/show/set/speed/instant/reset/copy`）+ localStorage 持久化；`resolveMotion` 是数字到 motion 的唯一通路。**本轮手调结果按被观看时的有效值提交**：弹簧 440/24、440/32、1280/60（speed 2 已烘入），`PILL_HANDOVER = 3`。
+  6. **测试先例**：`packages/ui` 增 `node --test` 脚本（Node 原生跑 TS，**零新依赖**）+ tsconfig 放行 `.ts` 扩展名导入；`geometry.test.ts` / `swap.test.ts` / `tuning.test.ts` 共 33 条。**仓库此前无 JS/TS 测试先例**，`packages/ui` 现在有一条可跑的纯函数测试线（`pnpm --filter=@workspace/ui test`）—— 与本仓「不引入测试框架」的反模式不冲突（Node 内置 runner）。
+  7. **行为面新增**：展开态的搜索图标**可点击收起**（平板没有 Esc，M4 记录里「展开态只能靠键盘 Esc」的缺口由此补上）、**点击岛外收起**（`document` capture 阶段的 `pointerdown`）。这两条不在 M4 清单的 9 条里，属用户实测驱动的增益。
+  8. **本轮 M4 交付里的三处「实现选择」被重构取代**（不再作为遗留）：`SNAP_SPRING` 的嵌套接法、2.4s 高光漂移（`surface.ts:44` 明确写「自走的径向高光刻意不在这里」）、`--dynamic-island-height` 的每次面板切换重订阅。**`blurEnabled` 也被新公开面的 `backdrop?: "auto" | "opaque"` 取代**（`"opaque"` 今天仍无消费方 —— 见遗留 1）。
 - **闸门前自检抓到的两个真缺陷**（都不是笔误，且第一条本来会让 G4 第 1 条直接失败）：
   1. **`Tooltip` 缺 `TooltipProvider` ⇒ 整个岛渲染抛错**。Radix 的 provider context **没有默认值**（`radix-ui@1.4.3`），`island-nav` 的「禁用项原因 tooltip」是**第一处可达**的 `Tooltip`：探针第一轮的控制台原文是 `` Uncaught Error: `Tooltip` must be used within `TooltipProvider` ``，`#root` 里什么都没渲染（`[data-island]` 不存在）。修法：`IslandNav` 内包一层 scoped `<TooltipProvider delayDuration={0}>`（一个岛一个；Provider 不产出 DOM，锚点与 40px 行不变）。**同时发现一处既存同类隐患**：`packages/ui/src/components/ui/sidebar.tsx:528` 的 `<Tooltip>` 也在没有 provider 的情况下渲染，而全仓没有任何地方挂 `TooltipProvider` —— 今天不可达（`MainSidebar` 没给那几个按钮传 `tooltip`），见遗留 5。
   2. **`nav-hover`（收起态悬停横向展开标签）与 G4 第 1 条的判据冲突**。设计 §2.2 把它标为**可选**、优先级最低，G4 清单里没有一条测它；但「指针一进胶囊就变宽/出标签」会让「收起态宽度 ≤180px」在验收时变成「看你指针在哪」。已删除该分支（`IslandNavPanel` 保留给**展开态**用），并写进 `dynamic-island.tsx` 文件头与 [§M4.2-17](./dynamic-island.md)。
 - **两处「按可运行等价写法」而非逐字照抄设计样例**（都已在代码 JSDoc 记录，G4 不判）：
   1. `transformOrigin: { originX, originY }` → 写成 motion 12 style 的**顶层键** `originX/originY`（`ISLAND_ORIGIN`）。理由：嵌套对象是 motion 的内部 `TransformOrigin` 记录，`motion-dom` 只对 `origin*` 顶层键合成 `transform-origin`，对象形式既过不了 `MotionStyle` 的类型、也不会渲染出目标值。渲染结果与设计意图一致：`transform-origin: 50% 100% 0`（探针 ⑥ 按「盒子底部中心」量）。
   2. 底色第①层写成 `bg-popover` + `supports-[backdrop-filter:blur(1px)]:bg-popover/85`（暗色同款 `/80`），而不是把 `bg-popover/85` 当无条件底 —— 否则「不支持 `backdrop-filter` 时改不透明」就没有落点（§3.4 第 2 行）。因此按 `classList` 精确匹配 `bg-popover/85` 会落空，按计算样式量透明度才通过。
-- 遗留不阻塞项（初步，G4 通过后定稿）：
-  1. **`blurEnabled` 在 P0 没有消费方**（`island-surface.tsx`）：设计 §3.4 第 3 行要的「模拟运行中 / 岛上 300ms 无重绘 ⇒ 关模糊」按 R10 不接 `packages/graph`，`false` 分支今天从未被执行；归属：后续章节（那时才需要「谁是重绘源」的输入）。
-  2. **SNAP_SPRING 的嵌套是主 agent 的接法**（胶囊 `LIQUID_SPRING`、内层 `p-px` 用 `SNAP_SPRING`）：设计只把 SNAP 定位为「展开态内部」，未规定接在哪一层；若真机观感出现「内层追不上、被 `overflow-hidden` 裁一瞬」，一行退回默认即可。
-  3. **高光漂移（2.4s）是 P0 的实现选择**（`setInterval` + `transform` 过渡，避免 rAF 常驻）：设计 §3.3 只写「建议 2.4s 极缓漂移」。reduce 下不排定 interval。
-  4. **`--dynamic-island-height` 每次面板切换会 disconnect/re-observe**（宿主的 effect 依赖 `[islandPanel]`，为的是「首次取不到元素时下次渲染重试」）：中间帧变量短暂缺失，今天没有消费方；真要 mount-only 是一行。
-  5. **既存隐患：`sidebar.tsx:528` 的 `<Tooltip>` 同样缺 provider**（全仓无 `TooltipProvider`）：今天不可达（`MainSidebar` 未给那些按钮传 `tooltip`），但任何走通那条路径的改动都会白屏。归属：接入 tooltip 的那个人；或者在 `apps/web/app/layout.tsx` 挂一个全局 `TooltipProvider`（本轮没做：不在 M4 白名单内，且影响面是全部 tooltip）。
-  6. **`next build` 会改写 `apps/web/next-env.d.ts`**（`.next/dev/types` ⇄ `.next/types`）：`next dev` 与 `next build` 交替跑会来回抖。本轮已还原未入库；谁要跑 build 请留意别把它顺手提交。
-- 需要你决定的两条（不阻塞本轮实测，按你的回答进遗留或另开前置修复）：
-  1. **`web` 的 `pnpm --filter=web build` 今天不通过，但原因与本轮无关**：`app/(main)/graph/page.tsx:69` 传了 `theme`，而 `packages/graph` 的 `GraphProps` 只有 `viewId` / `view` / `className` / `style`（基线里的 TS2322）。要不要**单独开一条前置修复**（它会同时解锁 G7 / G10 的同名判据，代价是动 `apps/web/app/(main)/graph/page.tsx` 或 `packages/graph` —— 两者都不在本轮白名单内）。
-  2. **`/settings` 今天不进胶囊**（只有 middleware 保护、没有 page）：若你希望它也占一个位置（禁用态 + 原因），改 `apps/web/components/island-routes.ts` 一行并把 §M4.2-15 的分隔线位置口径一起改。
-- 用户结论：（待填）
+- 遗留不阻塞项（**G4 通过后定稿**，复核基准 = 用户重构后的 `48f4e5d` 代码）：
+  1. **`backdrop: "opaque"` 今天没有消费方**（新的公开面）：设计 §3.4 第 3 行要的「模拟运行中 / 岛上 300ms 无重绘 ⇒ 关模糊」按 R10 不接 `packages/graph`，谁先知道「背后在重绘」谁就去传 `"opaque"`（dashboard 网格、编辑器全屏是候选）。归属：该消费方落地的章节（M10 或之后）。
+  2. **`__island` 调参台没有环境门**（`use-tuning.ts` 往 `globalThis.__island` 挂控制台 + localStorage 持久化）：生产构建里把 `speed` 烘回 1 就等价于关掉它，但今天没有 `process.env.NODE_ENV` 门（`packages/ui` 里也无先例）。无用户可见后果；真要门就在 `use-tuning.ts` 一行。
+  3. **「点击岛外收起」是 `document` capture 阶段的全局 `pointerdown`**（岛的第三条边界写的是「不注册全局键盘」，不是「不注册全局指针」）：任何一次点击都会收起展开态，这是用户要的行为；但它不判「这次 pointerdown 是否归内层浮层」（G3 的 `isInnerLayer` 是现成原语），而岛内今天没有 portal 到 `body` 的内容（placeholder 是普通 DOM）。**M8/M9 注入 `content` 后必须复测这一条**（岛内若有 Radix 弹层/下拉，点它不能被当成「岛外」）。
+  4. **既存隐患：`packages/ui/src/components/ui/sidebar.tsx:528` 的 `<Tooltip>` 缺 provider**（全仓只有岛的 `nav.tsx` 挂了 scoped `TooltipProvider`）：今天不可达（`MainSidebar` 未给那些按钮传 `tooltip`），但任何走通那条路径的改动都会白屏。归属：接入 tooltip 的那个人；或在 `apps/web/app/layout.tsx` 挂一个全局 `TooltipProvider`（M5 的 toolbar 自带 scoped provider，见 §M5.2）。
+  5. **`next build` 会改写 `apps/web/next-env.d.ts`**（`.next/dev/types` ⇄ `.next/types`）：`next dev` 与 `next build` 交替跑会来回抖。已还原未入库；谁要跑 build 请留意别顺手提交。
+- 交用户决定的两条（**未回答**，随 G4 通过转入待决台账；第 1 条在 G7/G10 开工前必须有结论）：
+  1. **`web` 的 `pnpm --filter=web build` 今天不通过，但原因与 M4 无关**：`app/(main)/graph/page.tsx:69` 传了 `theme`，而 `packages/graph` 的 `GraphProps` 只有 `viewId` / `view` / `className` / `style`（基线里的 TS2322，[baseline/typecheck-errors.txt:2](./baseline/typecheck-errors.txt)）。**M5 不判 `web build`，所以现在不阻塞**；但 M7 的回归面 4 与 M10 的「装完依赖跑一次 `web build`」都会撞上它 —— 届时要先花一条前置修复（动 `apps/web/app/(main)/graph/page.tsx` 或 `packages/graph`，两者都在任何现有白名单之外）。
+  2. **`/settings` 今天不进胶囊**（只有 middleware 保护、没有 page）：若希望它占一个位置（禁用态 + 原因），改 `apps/web/components/island-routes.ts` 一行，并按新的 `separator` 口径（分隔线由宿主标记，不再按 `key` 推断）决定它落在哪一项前。
+- 用户结论（原话，2026-10-07）：「**我修复了些瑕疵，提交后并测试G4通过，现在开始G5**」
 
 ---
 

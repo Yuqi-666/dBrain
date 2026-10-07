@@ -1,10 +1,11 @@
 # 灵动岛执行计划（M4 / M8 / M9）
 
-> 状态：**M4 待测**（前提：M0 已过 G0；M8 另需 M2 已过 G2 —— 两者都已满足）
+> 状态：**M4 已过 G4**（2026-10-07 · 第 2 轮；M8 待开工，M8 另需 M2 已过 G2 —— 已满足）
 > 覆盖：M4 = 岛 P0、M8 = 岛 P1（预览面板）、M9 = 岛 P2+P3（搜索与清理）
 > 闸门：G4、G8、G9（各自独立过闸，W0 只免串行、不免闸门）
 > 契约：设计文档 [../dynamic-island/README.md](../dynamic-island/README.md)（下称「设计 §n」）、执行总纲 [./README.md](./README.md)（下称「总纲 §n」）
 > 相关：[gates.md](./gates.md)、[baseline.md](./baseline.md)、[node-content-ui.md](./node-content-ui.md)
+> **M8/M9 必读 [§M4.2-20](#m42-关键决策与挡路的坑)**：G4 通过时用户把形变实现整体重构了（`48f4e5d`），文件清单、公开面 props 与探针锚点以那一节为准，本节前面几条与之冲突的都已就地标注作废。
 
 ---
 
@@ -57,19 +58,29 @@
 4. **层级起点 `z-40`。** 侧边栏固定态 `z-30`、临时浮层 `z-40`（`main-layout.tsx:87/96/97`），Radix 弹层走 portal。窄屏下若胶囊与 `temp` 侧边栏重叠不好看，抬到 `z-[45]`，仍低于弹层。
 5. **`border-radius` 走 `style` 不走 class。** 设计 §0.3-3 第②条：motion 的 `layout` 用 `transform: scale()` 实现，只补偿经 `style` 给出的半径与阴影；写进 Tailwind `rounded-*` 不会被补偿。同理**不要用 `border`**，用父层 `padding` 伪造 1px 边缘。
 6. **fixed 容器必须 `layoutRoot`**（设计 §0.3-4），否则测量会掺进页面滚动偏移；岛的内容区自己 `overflow-y: auto` + `overscroll-contain`，外层不滚动（设计 §0.3-10）。
-7. **`IslandPanel` 有两份同形定义。** 设计 §6.1 要求 `packages/store/src/uiStore.ts` 导出它，设计 §5.2 要求 `dynamic-island.tsx` 导出它。依赖方向不允许 `packages/ui → @workspace/store`（设计 §0.2-2），所以两边各自用字面量联合、**结构等价**，宿主直接赋值即通过结构类型检查。落地时把这份契约写进两处 JSDoc，并在 G4 自检时用 `grep` 复核两份联合值一致。
+7. **`IslandPanel` 有两份同形定义。**（**作废 —— 见 §M4.2-20-3**：`48f4e5d` 把 `IslandPanel` / `IslandExpandedPanel` 上移到 `packages/interfaces/src/models/island.ts`，`@workspace/store` 只重新导出，两份副本的约定不再需要。）原文如下，仅作历史：设计 §6.1 要求 `packages/store/src/uiStore.ts` 导出它，设计 §5.2 要求 `dynamic-island.tsx` 导出它。依赖方向不允许 `packages/ui → @workspace/store`（设计 §0.2-2），所以两边各自用字面量联合、**结构等价**，宿主直接赋值即通过结构类型检查。
 8. **`packages/ui` 的 `exports` 只映射 `.tsx`。** `packages/ui/package.json:61` 是 `"./components/*": "./src/components/*.tsx"`，所以 `.../dynamic-island/index.ts` 与 `.../preview-block/index.ts` 都**不是**消费者入口；`apps/web` 必须写显式子路径（现有范式见 `apps/web/app/(main)/graph/page.tsx:16` 与 `packages/graph/src/force/ForceGraph.tsx:78`）。`packages/ui/src/components/index.ts` 的增长是登记性导出（总纲 §3.1 单列该文件的理由），照做但不依赖它做运行时解析。
 9. **`backdrop-filter` 的动态降级需要一个「模拟是否在跑」的输入。** `packages/graph` 有 `simulation:stopped`（`ForceGraph.tsx:602`），但它只在 graph 包内消费；`packages/ui` 不能 import graph。P0 的可用实现是「岛上 300ms 无重绘即认为可开 blur」（设计 §3.4 第 3 行给出的等价条件之一），把「跟随 `simulation:stopped`」降为**待验证**项（见文末清单），避免 P0 为一个纯优化项新增跨包事件面。
 10. **P0 不注册任何全局键盘。** §M4.1 第 9 行与设计 §5.3-3 都要求宿主注册 `⌘K` / `⌘⇧K` / `Esc`，但设计 §6.3/§6.4 又写死「`⌘K` 在 P2 迁移，**必须与删掉 `quick-panel.tsx` 的全局监听同一次提交**，否则 `⌘K` 触发两次」。P0 的 `quick-panel.tsx:30-49` 仍然挂着，所以宿主**只**注册「局部 Esc」：胶囊根元素上一个 React `onKeyDown`（焦点在岛内才生效，不 `preventDefault`/`stopPropagation`），不碰 `window`。三个全局快捷键留到 M9（P0 的宿主仍然按 §M4.1 第 9 行写 `--dynamic-island-height`）。
 11. **P0 的四个面板是「形态」而不是「内容」。** 设计 §5.1 的 `panels/search-panel.tsx` 属于 P2、`node-preview-panel.tsx` 属于 P1，P0 只有 `nav-panel` / `agent-panel` 两个文件（§M4.1 第 5 行）。而 G4 第 2/3/4 条要测的恰恰是**展开态的形态与指针行为**，所以：`previewContent` / `searchContent` / `agentContent` 缺失时，岛在**正确尺寸**的容器里渲染自己的占位（`data-island-placeholder=<panel>`，文案点明属于后续里程碑）。宿主在 P0 不注入任何 `*Content`。这样 P0 的闸门 diff 里没有「半截的搜索/预览」，也不会与 P1/P2 的真实内容抢同一段代码。
 12. **P0 宿主不订阅 `previewBlock`。** §M4.1 第 9 行写了「订阅 `islandPanel` 与 `previewBlock`」，但设计 §6.2 的 `previewBlock → preview` 映射是 **P1（M8）** 的触发逻辑，且那天要同时**删掉** `ForceGraph` 的 `<PreviewBlock>` 浮层；P0 若先接，会在「悬停节点」时同时出现旧的跟随浮层与岛内空占位。⇒ P0 只订阅 `islandPanel`，`preview` 形态只能由 `setIslandPanel("preview")` 到达（P0 没有 UI 入口）。
-13. **`island-surface` 的「模拟运行中降级」在 P0 只是一个可选 prop。** 设计 §3.4 第三行要求「force 模拟运行中 / 岛上 300ms 无重绘 ⇒ 关掉 `backdrop-filter`」。`packages/ui` 不能 import `packages/graph`（§0.2-2），R10 已把「跟随 `simulation:stopped`」降为待验证项 ⇒ P0 落一个 `blurEnabled?: boolean`（默认 `true`）并写进 JSDoc，接线留给后续章节；G4 不判这一条（设计 §11 的手测项里它是性能项，不在 G4 清单里）。
+13. **`island-surface` 的「模拟运行中降级」在 P0 只是一个可选 prop。**（**已被 §M4.2-20-2 取代**：那个 prop 今天叫 `backdrop?: "auto" | "opaque"`，`"opaque"` 仍无消费方。）原文：设计 §3.4 第三行要求「force 模拟运行中 / 岛上 300ms 无重绘 ⇒ 关掉 `backdrop-filter`」。`packages/ui` 不能 import `packages/graph`（§0.2-2），R10 已把「跟随 `simulation:stopped`」降为待验证项 ⇒ P0 落一个 `blurEnabled?: boolean`（默认 `true`）并写进 JSDoc，接线留给后续章节；G4 不判这一条。
 14. **探针锚点写进 DOM 契约。** `data-island`（胶囊本体）+ `data-island-panel`（当前形态）+ `data-island-content` + `data-island-nav` + `data-island-nav-disabled`：G4 第 1 条原话就是 `document.querySelector('[data-island]')`，这些属性让「量尺寸/判禁用/判形态」不必依赖类名或结构。
 15. **收起态导航的分隔线位置**（设计 §7.1 只写「3 个导航图标 + 1px 分隔线」）：分隔线放在**页面导航与搜索图标之间**（前两项是「去哪」，第三项是「打开面板」）。
 16. **窄屏只留图标、标签只在 `md:` 以上出现**（设计 §3.4 最后一行 + §7.1「触摸端不做标签展开」）：`panels/nav-panel.tsx` 的标签用 `hidden md:inline`，收窄时不改变图标命中区。
 17. **P0 不做 `nav-hover`（收起态悬停横向展开标签）。** 设计 §2.2 把它标为「可选」、优先级最低（§7.1 同），G4 的 9 条清单里没有一条测它；而「指针一进胶囊就变宽 / 出标签」会让 G4 第 1 条的「收起态宽度 ≤ 180px」在验收时变成「看你的指针在哪」。`IslandNavPanel`（`panels/nav-panel.tsx`）**保留**并只被**展开态**使用，收起态恒渲染图标行。
 18. **岛自己挂一个 scoped `TooltipProvider`。** 全仓今天没有任何地方挂它（`apps/web/app/layout.tsx` 不在本章白名单内），而 Radix 的 provider context **没有默认值** —— 自检探针实测 `` `Tooltip` must be used within `TooltipProvider` `` 会直接抛错、整岛白屏（`#content` 空、`[data-island]` 不存在）。`IslandNav` 里包一层 `<TooltipProvider delayDuration={0}>`（一个岛一个；Radix 的 Provider 不产出 DOM，锚点与 40px 行不变）。**副产物**：发现 `packages/ui/src/components/ui/sidebar.tsx:528` 是同类隐患（那条路径今天不可达），记进 G4 遗留。
 19. **两处按可运行等价写法落地**（设计样例的字面写法在本仓不成立，代码 JSDoc 已记录）：① `transformOrigin: { originX, originY }` 改写成 motion 12 style 的**顶层键** `originX`/`originY`（嵌套对象既过不了 `MotionStyle` 的类型、也不会被 `buildHTMLStyles` 合成为 `transform-origin`），渲染结果与设计意图一致（`50% 100% 0`，探针按「盒子底部中心」量）；② 底色第①层是 `bg-popover` + `supports-[backdrop-filter:blur(1px)]:bg-popover/85`（暗色 `/80`），而不是无条件的 `bg-popover/85` —— 否则 §3.4 第 2 行「不支持时改不透明」没有落点。
+
+20. **【M8/M9 必读】G4 通过时的用户侧重构（`48f4e5d`）：文件清单、公开面与落点的唯一真相。** 状态：G4 通过（第 2 轮）。这一节是主 agent 对那次提交的复核结论，**与它冲突的前面几条（7 / 11 / 13 / 18 的部分措辞）以本节为准**；gates.md 的 G4 条目有更细的逐条记录。
+    1. **文件清单（原 §M4.1 第 1–6 行的文件已不存在）**：`island-config.ts` / `island-nav.tsx` / `island-surface.tsx` / `panels/{nav-panel,agent-panel}.tsx` 已删除，现为 `forms.ts`（四形态几何 + 三种交棒策略）/ `geometry.ts`（纯几何、`proximity`、层不透明度）/ `motion.ts`（盒子与层的弹簧）/ `layers.ts`（换层状态机，保留被降级层的 key）/ `stage.tsx`（渲染哪一层）/ `surface.ts` / `nav.tsx` / `panels.tsx` / `use-pill-box.ts` / `environment.ts` / `tuning.ts` / `use-tuning.ts` / `types.ts` / `index.ts` + `dynamic-island.tsx`（只剩壳）。**M8/M9 要新增的面板文件请沿用这套命名纪律**（一个模块一件事），并注意 `panels/` 子目录已不存在（占位在 `panels.tsx`）。
+    2. **公开面（`DynamicIslandProps`，`types.ts`）**：`panel` + `onPanelChange` + `nav` + **`content?: Partial<Record<IslandExpandedPanel, ReactNode>>`** + `actions?: ReactNode` + `backdrop?: "auto" | "opaque"` + `className` + `ref`。**M8 注入预览要写 `content={{ preview: <…> }}`（不是 `previewContent`），M9 写 `content={{ search: <…> }}` / `content={{ agent: <…> }}`**；`actions` 是钉在展开体下方的动作行（M8 的「打开节点 / 打开记录」用它）。`IslandNavItem` 增 `separator?: boolean` —— 分隔线由宿主标记，**不再按 `key` 推断**（§M4.2-15 的「放在页面导航与搜索之间」仍是宿主的落点选择，但实现方式变了）。
+    3. **`IslandPanel` / `IslandExpandedPanel` 在 `packages/interfaces/src/models/island.ts`**；`@workspace/ui` 的 `types.ts` 与 `@workspace/store` 都从那里重新导出。**M9 删死切片时不要动这个文件**（它不在 `packages/interfaces` 的「形状冻结」争议范围里 —— 它是 M4 的产物，但按总纲 §2.2-1 仍属主 agent 独占面）。
+    4. **探针锚点保留 + 新增**：`data-island`（胶囊本体）、`data-island-panel`、`data-island-content`、`data-island-nav`、`data-island-nav-item`、`data-island-nav-disabled`、`data-island-placeholder` 全部保留（§M4.2-14 仍有效），新增 `data-island-layer` / `data-island-layer-side`（stage 的分层标记，用来判「谁在上面」）。G8/G9 的清单可以直接用这些锚点。
+    5. **`--dynamic-island-height` 由宿主的 `ref` 观察**（`useEffect` 不再依赖 `islandPanel`，也不再 `document.querySelector('[data-island]')`）→ §M4.2 遗留 4 关闭。
+    6. **行为面新增两条（M8/M9 要复测）**：展开态的搜索图标**可点击收起**（平板无 Esc 的补口）；**点击岛外收起**（`document` capture 阶段的 `pointerdown`）。后者是全局指针监听，岛内今天没有 portal 到 `body` 的内容 —— **M8/M9 往 `content` 里塞 Radix 弹层/下拉后，必须确认点它不会被判成「岛外」**（现成原语：G3 的 `isInnerLayer`，见 gates.md G3 用户侧修复第 3 条）。
+    7. **`tuning.ts` 是数字的唯一来源，`__island` 是 dev 调参台**（`globalThis.__island`，localStorage 持久化）。M8/M9 若给新面板加尺寸/时机，**加在 `tuning.ts` 里而不是写死在面板组件里**；提交前把 `speed` 回到 1（`48f4e5d` 已把 speed 2 烘进弹簧数字）。
+    8. **`packages/ui` 现在有 `node --test` 测试线**（`pnpm --filter=@workspace/ui test`，Node 原生跑 TS，零依赖；33 条覆盖 `geometry` / `swap` / `tuning`）。**M8/M9 若改这三个模块的纯函数，必须让测试继续通过**（这是本仓第一条会失败的自动判据，别让它红着）。
 
 ### M4.3 提交切分
 
@@ -93,6 +104,7 @@
 > 6. **看不到玻璃感/高光时先查这两处**：`(hover: none)`（触摸仿真或平板真机）下指针高光**不跟随**；系统开了「减少动态效果」时高光跟随与漂移**关闭**、形变不做弹簧（尺寸直接切换 + 约 120ms 淡入）。两者都是设计（§3.4 降级矩阵），不是失效。
 > 7. **窄屏（≤640px）**：展开宽度收 `calc(100vw - 32px)`、导航只留图标（标签 `hidden md:inline`）。
 > 8. **DevTools 量尺寸的锚点**：`document.querySelector('[data-island]')`（胶囊本体）、`[data-island-panel]`（当前形态）、`[data-island-nav]`、`[data-island-nav-disabled]`。收起态 `getBoundingClientRect().height` 应为 **40**。
+> 9. **本轮结果（2026-10-07 · 第 2 轮）：通过。** 第 1 轮实测由用户执行并提出瑕疵，用户自己提交 `48f4e5d` 完成一次形变实现的重构 + 修复后重测通过（用户原话见 [gates.md](./gates.md) 的 G4 条目）。**下表「失败先看哪」列里的文件名是重构前的**（`island-config.ts` / `island-nav.tsx` / `island-surface.tsx` 已不存在）—— 复核时看 [§M4.2-20](#m42-关键决策与挡路的坑) 的新清单；判据与期望本身不变。
 
 | # | 用户做什么（具体入口） | 期望 | 判据或证据 | 失败先看哪 |
 | - | ---------------------- | ---- | ---------- | ---------- |
@@ -125,7 +137,7 @@
 | # | 任务 | 文件白名单（新增/修改） | 执行主体 | 验收（编译器可判定） |
 | - | ---- | ---------------------- | -------- | -------------------- |
 | 1 | 岛内预览面板：`<NodePreviewBody node={node} />` + 固定尺寸容器（`360px` × `min(340px,44vh)`，溢出滚动）+ 「打开节点 / 打开记录」动作行；**不含** `calculatePosition`、`PREVIEW_MARGIN` 跟随、`PREVIEW_MAX_HEIGHT` 钳制 | 新增 `packages/ui/src/components/dynamic-island/panels/node-preview-panel.tsx` | 子 agent | `pnpm --filter=@workspace/ui typecheck` 通过；不 import `@workspace/graph` |
-| 2 | 面板装配：`dynamic-island.tsx` 增 `previewContent` 分支并接进 `ISLAND_SHAPES.preview` | 修改 `.../dynamic-island/dynamic-island.tsx`、`.../dynamic-island/island-config.ts`、`.../dynamic-island/index.ts`（如需再导出） | 子 agent | 同上 |
+| 2 | 面板装配：宿主通过**已存在的** `content={{ preview: … }}` 注入（`dynamic-island.tsx` 只在需要改 `preview` 形态几何时动；表单数据在 `forms.ts`、数字在 `tuning.ts` —— 见 §M4.2-20） | 修改 `.../dynamic-island/forms.ts`（如需）、`.../dynamic-island/tuning.ts`（如需）、`.../dynamic-island/index.ts`（如需再导出） | 子 agent | 同上 |
 | 3 | 宿主内容注入与 `previewBlock` 映射：桌面 `(hover: hover)` 且 `islandPanel === "idle"` 且 `visible` → `preview`；`isFocus` 语义保持；`lastIslandPanel` 不因预览改写 | 修改 `apps/web/components/dynamic-island-host.tsx` | 子 agent | `pnpm --filter=web typecheck` 通过 |
 | 4 | 预览动作的宿主实现：`打开节点` → `useUIStore.getState().handleNodeEdit(nodeId)`（判据：`packages/store/src/uiStore.ts:351` 有实现）；`打开记录` 仅对 database/collection 节点给按钮 | 新增 `apps/web/components/island-node-preview.tsx`（包装 `NodePreviewBody` 并注入动作），由 `dynamic-island-host.tsx` 引用 | 子 agent | `pnpm --filter=web typecheck` 通过 |
 | 5 | `ForceGraph` 删浮层：移除 `<PreviewBlock>` 渲染块、`PreviewBlock` import、以及 now-unused 的 store 选择器 | 修改 `packages/graph/src/force/ForceGraph.tsx` | 子 agent | `pnpm --filter=@workspace/graph typecheck` + `lint` 通过（无 unused import 警告） |
@@ -183,7 +195,7 @@
 | # | 任务 | 文件白名单（新增/修改） | 执行主体 | 验收（编译器可判定） |
 | - | ---- | ---------------------- | -------- | -------------------- |
 | 1 | 抽 `SearchSurface`：从 `search-mode.tsx` 去掉 Dialog 耦合与 `flex-1`/`autoFocus` 假设，显式给出高度与 `overflow-y-auto`；结果列表与 `QUICK_TABS`/`stripSlashPrefix`/`FilterQueryBuilder` 逻辑**原样搬移**；旧文件薄壳化 | 新增 `packages/ui/src/components/dynamic-island/search/search-surface.tsx`；修改 `packages/ui/src/components/dialog/quick-panel/search-mode.tsx` | 子 agent | `pnpm --filter=@workspace/ui typecheck` 通过；两份实现的匹配函数签名一致 |
-| 2 | 岛 `search` 面板：输入焦点在 `setIslandPanel("search")` 后由 `requestAnimationFrame` 接管；`Esc` 先关过滤器弹层再退回；显式分段按钮（search/agent） | 新增 `.../dynamic-island/panels/search-panel.tsx`；修改 `dynamic-island.tsx`、`island-config.ts` | 子 agent | 同上 |
+| 2 | 岛 `search` 面板：输入焦点在 `setIslandPanel("search")` 后由 `requestAnimationFrame` 接管；`Esc` 先关过滤器弹层再退回；显式分段按钮（search/agent）。宿主用 `content={{ search: … }}` / `content={{ agent: … }}` 注入（§M4.2-20-2），岛内的搜索面板文件放 `.../dynamic-island/panels.tsx` 的同级（`panels/` 子目录已不存在） | 新增 `.../dynamic-island/search-panel.tsx`；修改 `.../dynamic-island/panels.tsx`、`forms.ts` / `tuning.ts`（如需） | 子 agent | `pnpm --filter=@workspace/ui typecheck` 通过 |
 | 3 | 三处入口改向：header 按钮、侧栏 `SearchButton` | 修改 `packages/ui/src/components/header/toggle-search-command-button.tsx`、`packages/ui/src/components/sidebar/main-sidebar.tsx` | 子 agent | `pnpm --filter=@workspace/ui typecheck` 通过；两文件不再引用 `openQuickPanel` |
 | 4 | 删除 `<QuickPanel />` 挂载与 import | 修改 `apps/web/app/(main)/graph/page.tsx` | 子 agent | `pnpm --filter=web typecheck` 通过 |
 | 5 | 删 `⌘K` + `Tab` 全局监听（与 1–4 **同一提交**，否则 `⌘K` 双触发、`Tab` 被抢） | 修改 `packages/ui/src/components/dialog/quick-panel/quick-panel.tsx` | 子 agent | 同任务 4；文件内不再有 `window.addEventListener("keydown"` |
@@ -191,7 +203,7 @@
 | 7 | P3：删 `dialog/quick-panel/` 整个目录（含 `agent-mode.tsx`、`quick-panel.type.ts`） | 删除 `packages/ui/src/components/dialog/quick-panel/**` | 子 agent（删除动作前先 `grep` 复核零引用） | 目录不存在；全仓无 `quick-panel` 命中 |
 | 8 | P3：`uiStore` 删 `quickPanel` 切片与 `commandDialogOpen*` 死切片、`QuickPanelMode` 类型；`store/index.ts` 去掉对应导出 | 修改 `packages/store/src/uiStore.ts`、`packages/store/src/index.ts` | **主 agent**（总纲 §3.1 独占） | `pnpm --filter=@workspace/store typecheck` 通过；`grep commandDialogOpen` 零命中 |
 | 9 | P3：`packages/ui/src/components/index.ts` 去掉 `QuickPanel` 导出 | 修改 `packages/ui/src/components/index.ts` | **主 agent**（总纲 §3.1 独占） | `pnpm --filter=@workspace/ui typecheck` 通过 |
-| 10 | P3：`agent` 面板内容收口（分段按钮 + `⌘⇧K` 直达 + 占位） | 修改 `.../dynamic-island/panels/agent-panel.tsx`（如需） | 子 agent | 同上 |
+| 10 | P3：`agent` 面板内容收口（分段按钮 + `⌘⇧K` 直达 + 占位） | 修改 `.../dynamic-island/panels.tsx`（如需；`panels/agent-panel.tsx` 已随 `48f4e5d` 删除，见 §M4.2-20-1） | 子 agent | 同上 |
 
 **顺序硬约束**：1 → 2 → 3/4/5（同一提交）→ 6 → 7/8/9。先删监听再改入口会让入口在中间态指向一个不存在的对话框；先改入口再删监听会让 `⌘K` 同时开岛与 dialog。
 
