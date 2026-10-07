@@ -602,6 +602,7 @@
   5. **橡皮删除会把刚擦掉的笔迹放回屏幕（W2-B 自查发现）**：`endGesture` 在发出 `remove` 前就清了跳过集合，而父层落库晚一拍 ⇒ 中间帧闪回。修法：收笔时**故意不清**，`items` prop 一变（父层已落地）才清。
   6. **compact 下「隐藏批注 / 粗细 / 重做」没有任何入口（W2-A）**：设计 §2.4 的折叠行只有「笔 + 橡皮 + 撤销 + 颜色 + 更多」，而 `/graph` 打开节点就是 Dialog 形态 ⇒ G5 第 8 条会找不到按钮。修法：compact 时把这三样收进「更多」（锚点不变，同一时刻各恰好一个），展开态仍是一行。
 - **第 2 轮（修复，2026-10-07）**：4 条提交，白名单内（`annotation/**` 的 5 个文件 + `image-node-content.tsx` + 两个 `docs/plan/*`）：
+  - 实现（第 2 轮续，用户补报 2 条）：④ 选中工具改用 `aria-pressed:` 上色 —— tooltip 把 `data-state` 抢成 `instant-open`，`data-[state=on]:bg-accent` 与基座的 `data-[state=on]:bg-muted` 全是死类（实测：选中「笔」时该按钮 `data-state="instant-open"`、`aria-pressed="true"`、背景 `rgba(0,0,0,0)`），当前工具与另一支完全同色；修 `annotation-toolbar.tsx`。⑤ 顺手修 `quick-panel/search-mode.tsx` 的节点条目（补 `onSelect` = 关面板 + `setCurrentEditingNodeId`，与图的「双击打开」同一条 store 写入）；该文件不在 M5 白名单，属用户点名顺手修，已在此登记
   - 实现：`geometry.ts` 新增 `toLayerBox`（+ 4 条测试）；`annotation-layer.tsx` 的 `measure()` 改用它，并加 `transitionend`/`animationend`（capture + 只认 root 或祖先链）兜底重测；`annotation-toolbar.tsx` 的折叠行固定「笔 + 橡皮」；`draw.ts` 新增 `DrawOptions.ghostIds` / `ERASER_GHOST_ALPHA = 0.3`（+ 2 条测试）；`annotation-canvas.tsx` 把缓存重放抽成 `replayCommitted()`（dpr 进依赖）并由 `useAnnotationInput` 的 `onGestureChange` 在橡皮命中新图元时直接调用；`use-annotation-input.ts` 不再对普通采样调 `onGestureChange`；`image-node-content.tsx` 在 `url` 变化时清空 `natural`（同一 Dialog 内换 image 节点）
   - **格式面**：对 9 个改动文件跑了一次 `prettier --write`。这 9 个里有 **8 个在 HEAD 上本来就是 prettier-dirty**（`prettier --check` 在 HEAD 就报它们，本仓没有 prettier 配置、`pnpm format` 也没有 CI 约束），所以本提交的 diff 里有一部分是**纯换行**（函数签名/`useState` 泛型/import 列表），未改语义；好处是 M5 这层从此 `prettier --check` 干净，M7 再格式化不会重复产生这份噪声。
   - **自检**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失**；`@workspace/ui` typecheck **19 = 基线**（annotation 零 error）、lint **26 problems (0 errors, 26 warnings) = 基线**（annotation 零 warning）；`pnpm --filter=@workspace/ui test` → **69/69**（岛 33 + 批注 36 = 原 30 + 4 条 `toLayerBox` + 2 条 ghost）
@@ -623,7 +624,7 @@
   7. **image 的 `crossOrigin` 未加**：`<img>` 仍是同源之外的另一端口（PB 8090 / 同域 `/pb`），P0 不需要读回像素（不导出、不烘焙）；G7 第 5 条的 taint 探测会结案（设计 §5.3 的 PNG 烘焙是 P2）。
   8. **`readOnly` 有实现、无宿主**（§5.2-9）：layer 在 `readOnly` 时不渲染 toolbar 并忽略键盘，但 `node-content-editor.tsx` 今天不传它 —— G5 不测，留给接只读分享的那个人。
 - 需要你决定的一条（不阻塞实测）：**跟手 P95 与笔感只能真机判**。若平板这次不方便连，就按总纲 §6.3 把第 2、3 条记为「环境受限，未验收」写进遗留列（其余各条含全部逻辑面都可以在桌面/真机上判）。
-- **修复轮顺带发现的既存缺陷（不属 M5，未改）**：⌘K 快速面板的**节点条目点不动** —— `quick-panel/search-mode.tsx` 给节点 match 只填了 `id/title/...`，没有 `onSelect`，而渲染处是 `<button onClick={item.onSelect}>` ⇒ 点节点无反应（命令/类型条目有 `onSelect`，正常）。这一条挡住的是「按标题打开节点」这条入口，M8/M9 若要用快速面板跳转必须先补。另：`MainSidebar` 的「最近打开」列表在当前数据下是空的（DOM 里只有「默认工作区」与用户名）。
+- **修复轮顺带发现的既存缺陷**：⌘K 快速面板的**节点条目点不动** —— `quick-panel/search-mode.tsx` 给节点 match 只填了 `id/title/...`，没有 `onSelect`，而渲染处是 `<button onClick={item.onSelect}>` ⇒ 点节点无反应（命令/类型条目正常）。**已在第 2 轮按用户要求顺手修掉**（`onSelect` = `closeQuickPanel()` + `setCurrentEditingNodeId(node.id)`）；该文件不在 M5 白名单，属越界修复、已在此登记；M9 抽 `SearchSurface` 时把这行逻辑一起搬走即可（`docs/plan/dynamic-island.md` §M9.1 任务 1 本就是「逻辑原样搬移」）。另：`MainSidebar` 的「最近打开」在当前数据下是空的（DOM 里只有「默认工作区」与用户名）—— 未被要求，未动。
 - 用户结论：（待填）
 
 ---
