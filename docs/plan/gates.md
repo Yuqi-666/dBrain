@@ -27,7 +27,7 @@
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 开发中 | —    | —    | —    |
+| G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 待测 | 1    | 2026-10-07 | 见 §5 |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G9   | M9 灵动岛 P2+P3 搜索与清理 | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -45,7 +45,7 @@
 | W2   | M5        | **✅ 已满足**：主 agent 冻结 `annotation/types.ts` + `geometry.ts`（`aa31083`：三份 props 契约 + 21 条纯函数测试，`pnpm --filter=@workspace/ui test` 63/63 绿） | **已于同日开启并关闭**（2026-10-07；两路 owner 均为子 agent：A = `annotation-toolbar.tsx`、B = `annotation-canvas.tsx` + `use-annotation-input.ts`；**相交面为空** —— 两路各写自己的新文件，冻结面只读。交付后主 agent 复核并让两路各改一轮（B 四条：`touchDraws` 接线 / `hidden` 可见性 / dpr 监听 / 画布内部 origin 偏移；A 一条：compact 下粗细/隐藏/重做的可达性）；两轮后 typecheck 19 条 = 基线、lint 26 = 基线、`test` 63/63、真浏览器探针 25/25。**与 §3.2 的偏差**：`draw.ts` / `annotation-layer.tsx` 由主 agent 在冻结步一次写完，`geometry.ts` 的函数体也不再交给 W2-a（它同时是被两路消费的接口面与本章正确性核心），所以三路收敛为两路） |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
-| W5   | M6        | **✅ 已满足**：主 agent 冻结 `media/types.ts`（`MediaController` / `createMediaController` / `formatTimeMs` / `sortTimestampNotes` + 三个组件的 props 契约；提交见 §5 的 G6 条目） | **已开启**（2026-10-07，M6 开工）：两路 owner 均为子 agent —— A = `media/audio-player.tsx` + `video-player/video-player.tsx`、B = `media/timestamp-notes.tsx`；**相交面为空**（各写自己的文件，A 的两个文件互不相交、与 B 不同目录），冻结面只读；任务 5（两个 node-content 接线）由主 agent 在 W5 关闭后收口 |
+| W5   | M6        | **✅ 已满足**：主 agent 冻结 `media/types.ts`（`MediaController` / `createMediaController` / `formatTimeMs` / `sortTimestampNotes` + 三个组件的 props 契约；提交见 §5 的 G6 条目） | **已开启并已关闭**（2026-10-07）：两路 owner 均为子 agent —— A = `media/audio-player.tsx` + `video-player/video-player.tsx`、B = `media/timestamp-notes.tsx`；**相交面为空**（各写自己的文件，A 的两个文件互不相交、与 B 不同目录），冻结面只读。交付后主 agent 复核并让两路各回改一轮（A：`ownsKey` 把方向键也挡在按钮外，点完播放键后 `←/→` 全失效；B：设计 §1.3 的列表 `↑/↓` 未实现、行内动作只靠 hover 显示 ⇒ 触摸下不可达），随后任务 5（两个 node-content 接线）由主 agent 收口 |
 
 **W1 的四路白名单与「相交面为空」的依据**（owner 均为子 agent，主 agent 只持有冻结面）：
 
@@ -627,6 +627,48 @@
 - 需要你决定的一条（**G5 已通过，此条已结**）：**跟手 P95 与笔感只能真机判**。第 2 轮用户已在真机上复测（含第 2、3 条），故未走 §6.3 的「环境受限」降级。
 - **修复轮顺带发现的既存缺陷**：⌘K 快速面板的**节点条目点不动** —— `quick-panel/search-mode.tsx` 给节点 match 只填了 `id/title/...`，没有 `onSelect`，而渲染处是 `<button onClick={item.onSelect}>` ⇒ 点节点无反应（命令/类型条目正常）。**已在第 2 轮按用户要求顺手修掉**（`onSelect` = `closeQuickPanel()` + `setCurrentEditingNodeId(node.id)`）；该文件不在 M5 白名单，属越界修复、已在此登记；M9 抽 `SearchSurface` 时把这行逻辑一起搬走即可（`docs/plan/dynamic-island.md` §M9.1 任务 1 本就是「逻辑原样搬移」）。另：`MainSidebar` 的「最近打开」在当前数据下是空的（DOM 里只有「默认工作区」与用户名）—— 未被要求，未动。
 - 用户结论：**「测试通过，进入下一轮」**（2026-10-07）
+
+### G6 — M6 媒体与时间戳笔记
+
+- 状态：**待测**（第 1 轮 —— 自检全绿、真浏览器探针 **24/24**，等用户实测）
+- 提交：`5b5728e`（冻结：`media/types.ts` 契约 + `createMediaController` / `formatTimeMs` / `sortTimestampNotes` / `createTimestampNote` + 三个组件的 props + 5 条纯函数测试）→ `a872bf0`（骨架：`media/audio-player.tsx` + `media/timestamp-notes.tsx` + `video-player.tsx` 的 `onMediaController`）→ `c132e86`（接线：两个 node-content 接控制器与共享写者 + 顺手修 video「换源后卡在无法解码」）
+- 自检：
+  - **typecheck / lint diff**：`bash docs/plan/baseline.sh` → **两段 0 新增 / 0 消失** ✅（原始输出 `.baseline-raw/{typecheck,lint}.txt`，298 行 / 1134 行）。逐包复核：`@workspace/ui` typecheck **19 条 = 基线**（全在 `packages/editor/**`；`media/**`、`video-player/**`、两个 node-content **零命中**）、lint **26 problems (0 errors, 26 warnings) = 基线**
+  - **纯函数测试**：`pnpm --filter=@workspace/ui test` → **74/74**（岛 33 + 批注 36 + 媒体 5）
+  - **白名单**：改动 = `media/{types,types.test,audio-player,timestamp-notes}.ts(x)`、`video-player/video-player.tsx`、`dialog/editor/content/{audio,video}-node-content.tsx`、`docs/plan/{media,gates,README}.md`；`packages/ui/src/components/index.ts`、`styles/globals.css`、`packages/interfaces/**`、`backend/**`、`pb/**`、`packages/graph/**`、`packages/dataview/**` 的 `git diff` 为空
+  - **无新依赖**：`packages/ui/package.json` 未动（`hls.js ^1.7.3` 已在）；`media/**` 由 `globals.css:10` 的 `@source "../**/*.{ts,tsx}"` 覆盖 ⇒ **不需要**新增 `@source`（照总纲 R8 的核对方式）
+  - **M6.1-6（只验证不改）**：`grep -n '\.\.\.node\.content' attributes-sidebar.tsx` **零命中**；`:224` 已是 `useNodeContentWriter(nodeId, node.nodeType, node.content)`、`handleContentUrlChange` 走 `patchContent({ [field]: value })` ⇒ M1 已按 R13 交付，M6 只做行为回归（G6-6）
+  - **W5 两路复核**：抽查 `path:line` 断言（`createMediaController` 只建一次且 `subscribe` 是唯一 timeupdate 观察者、`marks` 渲染在轨道盒内、三处写都是完整新数组、`pointer-coarse` 变体）；打回两轮见下「迭代」
+- **主 agent 预跑证据（真浏览器探针 24/24）**：`chrome-headless-shell` + 裸 CDP，页面挂**真 `AudioNodeContent` / `VideoNodeContent`**（真共享写者、真 `AudioPlayer`/`VideoPlayer`、真 `TimestampNotes`/`TimestampNoteMarks`），store/services/api-client 用 esbuild alias 打桩 —— 但桩有两条「不是 mock」的性质：`useDataStore.getState().nodes` 就是页面的节点表（写者的 `liveContent()` 读到的与真实 store 同语义），`NodeService.upsert` 慢 25ms **并在两个写重叠时按 PocketBase 的真实报错 `TRPCClientError: The request was aborted (most likely autocancelled…)` 记 console.error**。素材：手写 120s WAV（本机无 ffmpeg）+ 页面内 `MediaRecorder` 录的 VP8 WebM（320×180、5.9s，可解码）：
+  ```
+  ✓ ① 自绘播放器能播（真 <audio>、无 controls、120s）     ✓ ①b 暂停生效
+  ✓ ② 焦点在播放按钮上时 ←/→ 仍生效：+5.00s，Shift +30.00s（A 第一版的反例）
+  ✓ ③ 拖拽进度条 0.75×120s = 90s                        ✓ ④ Mod-Enter→草稿聚焦→Enter 落库：1:30 / timeMs 90000 / 「第一句」/ url 仍 tone.wav
+  ✓ ④b 一次手势一次写：writes=1 maxInFlight=1 aborts=0 errors=[]   ✓ ⑤ 点笔记时间跳回 90s（读的是实际位置）
+  ✓ ⑥ 三条升序 [10000,40000,90000]                      ✓ ⑥b 删中间 → [10000,90000] 且 url 仍在
+  ✓ ⑥c 同一数组重新挂载 = 刷新等价（0:10 / 1:30）          ✓ ⑦ 标记 8.33% / 75%、播放头 25%（timeMs/duration）
+  ✓ ⑧ 突发加删 6 次：maxInFlight=1 aborts=0 errors=[] notes==rows
+  ✓ ⑨ 窗口 1200×80vh 与全屏：内容盒 scroll==client（自己不出滚动条）
+  ✓ ⑩/⑩b 无 url 分支仍是上传区（且无 <audio>）             ✓ ⑩c audio-only 文件喂 video → 「当前浏览器无法解码」降级分支仍在
+  ✓ ⑪/⑪b/⑪c/⑪d 真剪辑：控制器指向同一个 <video>（320×180、5.93s）、视频笔记 0:02 且 url/coverUrl 未被抹、点笔记跳到 2.000s、标记 33.7%
+  ✓ ⑫ 视频节点两种宿主形状都不溢出                          ✓ ⑬ 列表 ↑/↓：↓ 到第 2 行、↑↑ 停在第 1 行不环绕
+  ✓ ⑭ 粗指针下每行编辑/删除 opacity 都是 1                  ✓ ⑮ 无未捕获异常、无 console error
+  ```
+  复跑：`bash /tmp/m6/run.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → **Range-capable 静态服务器** `serve.mjs` :8902 → `check.mjs`）。**这一轮工装踩到的三个坑**（复跑要带）：① 静态服务器**必须支持 Range** —— python 的 `http.server` 不支持，媒体元素于是不可 seek（`currentTime = X` 立刻弹回 0 并派发 `seeking@0`），第一轮 ②③⑤ 三条 seek 断言全红，看起来像产品缺陷；② 探针桩的 `useFileUpload` 必须给真形状（`fileItems`/`uploadFiles`/`removeFileItem`），只给 `{upload, uploading}` 会让无 url 分支抛 `.length of undefined`；③ `Emulation.setTouchEmulationEnabled` 才能让 `(pointer: coarse)` 为真（启动 flag `--blink-settings=primaryPointerType=4` 不够），验 `pointer-coarse:` 变体必须开它。
+- 用户操作清单：见 [media.md §M6.4](./media.md)（**8 条** + 12 条前置说明；其中探针已覆盖的那些只需看手感，真正只能由用户判的是 HLS 时间轴 G6-5 与真实上传文件上的表现）
+- 用户实测结果：（待填）
+- 失败项与归因：（待填）
+- 迭代：
+  - **G6-r0（闸门前复核，不计闸门轮次）**：A 的 `ownsKey` 把方向键也挡在按钮之外 ⇒ 点完播放/暂停键后 `←/→` 完全失效（设计 §1.3 把 ∓5s 定为主键盘通路）；改为「只对 `Space` 收窄到按钮/select，方向键只躲文本输入」。B 少了设计 §1.3 的「列表内 ↑/↓ 移动笔记焦点」，且行内「编辑/删除」只靠 `group-hover` 显示 ⇒ 触摸设备上永远点不到；补组件内部的 `onListKeyDown`（不加 props）与 `pointer-coarse:opacity-100`。
+- 遗留不阻塞项（初步）：
+  1. **列表内 ↑/↓ 只对可聚焦的时间按钮生效**：`controller === null`（元数据未到）时时间按钮是 disabled，此时不 `preventDefault`，方向键留给宿主滚动盒 —— 有意为之，避免吞键。
+  2. **行内编辑非空失焦不写库**：草稿与行内编辑共用一套「`Enter` 提交 / `Shift-Enter` 换行 / `Esc` 取消 / 空文本失焦取消」，非空失焦编辑器保持打开 ⇒ 点另一行的铅笔会丢弃未提交的编辑（不写库、不删数据）。要改成 commit-on-blur 得加守卫（`Enter` 提交后卸载仍会触发 blur，会二次写同一内容）。
+  3. **标记热区只有 3px 宽**：桌面点得到；平板上建议点列表里的时间按钮（热区更大）。
+  4. **视频的传输键全交浏览器**（设计 §1.4 的 `Space`/`←`/`→` 不自绘，见本章 §M6.2-⑤）；视频侧自绘的只有 `Mod-Enter` 与时间轴/列表。
+  5. **`undecodable` 分支不渲染时间轴与笔记列表**：视频无法解码时仍是原来那块提示 + 下载原文件，笔记数据仍在（重新指向可解码文件即恢复 —— `c132e86` 顺手修了「换源后卡在无法解码」的既存缺陷）。
+  6. **`activeNoteId` 有实现、宿主不传**：标记层支持高亮某条笔记，但本里程碑的宿主没有「列表当前行」这一状态（冻结 props 里没有）。
+  7. **HLS 时间轴（§M6.2-②）未实测**：需要用户侧一个 `hlsUrl` 非空的 Video 节点，按 G6-5 取 t1/t2；>1s 按 §M6.2-②-6 登记，不许在码里加常量补偿。
+- 用户结论：（待填）
 
 ---
 
