@@ -26,7 +26,7 @@
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 待测 | 1    | 2026-10-07 | 见 §5 |
-| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
+| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 待测 | 1    | 2026-10-07 | 见 §5 |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -552,8 +552,64 @@
 
 ---
 
-## 6. 自检探针配方（主 agent 用，不进仓库）
+### G5 — M5 image 批注
 
+- 状态：**待测**（第 1 轮；自检 + **25/25** 真浏览器探针全绿，等用户实测）
+- 提交：`aa31083`（契约与依赖：`annotation/types.ts` + `geometry.ts` + 21 条纯函数测试 + `perfect-freehand ^1.2` + `--annotation-1..6`）→ `543a609`（绘制与输入：`draw.ts` + 9 条测试 + 双层 canvas + pointer 状态机）→ `dd0617f`（接入：`annotation-layer.tsx` + `annotation-toolbar.tsx` + `image-node-content.tsx` + 文档）
+- 自检：
+  - **typecheck diff**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失** ✅。逐包复核：`@workspace/ui` **19 条 = 基线**（全部在 `packages/editor/**`，`src/components/annotation/**` 零 error、零 warning）、`web` 段与 `store` 段不变
+  - **lint diff**：`@workspace/ui` **26 problems (0 errors, 26 warnings)** = 基线逐条一致；`npx eslint src/components/annotation/*` 无输出
+  - **纯函数测试**：`pnpm --filter=@workspace/ui test` → **63/63**（岛 33 + 批注 30）。批注侧钉的是 `containRect` 的 letterbox 算术、归一化⇄显示往返与钳制、短边尺寸换算、距离阈值抽稀、bbox 外扩、整笔擦除的命中测试，以及 `draw.ts` 的「size 是像素不是归一化值」、五种图元分支、箭头三角、文本行高
+  - **越界检查**：`git status` 全程只有 §5.1 白名单里的文件（`annotation/**` 新增 + `image-node-content.tsx` + 两个 `docs/plan/*`）；`backend/**`、`packages/interfaces`、`pb/**`、`packages/graph/**`、`packages/ui/src/components/index.ts`、`file-drop-zone.tsx`、`preview-block/**` 一个字节未动
+  - **依赖**：`packages/ui/package.json` +`"perfect-freehand": "^1.2"`（实装 **1.2.0**，锁文件一并提交）。**没有**新增 `@source`：批注代码落在 `packages/ui/src/**`，`globals.css:10` 的 `@source "../**/*.{ts,tsx}"` 已覆盖（总纲 R8）
+  - **`pnpm --filter=web build`**：`✓ Compiled successfully in 2.3min`，随后 TS 阶段停在**基线里已有的** `app/(main)/graph/page.tsx:69` 「`theme` 不存在于 `GraphProps`」一条（与 M4 同一条既存缺陷）。⇒ Turbopack 能把 `image-node-content` → `annotation-layer` → `perfect-freehand` 这条链打出来；M5 的判据里**没有** `web build`（M7 的回归面 4 才有），这一跑只为压打包风险。副作用：`next build` 又改写了 `apps/web/next-env.d.ts`，已 `git checkout --` 还原、未入库（G4 遗留 5 仍在）
+- **主 agent 预跑证据（真浏览器探针 25/25）**：`chrome-headless-shell` + 裸 CDP（配方见本文件 §6），页面挂**真 `<AnnotationLayer />`**（真 toolbar、真 canvas、真 `perfect-freehand`、真编译 CSS），宿主与 `image-node-content.tsx` 同构（`relative` 盒 + `object-contain` 的 `<img>` + `containRect` 的 `getBaseRect`）。指针输入全部是**受信任事件**：`Input.dispatchMouseEvent` 带 `pointerType: "mouse" | "pen"` 与 `force`（= 真实 `PointerEvent.pressure`），手指分支用 `Input.dispatchTouchEvent`；只有三条「指针无声消失」用的是页内合成的 `lostpointercapture` / `visibilitychange`（CDP 造不出来）：
+  ```
+  ✓ ① 画布正好铺在底图的绘制矩形上（去 letterbox），且 touch-action:none：底图盒 398×398（1px 边框 + 2:1 图）→ 画布 398×199 @top-99.5
+  ✓ ② 鼠标拖动 = 一笔，只上报一次，字段完整：items=1 changes=1 points=13 size=0.008 color=red simulatePressure=true page=undefined bbox 比点集外扩
+  ✓ ③ 墨迹落在正确的位置与令牌色：x∈[59,338] vs 期望[60,338]（0.15→0.85），avg=rgb(223,34,37)（不是偏 40px 的黑线）
+  ✓ ④ 容器 400×400 → 600×300：画布跟着底图变（596×298 = containRect 的结果），points/bbox 一字未改，墨迹仍在同一归一化位置
+  ✓ ⑤ 指腹拖动不产生任何图元（默认）：items/changes 都不动
+  ✓ ⑥a/⑥b/⑥c 「手指=书写」在「更多」里找得到；打开后同一根手指能画（items+1）；关回去又不画（反向对照）
+  ✓ ⑦ 橡皮拖过一笔 = 整笔删除，一次手势只上报一个 remove（changes +1，不是每个图元一次）
+  ✓ ⑧a ⌘Z 把整笔原样放回（同一个 id、同一串点 —— 即「抽稀前后重绘等价」的机器判据）
+  ✓ ⑧b ⌘⇧Z 重做删除
+  ✓ ⑨a lostpointercapture 让进行中的一笔按已采样点收笔；⑨b visibilitychange→hidden 同样收笔（两处都不留「永远进行中」）
+  ✓ ⑩ dpr 1→2：backing store 1192×596、CSS 仍 596×298、缓存重建后墨迹还在（8334 px）
+  ✓ ⑪a 「隐藏批注」只改可见性：数据未动，画布 pointer-events:none + visibility:hidden + ink=0；⑪b 再点回来墨迹重现、指针恢复
+  ✓ ⑫a 展开态行内冻结锚点齐全；⑫b 桌面命中区 32×32；⑫c 粗指针（`Emulation.setTouchEmulationEnabled` 后 `(pointer:coarse)=true`）44×44
+  ✓ ⑭a 颜色 Popover 打得开（复核后已降级为单层 asChild）；⑭b 选中的令牌色真的进了新图元（color=blue）
+  ✓ ⑭c compact（Dialog 默认）下粗细/隐藏/重做/清除/手指=书写 都能从「更多」到达，且各恰好一个；⑭d 菜单里的「隐藏批注」真的藏住了墨迹
+  ✓ ⑬a 一笔（40 步拖动、抽稀后）41 点 / **1973 B** —— 设计 §0.2-①「一笔 2–4KB」的待验证项实测落在量级内（这是 600px 宽的一笔；更长的笔会线性增长）
+  ✓ ⑬b 无未捕获异常、无 console error
+  ```
+  复跑：`bash /tmp/anno/run.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → `python3 -m http.server 8898 -d /tmp/anno` → 跑 `anno-check.mjs`）。**这一轮工装踩到的坑**（复跑要带）：① 一条笔迹的「位置」必须断言，只断言「有非透明像素」会漏掉整体偏移——第一版复核发现的画布内部 origin 偏移（`rect.left - box.left` 其实是层根在视口里的 left，约等于容器的 40px padding）就是靠 `x∈[min,max]` 抓住的；② Radix 的 `DropdownMenu` 用 **pointerdown** 打开，只派发 `click` 的探针打不开「更多」，CDP 的真实按下/抬起序列才行（`PopoverTrigger` 是 `onClick`，两者不同）；③ 菜单内容关闭即卸载 ⇒ 「compact 下 hide/size/redo 存在」必须先打开菜单再查；④ `Emulation.setDeviceMetricsOverride` 改 dpr 后要自己派发 `resize`，且组件的 dpr 监听必须是 `matchMedia('(resolution: Ndppx)')` 而不是 render 期读一次常量（不然 backing store 不会翻倍）
+- 用户操作清单：见 [annotation.md §M5.4](./annotation.md#m54-闸门-g5--用户操作清单)（**12 条** + 9 条前置说明；第 1 条改成同域 https、第 2/3 条只有真机能判、第 11 条就是本条目上面的 25/25）
+- 用户实测结果：（待填 —— 12 条）
+- 失败项与归因：（待填）
+- 迭代：**闸门前的复核**让两路各改了一轮（不计入闸门轮次，见下）
+- **复核抓到的真缺陷（交用户之前修掉）**：
+  1. **画布内部 origin 偏移（W2-B）**：`renderFrame` 与重放 effect 都把 `rect.left - box.left` 当成画布内部的 letterbox 偏移，而那是**层根在视口里的 left**（≈ 容器的 `p-4` + 边框，40px）。画布本身已按 `box.left` 摆好、且 `box.width/height === rect.width/height`（layer 就是这么算的）⇒ 画布内部偏移恒为 0。若不修，所有笔迹整体偏 ~40px、右侧还会被裁出画布。修法：`drawImage(committed, 0, 0, box.width, box.height)` + 去掉 translate（探针 ③ 的 `x∈[min,max]` 就是它的判据）。
+  2. **`touchDraws` 被硬编码成 `false`（W2-B）**：`AnnotationCanvasProps` 里当时没有这个 prop，而设计 §2.1 的「手指=书写」兜底开关必须在 canvas 才能生效。修法：冻结面补 `touchDraws?: boolean`、layer 传下去、canvas 改读 props（探针 ⑥b/⑥c 的对照）。
+  3. **`hidden` 只关指针、没藏住墨迹（W2-B）**：设计 §1.2/§2.1 写的是「只影响 L1/L2 的 `visibility`」。修法：`hidden` → `visibility:hidden` + 重放跳过（探针 ⑪a 读计算样式与像素数）。
+  4. **dpr 变化不会重建缓存（W2-B）**：原实现 render 期读一次 `devicePixelRatio`，跨屏/缩放时没有任何东西会 re-render。修法：`useState` + `matchMedia('(resolution: Ndppx)')` 的 change 监听（探针 ⑩）。
+  5. **橡皮删除会把刚擦掉的笔迹放回屏幕（W2-B 自查发现）**：`endGesture` 在发出 `remove` 前就清了跳过集合，而父层落库晚一拍 ⇒ 中间帧闪回。修法：收笔时**故意不清**，`items` prop 一变（父层已落地）才清。
+  6. **compact 下「隐藏批注 / 粗细 / 重做」没有任何入口（W2-A）**：设计 §2.4 的折叠行只有「笔 + 橡皮 + 撤销 + 颜色 + 更多」，而 `/graph` 打开节点就是 Dialog 形态 ⇒ G5 第 8 条会找不到按钮。修法：compact 时把这三样收进「更多」（锚点不变，同一时刻各恰好一个），展开态仍是一行。
+- 遗留不阻塞项（初步，G5 通过后定稿）：
+  1. **颜色触发器与「更多」触发器没有 tooltip**（`annotation-toolbar.tsx`）：`TooltipTrigger asChild > PopoverTrigger asChild` 是两层 Slot 复合、全仓无先例，按「功能优先于 tooltip」降级为单层 asChild + `aria-label`（颜色触发器的 `aria-label` 带当前色名）。其余按钮的 tooltip 正常。
+  2. **笔画进行中打开「隐藏批注」仍会按已采样点落一笔**（不丢数据，但没有取消分支）。触发条件要求「笔按下的同时用另一只手点工具栏」，真机几乎不可达；要改就是 `hidden` 变化时取消手势（在 `use-annotation-input.ts` 内）。
+  3. **父层若不换 `items` 引用（原地 mutate），橡皮的跳过集合不会释放**：M5 的宿主每次都产生新数组（`[...current, item]` / `filter`），所以路径不通；M7/M8 复用这套组件时要守住这条。
+  4. **compact 菜单里的粗细是三档 `ToggleGroupItem`（不是 `DropdownMenuRadioItem`）**：方向键不达（Radix 的 roving focus 不登记它们），点击/触摸正常。保留它是因为设计 §2.1 把粗细定义成 `ToggleGroup`，且锚点语义不变。
+  5. **选色后 Popover 不自动关**：`popover.tsx` 没有导出 `Close`，受控 `open` 会引入第二份本地 state；靠点外面关。设计 §2.1 只要求「6 个 swatch」。
+  6. **禁用的撤销/重做 hover 不出 tooltip**：基础 `Button` 带 `disabled:pointer-events-none`；设计 §2.1 要求禁用态，属有意。
+  7. **image 的 `crossOrigin` 未加**：`<img>` 仍是同源之外的另一端口（PB 8090 / 同域 `/pb`），P0 不需要读回像素（不导出、不烘焙）；G7 第 5 条的 taint 探测会结案（设计 §5.3 的 PNG 烘焙是 P2）。
+  8. **`readOnly` 有实现、无宿主**（§5.2-9）：layer 在 `readOnly` 时不渲染 toolbar 并忽略键盘，但 `node-content-editor.tsx` 今天不传它 —— G5 不测，留给接只读分享的那个人。
+- 需要你决定的一条（不阻塞实测）：**跟手 P95 与笔感只能真机判**。若平板这次不方便连，就按总纲 §6.3 把第 2、3 条记为「环境受限，未验收」写进遗留列（其余 10 条含全部逻辑面都可以在桌面/真机上判）。
+- 用户结论：（待填）
+
+---
+
+## 6. 自检探针配方（主 agent 用，不进仓库）
 计划原本的验证面是「`baseline.sh` + 用户手测」；G2-r2 起多一层**真浏览器探针**，用来在交用户之前自己把行为钉死（用户要求「写脚本自己检查」）。它是临时工装，**不进仓库**（本仓反模式明确不要 JS 测试设施），全部落在 `/tmp`：
 
 1. **浏览器**：从 Chrome for Testing 下 `chrome-headless-shell`（本容器没有 GTK/X11，装不了常规浏览器，但这台机器只缺 10 个 `.so`）：
