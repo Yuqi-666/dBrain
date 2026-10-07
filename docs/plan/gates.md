@@ -25,7 +25,7 @@
 | G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 待测 | 1    | 2026-10-07 | 见 §5 |
+| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 待测 | 1    | 2026-10-07 | 见 §5 |
 | G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
@@ -103,7 +103,7 @@
 | G2   | [node-content-ui.md](./node-content-ui.md)                           | 图标/封面的四种来源 + 键盘可达性 + 不碰 `content` 的抓包证据   |
 | G3   | [node-content-ui.md](./node-content-ui.md)                           | text 旧形状惰性升级 + 头部与正文不互相覆盖                     |
 | G4   | [dynamic-island.md](./dynamic-island.md)                             | 形变可打断 / 原点从底部 / `prefers-reduced-motion` 降级        |
-| G5   | [annotation.md](./annotation.md)                                     | **真机笔测试**是主闸门；第一步先实测 `http://localhost:3000` 能否从平板访问（R23：同 netns 下它就是 secure context） |
+| G5   | [annotation.md](./annotation.md)                                     | **真机笔测试**是主闸门（第 2、3 条）；入口走同域 `https://dev.yuqi-666.cn/graph` —— https 本身就是 secure context，R23/§5.2-1 的 localhost 论证已不需要 |
 | G6   | [media.md](./media.md)                                               | 时间戳跳转 ±0.5s + HLS 时间轴偏移 + 并发写者不互相抹除         |
 | G7   | [annotation.md](./annotation.md)                                     | 第 3 页的圈在缩放/翻页/旋转后仍贴合 + worker 不 404 + iframe 降级 |
 | G8   | [dynamic-island.md](./dynamic-island.md)                             | `isFocus` 语义与今天一致 + 触摸端点击触发                      |
