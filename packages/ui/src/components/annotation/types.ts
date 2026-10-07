@@ -222,6 +222,12 @@ export interface AnnotationCanvasProps {
   /** Nib width in normalized units ({@link ANNOTATION_SIZES}). */
   size: number;
   color: AnnotationColorKey;
+  /**
+   * Design §0.3-5's fallback switch: when on, a single finger draws like a pen.
+   * It is a **layer** decision (the toolbar owns it) that reaches the state machine
+   * through here, because the canvas is the only thing that sees the pointers.
+   */
+  touchDraws?: boolean;
   hidden?: boolean;
   /** One finished gesture, reported once. */
   onOperation: (operation: AnnotationOperation) => void;
