@@ -91,6 +91,20 @@ const TOGGLE_HIT_AREA =
   "size-8 min-w-8 p-0 pointer-coarse:size-11 pointer-coarse:min-w-11";
 
 /**
+ * The **selected** state, styled from `aria-pressed` rather than `data-state`.
+ *
+ * Every item in this toolbar is wrapped in `TooltipTrigger asChild`, and Radix's
+ * tooltip writes its own `data-state` (`"closed"` / `"delayed-open"` /
+ * `"instant-open"`) onto that same element, landing *after* the toggle's
+ * `data-state="on"` and winning — measured in the browser: a selected tool reports
+ * `data-state="instant-open"`, so `data-[state=on]:bg-accent` (and the base
+ * variant's `data-[state=on]:bg-muted`) never matches and the current tool was
+ * indistinguishable from the other one (reported at G5). `aria-pressed` is set by
+ * us, is what a screen reader announces, and the tooltip does not touch it.
+ */
+const SELECTED_AREA = "aria-pressed:bg-accent aria-pressed:text-foreground";
+
+/**
  * The nib row inside the 更多 menu (compact only) is a menu *body*, not an icon
  * strip, so it is allowed to be wider than the 32px square above — but it keeps
  * the same 44px floor for a coarse pointer.
@@ -212,6 +226,7 @@ function SizeToggleGroup({
             className={cn(
               inMenu ? TOGGLE_MENU_AREA : TOGGLE_HIT_AREA,
               "text-muted-foreground",
+              SELECTED_AREA,
             )}
           >
             <span
@@ -337,7 +352,8 @@ export function AnnotationToolbar({
                   aria-pressed={tool === value}
                   className={cn(
                     TOGGLE_HIT_AREA,
-                    "text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-foreground",
+                    "text-muted-foreground",
+                    SELECTED_AREA,
                   )}
                 >
                   {value === "pen" ? <Pen /> : <Eraser />}
