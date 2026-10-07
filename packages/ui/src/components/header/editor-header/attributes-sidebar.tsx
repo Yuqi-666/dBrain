@@ -171,11 +171,7 @@ function MetadataTabContent({
   };
 
   const handleSemanticIdChange = (value: string) => {
-    void NodeService.upsert(
-      nodeId,
-      { semanticId: value },
-      { debounce: true },
-    );
+    void NodeService.upsert(nodeId, { semanticId: value }, { debounce: true });
   };
 
   const nodeTagsMap = useDataStore((state) => state.nodeTags);
@@ -218,8 +214,8 @@ function MetadataTabContent({
    * Content writes go through the shared writer: it merges each patch into the
    * **live** `content` and serializes the upserts. Building a whole `content`
    * object here from this render's `node.content` snapshot (the old behaviour)
-   * wiped every sibling half — `annotations`, `timestampNotes` — on a single
-   * 内容链接 edit.
+   * wiped every sibling half — `annotations`, a video's `timestamps` — on a
+   * single 内容链接 edit.
    */
   const { liveContent, patchContent } = useNodeContentWriter<
     Record<string, unknown>
@@ -392,9 +388,7 @@ function MetadataTabContent({
               handleContentUrlChange(getContentUrlField(), e.target.value)
             }
             placeholder={
-              node.nodeType === "website"
-                ? "输入网站地址..."
-                : "输入内容URL..."
+              node.nodeType === "website" ? "输入网站地址..." : "输入内容URL..."
             }
             className="h-8 text-xs"
           />

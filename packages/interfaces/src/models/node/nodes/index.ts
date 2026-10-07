@@ -30,7 +30,12 @@ export type { ImageNodeData, ImageContent } from "./single/image";
 export type { PdfNodeData, PdfContent } from "./single/pdf";
 export type { VideoNodeData, VideoContent, VideoSource } from "./single/video";
 export type { AudioNodeData, AudioContent } from "./single/audio";
-export type { TimestampNote } from "./single/timestamp-note";
+export type {
+  TimestampData,
+  TimestampKind,
+  TimestampNoteData,
+  TimestampSubtitleData,
+} from "./single/timestamp-data";
 export type { WebpageNodeData, WebpageContent } from "./single/webpage";
 export type { WebsiteNodeData } from "./single/website";
 

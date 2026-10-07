@@ -4,7 +4,7 @@ import type { VideoNodeData } from "@workspace/interfaces";
 import { Video } from "lucide-react";
 import { useState } from "react";
 import { resolveFileUrl } from "@workspace/api-client";
-import { VideoPlayer } from "@workspace/ui/components/video-player/video-player";
+import { NativeVideoPlayer } from "@workspace/ui/components/media-player/video-player/native-video-player";
 
 // 格式化时长：秒 → mm:ss
 function formatDuration(seconds: number): string {
@@ -58,9 +58,12 @@ export function VideoPreview({ node }: { node: VideoNodeData }) {
           </>
         )}
 
-        {/* 2. 鼠标移入后显示：视频自动播放（有 HLS 时播放转码后的流） */}
+        {/* 2. 鼠标移入后显示：视频自动播放（有 HLS 时播放转码后的流）
+            这里刻意用原生 `<NativeVideoPlayer>` 而不是节点编辑器里的 video.js
+            `<VideoPlayer>`：悬停预览是静音循环的缩略图，挂一个 provider + store +
+            控制栏 + 皮肤样式表得不偿失（见 native-video-player.tsx 的说明）。 */}
         {isPlaying && (node.content?.url || node.content?.hlsUrl) && (
-          <VideoPlayer
+          <NativeVideoPlayer
             src={node.content?.url}
             hlsSrc={node.content?.hlsUrl}
             poster={node.content?.coverUrl}

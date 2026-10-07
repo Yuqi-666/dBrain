@@ -1,30 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactEventHandler } from "react";
+import { useEffect, useState } from "react";
 import { VideoOff } from "lucide-react";
-import type {
-  TimestampNote,
-  VideoContent,
-  VideoNodeData,
-} from "@workspace/interfaces";
+import type { VideoNodeData } from "@workspace/interfaces";
 
+import { VideoPlayer } from "@workspace/ui/components/media-player/video-player/video-player";
 import { cn } from "@workspace/ui/lib/utils";
-import { FileDropZone } from "./file-drop-zone";
-import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
-import { VideoPlayer } from "@workspace/ui/components/video-player/video-player";
-import {
-  TimestampNoteMarks,
-  TimestampNotes,
-} from "@workspace/ui/components/media/timestamp-notes";
-import type {
-  MediaController,
-  TimestampAddRequest,
-} from "@workspace/ui/components/media/types";
 import { resolveFileUrl } from "@workspace/api-client";
 
-import { normalizeNotes } from "./doc-normalize";
-import { useNodeContentWriter } from "./use-node-content-writer";
+import { FileDropZone } from "./file-drop-zone";
+import { MediaNodeLayout } from "./media-node-layout";
+import { useMediaTimestamps } from "./use-media-timestamps";
 
 interface VideoNodeContentProps {
   node: VideoNodeData;
@@ -32,31 +18,29 @@ interface VideoNodeContentProps {
 }
 
 /**
- * A video node: the existing HLS-aware `<VideoPlayer>` with the shared timestamp
- * notes underneath (design `node-content/README.md` §1.4, plan `media.md`
- * §M6.1-5).
+ * A video node: the video.js v10 `<VideoPlayer>` beside the timestamp sidebar
+ * (design `node-content/README.md` §1.4, plan `media.md` §M6.1-5).
  *
- * Two deliberate boundaries:
+ * The player owns the seek bar, so the note ticks are drawn **inside it**
+ * (`media-player/note-marks.tsx`) and a tick's click reaches the sidebar through
+ * `onActivateNote` → `focusRequest`. The host keeps three jobs:
  *
- * - **The player keeps its native transport.** `<VideoPlayer>` is still
- *   `controls`; `Space` / `←` / `→` stay the browser's. Only the time outlet is
- *   new (`onMediaController`) and it is bound to the same `<video>` element for
- *   both the progressive and the HLS path, so a note cannot land on a second
- *   timeline (plan §M6.2-⑤/⑥).
- * - **The marks layer gets its own track.** The player's root *is* the `<video>`,
- *   so an overlay would change that element's box; the timeline is a sibling
- *   instead (plan §M6.2-⑥).
+ * - **Composition and persistence** — `MediaNodeLayout` + `useMediaTimestamps`
+ *   (one gesture, one write; `Mod-Enter` captured on the content box).
+ * - **Sources** — the HLS playlist when the backend packaged one, the original
+ *   upload otherwise.
+ * - **The two failure screens.** An element that decoded audio but no video
+ *   (`videoWidth === 0`) and one that could not load at all both need a way out
+ *   — the original upload — which the player does not know about.
  *
- * Like the audio host, the only content write is `patchContent`, so `url`,
- * `hlsUrl` and `coverUrl` survive every note edit.
+ * The loading skeleton M6 drew is gone: the skin shows the node's `coverUrl` as
+ * its poster and its own buffering indicator, which is both the video.js
+ * behaviour and a poster the user gets to see (the skeleton hid it until
+ * `loadeddata`).
  */
 export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
-  const [mediaLoading, setMediaLoading] = useState(false);
   const [undecodable, setUndecodable] = useState(false);
-  const [controller, setController] = useState<MediaController | null>(null);
-  const [addRequest, setAddRequest] = useState<TimestampAddRequest | null>(
-    null,
-  );
+  const [failed, setFailed] = useState(false);
 
   const url = resolveFileUrl(node.content?.url);
   const hlsUrl = resolveFileUrl(node.content?.hlsUrl);
@@ -64,53 +48,21 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
   // packaged, or the original upload it was packaged from.
   const hasSource = !!url || !!hlsUrl;
 
-  const { patchContent } = useNodeContentWriter<VideoContent>(
-    node.id,
-    "video",
-    node.content,
-  );
+  // A record with no content half is malformed, not the normal case; the
+  // fallback keeps the timestamp layer from reading through `undefined`.
+  const content = node.content ?? { url: "", coverUrl: "" };
 
-  const notes = useMemo(
-    () => normalizeNotes(node.content?.timestampNotes ?? []),
-    [node.content?.timestampNotes],
-  );
-
-  useEffect(() => {
-    if (hasSource) {
-      setMediaLoading(true);
-    }
-  }, [hasSource]);
+  const timestamps = useMediaTimestamps(node, content);
 
   // A new source deserves a fresh verdict. Without this the "cannot decode"
-  // screen is terminal for the component instance — it renders no `<video>`, so
+  // screen is terminal for the component instance — it renders no player, so
   // nothing can ever clear the flag — while the attributes sidebar can point the
   // node at a different file without remounting it (the node editor only keys on
   // `node.id`). Pre-existing; found by the M6 probe (G6-8).
   useEffect(() => {
     setUndecodable(false);
+    setFailed(false);
   }, [url, hlsUrl]);
-
-  const isLoading = mediaLoading;
-
-  const writeNotes = useCallback(
-    (next: TimestampNote[]) => {
-      patchContent({ timestampNotes: next });
-    },
-    [patchContent],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== "Enter") return;
-      event.preventDefault();
-      const timeMs = controller ? controller.getCurrentTimeMs() : 0;
-      setAddRequest((previous) => ({
-        timeMs,
-        token: (previous?.token ?? 0) + 1,
-      }));
-    },
-    [controller],
-  );
 
   if (!hasSource) {
     return (
@@ -123,15 +75,7 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
     );
   }
 
-  const handleLoadedData: ReactEventHandler<HTMLVideoElement> = (event) => {
-    const video = event.currentTarget;
-    // An element that decoded audio but no video reports 0×0: it renders a bare
-    // control bar, which is what an unplayable codec looks like.
-    setUndecodable(video.videoWidth === 0 && video.videoHeight === 0);
-    setMediaLoading(false);
-  };
-
-  if (undecodable) {
+  if (undecodable || failed) {
     return (
       <div
         className={cn(
@@ -141,7 +85,9 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
       >
         <VideoOff className="size-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          当前浏览器无法解码该视频的编码，只有音轨可以播放。
+          {undecodable
+            ? "当前浏览器无法解码该视频的编码，只有音轨可以播放。"
+            : "视频加载失败，可能是网络或文件本身的问题。"}
         </p>
         {url && (
           <a
@@ -157,42 +103,36 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
   }
 
   return (
-    <div
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "flex flex-col gap-3 p-4 w-full h-full min-h-0 outline-none",
-        className,
-      )}
+    <MediaNodeLayout
+      className={className}
+      timestamps={timestamps.timestamps}
+      onTimestampsChange={timestamps.onTimestampsChange}
+      controller={timestamps.controller}
+      addRequest={timestamps.addRequest}
+      focusRequest={timestamps.focusRequest}
+      onConvertNote={timestamps.onCreateNodeFromNote}
+      onOpenNode={timestamps.onOpenNode}
+      onKeyDown={timestamps.onKeyDown}
     >
-      <div className="relative flex-1 min-h-0 flex items-center justify-center">
-        {isLoading && <LoadingPlaceholder variant="video" />}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
         <VideoPlayer
           src={url}
           hlsSrc={hlsUrl}
           poster={node.content?.coverUrl}
           controls
-          className={cn(
-            "max-h-full w-full object-contain",
-            isLoading ? "hidden" : "block",
-          )}
-          onLoadedData={handleLoadedData}
-          onError={() => setMediaLoading(false)}
-          onMediaController={setController}
+          className="h-full w-full"
+          onLoadedData={(size) => {
+            // An element that decoded audio but no video reports 0×0: it renders
+            // a bare control bar, which is what an unplayable codec looks like.
+            setUndecodable(size.videoWidth === 0 && size.videoHeight === 0);
+          }}
+          onError={() => setFailed(true)}
+          onMediaController={timestamps.onMediaController}
+          notes={timestamps.notes}
+          onAddNoteRequest={timestamps.onAddNoteRequest}
+          onActivateNote={timestamps.onActivateNote}
         />
       </div>
-
-      <div className="relative h-2 w-full shrink-0 rounded-full bg-muted">
-        <TimestampNoteMarks notes={notes} controller={controller} />
-      </div>
-
-      <TimestampNotes
-        notes={notes}
-        controller={controller}
-        onNotesChange={writeNotes}
-        addRequest={addRequest}
-        className="max-h-[45%] shrink-0 overflow-y-auto"
-      />
-    </div>
+    </MediaNodeLayout>
   );
 }

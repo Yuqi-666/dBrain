@@ -5,56 +5,56 @@
 
 **状态图例**
 
-| 状态            | 含义                                                                       |
-| --------------- | -------------------------------------------------------------------------- |
-| `未开工`        | 该章代码尚未开始                                                            |
-| `开发中`        | 主 agent / 子 agent 正在实现，闸门尚未提交给用户                            |
-| `待测`          | 已实现、自检（typecheck + lint diff + `agent-browser` 预跑）通过，等用户实测 |
-| `不通过 (n)`    | 用户实测有失败项，迭代轮次 n；失败项与归因见该条目                          |
-| `通过`          | 三条通过判据全部满足（[README.md §6.2](./README.md#62-通过判据三条同时满足)） |
-| `环境受限`      | 该条部分项目在本机无法验收（如真机、secure context），已记录降级验收方式      |
+| 状态         | 含义                                                                          |
+| ------------ | ----------------------------------------------------------------------------- |
+| `未开工`     | 该章代码尚未开始                                                              |
+| `开发中`     | 主 agent / 子 agent 正在实现，闸门尚未提交给用户                              |
+| `待测`       | 已实现、自检（typecheck + lint diff + `agent-browser` 预跑）通过，等用户实测  |
+| `不通过 (n)` | 用户实测有失败项，迭代轮次 n；失败项与归因见该条目                            |
+| `通过`       | 三条通过判据全部满足（[README.md §6.2](./README.md#62-通过判据三条同时满足)） |
+| `环境受限`   | 该条部分项目在本机无法验收（如真机、secure context），已记录降级验收方式      |
 
 ---
 
 ## 1. 总表
 
-| 闸门 | 里程碑                     | 章文件                                     | 状态   | 轮次 | 日期 | 遗留 |
-| ---- | -------------------------- | ------------------------------------------ | ------ | ---- | ---- | ---- |
-| G0   | M0 基线与验证闭环          | [spine.md](./spine.md#m04-闸门-g0--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G0.1 | M0.1 浏览器可达性前置      | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过 | 1 | 2026-10-06 | 见 §5 |
-| G1   | M1 数据脊柱                | [spine.md](./spine.md#m14-闸门-g1--用户操作清单) | 通过 | 1    | 2026-10-06 | 见 §5 |
-| G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
-| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 待测 | 1    | 2026-10-07 | 见 §5 |
-| G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
-| G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
-| G9   | M9 灵动岛 P2+P3 搜索与清理 | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
-| G10  | M10 dashboard P0           | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
-| G11  | M11 dashboard P1           | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
-| G12  | M12 selectors P2 收尾      | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
-| G13  | M13 dashboard P2+P3        | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
+| 闸门 | 里程碑                        | 章文件                                                                     | 状态   | 轮次 | 日期       | 遗留  |
+| ---- | ----------------------------- | -------------------------------------------------------------------------- | ------ | ---- | ---------- | ----- |
+| G0   | M0 基线与验证闭环             | [spine.md](./spine.md#m04-闸门-g0--用户操作清单)                           | 通过   | 1    | 2026-10-06 | 见 §5 |
+| G0.1 | M0.1 浏览器可达性前置         | [README.md §10.1](./README.md#101-宿主-nginx-路由m01-的配套配置由用户执行) | 通过   | 1    | 2026-10-06 | 见 §5 |
+| G1   | M1 数据脊柱                   | [spine.md](./spine.md#m14-闸门-g1--用户操作清单)                           | 通过   | 1    | 2026-10-06 | 见 §5 |
+| G2   | M2 图标与封面                 | [node-content-ui.md](./node-content-ui.md)                                 | 通过   | 3    | 2026-10-06 | 见 §5 |
+| G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md)                                 | 通过   | 2    | 2026-10-07 | 见 §5 |
+| G4   | M4 灵动岛 P0                  | [dynamic-island.md](./dynamic-island.md)                                   | 通过   | 2    | 2026-10-07 | 见 §5 |
+| G5   | M5 image 批注                 | [annotation.md](./annotation.md)                                           | 通过   | 2    | 2026-10-07 | 见 §5 |
+| G6   | M6 媒体与时间戳笔记           | [media.md](./media.md)                                                     | 待测   | 1    | 2026-10-07 | 见 §5 |
+| G7   | M7 PDF 自绘与批注             | [annotation.md](./annotation.md)                                           | 未开工 | —    | —          | —     |
+| G8   | M8 灵动岛 P1 预览面板         | [dynamic-island.md](./dynamic-island.md)                                   | 未开工 | —    | —          | —     |
+| G9   | M9 灵动岛 P2+P3 搜索与清理    | [dynamic-island.md](./dynamic-island.md)                                   | 未开工 | —    | —          | —     |
+| G10  | M10 dashboard P0              | [dashboard.md](./dashboard.md)                                             | 未开工 | —    | —          | —     |
+| G11  | M11 dashboard P1              | [dashboard.md](./dashboard.md)                                             | 未开工 | —    | —          | —     |
+| G12  | M12 selectors P2 收尾         | [node-content-ui.md](./node-content-ui.md)                                 | 未开工 | —    | —          | —     |
+| G13  | M13 dashboard P2+P3           | [dashboard.md](./dashboard.md)                                             | 未开工 | —    | —          | —     |
 
 **并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启并已关闭**（2026-10-06：四路全部交付、复核通过、四条提交落地，见 §5 G2）；**W5 已开启**（2026-10-07，M6；见下表）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
 
-| 窗口 | 章        | 开启前提（必须已落地）                                                        | 登记状态 |
-| ---- | --------- | ----------------------------------------------------------------------------- | -------- |
-| W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | **不再需要**（2026-10-07：M2/M3 已过 G2/G3，M4 串行开工；`motion` 已装 `12.43.0`） |
-| W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已关闭**（2026-10-06；四路交付 + 四条提交） |
-| W2   | M5        | **✅ 已满足**：主 agent 冻结 `annotation/types.ts` + `geometry.ts`（`aa31083`：三份 props 契约 + 21 条纯函数测试，`pnpm --filter=@workspace/ui test` 63/63 绿） | **已于同日开启并关闭**（2026-10-07；两路 owner 均为子 agent：A = `annotation-toolbar.tsx`、B = `annotation-canvas.tsx` + `use-annotation-input.ts`；**相交面为空** —— 两路各写自己的新文件，冻结面只读。交付后主 agent 复核并让两路各改一轮（B 四条：`touchDraws` 接线 / `hidden` 可见性 / dpr 监听 / 画布内部 origin 偏移；A 一条：compact 下粗细/隐藏/重做的可达性）；两轮后 typecheck 19 条 = 基线、lint 26 = 基线、`test` 63/63、真浏览器探针 25/25。**与 §3.2 的偏差**：`draw.ts` / `annotation-layer.tsx` 由主 agent 在冻结步一次写完，`geometry.ts` 的函数体也不再交给 W2-a（它同时是被两路消费的接口面与本章正确性核心），所以三路收敛为两路） |
-| W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
-| W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
-| W5   | M6        | **✅ 已满足**：主 agent 冻结 `media/types.ts`（`MediaController` / `createMediaController` / `formatTimeMs` / `sortTimestampNotes` + 三个组件的 props 契约；提交见 §5 的 G6 条目） | **已开启并已关闭**（2026-10-07）：两路 owner 均为子 agent —— A = `media/audio-player.tsx` + `video-player/video-player.tsx`、B = `media/timestamp-notes.tsx`；**相交面为空**（各写自己的文件，A 的两个文件互不相交、与 B 不同目录），冻结面只读。交付后主 agent 复核并让两路各回改一轮（A：`ownsKey` 把方向键也挡在按钮外，点完播放键后 `←/→` 全失效；B：设计 §1.3 的列表 `↑/↓` 未实现、行内动作只靠 hover 显示 ⇒ 触摸下不可达），随后任务 5（两个 node-content 接线）由主 agent 收口 |
+| 窗口 | 章         | 开启前提（必须已落地）                                                                                                                                                             | 登记状态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                                                                                                                         | **不再需要**（2026-10-07：M2/M3 已过 G2/G3，M4 串行开工；`motion` 已装 `12.43.0`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| W1   | M2         | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`）        | **已关闭**（2026-10-06；四路交付 + 四条提交）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| W2   | M5         | **✅ 已满足**：主 agent 冻结 `annotation/types.ts` + `geometry.ts`（`aa31083`：三份 props 契约 + 21 条纯函数测试，`pnpm --filter=@workspace/ui test` 63/63 绿）                    | **已于同日开启并关闭**（2026-10-07；两路 owner 均为子 agent：A = `annotation-toolbar.tsx`、B = `annotation-canvas.tsx` + `use-annotation-input.ts`；**相交面为空** —— 两路各写自己的新文件，冻结面只读。交付后主 agent 复核并让两路各改一轮（B 四条：`touchDraws` 接线 / `hidden` 可见性 / dpr 监听 / 画布内部 origin 偏移；A 一条：compact 下粗细/隐藏/重做的可达性）；两轮后 typecheck 19 条 = 基线、lint 26 = 基线、`test` 63/63、真浏览器探针 25/25。**与 §3.2 的偏差**：`draw.ts` / `annotation-layer.tsx` 由主 agent 在冻结步一次写完，`geometry.ts` 的函数体也不再交给 W2-a（它同时是被两路消费的接口面与本章正确性核心），所以三路收敛为两路） |
+| W3   | M10        | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts`                                                                                      | 未开启                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| W4   | M13        | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽                                                                                          | 未开启                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| W5   | M6         | **✅ 已满足**：主 agent 冻结 `media/types.ts`（`MediaController` / `createMediaController` / `formatTimeMs` / `sortTimestampNotes` + 三个组件的 props 契约；提交见 §5 的 G6 条目） | **已开启并已关闭**（2026-10-07）：两路 owner 均为子 agent —— A = `media/audio-player.tsx` + `video-player/video-player.tsx`、B = `media/timestamp-notes.tsx`；**相交面为空**（各写自己的文件，A 的两个文件互不相交、与 B 不同目录），冻结面只读。交付后主 agent 复核并让两路各回改一轮（A：`ownsKey` 把方向键也挡在按钮外，点完播放键后 `←/→` 全失效；B：设计 §1.3 的列表 `↑/↓` 未实现、行内动作只靠 hover 显示 ⇒ 触摸下不可达），随后任务 5（两个 node-content 接线）由主 agent 收口                                                                                                                                                                  |
 
 **W1 的四路白名单与「相交面为空」的依据**（owner 均为子 agent，主 agent 只持有冻结面）：
 
-| 路 | 文件白名单 | 与另三路的相交面 |
-| -- | ---------- | ---------------- |
-| W1-A | 新增 `node-media/**`（`node-icon-view.tsx` 的**函数体**、`node-type-icons.ts`、`emoji-set.ts`、`media/**` 五个原子件的**函数体**）；**不含**两个 `*-selector-popover.tsx` | 只改自己目录下的文件体；冻结的 props 签名不得改 |
-| W1-B | `dialog/editor/content/file-drop-zone.tsx`（`buildNodeUpdates` 两个新分支、`DisplayFieldDropZone` 函数体、`UploadDropZone` 的 `onUploaded` 透传） | 唯一副本；与 A 只通过 `variant="cover"` 的**类型**相交（冻结已定） |
-| W1-C | `preview-block/**`（`node-preview-body.tsx` 函数体、`preview-block.tsx`、`preview-header.tsx`、`node-preview-cover.tsx`、`index.ts`） | A 提供 `node-type-icons.ts`；冻结已钉死 `NODE_TYPE_ICONS` 的**导入路径**，A 只负责让该文件存在 |
-| W1-D | 新增 `node-media/icon-selector-popover.tsx` | 只用 A 的原子件与冻结签名；与 A 的文件集不相交 |
+| 路   | 文件白名单                                                                                                                                                                | 与另三路的相交面                                                                               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| W1-A | 新增 `node-media/**`（`node-icon-view.tsx` 的**函数体**、`node-type-icons.ts`、`emoji-set.ts`、`media/**` 五个原子件的**函数体**）；**不含**两个 `*-selector-popover.tsx` | 只改自己目录下的文件体；冻结的 props 签名不得改                                                |
+| W1-B | `dialog/editor/content/file-drop-zone.tsx`（`buildNodeUpdates` 两个新分支、`DisplayFieldDropZone` 函数体、`UploadDropZone` 的 `onUploaded` 透传）                         | 唯一副本；与 A 只通过 `variant="cover"` 的**类型**相交（冻结已定）                             |
+| W1-C | `preview-block/**`（`node-preview-body.tsx` 函数体、`preview-block.tsx`、`preview-header.tsx`、`node-preview-cover.tsx`、`index.ts`）                                     | A 提供 `node-type-icons.ts`；冻结已钉死 `NODE_TYPE_ICONS` 的**导入路径**，A 只负责让该文件存在 |
+| W1-D | 新增 `node-media/icon-selector-popover.tsx`                                                                                                                               | 只用 A 的原子件与冻结签名；与 A 的文件集不相交                                                 |
 
 **明确不开窗的章**：M7（pdfjs 渲染 / 批注坐标链 / toolbar 三面都改 `geometry.ts` 或 `annotation-canvas.tsx`）、M3（编辑器与只读渲染器共享同一 schema 文件）。
 
@@ -96,22 +96,22 @@
 
 ## 4. 用户操作清单的位置索引
 
-| 闸门 | 清单所在节                                                          | 特别说明                                                     |
-| ---- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| G0   | [spine.md §M0.4](./spine.md)                                         | 第 4 条（起服务）可并入 G1                                    |
-| G1   | [spine.md §M1.4](./spine.md)                                         | 第 4/5 条在 **PB 后台**验写路径，不依赖前端 UI                 |
-| G2   | [node-content-ui.md](./node-content-ui.md)                           | 图标/封面的四种来源 + 键盘可达性 + 不碰 `content` 的抓包证据   |
-| G3   | [node-content-ui.md](./node-content-ui.md)                           | text 旧形状惰性升级 + 头部与正文不互相覆盖                     |
-| G4   | [dynamic-island.md](./dynamic-island.md)                             | 形变可打断 / 原点从底部 / `prefers-reduced-motion` 降级        |
-| G5   | [annotation.md](./annotation.md)                                     | **真机笔测试**是主闸门（第 2、3 条）；入口走同域 `https://dev.yuqi-666.cn/graph` —— https 本身就是 secure context，R23/§5.2-1 的 localhost 论证已不需要 |
-| G6   | [media.md](./media.md)                                               | 时间戳跳转 ±0.5s + HLS 时间轴偏移 + 并发写者不互相抹除         |
-| G7   | [annotation.md](./annotation.md)                                     | 第 3 页的圈在缩放/翻页/旋转后仍贴合 + worker 不 404 + iframe 降级 |
-| G8   | [dynamic-island.md](./dynamic-island.md)                             | `isFocus` 语义与今天一致 + 触摸端点击触发                      |
-| G9   | [dynamic-island.md](./dynamic-island.md)                             | `Tab` 能正常遍历 + 全仓无 `quick-panel` 引用                   |
-| G10  | [dashboard.md](./dashboard.md)                                       | RGL 交互手感；**刷新丢几何是预期**（R6），不判失败              |
-| G11  | [dashboard.md](./dashboard.md)                                       | 只读 widget（`canEditViews=false`）+ 刷新后几何不变            |
-| G12  | [node-content-ui.md](./node-content-ui.md)                           | 裁剪不改原 blob + 离线时 P0 的 tab 不受影响                    |
-| G13  | [dashboard.md](./dashboard.md)                                       | 抽屉拖入落点 + 多页面深链 + worker 数量 = 1
+| 闸门 | 清单所在节                                 | 特别说明                                                                                                                                                |
+| ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0   | [spine.md §M0.4](./spine.md)               | 第 4 条（起服务）可并入 G1                                                                                                                              |
+| G1   | [spine.md §M1.4](./spine.md)               | 第 4/5 条在 **PB 后台**验写路径，不依赖前端 UI                                                                                                          |
+| G2   | [node-content-ui.md](./node-content-ui.md) | 图标/封面的四种来源 + 键盘可达性 + 不碰 `content` 的抓包证据                                                                                            |
+| G3   | [node-content-ui.md](./node-content-ui.md) | text 旧形状惰性升级 + 头部与正文不互相覆盖                                                                                                              |
+| G4   | [dynamic-island.md](./dynamic-island.md)   | 形变可打断 / 原点从底部 / `prefers-reduced-motion` 降级                                                                                                 |
+| G5   | [annotation.md](./annotation.md)           | **真机笔测试**是主闸门（第 2、3 条）；入口走同域 `https://dev.yuqi-666.cn/graph` —— https 本身就是 secure context，R23/§5.2-1 的 localhost 论证已不需要 |
+| G6   | [media.md](./media.md)                     | 时间戳跳转 ±0.5s + HLS 时间轴偏移 + 并发写者不互相抹除                                                                                                  |
+| G7   | [annotation.md](./annotation.md)           | 第 3 页的圈在缩放/翻页/旋转后仍贴合 + worker 不 404 + iframe 降级                                                                                       |
+| G8   | [dynamic-island.md](./dynamic-island.md)   | `isFocus` 语义与今天一致 + 触摸端点击触发                                                                                                               |
+| G9   | [dynamic-island.md](./dynamic-island.md)   | `Tab` 能正常遍历 + 全仓无 `quick-panel` 引用                                                                                                            |
+| G10  | [dashboard.md](./dashboard.md)             | RGL 交互手感；**刷新丢几何是预期**（R6），不判失败                                                                                                      |
+| G11  | [dashboard.md](./dashboard.md)             | 只读 widget（`canEditViews=false`）+ 刷新后几何不变                                                                                                     |
+| G12  | [node-content-ui.md](./node-content-ui.md) | 裁剪不改原 blob + 离线时 P0 的 tab 不受影响                                                                                                             |
+| G13  | [dashboard.md](./dashboard.md)             | 抽屉拖入落点 + 多页面深链 + worker 数量 = 1                                                                                                             |
 
 ---
 
@@ -131,13 +131,13 @@
 - 用户操作清单：见 [spine.md §M0.4](./spine.md#m04-闸门-g0--用户操作清单)
 - 用户实测结果：
 
-  | # | 结果 | 证据 | 备注 |
-  | - | ---- | ---- | ---- |
-  | 1 | ✅ | `Tasks: 14 successful, 19 total` | 主 agent 已跑；用户复核 `pnpm check-types` 无 `Cyclic dependency detected`、非 `0 total` |
-  | 2 | ✅ | `Tasks: 11 successful, 20 total`，`Failed:` 9 个包 | 与 [baseline.md §3](./baseline.md#3-lint-基线20-任务11-通过--9-失败) 逐条一致 |
-  | 3 | ✅ | 两段 `✓ 与基线一致（0 新增，0 消失）` | —— |
-  | 4 | ✅ | 用户 `pnpm dev:full` 实测：应用能起、`/graph` 路由能渲染 | 库 0 节点 ⇒ **空图不算失败**（见下方「期望按实测改」）；第 4 条只判「应用能起、路由能渲染、控制台无 `unknown field`」 |
-  | 5 | ✅ | `_migrations` 应用迁移只有 `1700000000_initial_schema.js` | 主 agent 直读 sqlite；迁移未跑前用户浏览器侧连不上后端（→ M0.1/R37） |
+  | #   | 结果 | 证据                                                      | 备注                                                                                                                  |
+  | --- | ---- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+  | 1   | ✅   | `Tasks: 14 successful, 19 total`                          | 主 agent 已跑；用户复核 `pnpm check-types` 无 `Cyclic dependency detected`、非 `0 total`                              |
+  | 2   | ✅   | `Tasks: 11 successful, 20 total`，`Failed:` 9 个包        | 与 [baseline.md §3](./baseline.md#3-lint-基线20-任务11-通过--9-失败) 逐条一致                                         |
+  | 3   | ✅   | 两段 `✓ 与基线一致（0 新增，0 消失）`                     | ——                                                                                                                    |
+  | 4   | ✅   | 用户 `pnpm dev:full` 实测：应用能起、`/graph` 路由能渲染  | 库 0 节点 ⇒ **空图不算失败**（见下方「期望按实测改」）；第 4 条只判「应用能起、路由能渲染、控制台无 `unknown field`」 |
+  | 5   | ✅   | `_migrations` 应用迁移只有 `1700000000_initial_schema.js` | 主 agent 直读 sqlite；迁移未跑前用户浏览器侧连不上后端（→ M0.1/R37）                                                  |
 
 - 失败项与归因：暂无
 - 迭代：
@@ -168,12 +168,12 @@
   4. 顺手核一下 PB 后台：`https://dev.yuqi-666.cn/pb/_/`，账号 `admin@dbrain.dev`
 - 用户实测结果：
 
-  | # | 结果 | 证据 | 备注 |
-  | - | ---- | ---- | ---- |
-  | 1 | ✅ | 宿主 nginx 已加 `/trpc` 与 `/pb/` 两条路由 | 用户执行（`nginx -t && nginx -s reload`） |
-  | 2 | ✅ | `https://dev.yuqi-666.cn/register` 注册登录正常 | 不再转圈/报连不上；tRPC WS 与 PB REST 都已透过反代可达 |
-  | 3 | ✅ | 登录后 `/graph` 可渲染 | 空图（库 0 节点），符合预期 |
-  | 4 | ✅ | PB 后台可达 | 与第 2 条同一条反代路径 |
+  | #   | 结果 | 证据                                            | 备注                                                   |
+  | --- | ---- | ----------------------------------------------- | ------------------------------------------------------ |
+  | 1   | ✅   | 宿主 nginx 已加 `/trpc` 与 `/pb/` 两条路由      | 用户执行（`nginx -t && nginx -s reload`）              |
+  | 2   | ✅   | `https://dev.yuqi-666.cn/register` 注册登录正常 | 不再转圈/报连不上；tRPC WS 与 PB REST 都已透过反代可达 |
+  | 3   | ✅   | 登录后 `/graph` 可渲染                          | 空图（库 0 节点），符合预期                            |
+  | 4   | ✅   | PB 后台可达                                     | 与第 2 条同一条反代路径                                |
 
 - 失败项与归因：暂无
 - 迭代：——
@@ -201,6 +201,7 @@
   3. 第 4/5/8/9 条的「既有节点」直接用主 agent 造的两条探针节点（在你的工作区里，标题以 `M1 自检 ·` 开头，可删）：`M1 自检 · image（可删）` 已经带了一层 `annotations`，`M1 自检 · audio（可删）` 已经带了一条 `timestampNotes`。
   4. 第 7 条的 **collection 半条跳过**：实测库里没有 `collection` 节点（只有 1 个 `database`：`Component Inventory`），「切两个视图」没有现场对象；database 那半条照验。探针 #3 已在后端侧代跑过这条的写路径。
 - 主 agent 端到端预跑证据（`apps/server/src/__m1-probe.ts`，跑完即删；真 `AppContainer` + 真 PocketBase，不是 mock）：
+
   ```
   1) createNode(image) → DTO icon/cover = {"icon":{"kind":"emoji","value":"🧠"},"cover":{"kind":"image","url":"…"}}
      record after create = {"icon":{…},"cover":{…},"content":"…/m1-probe.png","annotations":null}
@@ -213,9 +214,11 @@
      DTO content = {"url":"…","timestampNotes":[…]}
   6) read-path DTO keys = {"hasIcon":true,"hasCover":true,"hasAnnotations":true}
   ```
+
   第 4 步第一次跑时**失败**（`icon` 没清掉）：domain 的 `clearIcon()` 是正确的，但 `toRecord` 写的是 `icon: node.icon`（清空后为 `undefined`），PB 的 `update` 是**部分更新** ⇒ 缺键 = 保留旧值。修法是 `icon: node.icon ?? null` / `cover: node.cover ?? null`（提交 `3d8c1a4`），并立了反向规矩：`annotations` / `timestampNotes` **不许**改成 `?? null`（半边合并依赖「缺键保留」）。已登记 [README §10 风险表](./README.md#10-风险登记)。
 
   探针 #2（`apps/server/src/__m1-readpath.ts`，跑完即删）—— **既有数据的读路径**，喂的是真库里的 27 条：
+
   ```
   每条节点断言：id/title/permission、tags[]/isPinned、时间戳可解析、
                 icon/cover 无 null 哨兵、该类型的 content 键齐全、getById ≡ list（不含时间戳）
@@ -223,7 +226,9 @@
   === 结果：168 通过 / 0 失败 ===
   [已知缺陷·不计失败] 时间戳跨读取漂移：27/27 个节点两次读取的 createdAt/updatedAt 不同
   ```
+
   探针 #3（`apps/server/src/__m1-halfmerge.ts`，跑完即删）—— **半边合并在活数据上**（同值写 = 无副作用；先 REST 拍快照，有漂移就原样恢复）：
+
   ```
   ✓ database(Component Inventory) · 前置：views 非空 / fields·rows 非空
   ✓ database · 单元格写（**故意不带 views**）后 views 仍在        ← 第 7 条「表格改单元格」的后端面
@@ -233,7 +238,9 @@
   ✓ database / rich-text · 落库快照零漂移（moved=∅，无需恢复）
   === 结果：8 通过 / 0 失败 ===
   ```
+
   探针 #4（`apps/server/src/__m1-router.ts`，跑完即删）—— **tRPC 路由层**，`appRouter.createCaller({ userId })` 直打浏览器那条链（探针 #1/#2 都是直连 `nodeCommandService`，绕过了 zod 白名单与 `protectedProcedure`，所以这一层必须单独验）：
+
   ```
   ✓ 未登录 caller 被拒（protectedProcedure 生效）
   ✓ getById 返回 image / content.url 在 / annotations 未被 zod 剥掉 / icon 不是 null 哨兵 / cover 仍在
@@ -249,16 +256,20 @@
   恢复两条探针节点原状… ✓ image 已恢复 ✓ audio 已恢复
   === 结果：24 通过 / 0 失败 ===
   ```
+
   关键事实：`update` 的 `content` 是 **`z.any()`**（`node.ts:305`），不是会剥键的 `z.object` —— 这正是批注 / 笔记半边合并能在浏览器里成立的前提；而 `add` 的 content 是各类 `z.object` 字面量，`annotations` / `timestampNotes` 不在其中，故 **遗留 1 是真实缺口**（新建时带批注会被静默剥掉），已在 [spine.md](./spine.md) / 下方遗留 1 登记。
+
 - 失败项与归因：暂无
 - 迭代：——
 - 用户实测结果（2026-10-06）：用户在浏览器里实测后**一次性判定通过**（原话见下）；**未逐条留下截图或控制台证据**，因此下表按「用户整体判定」记，不虚构逐项证据。10 条清单的实际执行口径以本条上方「按实测调整四处」为准（第 1/2/4/5/6/10 条的后端面已由主 agent 用四条真机探针代验并留证；第 3/7/8/9 条为浏览器实测）。
 
-  | # | 结果 | 证据 | 备注 |
-  | - | ---- | ---- | ---- |
+  | #    | 结果           | 证据                           | 备注                                                          |
+  | ---- | -------------- | ------------------------------ | ------------------------------------------------------------- |
   | 1–10 | ✅（整体判定） | 用户原话「g1通过」，无逐条证据 | 后端面另有主 agent 的四条探针证据（6/6、168/168、8/8、24/24） |
+
 - 遗留不阻塞项：
   1. **create 路径不支持 content 级新字段**：`addSchema` 的 image/pdf/audio/video content schema 仍只声明原有键（`imageContentSchema = z.object({ url })` 等），`createNode` 也不透传 `annotations` / `timestampNotes`；探针 #4 已实测确认这个缺口是真的（经 router `add` 一条带 `annotations` 的 image，落库后 `annotations` 为 `null`）。计划里没要求（M5/M6/M7 都走 update 半边），但「新建时就带批注」这条链路今天是断的。谁需要谁在 M5/M6 开工时补。
+     - **2026-10-08 更新（部分关闭）**：audio/video 的**时间戳**这半边已通 —— `timestampNotes` + `subtitles` 合并为 `timestamps` / `TimestampData`（[media.md 附二](./media.md)），`timestampDataSchema` 在 `addSchema` 的 video/audio content 里声明，`createNode` 直接把它塞进 content VO。**仍开着的**：image/pdf 的 `annotations`（`imageContentSchema` / `pdfContentSchema` 仍未收它），以及上面那句「经 `add` 带 `annotations` 会被剥掉」的实测结论仍然成立。
   2. **`nodes` 表没有 `created` / `updated` 列**（0 号迁移的 nodes 定义里本来就没有），domain 的 `create()` 用 `?? new Date()` 兜底 ⇒ 节点时间戳每次读取都变成「现在」。M1 未引入、未修，已登记为风险；**M12「最近使用」开工前必须解决**。探针 #2 给出实测口径：**27/27 条节点的两次读取时间戳都不同**（同一进程内相隔 10ms 的 `list` 与 `getById`），所以「按更新时间排序」今天恒等于「随机序」；这条不是 G1 的失败项，但它是 M12 的硬前提。
   3. `CollectionNode.clearFilter` 走 `filterConfig: undefined`，与遗留 1/风险表同族（PB 部分更新下清不掉）。当前没有 UI 入口，M1 未碰。
   4. 属性侧栏去掉 `debounce: true` 后写变成「下一个微任务」，比原先的 500ms 防抖更即时；`handleContentUrlChange` 的 `if (!node.content) return;` 守卫也一并去掉（content 恒存在，实测无差）。G1 第 8/9 条会实测其行为。
@@ -286,29 +297,31 @@
     ```
 - 并行窗口 **W1**（已关闭，四路 owner 与白名单见 §1）：
 
-  | 路 | 交付 | 主 agent 复核 |
-  | -- | ---- | ------------- |
-  | W1-A | `node-icon-view.tsx`（四段回落链 + 168 条精选 Lucide 表 `LUCIDE_ICON_ENTRIES`/`LUCIDE_ICON_SET`）、`emoji-set.ts`（8 类 × 46 = 368）、`media/**` 五原子件；`MediaGrid` 的 roving tabindex 用 `useCommandState(search)` 重同步“唯一 tab stop” | 通过。**决策**：精选表留在 `node-icon-view.tsx`（不另拆 `lucide-set.ts`，纯搬运无收益）；`className` 定盒不定字形的约定由 `preview-header`/`node-icon-button` 的传参遵守 |
-  | W1-B | `file-drop-zone.tsx`：`DisplayFieldDropZone` 真实现（只写顶层字段）、三 helper 退化为纯 patch、`writeContentPatch` 在 **await 之后**读活 content 再合并 | 通过，**但修掉一个缺陷**：icon 上传会重置已有 `color`，改为 `{ ...liveIcon, kind:"image", value }`（sel §7「换图但保留底色」是不变式）；`cover` 侧不合并（`{kind:"image"}` 无其他字段，展入 `{kind:"node"}` 会造出非法联合成员） |
-  | W1-C | R1 抽取 `NodePreviewBody`（十路 dispatch 原样搬移）；`preview-header`/`node-preview-cover` 改读 `icon`/`cover`；`resolveCover()` 深度上限 1 的环保护 | 通过。逐处推演过 `A→A` / `A→B→A` / `A→B(image)` / `A→B(无 cover)` / 无 `resolveNode` 五种情形，均不递归；定位、`Esc`、`isFocus`、`data-preview-block` 未动 |
-  | W1-D | `icon-selector-popover.tsx`：三 tab + 色板（8 色 + 无）+ 移除 + `aria-disabled` + 错误条，props 与 sel §4 逐字段一致 | 通过，**退回一处**：它自带第二份图标名表（~75 条），已改为消费 `LUCIDE_ICON_ENTRIES`（否则选中不在 A 表里的名字会静默回落，直接威胁第 3 条） |
+  | 路   | 交付                                                                                                                                                                                                                                         | 主 agent 复核                                                                                                                                                                                                                    |
+  | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | W1-A | `node-icon-view.tsx`（四段回落链 + 168 条精选 Lucide 表 `LUCIDE_ICON_ENTRIES`/`LUCIDE_ICON_SET`）、`emoji-set.ts`（8 类 × 46 = 368）、`media/**` 五原子件；`MediaGrid` 的 roving tabindex 用 `useCommandState(search)` 重同步“唯一 tab stop” | 通过。**决策**：精选表留在 `node-icon-view.tsx`（不另拆 `lucide-set.ts`，纯搬运无收益）；`className` 定盒不定字形的约定由 `preview-header`/`node-icon-button` 的传参遵守                                                         |
+  | W1-B | `file-drop-zone.tsx`：`DisplayFieldDropZone` 真实现（只写顶层字段）、三 helper 退化为纯 patch、`writeContentPatch` 在 **await 之后**读活 content 再合并                                                                                      | 通过，**但修掉一个缺陷**：icon 上传会重置已有 `color`，改为 `{ ...liveIcon, kind:"image", value }`（sel §7「换图但保留底色」是不变式）；`cover` 侧不合并（`{kind:"image"}` 无其他字段，展入 `{kind:"node"}` 会造出非法联合成员） |
+  | W1-C | R1 抽取 `NodePreviewBody`（十路 dispatch 原样搬移）；`preview-header`/`node-preview-cover` 改读 `icon`/`cover`；`resolveCover()` 深度上限 1 的环保护                                                                                         | 通过。逐处推演过 `A→A` / `A→B→A` / `A→B(image)` / `A→B(无 cover)` / 无 `resolveNode` 五种情形，均不递归；定位、`Esc`、`isFocus`、`data-preview-block` 未动                                                                       |
+  | W1-D | `icon-selector-popover.tsx`：三 tab + 色板（8 色 + 无）+ 移除 + `aria-disabled` + 错误条，props 与 sel §4 逐字段一致                                                                                                                         | 通过，**退回一处**：它自带第二份图标名表（~75 条），已改为消费 `LUCIDE_ICON_ENTRIES`（否则选中不在 A 表里的名字会静默回落，直接威胁第 3 条）                                                                                     |
+
 - 用户操作清单：见 [node-content-ui.md §M2.4](./node-content-ui.md#m24-闸门-g2--用户操作清单)。**按实测调整几处**（入口改同域、可用节点、已知偏差、G2-r1 三条口径）——见该节开头前置说明的第 2/3/4/6 点。
 - **第 1 轮实测（2026-10-06，G2-r1）**：用户报 3 条，全部定位到根因并回改；提交 `e463c89`。
 
-  | #   | 现象                                              | 根因                                                                                                                                                                                                                              | 处理                                                                                                                                                                                                                                                                                     |
-  | --- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 1   | `icon-selector` **内部内容不能滚动**（溢出被裁）  | 上限压在 `Command` 的 inline `maxHeight` 上，却指望宿主 `flex-1 min-h-0` 的 `CommandList` 去滚。`height: auto` 的 flex 容器**不会**因自己的 `max-height` 收缩子项：368 格内容先按 max-content 算出 ≈1900px、再被钳到 384px，`Command` 的 `overflow-hidden` 把它裁掉，**整条链上没有任何滚动视口** | 上限压回 `CommandList` 自身（`[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)-2.25rem)]`，恢复仓库里既有的 `Popover + Command + CommandList` 滚动形状——`dataview/shared/field-picker.tsx`、`settings-panel.tsx` 在同一个编辑器弹窗里就是这么滚的）；外层包裹 `div` 用同一上限 + `overflow-y-auto` 作非 `CommandList` 体（上传 tab）的安全网；上限折入 `var(--radix-popover-content-available-height)`；`Command` 让出 `overflow-hidden`；搜索行 `sticky top-0 z-10 bg-popover` 钉在滚动视口顶 |
-  | 2   | `icon-selector` 的**底色不能切回空**              | `handleColor(undefined)` 发的是 `{kind,value}`（**缺** `color` 键），宿主按 sel §7 用活值基底合并（`{ ...live, ...next }`）时保留旧色——**缺键与「别动颜色」不可区分**                                                                     | `handleColor` **总是**写 `color` 键（清除即 `undefined`）；对象展开会把显式 `undefined` 覆盖上去，PB 边界 `JSON.stringify` 再去掉该键，线上形状仍是 `{kind,value}`                                                                                                                            |
-  | 3   | `cover-selector` 的 `URL` tab 多余（与上传同写一处） | 设计稿把 URL 当第三个来源，但它与 `上传` 写的是同一个目标（顶层 `cover`），tab 之间没有行为差异                                                                                                                                     | 删掉 `URL` tab 与其预览分支，`Or add via URL` 留在 `上传` tab 尾部；`COVER_TABS` 剩 上传 / 从节点选；`MediaPopoverTab` 的 id 注释去掉 `url`；sel §2/§6.3 与 §M2.4 同步改口径                                                                                                                  |
+  | #   | 现象                                                 | 根因                                                                                                                                                                                                                                                                                              | 处理                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+  | --- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 1   | `icon-selector` **内部内容不能滚动**（溢出被裁）     | 上限压在 `Command` 的 inline `maxHeight` 上，却指望宿主 `flex-1 min-h-0` 的 `CommandList` 去滚。`height: auto` 的 flex 容器**不会**因自己的 `max-height` 收缩子项：368 格内容先按 max-content 算出 ≈1900px、再被钳到 384px，`Command` 的 `overflow-hidden` 把它裁掉，**整条链上没有任何滚动视口** | 上限压回 `CommandList` 自身（`[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)-2.25rem)]`，恢复仓库里既有的 `Popover + Command + CommandList` 滚动形状——`dataview/shared/field-picker.tsx`、`settings-panel.tsx` 在同一个编辑器弹窗里就是这么滚的）；外层包裹 `div` 用同一上限 + `overflow-y-auto` 作非 `CommandList` 体（上传 tab）的安全网；上限折入 `var(--radix-popover-content-available-height)`；`Command` 让出 `overflow-hidden`；搜索行 `sticky top-0 z-10 bg-popover` 钉在滚动视口顶 |
+  | 2   | `icon-selector` 的**底色不能切回空**                 | `handleColor(undefined)` 发的是 `{kind,value}`（**缺** `color` 键），宿主按 sel §7 用活值基底合并（`{ ...live, ...next }`）时保留旧色——**缺键与「别动颜色」不可区分**                                                                                                                             | `handleColor` **总是**写 `color` 键（清除即 `undefined`）；对象展开会把显式 `undefined` 覆盖上去，PB 边界 `JSON.stringify` 再去掉该键，线上形状仍是 `{kind,value}`                                                                                                                                                                                                                                                                                                                              |
+  | 3   | `cover-selector` 的 `URL` tab 多余（与上传同写一处） | 设计稿把 URL 当第三个来源，但它与 `上传` 写的是同一个目标（顶层 `cover`），tab 之间没有行为差异                                                                                                                                                                                                   | 删掉 `URL` tab 与其预览分支，`Or add via URL` 留在 `上传` tab 尾部；`COVER_TABS` 剩 上传 / 从节点选；`MediaPopoverTab` 的 id 注释去掉 `url`；sel §2/§6.3 与 §M2.4 同步改口径                                                                                                                                                                                                                                                                                                                    |
 
 - 第 2 轮自检（回改后重跑，口径同首轮）：`bash docs/plan/baseline.sh` → typecheck / lint 两段 **0 新增 / 0 消失** ✅；已核对 Tailwind 实际产出 `[&_[cmdk-list]]:max-h-[calc(var(--media-body-cap)_-_2.25rem)] [cmdk-list]` 规则、以及客户端 chunk（`apps/web/.next/dev/static/chunks/packages_ui_src_components_node-media_*.js`）含新代码；改动仅 `node-media/**` 的 4 个文件 + 2 份文档，`ui/**` 基座、`backend/**`、`interfaces` 未碰，**零新依赖**。
 - **测试环境提醒（已实测核实，非推断）**：本机 `http://127.0.0.1:3000/_next/webpack-hmr` 的 WebSocket 握手是 `101 Switching Protocols`，而经域名 `https://dev.yuqi-666.cn/_next/webpack-hmr` 是 **404**（`server: openresty`）——用户浏览器的 **HMR 通道不通**，页面不手动刷新就一直跑旧 bundle（同时可见新旧两份 chunk：`..._67d0d257._.js` 与 `..._ca112602_.js`）。⇒ **每轮实测前请刷新**（chunk 是 `cache-control: no-store`，普通 F5 即可）；要免刷新需在宿主 nginx 给 `/_next/webpack-hmr` 加 `Upgrade`/`Connection` 透传（属用户侧 M0.1 路由，主 agent 不改）。
 - **第 2 轮实测（2026-10-06，G2-r2）**：用户报 2 点（「底色只在上传 tab 有了」「emoji / 图标 / 封面内容依然不能滚动」），并明确要求「写脚本自己检查」。据此搭了**真浏览器探针**（配方见 §6），定位到 G2-r1 **只修了一半**；提交 `e275532`。
 
-  | # | 现象 | 根因（探针实测定位） | 处理 |
-  | - | ---- | -------------------- | ---- |
-  | 1 | 底色行只在「上传」tab 可见 | 它是 `children` 的最后一项，因此落在**滚动体内部**：46 行的 emoji 网格把它顶到折叠线以下（上传 tab 内容短，所以只有那一行看得见） | `MediaPopoverShell` 新增 **`footer` 槽**（渲染在滚动区之外、常驻），图标选择器把底色行交给它；sel §2 同步 |
-  | 2 | emoji / 图标 / 封面**内容不能滚动** | **两个叠加根因，只改 CSS 永远修不好**：**(i)** G2-r1 修的一半（上限压在 `Command` 上 → 内容被裁且无滚动视口）；**(ii)** `modal` 的 Radix Dialog 挂的 `react-remove-scroll` 带 `shards: [contentRef]`，它会 `preventDefault()` **所有落在 shard 之外**的 `wheel` / `touchmove` —— portal 到 `document.body` 的 `PopoverContent` 在窗口模式下**必然**滚不动（触屏同理，所以平板上也划不动）；探针实测该车轮事件 `defaultPrevented=true`，且 `preventDefault` 的调用栈就落在 `react-remove-scroll` 的 `shouldPrevent` 里 | `ui/dialog.tsx` 新增 `DialogContentContainerContext`（`DialogContent` 把自己的 DOM 节点放进 context，并兼容外部 `ref`）；`ui/popover.tsx` 的 `PopoverContent` 新增可选 `container` 透传，`MediaPopoverShell` **显式**把该节点传进去（全屏编辑器没有 Dialog → `null` → 仍是 `document.body`）——即 §M2.1 第 7 行标「按需」的那次 `container` 透传，判据由实测给出。**有意不做成全局默认**：filter / view 对话框自身是 `max-h-[85vh] overflow-y-auto`、`quick-panel` 是 `overflow-hidden`，全局 portal 进去会把「滚不动」换成「被裁切」 |
+  | #   | 现象                                | 根因（探针实测定位）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 处理                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+  | --- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | 1   | 底色行只在「上传」tab 可见          | 它是 `children` 的最后一项，因此落在**滚动体内部**：46 行的 emoji 网格把它顶到折叠线以下（上传 tab 内容短，所以只有那一行看得见）                                                                                                                                                                                                                                                                                                                                                                                     | `MediaPopoverShell` 新增 **`footer` 槽**（渲染在滚动区之外、常驻），图标选择器把底色行交给它；sel §2 同步                                                                                                                                                                                                                                                                                                                                                                                                                            |
+  | 2   | emoji / 图标 / 封面**内容不能滚动** | **两个叠加根因，只改 CSS 永远修不好**：**(i)** G2-r1 修的一半（上限压在 `Command` 上 → 内容被裁且无滚动视口）；**(ii)** `modal` 的 Radix Dialog 挂的 `react-remove-scroll` 带 `shards: [contentRef]`，它会 `preventDefault()` **所有落在 shard 之外**的 `wheel` / `touchmove` —— portal 到 `document.body` 的 `PopoverContent` 在窗口模式下**必然**滚不动（触屏同理，所以平板上也划不动）；探针实测该车轮事件 `defaultPrevented=true`，且 `preventDefault` 的调用栈就落在 `react-remove-scroll` 的 `shouldPrevent` 里 | `ui/dialog.tsx` 新增 `DialogContentContainerContext`（`DialogContent` 把自己的 DOM 节点放进 context，并兼容外部 `ref`）；`ui/popover.tsx` 的 `PopoverContent` 新增可选 `container` 透传，`MediaPopoverShell` **显式**把该节点传进去（全屏编辑器没有 Dialog → `null` → 仍是 `document.body`）——即 §M2.1 第 7 行标「按需」的那次 `container` 透传，判据由实测给出。**有意不做成全局默认**：filter / view 对话框自身是 `max-h-[85vh] overflow-y-auto`、`quick-panel` 是 `overflow-hidden`，全局 portal 进去会把「滚不动」换成「被裁切」 |
+
 - **G2-r2 自检（真浏览器探针，`chrome-headless-shell` + CDP）**：把**真组件**（`IconSelectorPopover` / `CoverSelectorPopover`）挂进**真模态 Dialog**、用应用**真编译 CSS**，再用 CDP 派发**受信任**鼠标 / 触摸事件。**13/13 通过**：
   ```
   ✓ 探针页挂载（真组件 + 真 CSS + 真模态 Dialog）
@@ -445,24 +458,24 @@
 - 探针脚本的复跑口径（三个脚本）：**追加交付 二**用 `node /tmp/probe/header-check.mjs`（15 条，见上）；**追加交付**用 `node /tmp/probe/toolbar-check.mjs`（16 条，见上）；首轮的 `node /tmp/probe/m3-check.mjs`（`chrome-headless-shell` 直连 `file://` 时外部脚本报错会被浏览器掩成 `Script error.`，排查期间改用 `PROBE_URL=http://127.0.0.1:8899/m3.html` + `python3 -m http.server 8899 -d /tmp/probe`；bundling 要显式带 `--jsx=automatic`，否则 `apps/web/tsconfig.json` 的 `jsx: preserve` 会让 esbuild 出经典 JSX 而在浏览器里报 `React is not defined`）
 - 用户实测结果（2026-10-07，**23 条全通过**；用户原话见本条目末）：
 
-  | #     | 结果 | 证据                                                                                                                                                                                                             | 备注                                                                                                    |
-  | ----- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-  | 1–3   | ✅   | 单块居中、`Enter` 不新建第二个块；悬停预览能看到刚写的文字；旧形状 `{content:"旧文本"}` 惰性升级为 Tiptap doc                                                                                                        | 第 1 条的现场是「空块 + 占位」（seed 的 `docs` 是未识别形状，见前置说明 2）；探针 ①–⑪b 同口径            |
-  | 4     | ✅   | rich-text 五段顺序 + 封面出血 + 图标骑封面下沿                                                                                                                                                                    | 用户随后**自己把这一段的排版又重排了一遍**（`f7d0be1`：按 plate 反推字号刻度），见下「用户侧修复」       |
-  | 5     | ✅   | 头部 `title`/`abstract` 与侧栏「属性」双向同步                                                                                                                                                                     | `f7d0be1` 起两个输入框走 `useEchoSafeText`：光标不再被写者回声挪到行尾                                   |
-  | 6     | ✅   | **方案 A 判定成立**：对话框头部对 rich-text 不再渲染图标/封面按钮（R35 结案）                                                                                                                                      | title 例外：两个标题输入框**保留**（见遗留 2）                                                           |
-  | 7     | ✅   | 连续打字 + 500ms 内改 icon/title：正文与头部都在、控制台无 `autocancelled`                                                                                                                                         | 共用 drain（探针 ⑮⑯⑰）                                                                                  |
-  | 8     | ✅   | 抓包：头部改动只落顶层字段，`updates.content` 与改动前逐字段一致                                                                                                                                                   | 与第 22 条同一次操作                                                                                     |
-  | 9     | ✅   | 全屏（编辑器头部最左 `FullscreenButton`）下第 1 条同样成立                                                                                                                                                          | 单块在 `absolute inset-0` 宿主里同样居中、无内层滚动条                                                   |
-  | 10    | ✅   | 粘贴两行被压平成一段；`Esc` 交给 Dialog 关窗                                                                                                                                                                       | 遗留 3（PM 只 `preventDefault`、不 `stopPropagation`）                                                   |
-  | 11    | ✅   | image / database 节点的 node-content 与改动前一致                                                                                                                                                                 | M3 只动 text + rich-text                                                                                 |
-  | 12    | ✅   | `bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**（主 agent 复跑）                                                                                                                                              | typecheck 88 / lint 26                                                                                   |
-  | 13    | ✅   | text→text 原地换节点：正文换种子、待写内容落回旧节点                                                                                                                                                               | 探针 ⑲⑳㉑（`f4e7357`）                                                                                   |
-  | 14–17 | ✅   | 选区浮条（粗/斜/下划线/删除线/代码/链接/颜色/公式/更多）、`Mod-B`、上下标、`$ ` → 行内公式、F5 后仍在                                                                                                                | 追加交付一；探针 ③–⑫                                                                                     |
-  | 18–20 | ✅   | 封面出血、图标骑下沿且与标题左对齐、两处「移除」后的回落（无封面 → 标题行右端入口；无图标 → 80px 白板 + 48px 类型图形仍骑边）                                                                                       | 追加交付二 + `f7d0be1`；探针 ⑱–㉛                                                                         |
-  | 21    | ✅   | 「类型 • 语义」是灰色小字、语义 pill 保留分类色；**摘要仍保持 muted**（用户本轮把摘要调到 `text-lg`，未要求改色）                                                                                                   | 探针 ㉕；§M3.2-23                                                                                         |
-  | 22    | ✅   | 三次 `node.update` payload 只带顶层字段                                                                                                                                                                            | 回归面 1                                                                                                 |
-  | 23    | ✅   | 语义胶囊是按钮下拉（**无箭头**）、菜单 256px 不被裁、选中即换、F5 后仍是新语义                                                                                                                                     | 追加交付二 r2；探针 ㉝㉝b㉞                                                                                |
+  | #     | 结果 | 证据                                                                                                                          | 备注                                                                                               |
+  | ----- | ---- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+  | 1–3   | ✅   | 单块居中、`Enter` 不新建第二个块；悬停预览能看到刚写的文字；旧形状 `{content:"旧文本"}` 惰性升级为 Tiptap doc                 | 第 1 条的现场是「空块 + 占位」（seed 的 `docs` 是未识别形状，见前置说明 2）；探针 ①–⑪b 同口径      |
+  | 4     | ✅   | rich-text 五段顺序 + 封面出血 + 图标骑封面下沿                                                                                | 用户随后**自己把这一段的排版又重排了一遍**（`f7d0be1`：按 plate 反推字号刻度），见下「用户侧修复」 |
+  | 5     | ✅   | 头部 `title`/`abstract` 与侧栏「属性」双向同步                                                                                | `f7d0be1` 起两个输入框走 `useEchoSafeText`：光标不再被写者回声挪到行尾                             |
+  | 6     | ✅   | **方案 A 判定成立**：对话框头部对 rich-text 不再渲染图标/封面按钮（R35 结案）                                                 | title 例外：两个标题输入框**保留**（见遗留 2）                                                     |
+  | 7     | ✅   | 连续打字 + 500ms 内改 icon/title：正文与头部都在、控制台无 `autocancelled`                                                    | 共用 drain（探针 ⑮⑯⑰）                                                                             |
+  | 8     | ✅   | 抓包：头部改动只落顶层字段，`updates.content` 与改动前逐字段一致                                                              | 与第 22 条同一次操作                                                                               |
+  | 9     | ✅   | 全屏（编辑器头部最左 `FullscreenButton`）下第 1 条同样成立                                                                    | 单块在 `absolute inset-0` 宿主里同样居中、无内层滚动条                                             |
+  | 10    | ✅   | 粘贴两行被压平成一段；`Esc` 交给 Dialog 关窗                                                                                  | 遗留 3（PM 只 `preventDefault`、不 `stopPropagation`）                                             |
+  | 11    | ✅   | image / database 节点的 node-content 与改动前一致                                                                             | M3 只动 text + rich-text                                                                           |
+  | 12    | ✅   | `bash docs/plan/baseline.sh` 两段 **0 新增 / 0 消失**（主 agent 复跑）                                                        | typecheck 88 / lint 26                                                                             |
+  | 13    | ✅   | text→text 原地换节点：正文换种子、待写内容落回旧节点                                                                          | 探针 ⑲⑳㉑（`f4e7357`）                                                                             |
+  | 14–17 | ✅   | 选区浮条（粗/斜/下划线/删除线/代码/链接/颜色/公式/更多）、`Mod-B`、上下标、`$ ` → 行内公式、F5 后仍在                         | 追加交付一；探针 ③–⑫                                                                               |
+  | 18–20 | ✅   | 封面出血、图标骑下沿且与标题左对齐、两处「移除」后的回落（无封面 → 标题行右端入口；无图标 → 80px 白板 + 48px 类型图形仍骑边） | 追加交付二 + `f7d0be1`；探针 ⑱–㉛                                                                  |
+  | 21    | ✅   | 「类型 • 语义」是灰色小字、语义 pill 保留分类色；**摘要仍保持 muted**（用户本轮把摘要调到 `text-lg`，未要求改色）             | 探针 ㉕；§M3.2-23                                                                                  |
+  | 22    | ✅   | 三次 `node.update` payload 只带顶层字段                                                                                       | 回归面 1                                                                                           |
+  | 23    | ✅   | 语义胶囊是按钮下拉（**无箭头**）、菜单 256px 不被裁、选中即换、F5 后仍是新语义                                                | 追加交付二 r2；探针 ㉝㉝b㉞                                                                        |
 
 - 失败项与归因：**无闸门失败项**。用户报的是**自己在实测中发现的瑕疵**（不是判定失败），归因 **实现缺陷**，由用户自己提交 `f7d0be1` 修复；主 agent 复核文件集与结论（见下）。
 - 迭代：
@@ -674,6 +687,7 @@
 ---
 
 ## 6. 自检探针配方（主 agent 用，不进仓库）
+
 计划原本的验证面是「`baseline.sh` + 用户手测」；G2-r2 起多一层**真浏览器探针**，用来在交用户之前自己把行为钉死（用户要求「写脚本自己检查」）。它是临时工装，**不进仓库**（本仓反模式明确不要 JS 测试设施），全部落在 `/tmp`：
 
 1. **浏览器**：从 Chrome for Testing 下 `chrome-headless-shell`（本容器没有 GTK/X11，装不了常规浏览器，但这台机器只缺 10 个 `.so`）：

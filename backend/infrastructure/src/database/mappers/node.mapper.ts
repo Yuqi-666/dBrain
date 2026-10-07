@@ -7,7 +7,7 @@ import type {
 } from "@workspace/interfaces/models/node/base";
 import type { DataView } from "@workspace/interfaces/models/data-view";
 import type { AnnotationLayerData } from "@workspace/interfaces/models/node/nodes/annotation";
-import type { TimestampNote } from "@workspace/interfaces/models/node/nodes/single/timestamp-note";
+import type { TimestampData } from "@workspace/interfaces/models/node/nodes/single/timestamp-data";
 import type { WebpageContent as WebpageContentData } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import type {
   DatabaseField as DatabaseFieldData,
@@ -119,13 +119,14 @@ interface VideoNodeRecord extends BaseNodeRecord {
   location?: string;
   shootingTime?: string;
   /**
-   * Notes anchored to points on the timeline (`TimestampNote[]` JSON).
+   * The played timeline (`TimestampData[]` JSON): notes and subtitle cues in one
+   * list, discriminated by each item's own `type`.
    *
    * Optional; a missing column or an explicit `null` both read as `undefined`
    * (see `BaseNodeRecord.icon`), and a value of an unexpected shape is passed
    * through untouched.
    */
-  timestampNotes?: TimestampNote[] | null;
+  timestamps?: TimestampData[] | null;
 }
 
 interface AudioNodeRecord extends BaseNodeRecord {
@@ -133,8 +134,8 @@ interface AudioNodeRecord extends BaseNodeRecord {
   content: string;
   duration: number;
   fileSize: number;
-  /** Notes anchored to points on the timeline (`TimestampNote[]` JSON); see `VideoNodeRecord.timestampNotes`. */
-  timestampNotes?: TimestampNote[] | null;
+  /** The played timeline (`TimestampData[]` JSON); see `VideoNodeRecord.timestamps`. */
+  timestamps?: TimestampData[] | null;
 }
 
 interface WebpageNodeRecord extends BaseNodeRecord {
@@ -358,13 +359,13 @@ export class NodeMapper {
       fileSize: record.fileSize,
       location: record.location,
       shootingTime: record.shootingTime,
-      // `timestampNotes` is a JSON column added after the fact: absent / `null`
-      // → `undefined` (no notes), never an empty array patched in here.
+      // `timestamps` is a JSON column: absent / `null` → `undefined` (no
+      // timestamps), never an empty array patched in here.
       content: new VideoContent(
         record.content || "",
         record.coverUrl || "",
         record.hlsUrl || "",
-        record.timestampNotes ?? undefined,
+        record.timestamps ?? undefined,
       ),
     });
   }
@@ -380,7 +381,7 @@ export class NodeMapper {
       // See `mapVideoNode`: absent / `null` → `undefined`, no empty array.
       content: new AudioContent(
         record.content || "",
-        record.timestampNotes ?? undefined,
+        record.timestamps ?? undefined,
       ),
     });
   }
@@ -479,7 +480,7 @@ export class NodeMapper {
       // deliberately NOT the `stateData` treatment above.
       icon: node.icon ?? null,
       cover: node.cover ?? null,
-      // Do NOT "fix" `annotations` / `timestampNotes` the same way in the
+      // Do NOT "fix" `annotations` / `timestamps` the same way in the
       // content branches below: those are half-side patches of `content`, so an
       // `undefined` key (i.e. "keep the old value" on a partial update) is
       // exactly the merge semantics `updateNodeContent`'s `?? node.content.*`
@@ -533,7 +534,10 @@ export class NodeMapper {
         fileSize: node.fileSize,
         location: node.location,
         shootingTime: node.shootingTime,
-        timestampNotes: node.content.timestampNotes,
+        // No `?? null` — see the rule above: `timestamps` is a half-side patch
+        // of `content`, and an `undefined` key is what tells the application
+        // layer's `?? node.content.*` merge to keep the old value.
+        timestamps: node.content.timestamps,
       };
     }
 
@@ -543,7 +547,7 @@ export class NodeMapper {
         content: node.content.url,
         duration: node.duration,
         fileSize: node.fileSize,
-        timestampNotes: node.content.timestampNotes,
+        timestamps: node.content.timestamps,
       };
     }
 

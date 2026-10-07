@@ -141,6 +141,11 @@ export class NodeCommandService {
             cmd.content.url,
             cmd.content.coverUrl,
             cmd.content.hlsUrl ?? "",
+            // A node is created before it has any notes (the editor is what
+            // writes those), but a transcript may already exist — a create that
+            // dropped it would make the subtitle half of `timestamps`
+            // write-only.
+            cmd.content.timestamps,
           ),
           workspaceId: cmd.workspaceId,
         });
@@ -159,7 +164,7 @@ export class NodeCommandService {
           cover: cmd.cover,
           duration: cmd.duration,
           fileSize: cmd.fileSize,
-          content: new AudioContent(cmd.content.url),
+          content: new AudioContent(cmd.content.url, cmd.content.timestamps),
           workspaceId: cmd.workspaceId,
         });
         break;
@@ -413,29 +418,29 @@ export class NodeCommandService {
       node instanceof VideoNode &&
       (content.url !== undefined ||
         content.hlsUrl !== undefined ||
-        content.timestampNotes !== undefined)
+        content.timestamps !== undefined)
     ) {
       // `hlsUrl` is patched in after the transcode finishes and the timestamp
-      // notes are saved on their own, so either may arrive alone; a patch that
+      // list is saved on its own, so either may arrive alone; a patch that
       // omits a field keeps the value already stored.
       return node.updateContent(
         new VideoContent(
           content.url ?? node.content.url,
           content.coverUrl ?? node.content.coverUrl,
           content.hlsUrl ?? node.content.hlsUrl,
-          content.timestampNotes ?? node.content.timestampNotes,
+          content.timestamps ?? node.content.timestamps,
         ),
       );
     }
     if (
       node instanceof AudioNode &&
-      (content.url !== undefined || content.timestampNotes !== undefined)
+      (content.url !== undefined || content.timestamps !== undefined)
     ) {
       // Same halves as video: a note may be added without re-sending the url.
       return node.updateContent(
         new AudioContent(
           content.url ?? node.content.url,
-          content.timestampNotes ?? node.content.timestampNotes,
+          content.timestamps ?? node.content.timestamps,
         ),
       );
     }

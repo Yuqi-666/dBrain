@@ -95,7 +95,7 @@ export function toNodeDTO(node: Node): NodeDTO {
           coverUrl: video.content.coverUrl,
           hlsUrl: video.content.hlsUrl,
           // Named here or dropped here — see the `hlsUrl` note above.
-          timestampNotes: video.content.timestampNotes,
+          timestamps: video.content.timestamps,
         },
       };
     }
@@ -108,7 +108,7 @@ export function toNodeDTO(node: Node): NodeDTO {
         fileSize: audio.fileSize,
         content: {
           url: audio.content.url,
-          timestampNotes: audio.content.timestampNotes,
+          timestamps: audio.content.timestamps,
         },
       };
     }

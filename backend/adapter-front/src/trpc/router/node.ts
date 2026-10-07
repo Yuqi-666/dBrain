@@ -2,7 +2,7 @@ import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
 import { normalizeDataViewType, DATABASE_FIELD_TYPES } from "@workspace/domain";
 import type { DataView } from "@workspace/interfaces/models/data-view";
-import type { NodeCover, NodeIcon } from "@workspace/interfaces";
+import type { NodeCover, NodeIcon, TimestampData } from "@workspace/interfaces";
 import { z } from "zod";
 
 /**
@@ -66,16 +66,51 @@ const pdfContentSchema = z.object({
   coverUrl: z.string(),
 });
 
+/**
+ * One item on a media node's timeline (`TimestampData`).
+ *
+ * A note and a subtitle cue are one shape now, discriminated by `type`, so this
+ * is one schema rather than one per kind — a create payload carries whatever
+ * the timeline holds and the reader (`normalizeTimestamps`) is what decides
+ * which of them are *usable*.
+ *
+ * `z.custom` for exactly the reason {@link nodeIconSchema} gives: a `z.object`
+ * would strip any key an item gains later (and the two variants have different
+ * keys — a `z.object` would have to be a union of literals, and `.passthrough()`
+ * types the parsed value in a way the interfaces are not assignable from). The
+ * check is deliberately shallow: numeric `timeMs`, and a `content` whose type
+ * matches the discriminator.
+ *
+ * Both kinds are accepted **on the add schemas**: the old `timestampNotes` gap
+ * (`docs/plan/gates.md` 遗留 1) existed because a note's body was a second,
+ * richer shape than a cue's; with one shape there is nothing left to exclude,
+ * and `createNode` passes the list straight into the content value object.
+ */
+const timestampDataSchema = z.custom<TimestampData>((value) => {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Partial<TimestampData>;
+  if (typeof item.timeMs !== "number") return false;
+  if (item.type === "note") {
+    return typeof item.content === "object" && item.content !== null;
+  }
+  if (item.type === "subtitle") {
+    return typeof item.content === "string";
+  }
+  return false;
+}, "Must be a timeline item: { type: 'note', timeMs, content } | { type: 'subtitle', timeMs, content, endMs? }");
+
 const videoContentSchema = z.object({
   url: z.string(),
   coverUrl: z.string(),
   // Written by the upload flow once the backend has packaged the video as HLS;
   // absent until then, and on every record created by an older build.
   hlsUrl: z.string().optional(),
+  timestamps: z.array(timestampDataSchema).optional(),
 });
 
 const audioContentSchema = z.object({
   url: z.string(),
+  timestamps: z.array(timestampDataSchema).optional(),
 });
 
 /**

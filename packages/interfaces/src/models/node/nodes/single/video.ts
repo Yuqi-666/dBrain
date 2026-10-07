@@ -1,6 +1,6 @@
 import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
-import type { TimestampNote } from "./timestamp-note";
+import type { TimestampData } from "./timestamp-data";
 
 export type VideoSource = "local" | "online";
 
@@ -26,6 +26,19 @@ export interface VideoContent {
    * playlist and only falls back to {@link url} when it does not.
    */
   hlsUrl?: string;
-  /** Absent / empty means "no notes" — old records stay readable (media.md §4.1). */
-  timestampNotes?: TimestampNote[];
+  /**
+   * The node's timeline: its notes (`type: "note"`) and its transcript
+   * (`type: "subtitle"`), in **one** array.
+   *
+   * Absent / empty means "no timestamps" — old records stay readable
+   * (media.md §4.1). It used to be two keys (`timestampNotes` + `subtitles`)
+   * and two `nodes` columns; one key and one column now, so the two halves
+   * cannot drift apart and the sidebar's two tabs are two filters over the same
+   * list rather than two readers of the same JSON record.
+   *
+   * Nothing produces cues yet (the backend has no transcription step), so the
+   * 字幕 tab shows its empty state on every record that exists today. The data
+   * path is wired end to end, so a transcript is a data problem, not a UI one.
+   */
+  timestamps?: TimestampData[];
 }

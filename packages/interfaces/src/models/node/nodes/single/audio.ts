@@ -1,6 +1,6 @@
 import type { NodeBase } from "../../base";
 import type { NodeType } from "../../types";
-import type { TimestampNote } from "./timestamp-note";
+import type { TimestampData } from "./timestamp-data";
 
 export interface AudioNodeData extends NodeBase, NodeType<"audio"> {
   duration: number;
@@ -11,6 +11,13 @@ export interface AudioNodeData extends NodeBase, NodeType<"audio"> {
 
 export interface AudioContent {
   url: string;
-  /** Absent / empty means "no notes" — old records stay readable (media.md §4.1). */
-  timestampNotes?: TimestampNote[];
+  /**
+   * The node's timeline: its notes and its transcript, one array.
+   *
+   * Absent / empty means "no timestamps" — old records stay readable
+   * (media.md §4.1). The reader splits the two kinds by `type`; the storage is
+   * one column so a record can never hold notes without its cues (see
+   * `VideoContent.timestamps`).
+   */
+  timestamps?: TimestampData[];
 }

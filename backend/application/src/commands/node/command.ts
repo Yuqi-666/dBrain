@@ -5,6 +5,7 @@ import type {
   NodeCover,
   NodeIcon,
   NodeStateData,
+  TimestampData,
   WebpageContent,
 } from "@workspace/interfaces";
 
@@ -87,7 +88,12 @@ export interface CreateVideoNodeCommand {
   fileSize?: number;
   location?: string;
   shootingTime?: string;
-  content: { url: string; coverUrl: string; hlsUrl?: string };
+  content: {
+    url: string;
+    coverUrl: string;
+    hlsUrl?: string;
+    timestamps?: TimestampData[];
+  };
   userId: string;
   sourceId?: string;
   workspaceId?: string;
@@ -107,7 +113,7 @@ export interface CreateAudioNodeCommand {
   cover?: NodeCover | null;
   duration: number;
   fileSize: number;
-  content: { url: string };
+  content: { url: string; timestamps?: TimestampData[] };
   userId: string;
   sourceId?: string;
   workspaceId?: string;

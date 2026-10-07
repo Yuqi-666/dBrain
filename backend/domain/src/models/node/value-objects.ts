@@ -17,7 +17,7 @@ import {
   type DatabaseCell as DatabaseCellData,
   type DatabaseContent as DatabaseContentData,
   type DatabaseFieldType,
-  type TimestampNote,
+  type TimestampData,
 } from "@workspace/interfaces";
 import { FilterConfig } from "../filter/value-objects";
 
@@ -262,18 +262,18 @@ export class VideoContent {
   private readonly _url: string;
   private readonly _coverUrl: string;
   private readonly _hlsUrl: string;
-  private readonly _timestampNotes: TimestampNote[] | undefined;
+  private readonly _timestamps: TimestampData[] | undefined;
 
   constructor(
     url: string,
     coverUrl: string,
     hlsUrl = "",
-    timestampNotes?: TimestampNote[],
+    timestamps?: TimestampData[],
   ) {
     this._url = url;
     this._coverUrl = coverUrl;
     this._hlsUrl = hlsUrl;
-    this._timestampNotes = timestampNotes;
+    this._timestamps = timestamps;
   }
 
   get url(): string {
@@ -289,21 +289,29 @@ export class VideoContent {
   }
 
   /**
-   * Notes anchored to points on the played timeline, or `undefined` when the
-   * node has none.
+   * The played timeline's items — notes and subtitle cues in **one** list, or
+   * `undefined` when the node has none.
    *
-   * Absent — not an empty array — is the "no notes" shape of an old record.
-   * The list is one half of the content (`README.md` §4.1), so
-   * `withTimestampNotes` replaces it whole while `url` / `coverUrl` / `hlsUrl`
-   * stay put.
+   * Absent — not an empty array — is the "no timestamps" shape of an old
+   * record. The list is one half of the content (`README.md` §4.1), so
+   * `withTimestamps` replaces it whole while `url` / `coverUrl` / `hlsUrl` stay
+   * put. It was two halves (`timestampNotes` + `subtitles`) until the two were
+   * unified into one `timestamps` item shape; the discriminator is each item's
+   * own `type`, so this layer stores bytes and passes them through
+   * (normalising a malformed value is the frontend's `normalizeTimestamps`).
    */
-  get timestampNotes(): TimestampNote[] | undefined {
-    return this._timestampNotes;
+  get timestamps(): TimestampData[] | undefined {
+    return this._timestamps;
   }
 
-  /** Same video with a different timestamp-note list; the media fields are carried over. */
-  withTimestampNotes(notes: TimestampNote[] | undefined): VideoContent {
-    return new VideoContent(this._url, this._coverUrl, this._hlsUrl, notes);
+  /** Same video with a different timestamp list; the media fields are carried over. */
+  withTimestamps(timestamps: TimestampData[] | undefined): VideoContent {
+    return new VideoContent(
+      this._url,
+      this._coverUrl,
+      this._hlsUrl,
+      timestamps,
+    );
   }
 
   equals(other: VideoContent): boolean {
@@ -311,8 +319,7 @@ export class VideoContent {
       this._url === other._url &&
       this._coverUrl === other._coverUrl &&
       this._hlsUrl === other._hlsUrl &&
-      JSON.stringify(this._timestampNotes) ===
-        JSON.stringify(other._timestampNotes)
+      JSON.stringify(this._timestamps) === JSON.stringify(other._timestamps)
     );
   }
 }
@@ -322,32 +329,31 @@ export class VideoContent {
  */
 export class AudioContent {
   private readonly _url: string;
-  private readonly _timestampNotes: TimestampNote[] | undefined;
+  private readonly _timestamps: TimestampData[] | undefined;
 
-  constructor(url: string, timestampNotes?: TimestampNote[]) {
+  constructor(url: string, timestamps?: TimestampData[]) {
     this._url = url;
-    this._timestampNotes = timestampNotes;
+    this._timestamps = timestamps;
   }
 
   get url(): string {
     return this._url;
   }
 
-  /** See `VideoContent.timestampNotes`. */
-  get timestampNotes(): TimestampNote[] | undefined {
-    return this._timestampNotes;
+  /** See `VideoContent.timestamps`. */
+  get timestamps(): TimestampData[] | undefined {
+    return this._timestamps;
   }
 
-  /** Same audio with a different timestamp-note list; `url` is carried over. */
-  withTimestampNotes(notes: TimestampNote[] | undefined): AudioContent {
-    return new AudioContent(this._url, notes);
+  /** Same audio with a different timestamp list; `url` is carried over. */
+  withTimestamps(timestamps: TimestampData[] | undefined): AudioContent {
+    return new AudioContent(this._url, timestamps);
   }
 
   equals(other: AudioContent): boolean {
     return (
       this._url === other._url &&
-      JSON.stringify(this._timestampNotes) ===
-        JSON.stringify(other._timestampNotes)
+      JSON.stringify(this._timestamps) === JSON.stringify(other._timestamps)
     );
   }
 }

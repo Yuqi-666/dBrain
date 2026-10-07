@@ -1,28 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
-  AudioContent,
-  AudioNodeData,
-  TimestampNote,
-} from "@workspace/interfaces";
+import { useState } from "react";
+import { FileAudio } from "lucide-react";
+import type { AudioNodeData } from "@workspace/interfaces";
+
+import { AudioPlayer } from "@workspace/ui/components/media-player/audio-player/audio-player";
+import { cn } from "@workspace/ui/lib/utils";
 import { resolveFileUrl } from "@workspace/api-client";
 
-import { cn } from "@workspace/ui/lib/utils";
-import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
-import { AudioPlayer } from "@workspace/ui/components/media/audio-player";
-import {
-  TimestampNoteMarks,
-  TimestampNotes,
-} from "@workspace/ui/components/media/timestamp-notes";
-import type {
-  MediaController,
-  TimestampAddRequest,
-} from "@workspace/ui/components/media/types";
-
 import { FileDropZone } from "./file-drop-zone";
-import { normalizeNotes } from "./doc-normalize";
-import { useNodeContentWriter } from "./use-node-content-writer";
+import { MediaNodeLayout } from "./media-node-layout";
+import { useMediaTimestamps } from "./use-media-timestamps";
 
 interface AudioNodeContentProps {
   node: AudioNodeData;
@@ -30,68 +18,31 @@ interface AudioNodeContentProps {
 }
 
 /**
- * An audio node: a self-drawn transport plus the shared timestamp notes
+ * An audio node: the video.js v10 `<AudioPlayer>` beside the timestamp sidebar
  * (design `node-content/README.md` §1.3, plan `media.md` §M6.1-5).
  *
- * The host's whole job is composition and persistence:
+ * The self-drawn transport M6 shipped is gone: the audio preset of video.js v10
+ * provides the progress bar the timestamp layer needs (its `TimeSlider` is the
+ * component the ticks are drawn into), so the two players differ only in their
+ * media element and their control layout, not in how a note is anchored or
+ * reached.
  *
- * - `<AudioPlayer>` owns the `<audio>` element and reports its
- *   `MediaController` up; the notes layer reads the playhead and seeks through
- *   that one controller, so the box has exactly one timeline.
- * - A note change is one gesture → one write through the shared writer
- *   (`patchContent({ timestampNotes })`), which merges onto the **live** content
- *   half. Writing `content` wholesale here would wipe `url` (design §0.3-3).
- * - `Mod-Enter` is captured on this content box, never on `document`: the editor
- *   dialog and the quick panel own their own keys (plan §M6.2-④).
+ * The host's whole job is composition and persistence — `MediaNodeLayout` and
+ * `useMediaTimestamps` — plus the one failure screen an `<audio>` element needs.
+ * M6's loading skeleton is gone: the skin's own buffering indicator covers it,
+ * and the skeleton used to hide the control bar until `loadeddata`.
  */
 export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
-  const [mediaLoading, setMediaLoading] = useState(false);
-  const [controller, setController] = useState<MediaController | null>(null);
-  const [addRequest, setAddRequest] = useState<TimestampAddRequest | null>(
-    null,
-  );
+  const [failed, setFailed] = useState(false);
 
   const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
 
-  const { patchContent } = useNodeContentWriter<AudioContent>(
-    node.id,
-    "audio",
-    node.content,
-  );
+  // A record with no content half is malformed, not the normal case; the
+  // fallback keeps the timestamp layer from reading through `undefined`.
+  const content = node.content ?? { url: "" };
 
-  // `?? []` before the normalizer: a record that never had a note is the normal
-  // case, not a malformed one, and `normalizeNotes` warns about non-arrays.
-  const notes = useMemo(
-    () => normalizeNotes(node.content?.timestampNotes ?? []),
-    [node.content?.timestampNotes],
-  );
-
-  useEffect(() => {
-    if (hasUrl) {
-      setMediaLoading(true);
-    }
-  }, [hasUrl]);
-
-  const writeNotes = useCallback(
-    (next: TimestampNote[]) => {
-      patchContent({ timestampNotes: next });
-    },
-    [patchContent],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== "Enter") return;
-      event.preventDefault();
-      const timeMs = controller ? controller.getCurrentTimeMs() : 0;
-      setAddRequest((previous) => ({
-        timeMs,
-        token: (previous?.token ?? 0) + 1,
-      }));
-    },
-    [controller],
-  );
+  const timestamps = useMediaTimestamps(node, content);
 
   if (!hasUrl) {
     return (
@@ -104,34 +55,60 @@ export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
     );
   }
 
+  if (failed) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center gap-3 p-6 text-center",
+          className,
+        )}
+      >
+        <FileAudio className="size-10 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          音频加载失败，可能是网络或文件本身的问题。
+        </p>
+        <a
+          href={url}
+          download
+          className="text-sm text-primary underline underline-offset-4 hover:no-underline"
+        >
+          下载原文件
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <div
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "flex flex-col gap-3 p-4 w-full h-full min-h-0 outline-none",
-        className,
-      )}
+    <MediaNodeLayout
+      className={className}
+      timestamps={timestamps.timestamps}
+      onTimestampsChange={timestamps.onTimestampsChange}
+      controller={timestamps.controller}
+      addRequest={timestamps.addRequest}
+      focusRequest={timestamps.focusRequest}
+      onConvertNote={timestamps.onCreateNodeFromNote}
+      onOpenNode={timestamps.onOpenNode}
+      onKeyDown={timestamps.onKeyDown}
     >
-      <div className="relative shrink-0">
-        {mediaLoading && <LoadingPlaceholder variant="audio" />}
+      {/*
+        The bar sits in the middle of the column, not at the top: the shipped
+        audio skin is `height: auto !important` — it hugs the control bar — so
+        anchoring it to the top would only park it under the header and leave the
+        rest of the pane empty. `flex-1` takes the column's height and
+        `justify-center` centres the bar in it (the default `align-items:
+        stretch` keeps the bar full-width; `items-center` would shrink it to its
+        content instead).
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-col justify-center">
         <AudioPlayer
           src={url}
-          className={cn(mediaLoading ? "hidden" : "block")}
-          onMediaController={setController}
-          onLoadedData={() => setMediaLoading(false)}
-          onError={() => setMediaLoading(false)}
-          marks={<TimestampNoteMarks notes={notes} controller={controller} />}
+          onMediaController={timestamps.onMediaController}
+          onError={() => setFailed(true)}
+          notes={timestamps.notes}
+          onAddNoteRequest={timestamps.onAddNoteRequest}
+          onActivateNote={timestamps.onActivateNote}
         />
       </div>
-
-      <TimestampNotes
-        notes={notes}
-        controller={controller}
-        onNotesChange={writeNotes}
-        addRequest={addRequest}
-        className="flex-1 min-h-0 overflow-y-auto"
-      />
-    </div>
+    </MediaNodeLayout>
   );
 }

@@ -7,7 +7,7 @@ import type {
 } from "@workspace/interfaces/models/node/base";
 import type {
   AnnotationLayerData,
-  TimestampNote,
+  TimestampData,
 } from "@workspace/interfaces/models/node/nodes";
 import type { WebpageContent } from "@workspace/interfaces/models/node/nodes/single/webpage";
 import type { DatabaseContent } from "@workspace/interfaces/models/node/nodes/complex/database";
@@ -66,7 +66,7 @@ export interface VideoNodeDTO extends BaseNodeDTO {
     url: string;
     coverUrl: string;
     hlsUrl?: string;
-    timestampNotes?: TimestampNote[];
+    timestamps?: TimestampData[];
   };
 }
 
@@ -74,7 +74,10 @@ export interface AudioNodeDTO extends BaseNodeDTO {
   nodeType: "audio";
   duration: number;
   fileSize: number;
-  content: { url: string; timestampNotes?: TimestampNote[] };
+  content: {
+    url: string;
+    timestamps?: TimestampData[];
+  };
 }
 
 export interface WebpageNodeDTO extends BaseNodeDTO {

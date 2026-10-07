@@ -228,7 +228,7 @@ const NO_LIVE_CONTENT: Record<string, unknown> = {};
  * wholesale — so the base must be read back from the store at write time
  * instead of taken from this render: a snapshot captured before another
  * writer's patch would silently drop the half that writer owns (PDF / image
- * `annotations`, video `timestampNotes`; plan §M2.2-6).
+ * `annotations`, a video's `timestamps`; plan §M2.2-6).
  */
 async function writeContentPatch<C extends object>(
   nodeId: string,

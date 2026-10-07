@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-import { resolveFileUrl } from "@workspace/api-client";
-import { cn } from "@workspace/ui/lib/utils";
-
-import { createMediaController } from "../media/types";
-
-import type { MediaControllerCallback } from "../media/types";
-import type Hls from "hls.js";
-
 /**
- * Plays a video, preferring its HLS playlist when it has one.
+ * Plays a video in a bare `<video>` element, preferring its HLS playlist when
+ * it has one.
+ *
+ * This is the M6 implementation (`video-player.tsx` before the video.js v10
+ * player took that name) and it is still the right tool for one caller: the
+ * hover preview (`preview-block/previews/video-preview.tsx`). A preview is a
+ * muted, looping thumbnail that exists only while the pointer is over it, so a
+ * v10 player — a provider, a store, a control bar and its stylesheet — would be
+ * a large amount of machinery for a background element. The node editor, where
+ * a timeline and its notes matter, uses `<VideoPlayer>`.
  *
  * A node's source blob is whatever was uploaded, and the codec a recording
  * device picked is not necessarily one the browser can decode — a phone writing
@@ -28,8 +27,17 @@ import type Hls from "hls.js";
  * hls.js is imported lazily: it is a heavy dependency that only a node with a
  * playlist ever pulls in.
  */
+import { useEffect, useRef } from "react";
 
-interface VideoPlayerProps {
+import { resolveFileUrl } from "@workspace/api-client";
+import { cn } from "@workspace/ui/lib/utils";
+
+import { createMediaController } from "../types";
+
+import type { MediaControllerCallback } from "../types";
+import type Hls from "hls.js";
+
+interface NativeVideoPlayerProps {
   /** Progressive source, used when there is no playlist (or no MSE support). */
   src?: string;
   /** HLS playlist (`/api/files/…/index.m3u8`), preferred when present. */
@@ -47,15 +55,12 @@ interface VideoPlayerProps {
   onError?: () => void;
   /**
    * The time outlet: the controller bound to this element, or `null` on unmount
-   * (`media/types.ts`). Optional — the previews call this component without it.
-   *
-   * The element is the same one for the progressive and the HLS path, so a note
-   * captured on either path is anchored to one timeline (plan §M6.2-⑥).
+   * (`media-player/types.ts`). Optional — the previews call this component without it.
    */
   onMediaController?: MediaControllerCallback;
 }
 
-export function VideoPlayer({
+export function NativeVideoPlayer({
   src,
   hlsSrc,
   poster,
@@ -68,7 +73,7 @@ export function VideoPlayer({
   onLoadedData,
   onError,
   onMediaController,
-}: VideoPlayerProps) {
+}: NativeVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   // Kept in a ref so a re-render does not re-attach the source; the effect must
   // depend on the sources alone.
