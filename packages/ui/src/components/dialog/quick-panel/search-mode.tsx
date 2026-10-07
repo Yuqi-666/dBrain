@@ -1,14 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
 import { filterByViewFilterConfig } from "@workspace/utils";
 import type { RuleGroupType } from "@workspace/utils";
-import {
-  buildNodeFilterFields,
-  type View,
-} from "@workspace/interfaces";
+import { buildNodeFilterFields, type View } from "@workspace/interfaces";
 import { Search, Filter } from "lucide-react";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -70,6 +67,11 @@ export function SearchMode({ className }: SearchModeProps) {
     [nodeSemantics],
   );
 
+  const setCurrentEditingNodeId = useUIStore(
+    (state) => state.setCurrentEditingNodeId,
+  );
+  const closeQuickPanel = useUIStore((state) => state.closeQuickPanel);
+
   const results = useMemo<QuickSearchMatch[]>(() => {
     const term = normalizeKeyword(stripSlashPrefix(query));
     const matches: QuickSearchMatch[] = [];
@@ -94,6 +96,15 @@ export function SearchMode({ className }: SearchModeProps) {
           semanticId: node.semanticId,
           semanticName: semantic?.name,
           color: semantic?.color,
+          // Every other group filled this in; the node group did not, so the
+          // button rendered with `onClick={undefined}` and a search result could
+          // not be opened at all. Opening is the same store write the graph's
+          // double-click uses, and it closes the panel first so the editor is not
+          // mounted behind a modal.
+          onSelect: () => {
+            closeQuickPanel();
+            setCurrentEditingNodeId(node.id);
+          },
         });
       });
     }
@@ -153,7 +164,15 @@ export function SearchMode({ className }: SearchModeProps) {
 
     return matches;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterableNodes, nodeSemantics, edgeSemantics, query, activeTab]);
+  }, [
+    filterableNodes,
+    nodeSemantics,
+    edgeSemantics,
+    query,
+    activeTab,
+    closeQuickPanel,
+    setCurrentEditingNodeId,
+  ]);
 
   const grouped = useMemo(() => {
     const g: Record<QuickGroupKey, QuickSearchMatch[]> = {
