@@ -5,6 +5,9 @@ import { useEffect, useRef } from "react";
 import { resolveFileUrl } from "@workspace/api-client";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { createMediaController } from "../media/types";
+
+import type { MediaControllerCallback } from "../media/types";
 import type Hls from "hls.js";
 
 /**
@@ -42,6 +45,14 @@ interface VideoPlayerProps {
   onLoadedData?: React.ReactEventHandler<HTMLVideoElement>;
   /** Fired when neither the playlist nor the progressive source can be played. */
   onError?: () => void;
+  /**
+   * The time outlet: the controller bound to this element, or `null` on unmount
+   * (`media/types.ts`). Optional — the previews call this component without it.
+   *
+   * The element is the same one for the progressive and the HLS path, so a note
+   * captured on either path is anchored to one timeline (plan §M6.2-⑥).
+   */
+  onMediaController?: MediaControllerCallback;
 }
 
 export function VideoPlayer({
@@ -56,12 +67,33 @@ export function VideoPlayer({
   playsInline = true,
   onLoadedData,
   onError,
+  onMediaController,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   // Kept in a ref so a re-render does not re-attach the source; the effect must
   // depend on the sources alone.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  // Same discipline for the time outlet: a host that rebuilds its handler on
+  // every render must not rebuild the controller.
+  const onMediaControllerRef = useRef(onMediaController);
+  onMediaControllerRef.current = onMediaController;
+
+  // Built once for the element's own lifetime. It deliberately does not live in
+  // the source effect below: the sources change on every transcode while the
+  // element stays the same, and a controller rebuilt there would drop the
+  // host's subscriptions mid-playback.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const controller = createMediaController(video);
+    onMediaControllerRef.current?.(controller);
+
+    return () => {
+      onMediaControllerRef.current?.(null);
+    };
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
