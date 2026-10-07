@@ -42,7 +42,7 @@
 | ---- | --------- | ----------------------------------------------------------------------------- | -------- |
 | W0   | M4 ∥ M2/M3 | M0 过 G0（registry 可写，`motion` 装得上）                                     | **不再需要**（2026-10-07：M2/M3 已过 G2/G3，M4 串行开工；`motion` 已装 `12.43.0`） |
 | W1   | M2        | **✅ 已满足**：G1 通过 + 主 agent 冻结提交（`NodeIconViewProps` / `media/**` 五个原子件 / `FileDropZone` 的 `icon`+`cover` variant / `NodePreviewBody`+`PreviewBodyProps`） | **已关闭**（2026-10-06；四路交付 + 四条提交） |
-| W2   | M5        | 主 agent 冻结 `annotation/types.ts` 与 `geometry.ts` 签名（另独占 `annotation-layer.tsx`） | 未开启   |
+| W2   | M5        | **✅ 已满足**：主 agent 冻结 `annotation/types.ts` + `geometry.ts`（`aa31083`：三份 props 契约 + 21 条纯函数测试，`pnpm --filter=@workspace/ui test` 63/63 绿） | **已于同日开启并关闭**（2026-10-07；两路 owner 均为子 agent：A = `annotation-toolbar.tsx`、B = `annotation-canvas.tsx` + `use-annotation-input.ts`；**相交面为空** —— 两路各写自己的新文件，冻结面只读。交付后主 agent 复核并让两路各改一轮（B 四条：`touchDraws` 接线 / `hidden` 可见性 / dpr 监听 / 画布内部 origin 偏移；A 一条：compact 下粗细/隐藏/重做的可达性）；两轮后 typecheck 19 条 = 基线、lint 26 = 基线、`test` 63/63、真浏览器探针 25/25。**与 §3.2 的偏差**：`draw.ts` / `annotation-layer.tsx` 由主 agent 在冻结步一次写完，`geometry.ts` 的函数体也不再交给 W2-a（它同时是被两路消费的接口面与本章正确性核心），所以三路收敛为两路） |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
 | W5   | M6        | 主 agent 冻结 `media/types.ts`（`MediaController` / `TimestampNoteMarks` / `formatTimeMs`） | 未开启   |

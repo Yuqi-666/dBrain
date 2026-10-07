@@ -74,6 +74,22 @@
 8. **依赖的好消息**：`perfect-freehand@1.2.0` **已在 pnpm store 里**（`@excalidraw/excalidraw` 的传递依赖，`pnpm-lock.yaml:8509` 的 snapshot 在 `:8532` 声明了它；`packages/editor/package.json:11` 声明了 excalidraw）。所以 `^1.2` 不需要新的网络下载，但这不改变总纲 §5 的纪律：`packages/ui` 必须**显式声明**（不能靠 editor 的传递依赖 —— 那会让 `@workspace/ui` 的 typecheck 依赖 node_modules 的提升行为），并且仍要过 M0 的 registry 可写性修复。
 9. **`readOnly` 隐藏 toolbar（§2.4）今天无处可传**：`node-content-editor.tsx:26-34` 只传 `node` + `className`。M5 只在批注层留一个可选 prop 并把默认值定为 `false`，**不为它新建宿主链路**，G5 也不测它（登记为 §9 偏差候选，见 5.5）。
 
+**M5 实施期新定的决策（10–22；与设计文档冲突的以本节为准，设计文档正文不改）**
+
+10. **toolbar 的工具集在 P0 只有「笔」与「橡皮」**：`AnnotationTool = "pen" | "eraser"`。设计 §2.1 的其余六种（荧光笔 / 套索 / 文本框 / 箭头 / 矩形 / 椭圆）按 R20 归 M7；`draw.ts` **已经能重放全部五种图元**（另一个客户端写进来的 pdf 批注、将来 M7 的荧光笔都要渲染），P0 缺的只是输入分支。
+11. **`tool` 是 layer 的内部状态**，宿主只给 `defaultTool`（默认 `pen`）。设计 §1.2 那句「它只吃 `items` + `onItemsChange` + `tool` + `getBaseRect()`」按等价实现落地：tool 是 layer 自己 toolbar 的状态，抬到宿主等于让每个宿主复制一份 UI 状态。`AnnotationLayerProps` 因此是 `items?` / `onItemsChange?` / `getBaseRect` / `defaultTool?` / `compact?` / `readOnly?` / `className?`。
+12. **`draw.ts` 用 ctx 直接构建路径（`moveTo`/`lineTo`/`closePath`），不用 `Path2D`**：`Path2D` 在 Node 里不存在，而 `draw.test.ts` 用一个记录型 stub ctx 就能把「size 被当成归一化值喂给 perfect-freehand」这类错误钉死（实测：0.02 的笔在 500px 短边的矩形上应当画出 ~10px 高的轮廓）。每帧一条几百点的多边形与 `Path2D` 无性能差别。
+13. **`geometry.ts` / `draw.ts` 保持零运行时相对 import**：`pnpm --filter=@workspace/ui test` 用 Node 原生跑 TS，而 Node 对相对说明符是**字面**解析（`./types` 找不到，必须 `./types.ts`）。为了不给仓库引入「运行时 import 带 `.ts` 扩展名」这个新先例，纯模块自持常量（`SIMPLIFY_EPSILON` / `BBOX_MARGIN` 在 `geometry.ts`），代价是 `draw.ts` 里有一份 3 行的 `toDisplaySize` 镜像 —— 两侧各有一条测试钉住（`geometry.test.ts` 钉公式、`draw.test.ts` 钉像素结果）。
+14. **W2 三路收敛为两路**（已在 [gates.md](./gates.md) 的 W2 行登记）：`draw.ts`、`annotation-layer.tsx` 与 `geometry.ts` 的**函数体**由主 agent 在冻结步一次写完，子 agent 只做 `annotation-toolbar.tsx`（A）与 `annotation-canvas.tsx` + `use-annotation-input.ts`（B）。理由：它们是被两路共同消费的接口面，也是本章正确性的核心。
+15. **写回 = M1 的共享写者，一笔一次串行写；设计 §5.1 的 `debounce: 2_000` 不落地**。`use-node-content-writer.ts` 的语义（同一 tick 合并成一个 upsert、写前 `cancelPendingUpdate`、串行 drain）已经回答了 §5.1 担心的「连笔打出一串写请求」；再叠一层 2s 防抖只会让「画完立刻刷新」依赖运气。**代价与收益都已量**：一笔一次 `update`（≈1–3KB 的 `annotations` 半边），换来的是 G5 第 7 条「两种情况刷新后批注都在」天然成立。三处 flush 仍然照写（`visibilitychange→hidden`、组件卸载），调用的是现成的 `NodeService.flushPendingUpdate(node.id)` —— 今天没有 pending，保留是为语义完整与将来给写者加防抖时不用回头改宿主。
+16. **`compact` 由宿主判定**（`mainViewType !== "editor"`，即 Dialog 形态折叠），layer 只吃 prop、不读 store —— 边界 1/2 不能破。
+17. **橡皮的「一次手势 = 一步撤销」在 layer 落地**：canvas/输入层在 `pointerup`/断线时只上报**一次** `{ kind: "remove", items }`，layer 的撤销栈存 `{ kind: "add", item }` 或 `{ kind: "remove", removed: [{ item, index }] }`，因此撤销删除能**按原位**放回（z 序不丢），且「清除」走的是同一条 remove 路径（一次 ⌘Z 全回来）。
+18. **外部替换 `items` 时清空撤销栈**：宿主可能在同一挂载里换节点（`node-content-editor.tsx` 今天不按 `node.id` 挂载，`key={node.id}` 是 M10 的事），上传/远端写入也会整份换掉 `annotations`。判定用「id 序列是否相同」而不是引用（宿主每次 render 都可能新建数组），不同即视为外部变更 ⇒ 清栈 + 采用新数据，绝不给 ⌘Z 机会把上一份数据的操作重放到新数据上。
+19. **键盘只挂 layer 自己的子树**：canvas `tabIndex={0}`，layer 根 `onKeyDown`（`pointer-events-none` 不影响键盘冒泡）。实现的快捷键：`P`/`1` 笔、`E`/`3` 橡皮、`[`/`]` 粗细、`\` 隐藏、`⌘Z`/`⌘⇧Z` 撤销重做。**颜色不给快捷键**：设计 §2.1 的表里 `1`–`6` 同时被工具与颜色占用，取字母一侧即可（已登记为口径）。这个局部键盘也是「点过画布后 ⌘Z 立刻可用」的原因；全局 ⌘K 与 pdf 的快捷键是 M7/M9 的事。
+20. **`getBaseRect` 的 identity 是「重新测量」的信号**：layer 在 `measure()` 变化时（即宿主换了一个回调）重测，另外自己挂 `ResizeObserver`（根元素）+ `window resize` + `document scroll`(capture)。宿主的义务因此只有一条：回调只在**底图真的可能变了**时重建（image 宿主用 `[natural]` 做依赖）。这条写进了 `AnnotationLayerProps.getBaseRect` 的 JSDoc 与 `image-node-content.tsx` 的实现注释。
+21. **image 宿主的 `getBaseRect` 从 `<img>` 元素自己的盒算 `containRect`**，而不是从外层容器：容器有 `p-4`，而 `<img>` 的盒就是内容盒，`containRect(imgBox, natural)` 就是用户看到的那块图（G5 第 9 条的 letterbox 判据靠它）。
+22. **`<img>` 补了 `h-full w-full`**（原来是一个没有尺寸约束的裸 `<img>` + 外层 `overflow-hidden`，高图会被裁而不是 letterbox）。现在 letterbox 由 `object-contain` 决定，绘制矩形 = `containRect` 的结果 = 批注层的矩形，三者同一份算术。**这是本章唯一改到既有 DOM 契约的地方**（G2/G3 的回归面里 image 不在其中）。
+
 ### 5.3 提交切分
 
 1. `annotation 契约与依赖：冻结 UI 侧 types/geometry 签名，装 perfect-freehand，补 --annotation-1..6 令牌`
