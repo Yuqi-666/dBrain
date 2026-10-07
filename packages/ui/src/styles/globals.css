@@ -49,6 +49,16 @@
     --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
     --sidebar-border: oklch(0.925 0.005 214.3);
     --sidebar-ring: oklch(0.723 0.014 214.4);
+    /* Annotation ink (`docs/node-content/annotation.md` §2.3). The pen stores one
+       of these six **token keys** (`"red"` … `"ink"`) and never a hex value, so
+       the same annotation reads correctly on both themes. The key → variable
+       mapping lives in `components/annotation/types.ts`. */
+    --annotation-1: oklch(0.58 0.22 27); /* 红 —— 批改 */
+    --annotation-2: oklch(0.83 0.16 95); /* 黄 —— 荧光笔默认 */
+    --annotation-3: oklch(0.6 0.16 150); /* 绿 */
+    --annotation-4: oklch(0.57 0.18 250); /* 蓝 */
+    --annotation-5: oklch(0.56 0.2 300); /* 紫 */
+    --annotation-6: oklch(0.21 0.006 285.9); /* 前景 —— 随主题反转 */
 }
 
 .dark {
@@ -83,6 +93,16 @@
     --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.56 0.021 213.5);
+    /* Annotation ink, dark theme: the same six keys, lifted so a "red" mark stays
+       legible on a near-black canvas (§2.3). A highlighter's `multiply` blend
+       darkens on dark themes — the blend mode is a per-item field precisely so
+       that decision can follow the theme (§2.3 last line, verified at G7). */
+    --annotation-1: oklch(0.7 0.19 25);
+    --annotation-2: oklch(0.86 0.15 95);
+    --annotation-3: oklch(0.75 0.16 150);
+    --annotation-4: oklch(0.72 0.15 250);
+    --annotation-5: oklch(0.74 0.17 300);
+    --annotation-6: oklch(0.97 0.002 197.1);
 }
 
 @theme inline {
