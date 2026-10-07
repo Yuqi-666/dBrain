@@ -108,7 +108,7 @@ void NodeService.upsert(nodeId, { content }, { debounce: true });
 
 **前置说明（动手前先读，第 1 轮补）**：
 
-1. **先备素材**：本章手测要 ① 一个**已上传音频**的 Audio 节点（几十秒以上最好：`Add Node → Audio` 后把 mp3/wav/m4a 拖进上传区），② 一个 Video 节点；要验 G6-5 的 HLS 时间轴就必须让它的 `content.hlsUrl` 非空（上传 mp4 后等「正在转码为 HLS…」结束），其余各条用任意可播放视频即可。当前 workspace 里没有现成的音视频节点，这一步不能跳。
+1. **素材已在库里**（2026-10-07 实测 `pb/pb_data/data.db`）：workspace 有 **4 个 audio** 节点（`Tech Podcast Episode` / `Team Meeting Recording` / `Developer Interview` / `M1 自检 · audio（可删）`，前三个都指向 `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3`）与 **3 个 video** 节点（`Product Demo` / `Getting Started Tutorial` / `Team Meeting Record`，三个都指向 `https://www.w3schools.com/html/mov_bbb.mp4`，`hlsUrl` 列**为空**、`source=online`）。⇒ **G6-1/2/3/6/7 用现成的 audio 节点即可**；G6-4 需要浏览器能拉到那个外部 mp4（拉不动就本地上传一个）；**G6-5 必须自己上传一个视频并等「正在转码为 HLS…」结束**（现成三个视频都没有 `hlsUrl`）。
 2. **视频没有自绘传输控件**，是设计决定（保留原生 `controls`）：`Space`/`←`/`→`/`F` 全走浏览器。M6 给视频的只有「同一元素的时间订阅 + 一条兄弟时间轴 + 笔记列表」，所以 G6-4 只需验「笔记落在同一个 `<video>` 上、点击跳转生效」。
 3. **音频键盘**（`Space` 播放/暂停、`←`/`→` ∓5s、`Shift` 时 ∓30s）挂在播放器根盒上，点一下播放器（或它的任一按钮）拿到焦点后生效；**焦点停在播放/暂停按钮上时方向键也必须生效**（首轮实现曾在此失效，第 1 轮已修，探针 ② 有反例断言）。
 4. **`Mod-Enter`** 挂在媒体内容根盒，不是 `document`：先点一下播放器/内容区再按；Linux/Windows = Ctrl+Enter，macOS = ⌘+Enter。

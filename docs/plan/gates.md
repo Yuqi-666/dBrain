@@ -655,7 +655,8 @@
   ✓ ⑭ 粗指针下每行编辑/删除 opacity 都是 1                  ✓ ⑮ 无未捕获异常、无 console error
   ```
   复跑：`bash /tmp/m6/run.sh`（刷新 dev 编出的 Tailwind 产物 → esbuild 打包 → **Range-capable 静态服务器** `serve.mjs` :8902 → `check.mjs`）。**这一轮工装踩到的三个坑**（复跑要带）：① 静态服务器**必须支持 Range** —— python 的 `http.server` 不支持，媒体元素于是不可 seek（`currentTime = X` 立刻弹回 0 并派发 `seeking@0`），第一轮 ②③⑤ 三条 seek 断言全红，看起来像产品缺陷；② 探针桩的 `useFileUpload` 必须给真形状（`fileItems`/`uploadFiles`/`removeFileItem`），只给 `{upload, uploading}` 会让无 url 分支抛 `.length of undefined`；③ `Emulation.setTouchEmulationEnabled` 才能让 `(pointer: coarse)` 为真（启动 flag `--blink-settings=primaryPointerType=4` 不够），验 `pointer-coarse:` 变体必须开它。
-- 用户操作清单：见 [media.md §M6.4](./media.md)（**8 条** + 12 条前置说明；其中探针已覆盖的那些只需看手感，真正只能由用户判的是 HLS 时间轴 G6-5 与真实上传文件上的表现）
+- **真库旁证（意外收获）**：查 `pb/pb_data/data.db` 发现 audio 节点 `zbr7lbvxugq54gv`（`Tech Podcast Episode`）已有一条 **M6 形状**的笔记 —— `id` = `note_<uuid>`、`timeMs` = 142073、`text` = `for example ,you are pretty cute.`、`createdAt` = `2026-10-07T09:12:39Z`（= 本机 17:12，正是本轮探针运行期间，而探针全程只写页面不写库）⇒ 这是**用户在真 app 上已经点出来的一笔**：笔记落进了 M1 的 `timestampNotes` 列，而 `content` 列仍是原来的 URL 字符串（没有被整包覆盖）。同批核对：3 个 video 节点的 `hlsUrl` 为空、`source=online`（G6-5 需要自己上传转码），4 个 audio 节点中 3 个指向同一个 SoundHelix mp3。
+- 用户操作清单：见 [media.md §M6.4](./media.md)（**8 条** + 12 条前置说明；素材已在库里 —— 4 个 audio + 3 个 video，其中只有 audio 可直接手测，G6-5 必须先上传一个视频等转码）
 - 用户实测结果：（待填）
 - 失败项与归因：（待填）
 - 迭代：
