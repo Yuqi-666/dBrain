@@ -17,6 +17,7 @@ export { PreviewBlock } from "./preview-block";
 export {
   DynamicIsland,
   type DynamicIslandProps,
+  type IslandExpandedPanel,
   type IslandNavItem,
   type IslandPanel,
 } from "./dynamic-island/dynamic-island";

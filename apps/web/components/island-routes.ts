@@ -39,9 +39,10 @@ export interface IslandRoute {
  *    only the first two are destinations; `搜索` is not a route at all, it opens
  *    the `search` panel (see `dynamic-island-host.tsx`).
  *
- * **Array order is the capsule's order** (design §7.1): the two page items come
- * first, and the island draws its 1px separator between the second page item and
- * the search icon (plan §M4.2-15).
+ * **Array order is the capsule's order**: the page items come first, then search.
+ * The 1px separator that splits navigation from search is not inferred by the
+ * island — the host marks the item it precedes with `separator` (see
+ * `dynamic-island-host.tsx`).
  */
 export const ISLAND_ROUTES: IslandRoute[] = [
   {

@@ -8,6 +8,7 @@ import type {
   NodeSemantic,
   EdgeSemantic,
   View,
+  IslandPanel,
 } from "@workspace/interfaces";
 
 // ==================== Shared Types ====================
@@ -27,16 +28,10 @@ export type MainViewType = "graph" | "editor";
 export type QuickPanelMode = "search" | "agent";
 
 /**
- * 灵动岛当前面板（`idle` 即收起）。
- *
- * **这是「同形定义」的两份之一。** 设计 §6.1 要求本文件导出它，设计 §5.2 又要求
- * `packages/ui` 的 `dynamic-island/dynamic-island.tsx` 导出同名同形的类型；而依赖
- * 方向不允许 `packages/ui → @workspace/store`（设计 §0.2-2），所以两边各自写一份
- * 字面量联合，**结构等价**即可 —— 宿主把 store 的值直接传给
- * `<DynamicIsland panel>` 靠结构类型通过。值集变更时必须同时改两处：
- * `idle | preview | search | agent`。
+ * 灵动岛当前面板（`idle` 即收起）。定义在 `@workspace/interfaces`（唯一真源），
+ * 这里只是把 store 的公开面重新导出一次。
  */
-export type IslandPanel = "idle" | "preview" | "search" | "agent";
+export type { IslandPanel };
 
 /**
  * Sidebar 显示模式
