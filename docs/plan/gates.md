@@ -26,8 +26,8 @@
 | G2   | M2 图标与封面              | [node-content-ui.md](./node-content-ui.md) | 通过 | 3    | 2026-10-06 | 见 §5 |
 | G3   | M3 text 单块 + rich-text 头部 | [node-content-ui.md](./node-content-ui.md) | 通过 | 2    | 2026-10-07 | 见 §5 |
 | G4   | M4 灵动岛 P0               | [dynamic-island.md](./dynamic-island.md)   | 通过 | 2    | 2026-10-07 | 见 §5 |
-| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 待测 | 2    | 2026-10-07 | 见 §5 |
-| G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 未开工 | —    | —    | —    |
+| G5   | M5 image 批注              | [annotation.md](./annotation.md)           | 通过 | 2    | 2026-10-07 | 见 §5 |
+| G6   | M6 媒体与时间戳笔记        | [media.md](./media.md)                     | 开发中 | —    | —    | —    |
 | G7   | M7 PDF 自绘与批注          | [annotation.md](./annotation.md)           | 未开工 | —    | —    | —    |
 | G8   | M8 灵动岛 P1 预览面板      | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
 | G9   | M9 灵动岛 P2+P3 搜索与清理 | [dynamic-island.md](./dynamic-island.md)   | 未开工 | —    | —    | —    |
@@ -36,7 +36,7 @@
 | G12  | M12 selectors P2 收尾      | [node-content-ui.md](./node-content-ui.md) | 未开工 | —    | —    | —    |
 | G13  | M13 dashboard P2+P3        | [dashboard.md](./dashboard.md)             | 未开工 | —    | —    | —    |
 
-**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启并已关闭**（2026-10-06：四路全部交付、复核通过、四条提交落地，见 §5 G2）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
+**并行窗口登记**（[README.md §3.2](./README.md#32-并行窗口必须由主-agent-显式开启并登记到-gatesmd)）：**W1 已开启并已关闭**（2026-10-06：四路全部交付、复核通过、四条提交落地，见 §5 G2）；**W5 已开启**（2026-10-07，M6；见下表）；其余未开启。开工时在此登记一行，写明该窗口的 owner、文件白名单与「相交面为空」的依据。
 
 | 窗口 | 章        | 开启前提（必须已落地）                                                        | 登记状态 |
 | ---- | --------- | ----------------------------------------------------------------------------- | -------- |
@@ -45,7 +45,7 @@
 | W2   | M5        | **✅ 已满足**：主 agent 冻结 `annotation/types.ts` + `geometry.ts`（`aa31083`：三份 props 契约 + 21 条纯函数测试，`pnpm --filter=@workspace/ui test` 63/63 绿） | **已于同日开启并关闭**（2026-10-07；两路 owner 均为子 agent：A = `annotation-toolbar.tsx`、B = `annotation-canvas.tsx` + `use-annotation-input.ts`；**相交面为空** —— 两路各写自己的新文件，冻结面只读。交付后主 agent 复核并让两路各改一轮（B 四条：`touchDraws` 接线 / `hidden` 可见性 / dpr 监听 / 画布内部 origin 偏移；A 一条：compact 下粗细/隐藏/重做的可达性）；两轮后 typecheck 19 条 = 基线、lint 26 = 基线、`test` 63/63、真浏览器探针 25/25。**与 §3.2 的偏差**：`draw.ts` / `annotation-layer.tsx` 由主 agent 在冻结步一次写完，`geometry.ts` 的函数体也不再交给 W2-a（它同时是被两路消费的接口面与本章正确性核心），所以三路收敛为两路） |
 | W3   | M10       | 主 agent 冻结 `DashboardItem`/`DashboardLayout`、`dashboardStore` 切片、`dashboard-config.ts` | 未开启   |
 | W4   | M13       | M11 已落 `dashboard_pages` 的 tRPC 契约；`dashboard-header.tsx` 由主 agent 先写成两个插槽 | 未开启   |
-| W5   | M6        | 主 agent 冻结 `media/types.ts`（`MediaController` / `TimestampNoteMarks` / `formatTimeMs`） | 未开启   |
+| W5   | M6        | **✅ 已满足**：主 agent 冻结 `media/types.ts`（`MediaController` / `createMediaController` / `formatTimeMs` / `sortTimestampNotes` + 三个组件的 props 契约；提交见 §5 的 G6 条目） | **已开启**（2026-10-07，M6 开工）：两路 owner 均为子 agent —— A = `media/audio-player.tsx` + `video-player/video-player.tsx`、B = `media/timestamp-notes.tsx`；**相交面为空**（各写自己的文件，A 的两个文件互不相交、与 B 不同目录），冻结面只读；任务 5（两个 node-content 接线）由主 agent 在 W5 关闭后收口 |
 
 **W1 的四路白名单与「相交面为空」的依据**（owner 均为子 agent，主 agent 只持有冻结面）：
 
@@ -554,8 +554,8 @@
 
 ### G5 — M5 image 批注
 
-- 状态：**待测**（第 2 轮 —— 首测回来 3 条缺陷已修，等复测；第 1 轮自检 + **25/25** 探针全绿，修复后 **7/7**（新宿主探针）+ **25/25**（原探针复跑），见下「第 2 轮（修复）」）
-- 提交：`aa31083`（契约与依赖：`annotation/types.ts` + `geometry.ts` + 21 条纯函数测试 + `perfect-freehand ^1.2` + `--annotation-1..6`）→ `543a609`（绘制与输入：`draw.ts` + 9 条测试 + 双层 canvas + pointer 状态机）→ `dd0617f`（接入：`annotation-layer.tsx` + `annotation-toolbar.tsx` + `image-node-content.tsx` + 文档）
+- 状态：**通过**（第 2 轮复测，2026-10-07 —— 首测 3 条缺陷修完后用户复测全部通过）
+- 提交：`aa31083`（契约与依赖：`annotation/types.ts` + `geometry.ts` + 21 条纯函数测试 + `perfect-freehand ^1.2` + `--annotation-1..6`）→ `543a609`（绘制与输入：`draw.ts` + 9 条测试 + 双层 canvas + pointer 状态机）→ `dd0617f`（接入：`annotation-layer.tsx` + `annotation-toolbar.tsx` + `image-node-content.tsx` + 文档）→ 第 2 轮修复 `e4c695e` + `ba5212e`（选中态）+ `ea33200`（quick-panel 越界修复）+ 文档 `f73ddd1` / `cb40c4c`
 - 自检：
   - **typecheck diff**：`bash docs/plan/baseline.sh` → 两段 **0 新增 / 0 消失** ✅。逐包复核：`@workspace/ui` **19 条 = 基线**（全部在 `packages/editor/**`，`src/components/annotation/**` 零 error、零 warning）、`web` 段与 `store` 段不变
   - **lint diff**：`@workspace/ui` **26 problems (0 errors, 26 warnings)** = 基线逐条一致；`npx eslint src/components/annotation/*` 无输出
@@ -589,6 +589,7 @@
   1. 「点击橡皮后，笔的图标消失了」
   2. 「多次反复打开同一 image 节点，有概率可批注区域与实际图片不匹配，该区域保持固定左上角，但宽高缩小，如图红线标注缩小的边界」（附截图）
   3. 「建议按下橡皮经过的笔划变半透明，以表示将被擦除，抬起橡皮后擦除」（建议）
+- 用户实测结果（2026-10-07，第 2 轮，原话）：**通过** —— 「测试通过，进入下一轮」（用户未逐条列出 15 条清单的结果；按「全部通过」判定，首测三条缺陷均在修复面内，无新增遗留）
 - 失败项与归因：
   1. **折叠行错删一支工具**（`annotation-toolbar.tsx`）：compact 分支写的是「当前工具 + 橡皮」——橡皮选中时 `tools` 变成 `["eraser"]`，笔的按钮从 DOM 里消失，而真机没有 `P`/`1` 可按 ⇒ 只能用键盘回去。设计 §2.4 的折叠行本来就是「笔 + 橡皮 + 撤销 + 颜色 + 更多」（只吃掉 粗细/隐藏/重做）。修复：`tools` 固定两支。
   2. **Dialog 打开动画被测量进去**（`annotation-layer.tsx` 的 `measure()`）：宿主 Dialog 自带 `zoom-in-95`（100ms、0.95→1），而 `new Image()` 的 decode 回调用时通常落在这 100ms 内（图片有缓存时必然如此，这解释了「反复打开、有概率」）；`getBoundingClientRect()` 报的是**被 transform 画过**的像素，于是第一次测量两轴同时小 5%，而 `ResizeObserver` 只认 layout 变化、看不见 transform ⇒ 这个错误 box 一直留到卸载。**用户截图实测**：红线框/图片 = 宽 0.961 × 高 0.961（两轴等比 ⇒ 正好是 0.95 缩放），左/上只差亚像素、右/下缺 ~90px/~58px —— 与「左上角不动、宽高缩小」的描述逐字吻合。修复：新增纯函数 `geometry.toLayerBox`，用 `getBoundingClientRect() ÷ offsetWidth/offsetHeight` 把测量换算回 root 的 layout 空间（canvas 与底图在同一 transform 子树里，动画期间也准）；另补 `transitionend`/`animationend` 兜底重测。
@@ -614,7 +615,7 @@
     ```
   - **原 25 条探针复跑：25/25**（`bash /tmp/anno/run.sh`）。复跑抓到一条**新引入**的回归并已修：缓存重放抽成 `replayCommitted()` 后 `dpr` 掉出了依赖数组 ⇒ `Emulation.setDeviceMetricsOverride` 改 dpr 时新缓存不再被重放（第 ⑩ 条 ink=0）。修法：`dpr` 进依赖并用**状态**值而不是 `readDpr()` 写 transform（与 sizing effect 同源）
   - 探针工装本身的两个坑（复跑要带）：① `drawAnnotations` 的 ghost 断言必须读「`fill()` 那一刻的 `globalAlpha`」——记录型 stub 若不在 `save/restore` 里真的保存/恢复状态，断言的是 stub 的漏洞而不是代码；② 拉长 Dialog 动画只能拉**打开**那一段（`[data-state="open"]`），Radix 会等退场动画结束再卸载节点，把关闭动画也拉长会让后面每一次 Escape 都卡住 30s
-- 遗留不阻塞项（初步，G5 通过后定稿）：
+- 遗留不阻塞项（**G5 通过后定稿**）：
   1. **颜色触发器与「更多」触发器没有 tooltip**（`annotation-toolbar.tsx`）：`TooltipTrigger asChild > PopoverTrigger asChild` 是两层 Slot 复合、全仓无先例，按「功能优先于 tooltip」降级为单层 asChild + `aria-label`（颜色触发器的 `aria-label` 带当前色名）。其余按钮的 tooltip 正常。
   2. **笔画进行中打开「隐藏批注」仍会按已采样点落一笔**（不丢数据，但没有取消分支）。触发条件要求「笔按下的同时用另一只手点工具栏」，真机几乎不可达；要改就是 `hidden` 变化时取消手势（在 `use-annotation-input.ts` 内）。
   3. **父层若不换 `items` 引用（原地 mutate），橡皮的 ghost 集合不会释放**（第 2 轮起图标是「半透明预览」而不是「跳过」）：M5 的宿主每次都产生新数组（`[...current, item]` / `filter`），所以路径不通；M7/M8 复用这套组件时要守住这条。
@@ -623,9 +624,9 @@
   6. **禁用的撤销/重做 hover 不出 tooltip**：基础 `Button` 带 `disabled:pointer-events-none`；设计 §2.1 要求禁用态，属有意。
   7. **image 的 `crossOrigin` 未加**：`<img>` 仍是同源之外的另一端口（PB 8090 / 同域 `/pb`），P0 不需要读回像素（不导出、不烘焙）；G7 第 5 条的 taint 探测会结案（设计 §5.3 的 PNG 烘焙是 P2）。
   8. **`readOnly` 有实现、无宿主**（§5.2-9）：layer 在 `readOnly` 时不渲染 toolbar 并忽略键盘，但 `node-content-editor.tsx` 今天不传它 —— G5 不测，留给接只读分享的那个人。
-- 需要你决定的一条（不阻塞实测）：**跟手 P95 与笔感只能真机判**。若平板这次不方便连，就按总纲 §6.3 把第 2、3 条记为「环境受限，未验收」写进遗留列（其余各条含全部逻辑面都可以在桌面/真机上判）。
+- 需要你决定的一条（**G5 已通过，此条已结**）：**跟手 P95 与笔感只能真机判**。第 2 轮用户已在真机上复测（含第 2、3 条），故未走 §6.3 的「环境受限」降级。
 - **修复轮顺带发现的既存缺陷**：⌘K 快速面板的**节点条目点不动** —— `quick-panel/search-mode.tsx` 给节点 match 只填了 `id/title/...`，没有 `onSelect`，而渲染处是 `<button onClick={item.onSelect}>` ⇒ 点节点无反应（命令/类型条目正常）。**已在第 2 轮按用户要求顺手修掉**（`onSelect` = `closeQuickPanel()` + `setCurrentEditingNodeId(node.id)`）；该文件不在 M5 白名单，属越界修复、已在此登记；M9 抽 `SearchSurface` 时把这行逻辑一起搬走即可（`docs/plan/dynamic-island.md` §M9.1 任务 1 本就是「逻辑原样搬移」）。另：`MainSidebar` 的「最近打开」在当前数据下是空的（DOM 里只有「默认工作区」与用户名）—— 未被要求，未动。
-- 用户结论：（待填）
+- 用户结论：**「测试通过，进入下一轮」**（2026-10-07）
 
 ---
 
