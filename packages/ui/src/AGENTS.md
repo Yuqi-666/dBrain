@@ -16,6 +16,8 @@ components/
 ├── header/          # App headers (graph-header, editor-header)
 ├── preview-block/    # Node preview renderers (PreviewBlock hover panel +
 │                     #   NodePreviewCover, the media-only cover the gallery reuses)
+├── pdf-viewer/       # Self-drawn PDF viewer (pdfjs + TextLayer + find + rail);
+│                     #   `<PdfViewer>` replaces the browser plugin in pdf nodes
 ├── video-player/     # HLS-aware <VideoPlayer> (hls.js, loaded lazily)
 ├── footer/          # App footers
 └── *.tsx            # Custom components (KnowledgeGraph, etc.)
@@ -50,6 +52,7 @@ silently disappears.
 | Header variants   | components/header/        | Graph and editor header bars                                                                                                                                                                                                                                                                |
 | Collection filter | components/dialog/        | `collection-filter-dialog.tsx` — the **collection node content's** 编辑过滤 dialog (节点多选 + 条件), opened from the control it passes into `DataViewRoot`'s `tabActions` slot (right end of the view tab strip); `node-selection-list.tsx` is the picker it shares with `view-dialog.tsx` |
 | Preview blocks    | components/preview-block/ | Node content renderers; `NodePreviewCover` is the cover-only slice the dataview gallery imports by path                                                                                                                                                                                     |
+| PDF viewing       | components/pdf-viewer/    | `<PdfViewer>` — pdfjs on `<canvas>` + an invisible `TextLayer` (selection, `Ctrl/Cmd+F` search), eight layouts (垂直/水平 × 连续/翻页 × 单页/双页), thumbnails + outline rail, 下载/新标签页. Zoom keeps **two multipliers** on purpose — the page box follows a gesture while the canvas bitmap lags and is stretched (`pdfZoomRaster` in `types.ts` is the policy) — because re-painting pdfjs per wheel notch cancelled the render the notch before it had started; do not collapse them back into one. pdfjs is a **dynamic** import and each document builds its own worker; the toolbar is presentational (`PdfToolbarProps` in/out). `pdf-node-content.tsx` hosts it and keeps the old `<iframe>` for the failure path |
 | Video playback    | components/video-player/  | `<VideoPlayer>` — HLS via hls.js, falls back to the progressive source                                                                                                                                                                                                                      |
 | Code editing      | components/code-editor/   | Shared `CodeEditor` + `CODE_LANGUAGES` for any node type holding source                                                                                                                                                                                                                     |
 | Class utility     | utils/cn.ts               | `cn()` for merging Tailwind classes                                                                                                                                                                                                                                                         |
