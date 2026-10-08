@@ -57,13 +57,24 @@ const textContentSchema = z.object({
   docs: z.record(z.any()),
 });
 
+/**
+ * The pen layer, declared only so that a create payload carrying one is not
+ * silently stripped (zod drops unknown keys — see `fileMetaSchema` below). The
+ * shape is validated by the domain's own `AnnotationLayerData` type, and the
+ * *update* path already passes `content` through untouched, so this is the same
+ * leniency on the other door rather than a second validator.
+ */
+const annotationsSchema = z.any().optional();
+
 const imageContentSchema = z.object({
   url: z.string(),
+  annotations: annotationsSchema,
 });
 
 const pdfContentSchema = z.object({
   url: z.string(),
   coverUrl: z.string(),
+  annotations: annotationsSchema,
 });
 
 /**

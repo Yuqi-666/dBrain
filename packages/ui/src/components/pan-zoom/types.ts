@@ -179,7 +179,17 @@ export interface PanZoom {
  * the undo/redo taps belong to the layer that owns the history.
  */
 export interface ViewportGestureOptions {
-  controller: PanZoomController;
+  /**
+   * The host's transform, when it owns one.
+   *
+   * Optional because a host can own the viewport **elsewhere** and still want the
+   * *arbitration*: a pdf page is a scroller, so its pan and pinch are recognised on
+   * the scroller, but the ink canvas still has to reject a palm while the pen is
+   * down, close a stroke when a second finger lands, and classify the two- and
+   * three-finger taps. With no controller the machine does all of that and simply
+   * has nothing to pan or zoom.
+   */
+  controller?: PanZoomController;
   /**
    * `false` while 手指=书写 is on: a single finger then draws, and only two or
    * more fingers pan/zoom (which is also when a stroke in flight is closed).

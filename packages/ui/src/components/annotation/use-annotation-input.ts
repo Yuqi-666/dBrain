@@ -148,6 +148,8 @@ export interface AnnotationInputOptions {
   touchDraws: boolean;
   /** `hidden` means "show nothing, take nothing" — pointerdown is ignored. */
   hidden?: boolean;
+  /** `readOnly` means "show it, take nothing" — the host cannot persist a stroke. */
+  readOnly?: boolean;
   /** Live items, for the eraser's hit test. Owned by the canvas. */
   itemsRef: RefObject<Annotation[]>;
   /**
@@ -358,7 +360,7 @@ export function useAnnotationInput(
     const config = latest.current.viewport;
     const state = viewportRef.current;
     if (!config) return;
-    state.startTransform = config.controller.current();
+    state.startTransform = config.controller?.current() ?? null;
     state.startMidpoint = centroidOf(state.pointers.values());
     state.startSpread = spreadOf(state.pointers.values(), state.startMidpoint);
   }, []);
@@ -541,11 +543,21 @@ export function useAnnotationInput(
       const centre = centroidOf(state.pointers.values());
       if (state.pointers.size >= 2) {
         const spread = spreadOf(state.pointers.values(), centre);
-        if (state.startTransform && state.startSpread > 0 && spread > 0) {
-          if (Math.abs(spread - state.startSpread) > TAP_SLOP) {
-            state.moved = true;
-          }
-          config.controller.pinch(
+        // **A change in the fingers' spread is movement, controller or not.** It has
+        // to be judged outside the `startTransform` guard below: on a host that only
+        // arbitrates (no `panZoom`, so `startTransform` is null) the whole block used
+        // to be skipped, and a quick two-finger pinch — each finger moving less than
+        // `TAP_SLOP`, the spread more — stayed "not moved", so `classifyTapEnd` called
+        // it a two-finger tap and the layer **undid the reader's last stroke**.
+        if (
+          state.startSpread > 0 &&
+          spread > 0 &&
+          Math.abs(spread - state.startSpread) > TAP_SLOP
+        ) {
+          state.moved = true;
+        }
+        if (state.startTransform && spread > 0) {
+          config.controller?.pinch(
             state.startTransform,
             spread / state.startSpread,
             state.startMidpoint.x,
@@ -555,7 +567,7 @@ export function useAnnotationInput(
           );
         }
       } else if (dx || dy) {
-        config.controller.panBy(dx, dy);
+        config.controller?.panBy(dx, dy);
       }
       return true;
     },
@@ -628,7 +640,7 @@ export function useAnnotationInput(
         })
       ) {
         lastTapRef.current = null;
-        config.controller.reset();
+        config.controller?.reset();
       } else {
         lastTapRef.current = { time: now, x: event.clientX, y: event.clientY };
       }
@@ -664,6 +676,11 @@ export function useAnnotationInput(
     return () => {
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("blur", onBlur);
+      // A canvas can unmount **mid-stroke** — the pdf's ink canvases come and go with
+      // its rendering window, so scrolling the page away takes the element with it.
+      // Committing from the points already sampled is the rule the other end paths
+      // follow; without this the stroke would be dropped instead.
+      endGesture();
     };
     // Deliberately mounted once, not re-attached when `endGesture` changes
     // identity: `endGesture` reads every prop through `latest`, so re-attaching
@@ -679,6 +696,9 @@ export function useAnnotationInput(
       if (handleViewportDown(event)) return;
       // Hiding only stops *drawing* from here on.
       if (latest.current.hidden) return;
+      // So does a read-only layer: the ink is on screen, but there is nowhere to
+      // put a new stroke (see `AnnotationInputOptions.readOnly`).
+      if (latest.current.readOnly) return;
 
       const current = gesture.current;
       if (!current) return;

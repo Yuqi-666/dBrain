@@ -30,10 +30,12 @@
  *   measures the real substring instead, at any zoom.
  *
  * The canvas is device-pixel-ratio aware: the bitmap is `dpr ×` the box it was
- * painted for, and that ratio is what makes a finished repaint crisp. Between
- * one repaint and the next, CSS stretches the bitmap to whatever box the
- * multiplier asks for — no second layout pass, at the cost of soft pixels until
- * the repaint lands.
+ * painted for, and that ratio is what makes a finished repaint crisp. The ratio
+ * itself is `pdfRasterDpr`'s answer rather than the display's (`min(dpr, 2)`), so
+ * a page at a big multiplier is painted a little softer instead of into a bitmap
+ * no canvas will allocate. Between one repaint and the next, CSS stretches the
+ * bitmap to whatever box the multiplier asks for — no second layout pass, at the
+ * cost of soft pixels until the repaint lands.
  */
 import {
   useCallback,
@@ -50,7 +52,7 @@ import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { runsForRange } from "./pdf-text";
-import { pdfZoomIsCrisp } from "./types";
+import { pdfRasterDpr, pdfZoomIsCrisp } from "./types";
 import type { PdfTextSnapshot } from "./use-pdf-document";
 import type {
   PdfPageMetrics,
@@ -76,6 +78,16 @@ export interface PdfPageProps {
   matches: readonly PdfSearchMatch[];
   /** The hit the toolbar is on, when it lands on this page. */
   activeMatch: PdfSearchMatch | null;
+  /**
+   * Reports the page box element (or `null` on detach) so the annotation layer can
+   * portal that page's ink *into* it.
+   *
+   * Reported rather than passed down on purpose: this component is the page's
+   * layout owner, and the ink has to be a child of the very element the page
+   * bitmap is sized by — which is what makes it scroll, clip and zoom with the
+   * page instead of being re-positioned onto it.
+   */
+  onBoxRef?: (pageNumber: number, element: HTMLDivElement | null) => void;
   className?: string;
 }
 
@@ -116,6 +128,7 @@ export function PdfPage({
   createTextLayer,
   matches,
   activeMatch,
+  onBoxRef,
   className,
 }: PdfPageProps) {
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -188,6 +201,19 @@ export function PdfPage({
     setStage("idle");
   }, []);
 
+  /**
+   * Publish the page box for the ink layer.
+   *
+   * The box element exists for every page (only the *painting* is gated on
+   * `active`), and the reader of this callback decides which pages are worth a
+   * canvas — see the viewer's surface list.
+   */
+  useEffect(() => {
+    if (!onBoxRef) return;
+    onBoxRef(pageNumber, boxRef.current);
+    return () => onBoxRef(pageNumber, null);
+  }, [onBoxRef, pageNumber]);
+
   useEffect(() => {
     if (!active) {
       if (paintedRef.current) {
@@ -197,7 +223,6 @@ export function PdfPage({
       return;
     }
     paintedRef.current = true;
-
     const canvas = canvasRef.current;
     const textLayerContainer = textLayerRef.current;
     if (!canvas || !textLayerContainer) return;
@@ -239,23 +264,49 @@ export function PdfPage({
         width: viewport.width / renderScale,
         height: viewport.height / renderScale,
       });
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = pdfRasterDpr(
+        window.devicePixelRatio || 1,
+        viewport.width,
+        viewport.height,
+      );
       canvas.width = Math.max(1, Math.floor(viewport.width * dpr));
       canvas.height = Math.max(1, Math.floor(viewport.height * dpr));
       // No inline width/height: the canvas is stretched to the page box by CSS,
       // which is what lets a zoom gesture repaint later than it re-lays-out.
 
-      const context = canvas.getContext("2d", { alpha: false });
+      /**
+       * `alpha: true`, so that a page seen with no bitmap on it is white paper
+       * rather than a black rectangle.
+       *
+       * The state this is really about is `release()`: it drops the store to 1×1 to
+       * free it, and on a context created with `alpha: false` that 1×1 is **opaque
+       * black** — stretched over the whole page by `h-full w-full`, for as long as
+       * the reader is looking at it. That window is not hypothetical: a fast pan can
+       * put a page on screen before the `IntersectionObserver` has re-activated it,
+       * and at a large multiplier the repaint that follows is slow enough to watch.
+       * Transparent, the same store leaves the page box's own `bg-white` showing,
+       * which reads as a page still sharpening.
+       *
+       * (A canvas with *no* context is transparent whatever `alpha` was asked for,
+       * and the resize→context→fill below is a single synchronous task — so neither
+       * a fresh canvas nor a just-resized one was ever the black frame. Only a wipe
+       * that outlives the paint was, i.e. `release()`.)
+       */
+      const context = canvas.getContext("2d", { alpha: true });
       if (!context) {
+        // A refusal, not an exception: the canvas is already at the size that was
+        // asked of it and there is no white to fill in, because there is no context
+        // — the page box's white shows through instead, and the page is marked ready
+        // with nothing on it. The pixel budget is what keeps this unreachable; if it
+        // ever happens, what the reader sees is a page that stays blank.
         dropTextLayer();
         setStage("ready");
         return;
       }
-      // Resizing the canvas wipes it to *opaque black* — `alpha: false` has no
-      // transparent state — and pdfjs only fills the page background once it
-      // starts drawing, a worker round-trip later. Without this the frame in
-      // between is a black page, which is what a repaint used to look like; the
-      // same white pdfjs is about to use reads as a page still sharpening.
+      // Kept even though pdfjs fills the page background itself (`background` defaults
+      // to white): this is what makes the bitmap white *before* the worker's first
+      // draw, and it keeps the *bitmap* paper-coloured even if the page box stops
+      // being.
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -504,8 +555,16 @@ export function PdfPage({
       />
 
       {stage !== "ready" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-          <Skeleton className="size-full rounded-none" />
+        /*
+          A page is white paper in **either** theme, so its placeholder has to be
+          paper too. `Skeleton`'s own `bg-muted` is dark in the dark theme, and a
+          dark, pulsing rectangle over a white page is what "loading" looked like
+          there — trivially read as a *black page fading in and out*, which is how
+          one reader reported the (slow) repaint at a large multiplier. A fixed
+          light tint on the same white reads as a page still sharpening instead.
+        */
+        <div className="absolute inset-0 flex items-center justify-center bg-white">
+          <Skeleton className="size-full rounded-none bg-black/5" />
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import {
   pdfSlotStartPage,
   pdfSlots,
   pdfSpreadStep,
+  pdfSurfacedPages,
 } from "./types.ts";
 
 /** Every page the strip holds, in slot order. */
@@ -73,4 +74,33 @@ test("pdfSlotStartPage: the leading page is the first page of that slot", () => 
       assert.equal(pdfSlotOf(slot.pages[0]!, spread), slot.index);
     }
   }
+});
+
+test("pdfSurfacedPages: a page is asked about by its slot, not by its number", () => {
+  // 双页 slot 2 holds pages 3 and 4, so putting that *slot* in the window surfaces
+  // both pages. The tempting version — `visibleSlots.has(page)` — returns false for
+  // both (neither 3 nor 4 is the number 2) and would leave the right-hand page of
+  // every spread without ink.
+  assert.deepEqual(
+    pdfSurfacedPages([1, 2, 3, 4, 5], new Set([2]), "double"),
+    [3, 4],
+  );
+  assert.deepEqual(
+    pdfSurfacedPages([1, 2, 3, 4, 5], new Set([1, 3]), "double"),
+    [1, 2, 5],
+  );
+});
+
+test("pdfSurfacedPages: 单页 is the identity mapping", () => {
+  assert.deepEqual(pdfSurfacedPages([1, 2, 3], new Set([2]), "single"), [2]);
+  assert.deepEqual(pdfSurfacedPages([1, 2, 3], new Set(), "single"), []);
+});
+
+test("pdfSurfacedPages: keeps the order it was given and drops unknown pages", () => {
+  // The viewer hands it a Map's keys, i.e. mount order, and the layer keys its
+  // canvases by page — so the filter must not sort or invent anything.
+  assert.deepEqual(
+    pdfSurfacedPages([4, 1, 3], new Set([1, 2, 3]), "double"),
+    [4, 1, 3],
+  );
 });

@@ -410,13 +410,13 @@ function containRect(container: DOMRect, naturalW: number, naturalH: number) {
 
 ### 4.2 `touch-action` / `pointer-events` 的取舍
 
-| 元素           | `touch-action`     | `pointer-events`           | 理由                                                                             |
-| -------------- | ------------------ | -------------------------- | -------------------------------------------------------------------------------- |
-| L0 底图        | `none`             | `none`                     | 底图不该被点；它的滚动手势由外层滚动容器（pdf）或画布状态机（image）接管         |
-| L1 墨迹 canvas | **`none`**         | `auto`                     | **必须**：否则浏览器会把笔的移动当滚动吞掉（§0.3-2）；代价是自己重建 pinch       |
-| L2 文本层      | `auto`             | `none`（除正在编辑的那个） | 只有编辑中的 textarea 需要 DOM 事件（IME）                                       |
-| L3 toolbar     | **`auto`**         | `auto`                     | 普通 DOM；**且必须与 canvas 同级而非其子级**，否则按钮上的点击会被画布状态机吃掉 |
-| pdf 滚动容器   | `pan-y pinch-zoom` | `auto`                     | 页之间的滚动交给浏览器；缩放由画布层自己算（否则和 L1 的 `none` 打架）           |
+| 元素           | `touch-action`       | `pointer-events` | 理由                                                                                                                                                                                                                                         |
+| -------------- | -------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L0 底图        | `none`               | `none`           | 底图不该被点；它的滚动手势由外层滚动容器（pdf）或画布状态机（image）接管                                                                                                                                                                     |
+| L1 墨迹 canvas | **`none`**           | `auto` / `none`  | `touch-action` **必须** `none`：否则浏览器会把笔的移动当滚动吞掉（§0.3-2）。`pointer-events` 是 **浏览模式**（pdf）：`none` 时墨迹照样画，指针交给下面的 L2 文本层，于是又能选字                                                             |
+| L2 文本层      | `auto`               | `auto`           | pdf 上它是墨迹画布的"下一层"：批注模式下选不到字（被 L1 挡住），浏览模式下可以（§4.6 模式开关）                                                                                                                                              |
+| L3 toolbar     | **`auto`**           | `auto`           | 普通 DOM；**且必须与 canvas 同级而非其子级**，否则按钮上的点击会被画布状态机吃掉                                                                                                                                                             |
+| pdf 滚动容器   | **`none`**（已实现） | `auto`           | **已实现**：L1 必须 `none` 才能收笔，若滚动容器保留原生平移，同一份文档就会出现"页上拖没惯性、缝隙里拖有惯性"两种手感。所以全部触摸由 scroller 上那一个手势 effect 接管（平移=写 `scrollTop`，捏合=倍率+`anchorScroll`），代价是没有原生惯性 |
 
 ### 4.3 双指缩放/平移与单笔书写的仲裁
 
@@ -464,14 +464,14 @@ pen 抬起                            → 【新增】解冻
 
 模块落在 `packages/ui/src/components/pan-zoom/`（宿主无关，pdf 宿主可复用）：
 
-| 文件               | 职责                                                                                                                                                                                                              |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `transform.ts`     | 纯数学：`applyTransform`（把底图矩形映射成变换后的矩形）、`zoomAbout` / `pinchTransform`、`clampTransform`（钳制）、`transformToCss`。零运行时依赖，`transform.test.ts` 逐条钉死                                  |
-| `recognizer.ts`    | 纯决策：`centroidOf` / `spreadOf`（多指重锚用质心与平均半径，避免 3→2 指跳变）、`classifyTapEnd`（几指轻点 = 撤销/重做/单击）、`isDoubleTap`。`recognizer.test.ts` 钉死阈值                                       |
-| `use-pan-zoom.ts`  | 状态的唯一所有者：`{ transform, controller }`。写入按帧合并（rAF），读走 `controller.current()`（含未提交值，连击不会互相吞掉）；原生非 passive `wheel`（普通滚轮平移、Ctrl/⌘+滚轮缩放）；`ResizeObserver` 重钳制 |
-| `reset-button.tsx` | `<PanZoomResetButton {...panZoom} />`：**鼠标侧的"恢复位置大小"**，底部居中，只在 `!isIdentityTransform(transform)` 时渲染。宿主无关，pdf 宿主同样一行接入                                                        |
+| 文件               | 职责                                                                                                                                                                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transform.ts`     | 纯数学：`applyTransform`（把底图矩形映射成变换后的矩形）、`zoomAbout` / `pinchTransform`、`clampTransform`（钳制）、`transformToCss`。零运行时依赖，`transform.test.ts` 逐条钉死                                                          |
+| `recognizer.ts`    | 纯决策：`centroidOf` / `spreadOf`（多指重锚用质心与平均半径，避免 3→2 指跳变）、`classifyTapEnd`（几指轻点 = 撤销/重做/单击）、`isDoubleTap`。`recognizer.test.ts` 钉死阈值                                                               |
+| `use-pan-zoom.ts`  | 状态的唯一所有者：`{ transform, controller }`。写入按帧合并（rAF），读走 `controller.current()`（含未提交值，连击不会互相吞掉）；原生非 passive `wheel`（普通滚轮平移、Ctrl/⌘+滚轮缩放）；`ResizeObserver` 重钳制                         |
+| `reset-button.tsx` | `<PanZoomResetButton {...panZoom} />`：**鼠标侧的"恢复位置大小"**，底部居中，只在 `!isIdentityTransform(transform)` 时渲染。宿主无关；**pdf 用的是同一个外观的 `PanZoomResetPill`**（它没有 transform，判定条件换成"离开了打开时的倍率"） |
 
-手势口径（全部在**墨迹画布**上识别，它是整个宿主唯一的指针目标）：
+手势口径。**image 宿主**全部在墨迹画布上识别（它是整个宿主的指针目标）；**pdf 宿主**在滚动容器上识别（一页一块画布，落在页缝上的手指画布看不到，§4.6-「pdf 宿主怎么接」），画布只收笔、不驱动视口：
 
 | 输入                   | 手势                  | 结果                                                             |
 | ---------------------- | --------------------- | ---------------------------------------------------------------- |
@@ -494,7 +494,36 @@ pen 抬起                            → 【新增】解冻
 4. **鼠标单击就是墨点**：一次点击和笔尖轻点一样提交一个点，鼠标拖拽和笔一样提交一条笔画。因此恢复位置大小绝不能挂在鼠标双击上（见 §4.6-1）。这个按钮本身也有两条硬要求：外层 `pointer-events-none` + 按钮 `pointer-events-auto`（整条横带否则会从照片底部切走一条画笔够不着的死区），以及 `z-20`（墨迹画布是 `z-10`，压不住的话按钮看得见却点不着，每次点击都变成画布上的一个墨点）。
 5. **断线要一起清**：`pointercancel` / `lostpointercapture` 只结束笔画，不判轻点；`visibilitychange→hidden` / `blur` 还要清空视口手势的指针表，否则下一次触摸会拿几分钟前的指距做基线。单指双击的窗口同样会被打断：任何**不是**干净单指轻点的触摸序列（拖动、长按、捏合、被取消）都会作废待定的第一下，所以"点一下 → 拖一下 → 再点一下"不会误判成双击。
 
-**pdf 宿主怎么接（M7 的接口面）**：`PdfDocumentView` 只需 (a) 用 `usePanZoom({ containerRef, getBounds })` 建一个控制器，`getBounds().content` 给当前页（或整条页带）的未旋转盒；(b) 用 `transformToCss(transform)` 画页；(c) 把同一个 `controller` 传给 `<AnnotationLayer panZoom={controller} />`，并在同一个 `relative` 容器里渲染 `<PanZoomResetButton {...panZoom} />`。`recognizer.ts` 与 `geometry.ts` 都不含 image 概念，因此手势与命中测试不需要第二套实现。
+**pdf 宿主怎么接 —— 已实现，但走的是另一条路（原文保留在上，实现如下）**
+
+设计原本假定 pdf 也是「一块被 CSS `transform` 变换的底图」（§4.6 原文的 (a)(b)(c)）。实现到 `PdfViewer` 时那条路被否掉了：pdf 视图是**滚动容器**——页带是 `overflow-auto`，`平移=滚动`、`缩放=页框倍率 + 滚动锚点`，`transformToCss` 在这里会和滚动、翻页吸附、虚拟化三件事同时打架。所以复用 `pan-zoom` 的只有 **`recognizer.ts` 的纯决策**（阈值、质心/平均半径、`classifyTapEnd`、`isDoubleTap`）与**恢复控件的外观**（`PanZoomResetPill`）；`ViewportTransform` / `usePanZoom` / `transformToCss` 一概不进 pdf。这一段是本次实现的准确口径：
+
+| 维度     | image 宿主                                               | pdf 宿主                                                                                                                                             |
+| -------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 视口状态 | 一个 `ViewportTransform`（CSS `translate3d + scale`）    | 无 transform：`effectiveScale`（页框倍率）+ 滚动容器的 `scrollTop/Left`                                                                              |
+| 画布位置 | 一块画布铺满宿主，`box` 是照片的 letterbox 矩形          | **每页一块画布，portal 进该页的页盒**（`AnnotationSurface`），画布 = 页盒                                                                            |
+| 坐标来源 | 宿主由 transform **推导**出矩形（`applyTransform`）      | 画布在 `pointerdown` 时**量自己**（`selfMeasured`）——滚动会改变它在视口里的位置，state 里的矩形一滚就过期                                            |
+| 平移     | 单指拖动 → `panBy`（transform）                          | 单指拖动 → 直接写 `scrollTop/Left`（内容跟手 1:1）                                                                                                   |
+| 缩放     | 双指捏合 → `pinchTransform`（锚点是 `transform-origin`） | 双指捏合 → `pdfPinchFrame`（倍率 = 指距比）+ 既有的滚动锚点 `anchorScroll`                                                                           |
+| 双击恢复 | `controller.reset()`（恒等变换）                         | `resetView()`：回到打开时的适配方式，**并把当前页重新落位**（`applyFit` 走同一个滚动锚点 + 一次 `goToPage(page,"auto")`）；工具栏 `0` 与底部胶囊同效 |
+| 桌面恢复 | `PanZoomResetButton`（鼠标单击是墨点，不能双击）         | 同一个 `PanZoomResetPill`，条件是"离开了打开时的视图"（`pdfIsInitialView`）                                                                          |
+
+只属于 pdf 的坑（都是这两轮踩出来的）：
+
+1. **墨迹必须比"量出来再摆上去"更强。** 一页的墨迹如果是"算出视口坐标 → 写进 `style`"，滚动时就会慢一帧（`scroll` 事件、React 提交、画布重绘三跳），而"慢一帧"在页带上就是**错位一帧**。所以改成 **portal 进页盒**：墨迹是页盒的子节点，滚动、裁剪、缩放它都跟着走，重叠一致是 DOM 结构的性质，不是测量的精度。`getSurfaces()` 只把**渲染窗口内**的页交出去（页盒每页都有，画布不能每页都建——1000 页的文档会为每页分配一块 backing store）。
+2. **画布自量，但尺寸必须显式写 `100%`——`inset: 0` 一个人是不够的。** `selfMeasured` 在 `pointerdown` 量一次、整笔复用（每采样一次 `getBoundingClientRect` 就是一次强制布局）；滚动改变的是视口位置，gesture 期间不会滚（手指按着）。尺寸一开始只写了 `inset: 0`（`left/top/right/bottom: 0`，把 `width/height` 留成 `auto`）——**这是错的**：`<canvas>` 是 _replaced_ 元素，绝对定位 + `width: auto` 时它的宽度取**自己位图的固有尺寸**（`width` 属性，单位 CSS px），不是 insets 围出的盒子（CSS 2.2 §10.3.8：abs-positioned replaced element 的 `auto` 宽度由固有尺寸解析，随后忽略溢出的 `right`）。于是 backing store **就是**元素的 CSS 盒：dpr 2 的屏上画布按两倍页宽布局，墨迹被当 1:1 显示、整体放大 dpr 倍并被页盒裁掉，存储的归一化坐标同时被压缩同样的倍数（在 dpr 1 的机器上重开就会跑到左半边）；坑 8 的预算一旦把密度压到 1 以下，画布元素本身还会缩水，页的右/下部分连指针目标都没有。所以自量分支显式写 `width/height: 100%`（页盒是 `position: relative`，百分比就解析到它），元素恒等于页盒、位图被浏览器缩放进页盒——和页位图自己的 `h-full w-full` 是同一个契约，也正是"降密度 = 变软"而不是"变小"的原因。附带的收益：`measureSelf()`（量画布）与 layer 的 `rect`（量页盒）从此描述同一个矩形。
+3. **两种手势面不能同时在位。** 墨迹画布必须 `touch-action: none`（否则浏览器把笔的移动当滚动吞掉，§0.3-2），而这会**同时**吃掉原生触摸滚动；如果只让页盒上的手指走"我们的平移"、缝隙里的手指走"原生滚动"，同一份文档就会有两种手感（一个带惯性一个不带）。所以 pdf 的滚动容器也 `touch-action: none`，**全部触摸都由 scroller 上那一个手势 effect 处理**（页盒上的画布只收笔，`panZoom` 不传）。代价：手指平移**没有原生惯性**（1:1 跟手，抬手即停）；顺带一个尚未在真机确认的推论——同一份 `touch-action: none` 也意味着**触摸长按选字在浏览模式下大概不生效**（原生选择手势同样属于被交还给我们的那类手势），所以"浏览"目前是鼠标选字的路子。
+4. **portal 出去的画布，键盘靠 React 树而不是 DOM 树。** `AnnotationLayer` 的键盘绑定在它自己的根上（§1.2 边界 3），画布 DOM 上在页盒里、不在根的子树里——但 React 的合成事件沿着**React 树**派发（`annotation-toolbar.tsx` 的 portalled menu 早就依赖这条），所以 `⌘Z` / `p` / `e` 照样到达根。**不要**再加一个 document 级 keydown 去"补"它：那会让每个快捷键执行两次（`[`/`]` 一次跳两档、`\` 连按两次等于没按）。唯一够不到的是**焦点在滚动容器上**的情形（点页缝、或浏览模式下点页面）——那种情况 `0`（恢复位置大小）由 `PdfViewer` 自己的 `handleKeyDown` 兜住。
+5. **捏合的一帧必须是"锚点那一帧的完整解"，不能只是中点位移。** `pdfPinchFrame(anchor, current, origin)` 返回 `scale + scrollLeft/scrollTop`，公式是 `scroll' = (anchor.scroll + offset_anchor) · (scale'/anchor.scale) − offset_now`：把锚点那一刻手指下的那张纸，在**新倍率的坐标系**里仍然放在手指下。只返回 `mid − midAnchor` 的版本会让调用方的缩放锚点（它按**当前**版式算比例）把数量级再乘一次 `scale/scale_anchor`，于是从第二帧起页面从手指下溜走（1.0→2.0 会偏出一页多）。同理这一帧要**赋值**（绝对量），不能累加。
+6. **手掌先落、笔后到也要吞。** 只在 `pointerdown` 判断"笔是否按住"是不够的：手掌先按下时它已经被追踪，笔落下后那根手指的 `pointermove` 会继续平移页面，而笔画正在写（墨迹的归一化矩形在落笔瞬间就固定了，于是连墨迹都会画偏）。所以笔一按下一律清空触摸指针表，并在 `pointermove` 里持续兜底；笔的 `pointerup` 要在 **window** 上按 `pointerId` 收（笔落在页缝上没有 capture，抬手可能在工具栏或别的窗口上，漏收会让后续所有触摸被吞）。
+7. **画布必须和页盒在*同一帧*里换 backing store。** 元素盒子（坑 2 的 `100%`）由 layout 跟住页盒，**backing store 却由 effect 决定**——中间隔着一帧，浏览器就拿旧位图去拉新尺寸，每帧重采样一次：字迹"软—锐—软"地呼吸，既抖又糊。解法是让宿主把**倍率也放进 `surfacesKey`**（`effectiveScale` 参与 key），layer 的测量放在 **layout effect** 里：页盒变大发生在哪一次提交，画布就在**同一次提交、paint 之前**量到新尺寸（React 会同步 flush layout effect 里的 `setState`）。画布的"改尺寸 → 重放 → blit"也全部搬到 layout 阶段，并且**同步 blit，不再 `requestAnimationFrame`**——resize 会清空画布，blit 晚一帧就是"墨迹闪一下"。image 宿主本来就走同一条路（它把 CSS 尺寸和 backing store 写在同一个 effect 里），所以两侧手感一致。**没有做"变化小于 2% 就先拉伸"这层容差**（页位图有，`pdfZoomRaster`）：在画的那一笔和已提交的墨迹共用同一块 store，store 一旦落后于盒子，落笔的坐标就得在落后的空间里画、再被缩放回去——省下一帧的软，换来"墨不在笔走过的地方"，不值。逐帧重放的代价靠 `maxPixels` 的预算兜，不靠容差。
+8. **清晰度上限要按面积给，不能只按 dpr 给。** 墨迹画布贴着底图，尺寸跟着倍率走：6× 时一页就是 `页 CSS² × 倍率²`。Letter 页 6× = 3672 × 4752 CSS，dpr 2 时 70 MP（≈280 MB），而可见画布后面还有一块同样大的 committed cache。`maxPixels` 让纸和墨共用同一个预算（`PDF_MAX_PIXELS` = 4096²）；超预算就**降密度**（可能 < 1），软一点好过分配失败。**注意预算的粒度是一块 surface，不是一页**：一页最多同时有页位图、墨迹画布、墨迹的 committed cache 三块，渲染窗口里还不止一页。
+9. **没画过的页必须是白纸，不能是黑的。** 真正会变黑的状态只有一个：`release()` 把 store 降到 1×1 释放内存——`alpha: false` 的 context 没有透明态，那个 1×1 是**不透明的纯黑**，被 `h-full w-full` 拉成整页。这个窗口不是理论上的：快速平移会让页在 `IntersectionObserver` 重新激活它**之前**就进入视野，而大倍率下随后的重绘慢到能看见。改成 `alpha: true`，同一块 store 变成透明，页盒自己的 `bg-white` 透出来，读起来就是"这页还在变清晰"。**别把另外两种状态也算成黑的**：`getContext` 返回 `null`（画布过大被拒）时**根本没有 context**，画布是透明的、页只是一直空白（这条路由坑 8 的预算挡着）；"刚建的画布"同理，而 resize→拿 context→填白是同一次同步任务，中间没有能让浏览器作画的时刻。**"缓慢闪烁"那一半是加载占位**：`Skeleton` 自带 `bg-muted`，暗色主题下就是深色块，白纸上跳动的深色块同样会被读成"黑页在闪"，所以那一块改成固定浅灰（`bg-black/5`）而不是主题色。
+10. **页带不能用 `justify-content: center` 居中一个会溢出的页。** 溢出时 unsafe 的居中会把一半溢出放到滚动原点**之前**，而滚动容器到不了负偏移——那一半永远够不到。放大到页宽超过视口时，表现就是"向左拖到不了页的左边缘，向右拖能到右边缘"。居中的活交给内层那一行的 `m-auto`：有富余空间时它居中，没有时自动边距归零、内容贴着起始边排，溢出全部落在远端（水平模式下的跨轴同理：页比视口高时，第一行必须能从上面够到）。顺带一个同源的坑：渲染窗口的 `rootMargin` 要加在**页带行进的那根轴**上（`horizontal ? "0px 1000px" : "1000px 0px"`）——固定写成上下 1000px 时，水平模式下页要等**已经进入视口**才挂载，读者眼睁睁看它画。
+
+**批注 / 浏览 模式开关（已实现）**：pdf 的墨迹画布默认 `pointer-events: auto`（批注），于是盖在文本层上——鼠标一拖就是一条笔迹，选不了字。所以工具栏上多了一个两态开关（`pointerToggle`）：**浏览**模式把画布的指针交还给下面的文本层，选字/复制恢复，而墨迹照旧显示、视口手势照旧可用（它们在 scroller 上，与画布无关）。只有"手势不在画布上"的宿主能提供这个开关，image 宿主不能——它一关就没有平移缩放了。**浏览模式放弃了画布上的一切**：书写本身、图层自己的键盘快捷键（元素不再可聚焦）、以及双指/三指轻点撤回/重做（它们由画布的状态机识别）——撤回/重做请用工具栏按钮。
+
+**已知取舍（本次明确接受）**：① 默认是**批注**模式，所以打开 pdf 后第一次拖拽会落墨而不是选字——要选字请点工具栏的"浏览"（一个开关的距离，不再是"不可用"）；② 触摸平移无惯性；③ `Annotation.page` 缺失的图元在 pdf 上不渲染（`清除` 仍会计入）；④ 双指/三指轻点撤回/重做在**批注**模式下可用（`arbitrateViewport` 让 layer 保留仲裁半套），浏览模式下不可用（画布不接指针，见上）；⑤ 超出像素预算的页（大倍率 + 大页面）纸和墨都会**降到 1 设备像素/CSS 像素以下**——这是"稍微软一点"换"不炸内存"，见坑 8。
 
 ---
 
@@ -613,6 +642,22 @@ P1 追加：
 17. **双指/三指轻点**：画两笔 → 双指轻点一次 → 少一笔；三指轻点一次 → 回来，且形状与原来一致。三个手指**快速**落下抬起才算轻点，拖着走只会平移/缩放。
 18. **恢复位置按钮**：拖动或缩放后，宿主**底部居中**出现"恢复位置大小"按钮；点它 → 底图与墨迹同时回位、按钮消失；在恒等状态下不应出现该按钮。按钮只占那一个小胶囊：**按钮左右两侧的照片仍能用笔画**（§4.6-4）。单指双击与键盘 `0` 都要与按钮效果完全一致。另外确认"点一下 → 拖着平移一段 → 再点一下"不会误判为双击（§4.6-5）。
 
+pdf 追加（§4.6-「pdf 宿主怎么接」的已实现部分）：
+
+19. **pdf 视口手势**：单指拖动 —— 页面 1:1 跟手（本次没有原生惯性，见取舍②）；双指捏合 —— **手指下的那张纸始终不离开手指**（放大 1.0→2.0 尤其明显，旧实现会偏出一页多），两指整体移动时页面跟着走，中途加/减一根手指不跳变；单指**双击** —— 回到打开时的适配方式并把当前页重新落位（不跳回第 1 页），工具栏 `0` 与底部胶囊同理，底部胶囊在"未离开打开视图"时**不**出现。用 `Ctrl/⌘+滚轮` 缩放、普通滚轮滚动，与手势应落到同一个倍率和同一处锚点。
+    19b. **笔与手掌**：用笔在页上写字，另一只（或同一只）手掌压在页面上 —— 页面**不得**滚动，笔画也不得画偏；手掌先压住、再落笔，同样不得继续滚动；之后单指平移要恢复正常。
+20. **pdf 墨迹按页对齐**：在第 3 页某句话上画一笔 → 滚到第 5 页再滚回来 → 缩放 200% → 依次切 单页/双页、垂直/水平、连续/翻页 → 笔迹**始终贴在同一句话上**，且不会"跑到别的页上"；关闭再打开该节点（或刷新）仍在。
+21. **手指=书写**：打开该开关 → 单指画线（页面不再被单指拖动），双指仍能平移/缩放；关掉后单指恢复平移。
+22. **笔 / 鼠标 / 触摸的分工**：用笔在页上画线，页面不滚动；鼠标单击落一个墨点（与 image 宿主一致），鼠标拖拽 = 一条笔画；触摸默认不画。
+23. **墨迹不拖累渲染**：打开一个 100 页以上的文档，滚到中段，DevTools 里 `[data-annotation-canvas]` 只应有渲染窗口内的几块（不是每一页一块）。
+24. **批注 / 浏览 模式**：工具栏的批注/浏览开关 → 切到"浏览"后用鼠标拖选一段文字能选中、能复制；切回"批注"后同一处拖拽落一条笔迹；两种模式下双指捏合与单指拖动都应照常工作（手势在滚动容器上，与画布无关）；"批注"模式下双指轻点撤回 / 三指轻点重做各生效一次（浏览模式下不生效，用工具栏按钮）。对话框（compact）形态下该开关在"更多"菜单里。**触摸设备上"浏览"目前只能靠鼠标选字**：滚动容器的 `touch-action: none`（坑 3 要它的那一条）同样挡住了原生的长按选择手势——真机上若发现长按仍能选字，请反馈，这条就能从已知限制里去掉。
+25. **已知取舍复核**（本次明确接受，若不可接受请直接反馈）：① 默认**批注**模式，所以第一次拖拽会落墨（选字请先切"浏览"）；② 触摸平移无惯性；③ `Annotation.page` 缺失的历史图元在 pdf 上不显示；④ 隐藏批注只停止绘制、不交还指针，所以"隐藏批注"不等于"能选文字"（选字用上面的模式开关）；⑤ 大倍率 + 大页面上纸和墨都会降密度（§4.6-坑 8 的预算），表现为"略微变软"而不是崩掉。
+26. **放大后能滚到页的左边缘**：把倍率调到**页宽超过视口**，然后向左拖 —— 必须能看到页的**左边缘**（旧实现只能到"放大时视口的左边界"，右边缘却可以到，见 §4.6-坑 10）；再向右拖，右边缘照旧能到。切成**水平**模式，把页调得比视口高，向上拖要能看到页的第一行。
+27. **最大倍率下不黑屏**：一直放大到最大档（或捏合到顶），再左右/上下拖 —— 视野里**不得出现整块黑页**，也不得有"黑页 + 骨架屏脉动"的闪烁；新滚进视野的页最多先是**白纸 + 浅灰脉动**（暗色主题下也一样，占位块不能是深色），随后正常显示。DevTools 里挑一块 `data-pdf-page-box` 的 canvas 看 `width×height`，应当 ≤ `PDF_MAX_PIXELS`（≈16.7 MP，4096²）。
+28. **缩放中墨迹不抖**：批注模式下放大/缩小 —— 字迹必须**和纸同一步调**，不能出现"软—锐—软"的呼吸感，停下后应与 image 宿主一样清晰（dpr 2 的屏幕上更容易分辨，见 §4.6-坑 7/8）。
+29. **HiDPI 上墨迹与字同尺度**：在 `devicePixelRatio === 2` 的屏幕（或浏览器缩放 200%）上，DevTools 里对比 `[data-annotation-canvas]` 与它所在 `[data-pdf-page-box]` 的 `getBoundingClientRect()` —— 两者必须**一样大**（坑 2 的 replaced element 陷阱会差 dpr 倍）。手测口径：在第 3 页某句话正中画一笔，放大到 3× 再看 —— 笔迹仍应压在**那句话**上，而不是整体放大、向右下偏移或被页边裁掉。
+30. **水平模式的预渲染**：切到水平 + 连续，快速左右甩动 —— 进入视口的页不应长时间停在占位/白纸上（`rootMargin` 要加在水平轴上，见坑 10 末句）。
+
 ### 8.2 触摸与笔的仿真
 
 **DevTools 触摸仿真**只能造出 `pointerType === "touch"`，**造不出笔**、也造不出 `pressure`。验证"笔专属分支"要用 getter 覆写（本环境唯一可行的做法）：
@@ -654,20 +699,20 @@ Object.defineProperty(PointerEvent.prototype, "pressure", {
 
 **新增**
 
-| 路径                                                                     | 说明                                                                       | 阶段 |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- | ---- |
-| `packages/interfaces/src/models/node/nodes/annotation.ts`                | 图元判别联合 + `AnnotationLayerData`（image/pdf 共用）                     | P0   |
-| `packages/ui/src/components/annotation/annotation-toolbar.tsx`           | §2（`ToggleGroup` + `Slider` + `Popover` 色板 + `Tooltip` 组合）           | P0   |
-| `packages/ui/src/components/annotation/annotation-layer.tsx`             | 宿主无关的外壳：吃 `items` / `onItemsChange` / `tool` / `getBaseRect()`    | P0   |
-| `packages/ui/src/components/annotation/annotation-canvas.tsx`            | 墨迹 canvas + rAF 循环 + committed 缓存 + dpr 处理                         | P0   |
-| `packages/ui/src/components/annotation/annotation-text-layer.tsx`        | 文本图元的 DOM / IME 层（§3.4）                                            | P1   |
-| `packages/ui/src/components/annotation/use-annotation-input.ts`          | pointer 状态机：笔/手指分离、pinch 仲裁、`pointercancel`、flush            | P0   |
-| `packages/ui/src/components/annotation/draw.ts`                          | **纯函数**：`perfect-freehand` 包装 + 图元重放（无 React，导出复用同一份） | P0   |
-| `packages/ui/src/components/annotation/geometry.ts`                      | 归一化 ⇄ 显示坐标、`containRect`、bbox、命中测试                           | P0   |
-| `packages/ui/src/components/annotation/types.ts`                         | UI 侧类型（`Tool`、toolbar 状态）                                          | P0   |
-| `packages/ui/src/components/annotation/export.ts`                        | P2：canvas 烘焙 → Blob                                                     | P2   |
-| `packages/ui/src/components/dialog/editor/content/pdf-document-view.tsx` | P1：pdfjs 逐页渲染 + 滚动/缩放容器 + iframe 降级                           | P1   |
-| `pb/pb_migrations/1700000001_node_annotations.js`                        | 新增 `annotations` json 列（**不得**改 0 号脚本，§0.3-11）                 | P0   |
+| 路径                                                              | 说明                                                                                                                                                                                                                                                 | 阶段 |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| `packages/interfaces/src/models/node/nodes/annotation.ts`         | 图元判别联合 + `AnnotationLayerData`（image/pdf 共用）                                                                                                                                                                                               | P0   |
+| `packages/ui/src/components/annotation/annotation-toolbar.tsx`    | §2（`ToggleGroup` + `Slider` + `Popover` 色板 + `Tooltip` 组合）                                                                                                                                                                                     | P0   |
+| `packages/ui/src/components/annotation/annotation-layer.tsx`      | 宿主无关的外壳：吃 `items` / `onItemsChange` / `tool` / `getBaseRect()`                                                                                                                                                                              | P0   |
+| `packages/ui/src/components/annotation/annotation-canvas.tsx`     | 墨迹 canvas + rAF 循环 + committed 缓存 + dpr 处理                                                                                                                                                                                                   | P0   |
+| `packages/ui/src/components/annotation/annotation-text-layer.tsx` | 文本图元的 DOM / IME 层（§3.4）                                                                                                                                                                                                                      | P1   |
+| `packages/ui/src/components/annotation/use-annotation-input.ts`   | pointer 状态机：笔/手指分离、pinch 仲裁、`pointercancel`、flush                                                                                                                                                                                      | P0   |
+| `packages/ui/src/components/annotation/draw.ts`                   | **纯函数**：`perfect-freehand` 包装 + 图元重放（无 React，导出复用同一份）                                                                                                                                                                           | P0   |
+| `packages/ui/src/components/annotation/geometry.ts`               | 归一化 ⇄ 显示坐标、`containRect`、bbox、命中测试                                                                                                                                                                                                     | P0   |
+| `packages/ui/src/components/annotation/types.ts`                  | UI 侧类型（`Tool`、toolbar 状态）                                                                                                                                                                                                                    | P0   |
+| `packages/ui/src/components/annotation/export.ts`                 | P2：canvas 烘焙 → Blob                                                                                                                                                                                                                               | P2   |
+| `packages/ui/src/components/pdf-viewer/`                          | P1 **已实现**：pdfjs 逐页渲染 + 滚动/缩放/翻页/八种版式 + 自绘文本层与搜索 + 缩略图/大纲 + iframe 降级（`pdf-viewer.tsx` / `pdf-page.tsx` / `pdf-gesture.ts`）。落点是 `components/pdf-viewer/` 而不是本文档早先写的 `content/pdf-document-view.tsx` | P1   |
+| `pb/pb_migrations/1700000001_node_annotations.js`                 | 新增 `annotations` json 列（**不得**改 0 号脚本，§0.3-11）                                                                                                                                                                                           | P0   |
 
 **修改**
 

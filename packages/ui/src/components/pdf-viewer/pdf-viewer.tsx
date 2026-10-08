@@ -16,7 +16,7 @@
  * from, and what a fit mode measures. 单页 makes it one page, 双页 makes it a
  * left/right pair — so the reader never has to know which mode is on.
  *
- * Three things are deliberate:
+ * What is deliberate here:
  *
  * - **Pages render from the viewport, outwards.** An `IntersectionObserver`
  *   with a one-viewport margin decides which canvases exist; everything else
@@ -30,6 +30,15 @@
  *   started and no notch ever finished. Only the pixels are stale while the
  *   gesture lasts (and the text layer is hidden, because its spans are still
  *   laid out for the old box).
+ * - **What the lag may cost is bounded, not the lag itself.** A page is painted
+ *   whole, so at a large multiplier its bitmap is quadratic in the zoom: `PDF_MAX_PIXELS`
+ *   (through `pdfRasterDpr`) backs the density off until the surface fits a budget
+ *   every browser allocates, and the ink layer is handed the same budget. A page
+ *   is then a little soft at 6× instead of an allocation that fails — which is
+ *   what an unpainted page used to look like (see `pdf-page.tsx` on `alpha`).
+ * - **The page strip centres with auto margins, never `justify-content`.** A page
+ *   can be wider than the viewport; unsafe centring would put half of that
+ *   overflow before the scroll origin, where no scroll can reach it.
  * - **The current page is derived, not stored.** It is whichever page is
  *   nearest the viewport centre, so it stays right during a trackpad fling, a
  *   toolbar jump and a search jump without any of them owning it.
@@ -43,9 +52,22 @@ import {
   useState,
 } from "react";
 import { CircleAlert, Loader2 } from "lucide-react";
+import type { Annotation } from "@workspace/interfaces";
 
 import { cn } from "@workspace/ui/lib/utils";
+import { AnnotationLayer } from "@workspace/ui/components/annotation/annotation-layer";
+import type { AnnotationSurface } from "@workspace/ui/components/annotation/types";
+import { PanZoomResetPill } from "@workspace/ui/components/pan-zoom/reset-button";
+import {
+  centroidOf,
+  classifyTapEnd,
+  isDoubleTap,
+  spreadOf,
+  TAP_SLOP,
+} from "@workspace/ui/components/pan-zoom/recognizer";
 
+import { pdfIsInitialView, pdfPinchFrame } from "./pdf-gesture";
+import type { PdfPinchAnchor } from "./pdf-gesture";
 import { PdfPage } from "./pdf-page";
 import { PdfSidebar } from "./pdf-sidebar";
 import { PdfToolbar } from "./pdf-toolbar";
@@ -53,6 +75,8 @@ import { usePdfDocument } from "./use-pdf-document";
 import { usePdfSearch } from "./use-pdf-search";
 import {
   PDF_DEFAULT_MODE,
+  PDF_MAX_DPR,
+  PDF_MAX_PIXELS,
   PDF_MAX_SCALE,
   PDF_MIN_SCALE,
   PDF_ZOOM_STEPS,
@@ -60,6 +84,7 @@ import {
   pdfSlots,
   pdfSlotStartPage,
   pdfSpreadStep,
+  pdfSurfacedPages,
   pdfZoomRaster,
   type PdfFitMode,
   type PdfOutlineEntry,
@@ -140,6 +165,9 @@ export function PdfViewer({
   defaultMode,
   defaultScale,
   defaultFit,
+  annotations,
+  onAnnotationsChange,
+  compact,
   toolbarExtras,
   onPageChange,
   onError,
@@ -181,9 +209,23 @@ export function PdfViewer({
   );
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [outline, setOutline] = useState<PdfOutlineEntry[] | null>(null);
+  /**
+   * The page boxes that currently have an ink canvas, bumped when one mounts or
+   * unmounts. It is what `AnnotationLayer`'s `surfacesKey` is fed: a resize
+   * observer cannot see an element it has never been handed, so a page arriving in
+   * the rendering window has to be announced.
+   */
+  const [boxVersion, setBoxVersion] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Set by {@link resetView}, consumed by the layout effect that runs with the commit
+   * which moved the boxes. `goToPage` measures the slots, so it has to run against
+   * the layout it is about to scroll in — doing it inside the handler would measure
+   * the previous multiplier's boxes.
+   */
+  const seatRef = useRef(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const slotRefs = useRef(new Map<number, HTMLDivElement>());
   const zoomAnchor = useRef<{ scroll: number } | null>(null);
@@ -211,6 +253,39 @@ export function PdfViewer({
   const rasterTimerRef = useRef(0);
   /** Set by a gesture handler: this scale change may paint by stretching. */
   const deferRasterRef = useRef(false);
+  /**
+   * The view the document opened at — what 双击 / 恢复位置大小 returns to, and
+   * therefore also what decides whether the pill is on screen at all
+   * (`pdfIsInitialView`). A ref because it must not follow the state it describes.
+   */
+  const openingRef = useRef({ fit: fit, scale: defaultScale ?? 1 });
+  /** The page boxes the ink layer painters into, keyed by 1-based page. */
+  const pageBoxesRef = useRef(new Map<number, HTMLDivElement>());
+  /** `visibleSlots` as a ref: the surface list is built from a stable callback. */
+  const visibleSlotsRef = useRef(visibleSlots);
+  // Written during render for the same reason as `spreadRef` below: the layer reads
+  // it from a *layout* effect, which runs before this component's passive effects —
+  // a passive write would leave one measurement describing the previous window (a
+  // scrollbar jump to page 40 would portal no canvas at all until something else
+  // changed).
+  visibleSlotsRef.current = visibleSlots;
+  /**
+   * The current spread as a ref, for the same reason: a page has to be mapped to
+   * the *slot* that shows it before the visible set can be asked about it
+   * (`visibleSlots` holds slot indices, not page numbers — in 双页 one slot is two
+   * pages, and "is page 3 visible" is not "is slot 3 visible").
+   */
+  const spreadRef = useRef(mode.spread);
+  // Written during render, like the canvas's `itemsRef`: the layer reads it from a
+  // *layout* effect, and a passive-effect write can land after that read — which for
+  // a 单页 ⇄ 双页 switch means one measurement with the previous mapping.
+  spreadRef.current = mode.spread;
+  /**
+   * 手指=书写, reported by the ink layer. While it is on, one finger draws, so the
+   * viewer's own one-finger pan has to stand down — otherwise a stroke would drag
+   * the page out from under itself.
+   */
+  const touchDrawsRef = useRef(false);
 
   const horizontal = mode.direction === "horizontal";
   const pagesPerSlot = pdfSpreadStep(mode.spread);
@@ -484,13 +559,21 @@ export function PdfViewer({
   }, []);
 
   /**
+   * The multiplier half of a zoom, with no opinion about the scroll.
+   *
+   * Split out for the pinch, which computes its own offset: a pinch frame is
+   * composed from the gesture's anchor and is therefore already expressed in the
+   * layout the new multiplier will create, so it must be *posted* as the pending
+   * anchor rather than left to `anchorScroll`, whose ratio comes from the layout on
+   * screen (see `pdfPinchFrame`).
+   *
    * `defer` says whether this step belongs to a gesture that is still streaming:
    * a wheel notch or a pinch paints by stretching the bitmap it has, while a
    * button or a toolbar pick repaints at once — one deliberate step is not worth
    * a window of soft pixels.
    */
-  const applyZoom = useCallback(
-    (next: number, clientX?: number, clientY?: number, defer = false) => {
+  const applyScale = useCallback(
+    (next: number, defer = false) => {
       const target = clamp(next, PDF_MIN_SCALE, PDF_MAX_SCALE);
       // Synced here rather than in an effect: the next notch of a fast spin has
       // to compose on this one even if React has not re-rendered.
@@ -502,10 +585,17 @@ export function PdfViewer({
       // commit is a no-op, the effect never runs, and a flag raised there would
       // survive to soften the next resize.
       deferRasterRef.current = defer && target !== scaleRef.current;
-      anchorScroll(target, clientX, clientY);
       queueScale(target);
     },
-    [anchorScroll, queueScale],
+    [queueScale],
+  );
+
+  const applyZoom = useCallback(
+    (next: number, clientX?: number, clientY?: number, defer = false) => {
+      applyScale(next, defer);
+      anchorScroll(next, clientX, clientY);
+    },
+    [anchorScroll, applyScale],
   );
 
   useLayoutEffect(() => {
@@ -563,6 +653,17 @@ export function PdfViewer({
     applyZoom(next ?? PDF_MIN_SCALE);
   }, [applyZoom]);
 
+  /**
+   * 恢复位置大小 — the one action behind the single-finger double tap, the `0` key
+   * and the pill.
+   *
+   * It restores the **size** (the multiplier the document opened at, by fit mode
+   * when there is one) and leaves the **position** where the reader is: `applyFit`
+   * goes through the same scroll anchor every other zoom does, so the content under
+   * the middle of the viewport stays there. Returning to page 1 instead would be a
+   * literal reading of "恢复位置" and a hostile one — the reader is on page 40
+   * because that is where they are reading.
+   */
   /* ---------------------------------------------------------------- *
    * Navigation
    * ---------------------------------------------------------------- */
@@ -615,6 +716,51 @@ export function PdfViewer({
     },
     [pageCount, horizontal, mode.spread],
   );
+
+  const resetView = useCallback(() => {
+    const opening = openingRef.current;
+    const target =
+      opening.fit === "free" ? opening.scale : resolveFitScale(opening.fit);
+    if (Math.abs(target - scaleRef.current) <= 0.001) {
+      // The **size** is already what it should be — the reader only panned, or tapped
+      // twice — so nothing will commit and move the boxes. Seat the page here,
+      // against the layout that exists: without this branch a double tap in the
+      // middle of a long page would do nothing at all, which is not what 恢复位置大小
+      // offers.
+      goToPage(pageRef.current, "auto");
+      return;
+    }
+    if (opening.fit === "free") applyZoom(opening.scale);
+    else applyFit(opening.fit);
+    // The size *is* about to change, so the position half has to wait for the commit
+    // that moves the boxes: `goToPage` measures the slots, and they are still laid
+    // out at the multiplier being replaced.
+    seatRef.current = true;
+  }, [applyFit, applyZoom, goToPage, resolveFitScale]);
+
+  /**
+   * Has the reader left the opening view? The pdf's `isIdentityTransform`, and the
+   * gate on the 恢复位置大小 pill. Numeric, against what the opening fit resolves to
+   * for *this* viewport: a window resize must not summon the pill (the reader did
+   * nothing) and picking the very same multiplier from the toolbar must not either.
+   */
+  const openingScale = openingRef.current;
+  const atOpeningView = pdfIsInitialView(
+    effectiveScale,
+    openingScale,
+    openingScale.fit === "free"
+      ? openingScale.scale
+      : resolveFitScale(openingScale.fit),
+  );
+
+  /**
+   * `resetView` read from inside the gesture effect, which must keep a stable
+   * identity for the whole of a touch sequence (see the double-tap branch).
+   */
+  const resetViewRef = useRef(resetView);
+  useEffect(() => {
+    resetViewRef.current = resetView;
+  }, [resetView]);
 
   const handleScroll = useCallback(() => {
     if (scrollFrame.current) return;
@@ -679,6 +825,19 @@ export function PdfViewer({
     goToPage(page, "auto");
   }, [layoutKey, page, goToPage]);
 
+  /**
+   * 恢复位置大小, the position half: re-seat the page the reader is on.
+   *
+   * A pending flag consumed by the commit that changed the multiplier, exactly like
+   * the zoom anchor — `resetView` cannot scroll itself, because at that moment the
+   * slots are still laid out at the multiplier it is replacing.
+   */
+  useLayoutEffect(() => {
+    if (!seatRef.current) return;
+    seatRef.current = false;
+    goToPage(pageRef.current, "auto");
+  }, [effectiveScale, goToPage]);
+
   /* ---------------------------------------------------------------- *
    * Rendering window
    * ---------------------------------------------------------------- */
@@ -695,6 +854,115 @@ export function PdfViewer({
       }
     },
     [],
+  );
+
+  /**
+   * A page box arrived (or left) — remember it for the ink layer.
+   *
+   * `pageBoxesRef` is a ref and `boxVersion` is the signal: the surface list is
+   * read by a callback the layer calls on its own schedule (a measurement), so it
+   * must not be a snapshot of a render.
+   */
+  const handlePageBox = useCallback(
+    (pageNumber: number, element: HTMLDivElement | null) => {
+      const boxes = pageBoxesRef.current;
+      if (element) {
+        if (boxes.get(pageNumber) === element) return;
+        boxes.set(pageNumber, element);
+      } else if (!boxes.delete(pageNumber)) {
+        return;
+      }
+      setBoxVersion((current) => current + 1);
+    },
+    [],
+  );
+
+  /**
+   * The ink surfaces, read on demand by the layer.
+   *
+   * Only the pages in the rendering window get one: the page *boxes* all exist
+   * (the strip renders every slot), but an ink canvas each would allocate a
+   * backing store per page of the document. The window is the same one the page
+   * bitmaps use, with the same one-viewport margin, so the ink is always mounted
+   * before its page can be seen.
+   */
+  const getSurfaces = useCallback((): readonly AnnotationSurface[] => {
+    const boxes = pageBoxesRef.current;
+    const surfaces: AnnotationSurface[] = [];
+    // Via each page's slot — see `pdfSurfacedPages` for why the page number is not
+    // the thing `visibleSlots` lists.
+    for (const pageNumber of pdfSurfacedPages(
+      boxes.keys(),
+      visibleSlotsRef.current,
+      spreadRef.current,
+    )) {
+      const element = boxes.get(pageNumber);
+      if (!element) continue;
+      // 0-based: the number `Annotation.page` stores and the layer filters on.
+      surfaces.push({ page: pageNumber - 1, element });
+    }
+    return surfaces;
+  }, []);
+
+  /**
+   * Announced to the layer when the surface *set* changes, **and** whenever the
+   * boxes it has already been handed move or resize.
+   *
+   * A page resizing looks like something the layer's resize observers cover, and
+   * it would be, one frame late: the boxes are laid out by the commit that reads
+   * this key, so a key that carried the multiplier is how the layer re-measures
+   * *inside* that commit — before the browser paints. Without it a page canvas
+   * (which is pinned to its page box with `inset: 0`, so its CSS box moves the
+   * moment the layout does) would be a frame out of step with its own backing
+   * store on every zoom step, and the compositor would resample the ink once per
+   * frame: the shimmer the reader saw. A page's *size* changing for any other
+   * reason (a window resize, a font reflow) still arrives through the observers.
+   */
+  const surfacesKey = useMemo(() => {
+    const pages = Array.from(visibleSlots).sort((a, b) => a - b);
+    // The layout is part of the key, not decoration: switching 单页 ⇄ 双页 changes
+    // which pages a slot index *means* without resizing a single page box — so no
+    // resize observer fires, and the key is the only thing that can tell the layer
+    // that its surface list now describes a different set of pages. The multiplier
+    // is the same argument one step down: the surface list is unchanged and every
+    // box in it just got bigger.
+    return [
+      boxVersion,
+      mode.direction,
+      mode.scroll,
+      mode.spread,
+      effectiveScale,
+      pages.join(","),
+    ].join(":");
+  }, [
+    boxVersion,
+    effectiveScale,
+    mode.direction,
+    mode.scroll,
+    mode.spread,
+    visibleSlots,
+  ]);
+
+  /**
+   * The ink layer's 手指=书写 switch. A ref rather than state: it only changes what
+   * the *next* pointer does, and re-rendering the strip for it would buy nothing.
+   */
+  const handleTouchDrawsChange = useCallback((next: boolean) => {
+    touchDrawsRef.current = next;
+  }, []);
+
+  /**
+   * One finished ink gesture, forwarded to the host unchanged.
+   *
+   * The page number is already on the item — the layer stamps it from the surface
+   * the stroke happened on — so this is a pass-through, and the viewer deliberately
+   * knows nothing about the shape of what it carries.
+   */
+  const handleAnnotationsChange = useCallback(
+    (items: Annotation[]) => {
+      onAnnotationsChange?.(items);
+    },
+    [onAnnotationsChange],
   );
 
   /**
@@ -743,7 +1011,17 @@ export function PdfViewer({
           return changed ? next : previous;
         });
       },
-      { root, rootMargin: "1000px 0px 1000px 0px" },
+      {
+        root,
+        // The margin belongs on the axis the *slots* run along — the one `方向`
+        // chooses. A page has to be mounted before it can be seen, so a 水平 strip
+        // with a fixed vertical margin only ever mounted a page once it was already
+        // on screen, and the reader watched it paint. The cross axis keeps 0: a slot
+        // is viewport-sized there, so nothing arrives in it from off-screen.
+        rootMargin: horizontal
+          ? "0px 1000px 0px 1000px"
+          : "1000px 0px 1000px 0px",
+      },
     );
     observerRef.current = observer;
     slotRefs.current.forEach((slot) => observer.observe(slot));
@@ -751,7 +1029,7 @@ export function PdfViewer({
       observer.disconnect();
       observerRef.current = null;
     };
-  }, [status]);
+  }, [horizontal, status]);
 
   /* ---------------------------------------------------------------- *
    * Gestures
@@ -781,71 +1059,333 @@ export function PdfViewer({
     return () => element.removeEventListener("wheel", onWheel);
   }, [applyZoom, status]);
 
+  /**
+   * The pdf's own viewport gestures, on the element every pointer lands on.
+   *
+   * The scroller is the gesture surface here, not the ink canvas: the canvas
+   * covers each *page*, so a finger in the gutter between two pages — or on the
+   * letterbox of a narrower page — would otherwise be invisible to the pinch. The
+   * canvases still see the same events (they bubble), which is why the pen is
+   * claimed there and never here.
+   *
+   * `touch-action: none` on the scroller (see the render) is what makes this the
+   * only path: with it the browser hands us every touch instead of panning
+   * natively, so one finger scrolls the strip at exactly the finger's pace and two
+   * fingers pinch and pan together.
+   */
   useEffect(() => {
     const element = scrollRef.current;
     if (!element || status !== "ready") return;
 
-    const pointers = new Map<number, { x: number; y: number }>();
-    let startDistance = 0;
-    let startScale = 1;
+    interface Tracked {
+      x: number;
+      y: number;
+      downX: number;
+      downY: number;
+    }
+
+    const pointers = new Map<number, Tracked>();
+    /**
+     * The pinch baseline — the whole view when the fingers last (re)anchored, which
+     * is what every frame is composed from. It carries the *offset* too: a frame is
+     * absolute (`pdfPinchFrame`), so the pan the fingers ask for is expressed
+     * against this snapshot rather than added to the live offset once per sample.
+     */
+    let anchor: PdfPinchAnchor | null = null;
+    /** Tap bookkeeping for 单指双击 (see `classifyTapEnd` / `isDoubleTap`). */
+    let startedAt = 0;
+    let peak = 0;
+    let moved = false;
+    let lastTap: { time: number; x: number; y: number } | null = null;
+    /**
+     * A pen is on the surface. Its own pointer goes to the ink canvas, but a palm
+     * resting beside it arrives here as a touch and must not drag the page out from
+     * under the stroke that is being written — the rule the ink layer applies to its
+     * own pointers (`use-annotation-input.ts`, `penIsDown`), applied to the
+     * scroller's gestures.
+     */
+    const penPointers = new Set<number>();
+    const penIsDown = () => penPointers.size > 0;
+    /**
+     * Where the scroller's viewport starts, in client coordinates — the last piece
+     * of `pdfPinchFrame`'s arithmetic. Read once per (re)anchor rather than per
+     * sample: it is a forced layout, and the scroller's own box does not move during
+     * a gesture.
+     */
+    let viewportOrigin = { x: 0, y: 0 };
+
+    const reanchor = () => {
+      if (pointers.size < 2) {
+        anchor = null;
+        return;
+      }
+      const values = [...pointers.values()];
+      const centre = centroidOf(values);
+      const rect = element.getBoundingClientRect();
+      viewportOrigin = { x: rect.left, y: rect.top };
+      /**
+       * The scale and the offset have to describe the *same* layout. `zoomTargetRef`
+       * is what the reader asked for, which can be one commit ahead of the layout on
+       * screen — and in that window the offset that belongs to it is the one waiting
+       * in `zoomAnchor` (posted by the pinch or by the wheel), not the one the
+       * scroller is still showing. Pairing a requested scale with a stale offset
+       * would put every following frame out by the ratio between them.
+       */
+      const target = zoomTargetRef.current;
+      const pending =
+        Math.abs(target - scaleRef.current) > 0.001
+          ? (zoomAnchor.current?.scroll ?? null)
+          : null;
+      anchor = {
+        scale: target,
+        // The mean radius and the centroid, not "the first two fingers" — that is
+        // what makes adding or lifting a finger continuous instead of a jump.
+        spread: spreadOf(values, centre),
+        midX: centre.x,
+        midY: centre.y,
+        scrollLeft: horizontal
+          ? (pending ?? element.scrollLeft)
+          : element.scrollLeft,
+        scrollTop: horizontal
+          ? element.scrollTop
+          : (pending ?? element.scrollTop),
+      };
+    };
+
+    /**
+     * Forget every pointer. A touch sequence that the browser takes away (a tab
+     * switch, a lock screen, a focus trap) delivers no `pointerup`, and a table that
+     * still holds fingers from minutes ago turns the next touch into a pinch against
+     * a finger set that does not exist.
+     */
+    const resetPointers = () => {
+      dropTouches();
+      lastTap = null;
+      // A tab that goes away takes the pen's `pointerup` with it; the next touch
+      // must not be measured against a hand that is no longer there.
+      penPointers.clear();
+    };
+
+    /**
+     * Forget the touches without touching the pen flag: the pen commands the page,
+     * and a palm that was already down when it landed must stop scrolling at once
+     * (its `pointermove`s keep arriving, and a page that slides under the nib puts
+     * the ink somewhere the reader did not draw).
+     */
+    function dropTouches() {
+      pointers.clear();
+      anchor = null;
+      peak = 0;
+      moved = false;
+    }
 
     const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "pen") {
+        // Tracked, never handled: the pen draws (the ink canvas has it) and its
+        // presence is what keeps a resting palm from scrolling the page. A palm that
+        // arrived *first* is dropped here rather than only refused for new fingers.
+        penPointers.add(event.pointerId);
+        dropTouches();
+        return;
+      }
+      // A mouse uses the wheel, the scrollbar and the toolbar — its clicks are ink,
+      // exactly as on an image.
       if (event.pointerType === "mouse") return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size === 2) {
-        const [first, second] = [...pointers.values()];
-        if (!first || !second) return;
-        startDistance = Math.hypot(first.x - second.x, first.y - second.y);
-        startScale = zoomTargetRef.current;
+      // Palm rejection: while the pen is down every touch is dropped, so a resting
+      // hand cannot pan the page the pen is writing on.
+      if (penIsDown()) return;
+      pointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        downX: event.clientX,
+        downY: event.clientY,
+      });
+      if (pointers.size === 1) {
+        startedAt = event.timeStamp;
+        peak = 1;
+        moved = false;
+      } else {
+        peak = Math.max(peak, pointers.size);
+        reanchor();
       }
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      // The pen owns the surface: a touch sequence from before it landed is over.
+      if (penIsDown()) {
+        if (pointers.size > 0) dropTouches();
+        return;
+      }
       const tracked = pointers.get(event.pointerId);
       if (!tracked) return;
+      // The pointer's *own* previous sample, not a shared "last position": after a
+      // pinch the surviving finger must continue from where it is, and a shared
+      // baseline would still hold the position the pinch started from — a jump of
+      // however far the fingers travelled.
+      const previousX = tracked.x;
+      const previousY = tracked.y;
       tracked.x = event.clientX;
       tracked.y = event.clientY;
-      if (pointers.size !== 2 || startDistance <= 0) return;
-      const [first, second] = [...pointers.values()];
-      if (!first || !second) return;
-      const distance = Math.hypot(first.x - second.x, first.y - second.y);
-      if (!distance) return;
-      event.preventDefault();
-      // A pinch is a stream of moves, so it paints by stretching and repaints
-      // when the fingers stop — one raster per gesture, not one per move.
-      applyZoom(
-        startScale * (distance / startDistance),
-        (first.x + second.x) / 2,
-        (first.y + second.y) / 2,
-        true,
-      );
+      if (
+        Math.hypot(
+          event.clientX - tracked.downX,
+          event.clientY - tracked.downY,
+        ) > TAP_SLOP
+      ) {
+        moved = true;
+      }
+
+      if (pointers.size >= 2 && anchor) {
+        const values = [...pointers.values()];
+        const midX = values.reduce((sum, p) => sum + p.x, 0) / values.length;
+        const midY = values.reduce((sum, p) => sum + p.y, 0) / values.length;
+        const spread = spreadOf(values, { x: midX, y: midY });
+        // A pinch is never a tap, even when neither finger travels further than
+        // `TAP_SLOP` from where it went down: without this a small quick pinch would
+        // open the double-tap window and the next single tap would reset the view.
+        if (Math.abs(spread - anchor.spread) > TAP_SLOP) moved = true;
+        const frame = pdfPinchFrame(
+          anchor,
+          { spread, midX, midY },
+          viewportOrigin,
+        );
+        if (!frame) return;
+        event.preventDefault();
+        // A pinch is a stream of moves, so it paints by stretching and repaints
+        // when the fingers stop — one raster per gesture, not one per move.
+        const target = clamp(frame.scale, PDF_MIN_SCALE, PDF_MAX_SCALE);
+        if (Math.abs(target - scaleRef.current) > 0.001) {
+          // The multiplier is about to change, so the whole layout is about to be
+          // rescaled: the frame's offset is expressed in the *new* layout and is
+          // therefore posted as the pending anchor, which the commit that moves the
+          // boxes consumes (`anchorScroll` cannot be used here — its ratio comes from
+          // the layout on screen, which is the one being replaced).
+          zoomAnchor.current = {
+            scroll: horizontal ? frame.scrollLeft : frame.scrollTop,
+          };
+          applyScale(frame.scale, true);
+          return;
+        }
+        // Only the fingers moved: the layout is not going to change, so the offset is
+        // valid right now — and a no-op multiplier commit would never consume a
+        // pending anchor at all. Anything still queued from an earlier frame is
+        // therefore *disarmed* rather than left to be applied by some unrelated
+        // reflow, which is the rule `anchorScroll` follows for the same reason.
+        zoomAnchor.current = null;
+        element.scrollLeft = frame.scrollLeft;
+        element.scrollTop = frame.scrollTop;
+        return;
+      }
+
+      if (pointers.size === 1) {
+        // 手指=书写: the finger is a pen, and the ink canvas is drawing with it.
+        if (touchDrawsRef.current) return;
+        event.preventDefault();
+        // The paper follows the hand: a finger moving right scrolls the strip left.
+        element.scrollLeft -= event.clientX - previousX;
+        element.scrollTop -= event.clientY - previousY;
+      }
     };
 
     const onPointerEnd = (event: PointerEvent) => {
+      const tracked = pointers.get(event.pointerId);
+      if (!tracked) return;
       pointers.delete(event.pointerId);
-      const [first, second] = [...pointers.values()];
-      if (!first || !second) {
-        startDistance = 0;
+
+      if (pointers.size > 0) {
+        reanchor();
         return;
       }
-      // Lifting one finger of a three-finger pinch leaves a *different* pair
-      // under the remaining two; keeping the old baseline would make the very
-      // next move jump by the ratio between the two pairs.
-      startDistance = Math.hypot(first.x - second.x, first.y - second.y);
-      startScale = zoomTargetRef.current;
+
+      // The sequence is over: it was a tap if nothing moved and it did not last.
+      const outcome = classifyTapEnd({
+        tap: event.type === "pointerup",
+        touch: true,
+        moved,
+        duration: event.timeStamp - startedAt,
+        peak,
+      });
+      const at = { x: event.clientX, y: event.clientY };
+      moved = false;
+      peak = 0;
+      anchor = null;
+
+      if (outcome !== "tap") {
+        // Any sequence that is not a clean single-finger tap closes the
+        // double-tap window: 双击 must be two taps in a row, not "tap … pan …
+        // tap", whose second tap would otherwise reset the view.
+        lastTap = null;
+        return;
+      }
+      // 手指=书写 turns a one-finger tap into a dot, so it must not also be the
+      // first half of a double tap (the image host's rule, same reason).
+      if (touchDrawsRef.current) return;
+
+      if (isDoubleTap(lastTap, { time: event.timeStamp, ...at })) {
+        lastTap = null;
+        // Through a ref: `resetView` is rebuilt whenever the viewport or the
+        // multiplier changes, and this effect must NOT re-attach mid-gesture —
+        // the tracked pointers live in its closure, so a re-attach would drop a
+        // pinch the moment its first frame landed.
+        resetViewRef.current();
+        return;
+      }
+      lastTap = { time: event.timeStamp, ...at };
+    };
+
+    /**
+     * The pen's end, wherever it lands.
+     *
+     * By id and on `window`: a pen that goes down in the gutter takes no pointer
+     * capture, so its `pointerup` may arrive over the toolbar, the sidebar or another
+     * window — none of which are inside the scroller — and a stranded flag would
+     * leave every later touch dropped. Two styluses are tracked separately for the
+     * same reason.
+     */
+    const onPenEnd = (event: PointerEvent) => {
+      if (event.pointerType === "pen") penPointers.delete(event.pointerId);
+    };
+
+    /**
+     * The two end signals that are not pointer events on the scroller, plus the
+     * capture loss that is not a `pointerup` either. All of them clear the whole
+     * table: the design's rule for a gesture surface (`annotation.md` §4.6-5), and
+     * the difference between "no fingers down" and "a pinch against ghosts".
+     */
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") resetPointers();
+    };
+    const onLostCapture = (event: PointerEvent) => {
+      if (event.pointerType === "pen") penPointers.delete(event.pointerId);
+      if (pointers.has(event.pointerId)) resetPointers();
     };
 
     element.addEventListener("pointerdown", onPointerDown);
     element.addEventListener("pointermove", onPointerMove);
     element.addEventListener("pointerup", onPointerEnd);
     element.addEventListener("pointercancel", onPointerEnd);
+    element.addEventListener("lostpointercapture", onLostCapture);
+    window.addEventListener("pointerup", onPenEnd);
+    window.addEventListener("pointercancel", onPenEnd);
+    window.addEventListener("lostpointercapture", onPenEnd);
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("blur", resetPointers);
     return () => {
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", onPointerEnd);
       element.removeEventListener("pointercancel", onPointerEnd);
+      element.removeEventListener("lostpointercapture", onLostCapture);
+      window.removeEventListener("pointerup", onPenEnd);
+      window.removeEventListener("pointercancel", onPenEnd);
+      window.removeEventListener("lostpointercapture", onPenEnd);
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("blur", resetPointers);
     };
-  }, [applyZoom, status]);
+    // `applyScale` and `horizontal` are read by the pinch branch: the first is stable
+    // (`queueScale` → `flushScale` → no deps), so a touch sequence is never cut short
+    // by a re-attach, and the second only changes when the reader switches axis.
+  }, [applyScale, applyZoom, horizontal, status]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -873,6 +1413,15 @@ export function PdfViewer({
       if (modifier && (event.key === "-" || event.key === "_")) {
         event.preventDefault();
         zoomOut();
+        return;
+      }
+      // 恢复位置大小, the keyboard twin of the single-finger double tap. It lives
+      // here rather than only in the ink layer because the layer's handler covers its
+      // own subtree, while the reader's focus is often the scroller it does not own
+      // (a click in the gutter, or 浏览 mode where the ink canvas takes no pointers).
+      if (event.key === "0") {
+        event.preventDefault();
+        resetViewRef.current();
         return;
       }
       // Escape is owned by the window-capture listener above while the search
@@ -940,7 +1489,7 @@ export function PdfViewer({
     if (
       activeMatchPage &&
       pdfSlotOf(activeMatchPage, mode.spread) !==
-      pdfSlotOf(pageRef.current, mode.spread)
+        pdfSlotOf(pageRef.current, mode.spread)
     ) {
       goToPageRef.current(activeMatchPage);
     }
@@ -1131,82 +1680,147 @@ export function PdfViewer({
           />
         )}
 
-        <div
-          ref={scrollRef}
-          tabIndex={0}
-          role="region"
-          aria-label={title ? `${title} 文档` : "PDF 文档"}
-          onScroll={handleScroll}
-          data-pdf-scroller
-          className={cn(
-            "relative flex min-h-0 flex-1 gap-3 overflow-auto overscroll-contain bg-muted/40 p-3 outline-none",
-            "focus-visible:ring-2 focus-visible:ring-ring/40",
-            horizontal ? "flex-row" : "flex-col",
-            paged && "gap-6 p-4",
-          )}
-          style={{
-            scrollSnapType: snapType,
-            // The browser keeps single-finger panning; our pointer handler only
-            // claims the two-finger gesture, which `pan-x pan-y` leaves free.
-            touchAction: "pan-x pan-y",
-          }}
-        >
-          {slots.map((slot) => {
-            const render = visibleSlots.has(slot.index);
-            return (
-              <div
-                key={slot.index}
-                ref={slotRef(slot.index)}
-                data-pdf-slot={slot.index}
-                className={cn(
-                  "flex shrink-0 justify-center",
-                  horizontal ? "items-center" : "w-full",
-                  // A continuous column starts each slot at its own top (the
-                  // reading position is the first line). A paged strip shows one
-                  // slot at a time, so it centres — `-safe` keeps a slot taller
-                  // than the viewport reachable from its first line instead of
-                  // overflowing out of both ends.
-                  !horizontal && (paged ? "items-center-safe" : "items-start"),
-                  paged && (horizontal ? "min-w-full" : "min-h-full"),
-                )}
-                style={paged ? { scrollSnapAlign: "center" } : undefined}
-              >
-                {/*
+        <div className="relative flex min-h-0 min-w-0 flex-1">
+          <div
+            ref={scrollRef}
+            tabIndex={0}
+            role="region"
+            aria-label={title ? `${title} 文档` : "PDF 文档"}
+            onScroll={handleScroll}
+            data-pdf-scroller
+            className={cn(
+              "relative flex min-h-0 min-w-0 flex-1 gap-3 overflow-auto overscroll-contain bg-muted/40 p-3 outline-none",
+              "focus-visible:ring-2 focus-visible:ring-ring/40",
+              horizontal ? "flex-row" : "flex-col",
+              paged && "gap-6 p-4",
+            )}
+            style={{
+              scrollSnapType: snapType,
+              // All touch panning is ours. The ink canvases need
+              // `touch-action: none` (a browser that claims the pen's moves as a
+              // scroll never delivers them — design §0.3-2), and a scroller that
+              // kept native panning would then pan from the gutters with inertia
+              // and from the pages without it — two different feels for one
+              // document. So the handler in the effect above owns every touch, and
+              // `pinch-zoom` stays off the browser's list: page zoom of the whole
+              // app is not document zoom.
+              touchAction: "none",
+            }}
+          >
+            {slots.map((slot) => {
+              const render = visibleSlots.has(slot.index);
+              return (
+                <div
+                  key={slot.index}
+                  ref={slotRef(slot.index)}
+                  data-pdf-slot={slot.index}
+                  className={cn(
+                    // The slot is a plain flex box; **centring lives on the row
+                    // below as `m-auto`**, never as `justify-center` /
+                    // `items-center` here.
+                    //
+                    // `justify-content: center` on an overflowing flex item centres
+                    // it around the container's middle, which puts half of the
+                    // overflow *before* the scroll origin — and a scroll container
+                    // cannot scroll to a negative offset, so that half is
+                    // unreachable. That is exactly the bug the reader reported: at a
+                    // multiplier that makes the page wider than the viewport, the
+                    // page's left edge could not be reached (the right half was
+                    // fine, because that overflow extends the scrollable area).
+                    // Auto margins are the one centring that degrades correctly:
+                    // they take the free space when there is any, and resolve to
+                    // zero when there is not, so an oversized page starts at the
+                    // slot's leading edge and its overflow runs off the far end.
+                    // Both axes have to be safe, which is why the row uses `m-auto`
+                    // rather than one of the two alignment properties: the same
+                    // thing happens vertically in 水平 mode, where a page taller
+                    // than the viewport must be reachable from its first line.
+                    "flex shrink-0",
+                    horizontal ? undefined : "w-full",
+                    paged && (horizontal ? "min-w-full" : "min-h-full"),
+                  )}
+                  style={paged ? { scrollSnapAlign: "center" } : undefined}
+                >
+                  {/*
                   The slot's inner row carries the 双页 pairing: the pages always
                   sit left page then right page, on both axes — 方向 decides which
                   way the *slots* run, never how a pair is arranged. `items-start`
-                  keeps the two tops flush when the pages differ in height.
+                  keeps the two tops flush when the pages differ in height, and
+                  `m-auto` is what centres the whole row in its slot (see above).
                 */}
-                <div
-                  className={cn(
-                    "flex flex-row items-start justify-center",
-                    // Must agree with SPREAD_GAP — the fit maths subtracts it.
-                    slot.pages.length > 1 && "gap-2",
-                  )}
-                >
-                  {slot.pages.map((number) => (
-                    <PdfPage
-                      key={number}
-                      pageNumber={number}
-                      metrics={metrics.get(number) ?? FALLBACK_PAGE}
-                      scale={effectiveScale}
-                      renderScale={canvasScale}
-                      active={render}
-                      getPage={getPage}
-                      getTextContent={getTextContent}
-                      createTextLayer={createTextLayer}
-                      matches={search.matchesForPage(number)}
-                      activeMatch={
-                        search.activeMatch?.page === number
-                          ? search.activeMatch
-                          : null
-                      }
-                    />
-                  ))}
+                  <div
+                    className={cn(
+                      "m-auto flex flex-row items-start justify-center",
+                      // Must agree with SPREAD_GAP — the fit maths subtracts it.
+                      slot.pages.length > 1 && "gap-2",
+                    )}
+                  >
+                    {slot.pages.map((number) => (
+                      <PdfPage
+                        key={number}
+                        pageNumber={number}
+                        metrics={metrics.get(number) ?? FALLBACK_PAGE}
+                        scale={effectiveScale}
+                        renderScale={canvasScale}
+                        active={render}
+                        getPage={getPage}
+                        getTextContent={getTextContent}
+                        createTextLayer={createTextLayer}
+                        matches={search.matchesForPage(number)}
+                        activeMatch={
+                          search.activeMatch?.page === number
+                            ? search.activeMatch
+                            : null
+                        }
+                        onBoxRef={handlePageBox}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/*
+            The ink layer, over the scroller rather than in it: its toolbar is
+            chrome and has to stay put while the strip scrolls, while its *canvases*
+            are portaled into the page boxes (see `getSurfaces`) so the ink moves
+            with the page by construction. Read-only when the host has nowhere to
+            put the ink — an embedded preview still shows someone else's notes.
+          */}
+          {Boolean(onAnnotationsChange || annotations?.length) && (
+            <AnnotationLayer
+              items={annotations}
+              onItemsChange={onAnnotationsChange && handleAnnotationsChange}
+              getSurfaces={getSurfaces}
+              surfacesKey={surfacesKey}
+              onTouchDrawsChange={handleTouchDrawsChange}
+              // The layer arbitrates (palm vs pen, the multi-finger taps, closing a
+              // stroke when a second finger lands) but never *drives* the viewport:
+              // pan and pinch are the scroller's, recognised above.
+              arbitrateViewport
+              // 批注 / 浏览. Safe here precisely because the viewer's gestures are on
+              // the scroller: 浏览 hands each page's pointers back to the text layer
+              // so a passage can be selected, and pan/pinch keep working.
+              pointerToggle
+              onResetView={resetView}
+              compact={compact}
+              maxDpr={PDF_MAX_DPR}
+              maxPixels={PDF_MAX_PIXELS}
+              readOnly={!onAnnotationsChange}
+              className="absolute inset-0"
+            />
+          )}
+
+          {/*
+            恢复位置大小 for a mouse: a click is an ink dot (the ink canvas is the
+            pointer target), so the desktop half of the gesture cannot be a double
+            click any more than it can on an image. It draws nothing at the view the
+            document opened at.
+          */}
+          {!atOpeningView && (
+            <PanZoomResetPill onClick={resetView} className="bottom-4" />
+          )}
         </div>
       </div>
     </div>

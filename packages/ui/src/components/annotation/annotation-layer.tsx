@@ -42,6 +42,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import type { Annotation } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -100,6 +101,39 @@ function sameRect(a: BaseRect | null, b: BaseRect | null): boolean {
   );
 }
 
+function sameSize(
+  a: { width: number; height: number },
+  b: { width: number; height: number },
+): boolean {
+  return a.width === b.width && a.height === b.height;
+}
+
+/**
+ * Do two surface lists describe the same pixels?
+ *
+ * A fresh measurement produces fresh objects every time, so without this every
+ * resize event would re-render every canvas — and each canvas re-render replays
+ * its cached ink. The page identity and the three rectangles are the whole
+ * contract, so that is the comparison.
+ */
+function sameSurfaces(a: LayerSurface[], b: LayerSurface[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const first = a[i]!;
+    const second = b[i]!;
+    if (
+      first.page !== second.page ||
+      first.element !== second.element ||
+      !sameRect(first.rect, second.rect) ||
+      !sameRect(first.box, second.box) ||
+      !sameSize(first.canvas, second.canvas)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Identity comparison for the `items` prop.
  *
@@ -121,12 +155,63 @@ function sameItems(
   return true;
 }
 
+/**
+ * What the layer paints on: one entry per ink surface (see `types.ts`).
+ *
+ * A single-surface host (an image) is the one-element case — `element`
+ * `undefined` means "the layer's own root", which is what the canvas has always
+ * been a child of. A pdf hands over N page boxes and gets N canvases portaled into
+ * them, each carrying only its own page's items.
+ */
+interface LayerSurface {
+  /** 0-based page, or `undefined` for a single-surface base. */
+  page: number | undefined;
+  /** Portal target; `undefined` = the layer root itself. */
+  element: HTMLElement | undefined;
+  /** The base rectangle in viewport px (single surface only — see `selfMeasured`). */
+  rect: BaseRect;
+  /** The base rectangle inside the canvas element — the ink origin. */
+  box: LayerBox;
+  /** The canvas element's own CSS box. */
+  canvas: { width: number; height: number };
+  /** `true` for a page canvas: it *is* the base rectangle, so it self-measures. */
+  selfMeasured: boolean;
+}
+
+interface LayerGeometry {
+  surfaces: LayerSurface[];
+}
+
+/** The single-surface geometry, expressed as the one-element case of the above. */
+function singleSurface(
+  rect: BaseRect,
+  box: LayerBox,
+  canvas: { width: number; height: number },
+): LayerSurface {
+  return {
+    page: undefined,
+    element: undefined,
+    rect,
+    box,
+    canvas,
+    selfMeasured: false,
+  };
+}
+
 export function AnnotationLayer({
   items: itemsProp,
   onItemsChange,
   getBaseRect,
+  getSurfaces,
+  surfacesKey,
+  onTouchDrawsChange,
+  arbitrateViewport = false,
+  pointerToggle = false,
+  onResetView,
   defaultTool = DEFAULT_ANNOTATION_TOOL,
   compact,
+  maxDpr,
+  maxPixels,
   readOnly = false,
   panZoom,
   className,
@@ -150,18 +235,73 @@ export function AnnotationLayer({
   const [size, setSize] = useState<number>(DEFAULT_ANNOTATION_SIZE);
   const [hidden, setHidden] = useState(false);
   const [touchDraws, setTouchDraws] = useState(false);
+  /**
+   * 批注 vs 浏览 — whether the ink canvas takes the page's pointers.
+   *
+   * Layer state, not a host prop: the mode changes nothing the host has to know
+   * (its own gestures are recognised on its own scroller, and they work in both),
+   * so lifting it would make every host re-implement the toggle. Defaults to 批注,
+   * because writing is what an annotation layer is for; the toolbar's switch is the
+   * way back to selecting text.
+   */
+  const [pointerEnabled, setPointerEnabled] = useState(true);
   const [active, setActive] = useState(false);
 
   /**
-   * The base rectangle (viewport), its box (the ink origin, in the layer root's
-   * own pixels) and the root's layout size (the canvas element's box) — always in
-   * one read, so they cannot describe different frames.
+   * The geometry of every surface — always in one read, so a canvas can never be
+   * sized for one frame and positioned for another.
    */
-  const [geometry, setGeometry] = useState<{
-    rect: BaseRect;
-    box: LayerBox;
-    canvas: { width: number; height: number };
-  } | null>(null);
+  const [geometry, setGeometry] = useState<LayerGeometry | null>(null);
+
+  /**
+   * The observer and the elements it is currently watching.
+   *
+   * The observer is created once and then **re-pointed** by every measurement
+   * ({@link syncObserved}) rather than rebuilt around the surface list. A host may
+   * announce a geometry change on every frame of a gesture — the pdf's multiplier
+   * is part of `surfacesKey` — and an observer re-created per frame would take a
+   * fresh "initial" notification for every page each time, i.e. a burst of forced
+   * layouts in the middle of the pinch the measurement exists to keep smooth.
+   */
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const observedRef = useRef<Element[]>([]);
+
+  /** `measure` as the observer callback sees it: the current render's closure. */
+  const measureRef = useRef<(() => void) | null>(null);
+
+  /** Point the observer at exactly the elements just measured. */
+  const syncObserved = useCallback((elements: readonly Element[]) => {
+    const observer = observerRef.current;
+    const previous = observedRef.current;
+    observedRef.current = [...elements];
+    if (!observer) return;
+    const wanted = new Set(elements);
+    for (const element of elements) {
+      if (!previous.includes(element)) observer.observe(element);
+    }
+    for (const element of previous) {
+      if (!wanted.has(element)) observer.unobserve(element);
+    }
+  }, []);
+
+  /**
+   * The items of one page, in a stable array.
+   *
+   * Identity matters here: a canvas replays its cached layer whenever its `items`
+   * prop changes, so handing it a fresh `filter()` on every render would replay
+   * every page's ink on every keystroke of the toolbar. Memoised per `items`, and
+   * the image's single surface skips the map entirely.
+   */
+  const pageItems = useMemo(() => {
+    const map = new Map<number | undefined, Annotation[]>();
+    for (const item of items) {
+      const key = item.page;
+      const bucket = map.get(key);
+      if (bucket) bucket.push(item);
+      else map.set(key, [item]);
+    }
+    return map;
+  }, [items]);
 
   /**
    * Re-measure the base layer.
@@ -180,48 +320,132 @@ export function AnnotationLayer({
   const measure = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
-    const rect = getBaseRect();
+    const origin = root.getBoundingClientRect();
+    const canvas = { width: root.offsetWidth, height: root.offsetHeight };
+    const rootRect = {
+      left: origin.left,
+      top: origin.top,
+      width: origin.width,
+      height: origin.height,
+    };
+
+    if (getSurfaces) {
+      /**
+       * The paginated read. Each page box is measured **relative to the layer
+       * root**, and that relative offset is what makes this cheap: both the root
+       * and the pages live in the same scrolled coordinate space, so the
+       * difference survives a scroll untouched and the ink does not have to be
+       * re-measured (and cannot lag) while the reader scrolls.
+       *
+       * `toLayerBox` divides the accumulated ancestor transform back out, exactly
+       * as for the image, so the portaled canvas is sized in the page element's
+       * own layout pixels — the space its CSS box lives in.
+       */
+      const surfaces: LayerSurface[] = [];
+      // Every page the host announced is watched, including one whose box is not
+      // usable *yet*: a zero-sized box is skipped as a surface, but if it also went
+      // unobserved nothing would tell us when it grew, and the page would stay
+      // inkless until some unrelated re-measure.
+      const elements: HTMLElement[] = [];
+      for (const entry of getSurfaces() ?? []) {
+        elements.push(entry.element);
+        const measured = entry.element.getBoundingClientRect();
+        const box = toLayerBox(
+          {
+            left: measured.left,
+            top: measured.top,
+            width: measured.width,
+            height: measured.height,
+          },
+          rootRect,
+          canvas,
+        );
+        if (box.width <= 0 || box.height <= 0) continue;
+        // The canvas *is* the page box, so its own draw space starts at (0, 0)
+        // and is as big as the page: `box` and `canvas` are the same rectangle.
+        const size = { width: box.width, height: box.height };
+        surfaces.push({
+          page: entry.page,
+          element: entry.element,
+          rect: { left: 0, top: 0, ...size },
+          box: { left: 0, top: 0, ...size },
+          canvas: size,
+          selfMeasured: true,
+        });
+      }
+      syncObserved(elements);
+      setGeometry((previous) =>
+        previous && sameSurfaces(previous.surfaces, surfaces)
+          ? previous
+          : { surfaces },
+      );
+      return;
+    }
+
+    const rect = getBaseRect?.() ?? null;
     if (!rect || rect.width <= 0 || rect.height <= 0) {
+      syncObserved([]);
       setGeometry((previous) => (previous === null ? previous : null));
       return;
     }
-    const origin = root.getBoundingClientRect();
-    const canvas = { width: root.offsetWidth, height: root.offsetHeight };
-    const box = toLayerBox(
-      rect,
-      {
-        left: origin.left,
-        top: origin.top,
-        width: origin.width,
-        height: origin.height,
-      },
-      canvas,
-    );
+    const box = toLayerBox(rect, rootRect, canvas);
+    syncObserved([]);
     setGeometry((previous) =>
       previous &&
-      sameRect(previous.rect, rect) &&
-      sameRect(previous.box, box) &&
-      previous.canvas.width === canvas.width &&
-      previous.canvas.height === canvas.height
+      previous.surfaces.length === 1 &&
+      sameRect(previous.surfaces[0]!.rect, rect) &&
+      sameRect(previous.surfaces[0]!.box, box) &&
+      sameSize(previous.surfaces[0]!.canvas, canvas)
         ? previous
-        : { rect, box, canvas },
+        : { surfaces: [singleSurface(rect, box, canvas)] },
     );
-  }, [getBaseRect]);
+  }, [getBaseRect, getSurfaces, syncObserved]);
+  // Read by the observer callback, which outlives the render that created it.
+  measureRef.current = measure;
 
-  // A layout effect for the first measurement (the ink must not appear one frame
-  // late), then the three things that can move the base: the container resizing,
-  // the window resizing, and any ancestor scrolling (`scroll` does not bubble, so
-  // it is captured).
+  // The observer itself: created once, kept for the life of the layer, and
+  // re-pointed by the measurements below. It is what covers the changes no host
+  // can announce — a window resize, a font reflow, a page box that grows when the
+  // document finally reports its real size.
   useLayoutEffect(() => {
-    measure();
     const root = rootRef.current;
     if (!root || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() => measureRef.current?.());
+    observerRef.current = observer;
     observer.observe(root);
-    return () => observer.disconnect();
-  }, [measure]);
+    for (const element of observedRef.current) observer.observe(element);
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+      observedRef.current = [];
+    };
+  }, []);
+
+  // The measurement pass: the first one, and then every moment the host announces
+  // through `surfacesKey` — which is what a *newly mounted* page arrives by (an
+  // observer cannot watch an element it has never been handed) and, for the pdf,
+  // what a new multiplier arrives by.
+  //
+  // It is a **layout** effect on purpose, and the reason is the ink's backing
+  // store: a page canvas is pinned to its page box (`inset: 0`), so its CSS box
+  // moves with the page in the commit that changed the multiplier. Measuring in
+  // that same commit — before the browser paints — is what lets the canvas resize
+  // its store in the same paint. Through a resize observer the store would always
+  // be one frame behind its own box, and the compositor would resample the ink on
+  // every step of a pinch: soft, and visibly shimmering.
+  //
+  // The observers remain the fallback for everything the host does *not* announce
+  // (a window resize, a page box that grows when the document reports its real
+  // size). One such change costs exactly one resampled frame: a `ResizeObserver`
+  // callback's `setState` is not flushed before the paint the way a layout effect's
+  // is. That is the price of not making every host announce every geometry change,
+  // and it is one frame, once, per unannounced resize.
+  useLayoutEffect(() => {
+    measure();
+  }, [measure, surfacesKey]);
 
   useEffect(() => {
+    if (getSurfaces) return;
     const onScrollOrResize = () => measure();
     window.addEventListener("resize", onScrollOrResize);
     document.addEventListener("scroll", onScrollOrResize, true);
@@ -229,7 +453,7 @@ export function AnnotationLayer({
       window.removeEventListener("resize", onScrollOrResize);
       document.removeEventListener("scroll", onScrollOrResize, true);
     };
-  }, [measure]);
+  }, [getSurfaces, measure]);
 
   /**
    * The other half of the transform story: an animation or transition that ends on
@@ -294,20 +518,32 @@ export function AnnotationLayer({
     [onItemsChange],
   );
 
-  /** One finished gesture → a new array + one undo step (design §0.3-7). */
+  /**
+   * One finished gesture → a new array + one undo step (design §0.3-7).
+   *
+   * `page` is the surface the gesture happened on. It is stamped here rather than
+   * in the canvas because the canvas is page-agnostic on purpose: it is handed one
+   * page's items and reports a gesture, and *which* page that is belongs to the
+   * layer, which is the only place that knows the surface list. A removal needs no
+   * page — an id is unique across the document.
+   */
   const handleOperation = useCallback(
-    (operation: AnnotationOperation) => {
+    (operation: AnnotationOperation, page: number | undefined) => {
       const current = itemsRef.current;
-      if (operation.kind === "add") {
-        commit([...current, operation.item], {
+      const stamped: AnnotationOperation =
+        page === undefined || operation.kind !== "add"
+          ? operation
+          : { kind: "add", item: { ...operation.item, page } };
+      if (stamped.kind === "add") {
+        commit([...current, stamped.item], {
           kind: "add",
-          item: operation.item,
+          item: stamped.item,
         });
         return;
       }
-      if (operation.items.length === 0) return;
+      if (stamped.items.length === 0) return;
 
-      const removedIds = new Set(operation.items.map((item) => item.id));
+      const removedIds = new Set(stamped.items.map((item) => item.id));
       const removed = current
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => removedIds.has(item.id));
@@ -320,6 +556,15 @@ export function AnnotationLayer({
     },
     [commit],
   );
+
+  /**
+   * The host has to know whether a single finger draws (see
+   * {@link AnnotationLayerProps.onTouchDrawsChange}) — a host that scrolls would
+   * otherwise pan with the same finger the pen is writing with.
+   */
+  useEffect(() => {
+    onTouchDrawsChange?.(touchDraws);
+  }, [onTouchDrawsChange, touchDraws]);
 
   const canUndo = history.index > 0;
   const canRedo = history.index < history.entries.length;
@@ -426,14 +671,23 @@ export function AnnotationLayer({
         // registers no global keyboard and colours are toolbar-only), and the
         // letters above are what the toolbar lists.
         case "0":
-          panZoom?.reset();
+          // A transform host resets its controller; a scrolling host supplies the
+          // action (`AnnotationLayerProps.onResetView`).
+          if (panZoom) panZoom.reset();
+          else onResetView?.();
           return;
         default:
           return;
       }
     },
-    [panZoom, readOnly, redo, stepSize, undo],
+    [onResetView, panZoom, readOnly, redo, stepSize, undo],
   );
+
+  // No document-level key handler is needed for a portaled page canvas: React
+  // dispatches synthetic events along the **React** tree, so the root's `onKeyDown`
+  // above already receives keys from a canvas that lives in a page box (the same
+  // property `annotation-toolbar.tsx` relies on for its portalled menu). Adding one
+  // fired every shortcut twice — `[`/`]` stepped two nibs, `\` toggled twice.
 
   const toolbar = useMemo(
     () =>
@@ -454,6 +708,14 @@ export function AnnotationLayer({
           onToggleHidden={() => setHidden((current) => !current)}
           touchDraws={touchDraws}
           onToggleTouchDraws={() => setTouchDraws((current) => !current)}
+          pointerEnabled={pointerEnabled}
+          onTogglePointer={
+            // Never offered to a single-surface host: its canvas *is* the gesture
+            // surface, so 浏览 would take pan and pinch with the pointers.
+            pointerToggle
+              ? () => setPointerEnabled((current) => !current)
+              : undefined
+          }
           itemCount={items.length}
           compact={compact}
           className="absolute left-2 top-2 z-30 max-w-[calc(100%-1rem)]"
@@ -467,6 +729,8 @@ export function AnnotationLayer({
       compact,
       hidden,
       items.length,
+      pointerEnabled,
+      pointerToggle,
       readOnly,
       redo,
       size,
@@ -484,24 +748,52 @@ export function AnnotationLayer({
       onKeyDown={handleKeyDown}
       className={cn("pointer-events-none absolute inset-0", className)}
     >
-      {geometry && (
-        <AnnotationCanvas
-          box={geometry.box}
-          canvas={geometry.canvas}
-          rect={geometry.rect}
-          items={items}
-          tool={tool}
-          size={size}
-          color={color}
-          touchDraws={touchDraws}
-          hidden={hidden}
-          panZoom={panZoom}
-          onUndo={undo}
-          onRedo={redo}
-          onOperation={handleOperation}
-          onActiveChange={setActive}
-        />
-      )}
+      {geometry?.surfaces.map((surface) => {
+        const canvas = (
+          <AnnotationCanvas
+            key={surface.page ?? "single"}
+            box={surface.box}
+            canvas={surface.canvas}
+            rect={surface.rect}
+            selfMeasured={surface.selfMeasured}
+            maxDpr={maxDpr}
+            maxPixels={maxPixels}
+            items={
+              surface.page === undefined
+                ? items
+                : (pageItems.get(surface.page) ?? NO_ITEMS)
+            }
+            tool={tool}
+            size={size}
+            color={color}
+            touchDraws={touchDraws}
+            hidden={hidden}
+            readOnly={readOnly}
+            panZoom={panZoom}
+            arbitrateViewport={arbitrateViewport}
+            pointerEnabled={pointerEnabled}
+            onUndo={undo}
+            onRedo={redo}
+            onOperation={(operation) =>
+              handleOperation(operation, surface.page)
+            }
+            onActiveChange={setActive}
+          />
+        );
+        // A page canvas is portaled *into* its page box, which is what makes it
+        // scroll, clip and zoom with the page instead of being re-measured onto it
+        // every frame. The layer root stays the single owner of the toolbar and of
+        // the history; only the pixels move into the page.
+        //
+        // The *portal* carries the key, not just the canvas inside it: an array of
+        // portals is reconciled as a list, and an unkeyed entry is matched by
+        // position — so a surface arriving in the middle of the list (a page
+        // re-entering the rendering window) would hand its ink canvas another
+        // page's component instance, and with it that page's cached pixels.
+        return surface.element
+          ? createPortal(canvas, surface.element, surface.page ?? "single")
+          : canvas;
+      })}
       {toolbar}
     </div>
   );

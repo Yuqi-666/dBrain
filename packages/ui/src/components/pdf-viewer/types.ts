@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Annotation } from "@workspace/interfaces";
 import type { PDFPageProxy } from "pdfjs-dist";
 
 /** Layout axis of the page strip. */
@@ -79,8 +80,92 @@ export function pdfSlotStartPage(slot: number, spread: PdfSpread): number {
   return (slot - 1) * pdfSpreadStep(spread) + 1;
 }
 
+/**
+ * Which pages are inside the rendering window — the filter the ink layer's surface
+ * list is built with.
+ *
+ * It exists as a function because the obvious version is wrong: the visible set the
+ * `IntersectionObserver` maintains holds **slot** indices, and in 双页 one slot is
+ * two pages, so "is page 3 visible" is `visibleSlots.has(pdfSlotOf(3, spread))` and
+ * not `visibleSlots.has(3)`. Testing membership by page number would surface the
+ * left page of every spread and silently deny the right one its ink.
+ */
+export function pdfSurfacedPages(
+  pages: Iterable<number>,
+  visibleSlots: ReadonlySet<number>,
+  spread: PdfSpread,
+): number[] {
+  const surfaced: number[] = [];
+  for (const page of pages) {
+    if (visibleSlots.has(pdfSlotOf(page, spread))) surfaced.push(page);
+  }
+  return surfaced;
+}
+
 export const PDF_MIN_SCALE = 0.25;
 export const PDF_MAX_SCALE = 6;
+
+/**
+ * The device-pixel ratio a page is rasterised at, capped.
+ *
+ * Above 2 the bitmap grows quadratically for detail the eye does not resolve at
+ * reading distance, and a page is already a large allocation at 适配宽度; the ink
+ * layer is capped to the same number for the same reason (see
+ * `AnnotationCanvasProps.maxDpr`), so the paper and the ink on it stay one density.
+ *
+ * This is the *ratio* half of the density policy. {@link pdfRasterDpr} is the whole
+ * of it, and is what the paper reads; the ink layer reads this cap plus
+ * {@link PDF_MAX_PIXELS} directly (it has to apply the area back-off itself, since
+ * only the canvas knows its own measured box).
+ */
+export const PDF_MAX_DPR = 2;
+
+/**
+ * The most device pixels **one page-sized surface** may be rasterised into —
+ * 4096², the smallest per-canvas area every browser this app runs in actually
+ * allocates (WebKit is the tightest of them) and one the compositor keeps on the
+ * GPU.
+ *
+ * A ratio cap alone does not bound a page: a page is painted *whole*, so its
+ * bitmap is `pageCSS² × dpr²`, and at `PDF_MAX_SCALE` (6) a Letter page is
+ * 3672 × 4752 CSS pixels — 70 MP at dpr 2, ~280 MB. At that size the repaint stops
+ * being a repaint and becomes an allocation that fails: `getContext("2d")` hands
+ * back `null` and the page keeps whatever the last wipe left. The budget turns
+ * "huge page at a huge multiplier" into "slightly softer page", which is the whole
+ * of its ambition.
+ *
+ * It is the paper's budget and the ink's alike — `pdf-page.tsx` paints with
+ * {@link pdfRasterDpr} and the viewer hands the annotation layer the same number as
+ * `maxPixels` — because paper and ink have to stay one density, or a stroke ends up
+ * crisper (or coarser) than the glyphs it sits on. Note what it does *not* bound:
+ * one visible page costs up to **three** surfaces of this size (the page bitmap, the
+ * ink canvas, and the ink's offscreen cache), and the ±1000px rendering window
+ * keeps several pages alive.
+ */
+export const PDF_MAX_PIXELS = 16_777_216;
+
+/**
+ * The device-pixel density one page surface is rasterised at: the display's,
+ * capped at {@link PDF_MAX_DPR}, then backed off far enough that the whole
+ * surface still fits in {@link PDF_MAX_PIXELS}.
+ *
+ * `width`/`height` are the surface's **CSS** pixels, which is the one place the
+ * "how big is the box" question becomes "how many pixels may that be": the box
+ * follows a gesture while the bitmap does not, so the answer has to be about the
+ * box, never about the viewport. A density below 1 is a legitimate answer for a
+ * page larger than the budget even at dpr 1 — soft beats an allocation that fails.
+ */
+export function pdfRasterDpr(
+  deviceDpr: number,
+  width: number,
+  height: number,
+): number {
+  const dpr = Math.min(deviceDpr > 0 ? deviceDpr : 1, PDF_MAX_DPR);
+  if (!(width > 0) || !(height > 0)) return dpr;
+  const area = width * height * dpr * dpr;
+  if (!(area > PDF_MAX_PIXELS)) return dpr;
+  return dpr * Math.sqrt(PDF_MAX_PIXELS / area);
+}
 
 /** Multipliers the zoom in/out buttons walk through. */
 export const PDF_ZOOM_STEPS: readonly number[] = [
@@ -101,9 +186,12 @@ export const PDF_ZOOM_CRISP_RATIO = 1.02;
  *
  * This is the one knob that trades mid-gesture sharpness for how often a gesture
  * still rasterises: a mouse spin from 1× to 6× costs 2 repaints at 2.0 and 3 at
- * 1.6, while a trackpad pinch to 2× costs none. Leaving it at 2.0 is what the
- * device-pixel-ratio budget allows — pages are painted at `min(dpr, 2)`, so a 2×
- * stretch still lands on one device pixel per CSS pixel of a 2× display.
+ * 1.6, while a trackpad pinch to 2× costs none. At 2.0 the worst case is one device
+ * pixel per CSS pixel of a 2× display **only while the painted density is 2**; on a
+ * page big enough for `PDF_MAX_PIXELS` to bind, the density is already below 1
+ * (a Letter page at 6× paints at ≈0.98 on a 2× display), so a 2× stretch mid-gesture
+ * is softer than one device pixel per CSS pixel. That is deliberate: the alternative
+ * is re-running pdfjs on a 70 MP canvas in the middle of a pinch.
  */
 export const PDF_ZOOM_STRETCH_LIMIT = 2;
 
@@ -195,6 +283,20 @@ export interface PdfViewerProps {
   defaultScale?: number;
   /** Initial fit mode. Defaults to 适配宽度 (or `free` when `defaultScale` is set). */
   defaultFit?: PdfFitMode;
+  /**
+   * The persisted ink layer (`PdfContent.annotations.items`). Every item carries a
+   * 0-based `Annotation.page`; the viewer paints each page's ink on that page.
+   */
+  annotations?: Annotation[];
+  /**
+   * One finished ink gesture. Providing it is what makes the document
+   * **annotatable**: without it the layer is mounted read-only — the ink is still
+   * painted (a host showing someone else's document should show their notes) but
+   * no pen, no toolbar and no pointer target.
+   */
+  onAnnotationsChange?: (items: Annotation[]) => void;
+  /** Dialog mode: the ink toolbar starts folded (design §2.4). */
+  compact?: boolean;
   /** Extra controls for the toolbar's right-hand group. */
   toolbarExtras?: ReactNode;
   onPageChange?: (page: number, pageCount: number) => void;

@@ -34,7 +34,9 @@ import {
   Eraser,
   Eye,
   EyeOff,
+  Hand,
   Pen,
+  PenLine,
   Redo2,
   Trash2,
   Undo2,
@@ -268,6 +270,8 @@ export function AnnotationToolbar({
   onToggleHidden,
   touchDraws,
   onToggleTouchDraws,
+  pointerEnabled,
+  onTogglePointer,
   itemCount,
   compact = false,
   className,
@@ -465,6 +469,26 @@ export function AnnotationToolbar({
             >
               {hidden ? <EyeOff /> : <Eye />}
             </ToolbarButton>
+
+            {/*
+              批注 / 浏览. Only a host whose viewport gestures live *elsewhere*
+              (the pdf scroller) can offer this: on an image the ink canvas is the
+              gesture surface, so taking its pointers would take pan and pinch with
+              them. 浏览 hands the page's pointers back to what is underneath — the
+              text layer, i.e. selection — while the toolbar, the ink and every
+              gesture keep working.
+            */}
+            {onTogglePointer && (
+              <ToolbarButton
+                data-annotation-pointer
+                label={pointerEnabled ? "浏览（可选文字）" : "批注（可书写）"}
+                aria-pressed={pointerEnabled}
+                onClick={onTogglePointer}
+                className="aria-pressed:bg-accent aria-pressed:text-foreground"
+              >
+                {pointerEnabled ? <PenLine /> : <Hand />}
+              </ToolbarButton>
+            )}
           </>
         )}
 
@@ -527,6 +551,15 @@ export function AnnotationToolbar({
             >
               手指=书写
             </DropdownMenuCheckboxItem>
+            {onTogglePointer && (
+              <DropdownMenuCheckboxItem
+                data-annotation-pointer
+                checked={pointerEnabled}
+                onCheckedChange={() => onTogglePointer()}
+              >
+                {pointerEnabled ? "批注（可书写）" : "浏览（可选文字）"}
+              </DropdownMenuCheckboxItem>
+            )}
             {/* The folded row only has room for 当前工具 + 橡皮 + 撤销 + 颜色 +
                 更多 (design §2.4), which would leave 粗细 and 隐藏批注 with no
                 entry at all in the Dialog form. They move in here rather than

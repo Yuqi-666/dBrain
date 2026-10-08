@@ -13,14 +13,19 @@
  *
  * It is deliberately part of the `pan-zoom` module rather than of a host: it
  * needs nothing but `{ transform, controller }` — the value `usePanZoom`
- * already returns — so any host (this image node today, a pdf viewer later)
- * drops it in and gets the same affordance:
+ * already returns — so any host (the image node) drops it in and gets the same
+ * affordance:
  *
  * ```tsx
  * const panZoom = usePanZoom({ containerRef, getBounds });
  * // inside the `relative` container that the base lives in:
  * <PanZoomResetButton {...panZoom} />
  * ```
+ *
+ * {@link PanZoomResetPill} is the same control without the `PanZoomController`
+ * dependency, for a host whose fit is not a CSS transform — the pdf viewer, whose
+ * zoom is a page-box multiplier: it decides for itself when the reader has left the
+ * opening view and calls the pill with its own reset.
  *
  * ## Three things that are load-bearing
  *
@@ -53,18 +58,31 @@ export interface PanZoomResetButtonProps extends PanZoom {
   className?: string;
 }
 
-export function PanZoomResetButton({
-  transform,
-  controller,
+/**
+ * The pill itself — presentational, and shared with hosts that do **not** own a
+ * {@link ViewportTransform}.
+ *
+ * The pdf viewer is that host: its "fit" is a page-box multiplier rather than a
+ * CSS transform, so it has no `PanZoomController` to hand over, but 恢复位置大小
+ * looks and behaves exactly like this on both. Rendering the button is therefore
+ * split from deciding *when* it is there — the transform host asks
+ * `isIdentityTransform`, the pdf asks whether the reader has left the opening
+ * view, and neither duplicates the chrome (or its two load-bearing details, the
+ * pointer-events sandwich and `z-20`).
+ */
+export interface PanZoomResetPillProps {
+  /** Visible text, and the accessible name. */
+  label?: string;
+  /** Position overrides for a host whose bottom edge is not the right place. */
+  className?: string;
+  onClick: () => void;
+}
+
+export function PanZoomResetPill({
   label = "恢复位置大小",
   className,
-}: PanZoomResetButtonProps) {
-  // The one render-time decision: at fit there is nothing to restore, so there
-  // is no button. `isIdentityTransform` is the same predicate the clamp and the
-  // gestures use, so "the button is gone" and "the view is at fit" cannot
-  // disagree.
-  if (isIdentityTransform(transform)) return null;
-
+  onClick,
+}: PanZoomResetPillProps) {
   return (
     <div
       data-pan-zoom-reset
@@ -78,7 +96,7 @@ export function PanZoomResetButton({
         variant="outline"
         size="sm"
         aria-label={label}
-        onClick={() => controller.reset()}
+        onClick={onClick}
         // The floating chrome the annotation toolbar already uses, so the two
         // controls read as one family: popover surface, hairline border, blur.
         className="pointer-events-auto border-border/60 bg-popover/95 text-popover-foreground shadow-md ring-1 ring-foreground/5 backdrop-blur-sm animate-in fade-in-0 slide-in-from-bottom-2 duration-150"
@@ -87,5 +105,26 @@ export function PanZoomResetButton({
         {label}
       </Button>
     </div>
+  );
+}
+
+export function PanZoomResetButton({
+  transform,
+  controller,
+  label = "恢复位置大小",
+  className,
+}: PanZoomResetButtonProps) {
+  // The one render-time decision: at fit there is nothing to restore, so there
+  // is no button. `isIdentityTransform` is the same predicate the clamp and the
+  // gestures use, so "the button is gone" and "the view is at fit" cannot
+  // disagree.
+  if (isIdentityTransform(transform)) return null;
+
+  return (
+    <PanZoomResetPill
+      label={label}
+      className={className}
+      onClick={() => controller.reset()}
+    />
   );
 }
