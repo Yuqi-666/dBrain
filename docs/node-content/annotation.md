@@ -13,22 +13,22 @@
 
 批注要盖上去的两个底图，今天分别长这样：
 
-| 现有物            | 位置                                                                              | 现状                                                                                                                                                                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| image 底图        | `packages/ui/src/components/dialog/editor/content/image-node-content.tsx:58-65`   | 一个 `<img className="aspect-auto rounded-sm object-contain">`，外面套 `relative flex items-center p-4 overflow-hidden`（`:47-52`）。**没有容器尺寸的显式测量**，图片按 `object-contain` 居中，letterbox 由 CSS 决定；加载态盖一层 `absolute inset-0 z-10`（`:53-57`），即"绝对定位覆盖层"这个写法在这个文件里已经存在 |
-| pdf 底图          | `packages/ui/src/components/dialog/editor/content/pdf-node-content.tsx:44-53`     | **`<iframe src={url}>`**，外框 `flex-1 rounded-lg overflow-hidden bg-muted/30`（`:42`）。iframe 内部是**浏览器自带的 PDF 阅读器**（Chrome/Edge 的 PDFium 查看器），跨源且不暴露任何 API                                                            |
-| 无文件时的入口    | 两者都落到 `FileDropZone`（`:37-43` / `:31-37`）                                   | 上传后由 `@workspace/api-client` 的 `analyzePdf` / `transcodeVideo` 补齐元数据（`file-drop-zone.tsx:20-22`）                                                                                                                                    |
-| 时间戳笔记的雏形  | `video-node-content.tsx` / `audio-node-content.tsx`                               | 两者都只是原生 `<audio controls>` / `<VideoPlayer>`（`:41-48` / `:84-92`），**没有**任何时间锚点或笔记数据结构 —— 提案里的「时间戳笔记」同样是待建物                                                                                            |
-| 宿主：全屏与 Dialog | `node-editor.tsx:44-66` / `:69-78`                                                | `mainViewType === "graph"` 时是 Dialog（`w-[1200px] h-[80vh]`，`:55`），`=== "editor"` 时是 `absolute inset-0 z-50`（`:72`）；两种形态共用 `NodeEditorContent`（`:92-114`），内容区是 `flex-1 overflow-y-auto`（`:105`）                          |
-| 路由              | `node-content-editor.tsx:29-62`                                                   | `useMemo` + `switch (nodeType)` 分发，`case "image"` / `case "pdf"` 是 §9 要改的两处                                                                                                                                                            |
+| 现有物              | 位置                                                                            | 现状                                                                                                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| image 底图          | `packages/ui/src/components/dialog/editor/content/image-node-content.tsx:58-65` | 一个 `<img className="aspect-auto rounded-sm object-contain">`，外面套 `relative flex items-center p-4 overflow-hidden`（`:47-52`）。**没有容器尺寸的显式测量**，图片按 `object-contain` 居中，letterbox 由 CSS 决定；加载态盖一层 `absolute inset-0 z-10`（`:53-57`），即"绝对定位覆盖层"这个写法在这个文件里已经存在 |
+| pdf 底图            | `packages/ui/src/components/dialog/editor/content/pdf-node-content.tsx:44-53`   | **`<iframe src={url}>`**，外框 `flex-1 rounded-lg overflow-hidden bg-muted/30`（`:42`）。iframe 内部是**浏览器自带的 PDF 阅读器**（Chrome/Edge 的 PDFium 查看器），跨源且不暴露任何 API                                                                                                                                |
+| 无文件时的入口      | 两者都落到 `FileDropZone`（`:37-43` / `:31-37`）                                | 上传后由 `@workspace/api-client` 的 `analyzePdf` / `transcodeVideo` 补齐元数据（`file-drop-zone.tsx:20-22`）                                                                                                                                                                                                           |
+| 时间戳笔记的雏形    | `video-node-content.tsx` / `audio-node-content.tsx`                             | 两者都只是原生 `<audio controls>` / `<VideoPlayer>`（`:41-48` / `:84-92`），**没有**任何时间锚点或笔记数据结构 —— 提案里的「时间戳笔记」同样是待建物                                                                                                                                                                   |
+| 宿主：全屏与 Dialog | `node-editor.tsx:44-66` / `:69-78`                                              | `mainViewType === "graph"` 时是 Dialog（`w-[1200px] h-[80vh]`，`:55`），`=== "editor"` 时是 `absolute inset-0 z-50`（`:72`）；两种形态共用 `NodeEditorContent`（`:92-114`），内容区是 `flex-1 overflow-y-auto`（`:105`）                                                                                               |
+| 路由                | `node-content-editor.tsx:29-62`                                                 | `useMemo` + `switch (nodeType)` 分发，`case "image"` / `case "pdf"` 是 §9 要改的两处                                                                                                                                                                                                                                   |
 
 批注要挂靠的数据形态（今天）：
 
-| 类型  | 定义                                                                | 落库形态                                                                                                                                                                                       |
-| ----- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| image | `ImageContent { url: string }`（`packages/interfaces/src/models/node/nodes/single/image.ts:14-16`） | `nodes.content` 这个 **json 列**里存一个**裸字符串**：写 `content: node.content.url`（`backend/infrastructure/src/database/mappers/node.mapper.ts:481-491`），读 `new ImageContent(record.content \|\| "")`（`:272`） |
-| pdf   | `PdfContent { url: string; coverUrl: string }`（`.../single/pdf.ts:11-14`） | `content` 列存 url（同上 `:493-501`）、`coverUrl` 用**专用列**（`pb/pb_migrations/1700000000_initial_schema.js:142`），读 `new PdfContent(record.content \|\| "", record.coverUrl \|\| "")`（`node.mapper.ts:292`） |
-| 复杂类型的先例 | `RichTextContent { referencedNodes, docs }`（`.../complex/rich-text.ts:7-10`） | `referencedNodes` + `docs` 是**两个专用 json 列**（migration `:172-173`）。但 `docs` 存的**不是 Yjs 二进制**：`onContentChange` 拿到的是 `editor.getJSON()`（`packages/editor/components/tiptap-templates/notion-like/notion-like-editor.tsx:223-228`），写回见 `rich-text-node-content.tsx:20-30`（`{ debounce: true }`） |
+| 类型           | 定义                                                                                                | 落库形态                                                                                                                                                                                                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| image          | `ImageContent { url: string }`（`packages/interfaces/src/models/node/nodes/single/image.ts:14-16`） | `nodes.content` 这个 **json 列**里存一个**裸字符串**：写 `content: node.content.url`（`backend/infrastructure/src/database/mappers/node.mapper.ts:481-491`），读 `new ImageContent(record.content \|\| "")`（`:272`）                                                                                                      |
+| pdf            | `PdfContent { url: string; coverUrl: string }`（`.../single/pdf.ts:11-14`）                         | `content` 列存 url（同上 `:493-501`）、`coverUrl` 用**专用列**（`pb/pb_migrations/1700000000_initial_schema.js:142`），读 `new PdfContent(record.content \|\| "", record.coverUrl \|\| "")`（`node.mapper.ts:292`）                                                                                                        |
+| 复杂类型的先例 | `RichTextContent { referencedNodes, docs }`（`.../complex/rich-text.ts:7-10`）                      | `referencedNodes` + `docs` 是**两个专用 json 列**（migration `:172-173`）。但 `docs` 存的**不是 Yjs 二进制**：`onContentChange` 拿到的是 `editor.getJSON()`（`packages/editor/components/tiptap-templates/notion-like/notion-like-editor.tsx:223-228`），写回见 `rich-text-node-content.tsx:20-30`（`{ debounce: true }`） |
 
 其它与本次决策直接相关的事实：
 
@@ -42,11 +42,11 @@
 
 #### ① 批注数据存哪里：**新增一个节点级 `annotations` json 列，挂在 `ImageContent` / `PdfContent` 上**
 
-| 候选                                    | 协作/冲突                                | 体积                                                       | 全链路改造面                                                                                                                                                                                                                     | 结论       |
-| --------------------------------------- | ---------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| **A. 结构化数组进 `content`（新列）**   | 节点级 last-write-wins（`upsert` 已如此） | 归一化坐标 + 抽稀 → 一笔约 2–4 KB JSON（**待实测**）        | domain VO 2 个 + application 4 处 + DTO mapper 2 个字面量 + infra mapper 读写 + PB 新列（新迁移）+ tRPC `add` schema 2 个                                                                                                        | **选用**   |
-| B. Yjs 文档（像 rich-text 的 `docs`）   | 理论最优（CRDT 字符级合并）              | 二进制 update 比 JSON 小，但需要 compaction                 | 需要**真实的** relay + 服务端 update 存储 + 前端 provider；而今天协作是 `MockCollabProvider`（`mock-collab.ts:48`），`docs` 本身也只是 Tiptap JSON —— 抄它只抄到「一个 json 列」，抄不到任何合并能力                                | 排除       |
-| C. 独立 `annotations` 表                 | 行级并发安全                             | 与 A 相同，另加行开销                                       | 新增 PB collection + repo + mapper + tRPC router + 领域事件 + `event-bridge` 映射（见 `backend/adapter-front/AGENTS.md` 的 15 个 emitter 表）+ 权限规则；还要处理「节点删除 → 批注孤儿」                                                        | 排除       |
+| 候选                                  | 协作/冲突                                 | 体积                                                 | 全链路改造面                                                                                                                                                                                         | 结论     |
+| ------------------------------------- | ----------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **A. 结构化数组进 `content`（新列）** | 节点级 last-write-wins（`upsert` 已如此） | 归一化坐标 + 抽稀 → 一笔约 2–4 KB JSON（**待实测**） | domain VO 2 个 + application 4 处 + DTO mapper 2 个字面量 + infra mapper 读写 + PB 新列（新迁移）+ tRPC `add` schema 2 个                                                                            | **选用** |
+| B. Yjs 文档（像 rich-text 的 `docs`） | 理论最优（CRDT 字符级合并）               | 二进制 update 比 JSON 小，但需要 compaction          | 需要**真实的** relay + 服务端 update 存储 + 前端 provider；而今天协作是 `MockCollabProvider`（`mock-collab.ts:48`），`docs` 本身也只是 Tiptap JSON —— 抄它只抄到「一个 json 列」，抄不到任何合并能力 | 排除     |
+| C. 独立 `annotations` 表              | 行级并发安全                              | 与 A 相同，另加行开销                                | 新增 PB collection + repo + mapper + tRPC router + 领域事件 + `event-bridge` 映射（见 `backend/adapter-front/AGENTS.md` 的 15 个 emitter 表）+ 权限规则；还要处理「节点删除 → 批注孤儿」             | 排除     |
 
 选 A 的三条理由：
 
@@ -78,12 +78,12 @@
 
 #### ④ 绘制引擎：**自研 Canvas 2D 分层 + 只借 `perfect-freehand` 的描边数学**
 
-| 候选                                     | 评估                                                                                                                                                                                                                                                                                                                                                                              | 结论             |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| **自研 Canvas 2D 分层**                  | 批注层要叠在**别人的**底图上，且要能"只认笔、放行手指"（§4）。canvas 是唯一能精确控制这两件事的载体。成本集中在笔迹数学与命中测试两块，前者可外包（下一行）                                                                                                                                                                                                                          | **选用**         |
-| 复用 Excalidraw（依赖已在仓库）          | `@excalidraw/excalidraw@0.18.1` 的 npm 包 unpacked **46.8 MB / 1029 文件**（registry 实测，MIT）。`UIOptions` 只能定制 `canvasActions` / `welcomeScreen` / `tools` / `dockedSidebarBreakpoint`（官方 UIOptions 文档），**没有"只要 freehand"的入口**。仓库今天的用法是把它整个塞进 Dialog 当**图表块**（`packages/editor/components/tiptap-node/excalidraw/excalidraw-view.tsx`，保存时把整个场景 JSON 当附件上传）——那是"独立画布"语义，与"在 PDF 第 3 页的这句话上画一条线"不是一回事。它还不支持 SSR，必须客户端 dynamic import（官方 integration 文档），而 `packages/ui` 不能引 `next/dynamic`（§0.1） | 排除             |
-| `perfect-freehand` 描边                  | `getStroke(points, options)` 把输入点变成压力变宽的 outline polygon；输入点第三个数即笔压，`simulatePressure: false` 才用真实笔压；四个主旋钮 `size` / `thinning` / `smoothing` / `streamline`（README 实测）。**1.2.3 / unpacked 112 KB / 27 文件 / MIT**（registry 实测）。只借"点 → 轮廓"，渲染仍归自己的 canvas                                                                                                                              | **选用（仅此层）** |
-| 朴素 `ctx.lineTo` + 分段 `lineWidth`     | 省掉 112 KB，得到一节一节的"香肠"。书写观感是本功能的核心体验，不值得省                                                                                                                                                                                                                                                                                                            | 排除             |
+| 候选                                 | 评估                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 结论               |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **自研 Canvas 2D 分层**              | 批注层要叠在**别人的**底图上，且要能"只认笔、放行手指"（§4）。canvas 是唯一能精确控制这两件事的载体。成本集中在笔迹数学与命中测试两块，前者可外包（下一行）                                                                                                                                                                                                                                                                                                                                                                                                                                                 | **选用**           |
+| 复用 Excalidraw（依赖已在仓库）      | `@excalidraw/excalidraw@0.18.1` 的 npm 包 unpacked **46.8 MB / 1029 文件**（registry 实测，MIT）。`UIOptions` 只能定制 `canvasActions` / `welcomeScreen` / `tools` / `dockedSidebarBreakpoint`（官方 UIOptions 文档），**没有"只要 freehand"的入口**。仓库今天的用法是把它整个塞进 Dialog 当**图表块**（`packages/editor/components/tiptap-node/excalidraw/excalidraw-view.tsx`，保存时把整个场景 JSON 当附件上传）——那是"独立画布"语义，与"在 PDF 第 3 页的这句话上画一条线"不是一回事。它还不支持 SSR，必须客户端 dynamic import（官方 integration 文档），而 `packages/ui` 不能引 `next/dynamic`（§0.1） | 排除               |
+| `perfect-freehand` 描边              | `getStroke(points, options)` 把输入点变成压力变宽的 outline polygon；输入点第三个数即笔压，`simulatePressure: false` 才用真实笔压；四个主旋钮 `size` / `thinning` / `smoothing` / `streamline`（README 实测）。**1.2.3 / unpacked 112 KB / 27 文件 / MIT**（registry 实测）。只借"点 → 轮廓"，渲染仍归自己的 canvas                                                                                                                                                                                                                                                                                         | **选用（仅此层）** |
+| 朴素 `ctx.lineTo` + 分段 `lineWidth` | 省掉 112 KB，得到一节一节的"香肠"。书写观感是本功能的核心体验，不值得省                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 排除               |
 
 > 未采「拿 Excalidraw 的导出工具烘图」：`@excalidraw/utils` 是另一个包，`exportToBlob` / `exportToSvg` 只对 Excalidraw 的场景元素有效，对"img + 我的手写图元"不适用。烘焙导出自己实现，见 §5。
 
@@ -108,12 +108,12 @@
 
 ### 1.1 目标与使用场景
 
-| 目标           | 场景                                                                       | 宿主                        |
-| -------------- | -------------------------------------------------------------------------- | --------------------------- |
-| **照片批注**   | 在照片上用笔圈重点、写批语、画箭头；导出带批注的图给人看                    | `ImageNodeContent`（P0）    |
-| **PDF 批注**   | 在讲义/论文上划重点、写旁注；缩放/翻页/旋转后批注仍贴在原来的位置            | `PdfNodeContent`（P1）      |
-| **触控笔优先** | 目标设备是一加平板 + OPPO Pencil 类手写笔：笔书写、手指平移缩放，互不打架    | 两者                        |
-| **不破坏底图** | 批注是**叠加层**，底图文件本身一个字节都不改（提案原文："覆盖一层批注组件"） | 两者                        |
+| 目标           | 场景                                                                         | 宿主                     |
+| -------------- | ---------------------------------------------------------------------------- | ------------------------ |
+| **照片批注**   | 在照片上用笔圈重点、写批语、画箭头；导出带批注的图给人看                     | `ImageNodeContent`（P0） |
+| **PDF 批注**   | 在讲义/论文上划重点、写旁注；缩放/翻页/旋转后批注仍贴在原来的位置            | `PdfNodeContent`（P1）   |
+| **触控笔优先** | 目标设备是一加平板 + OPPO Pencil 类手写笔：笔书写、手指平移缩放，互不打架    | 两者                     |
+| **不破坏底图** | 批注是**叠加层**，底图文件本身一个字节都不改（提案原文："覆盖一层批注组件"） | 两者                     |
 
 成功标准（可验收）：
 
@@ -153,15 +153,15 @@
 
 ### 1.3 image 与 pdf 两个宿主的差异
 
-| 维度       | image                                                       | pdf                                                                  |
-| ---------- | ----------------------------------------------------------- | -------------------------------------------------------------------- |
-| 底图       | 一个 `<img>`，`object-contain`，有 letterbox                 | N 个 `<canvas>`，一页一块，无 letterbox，垂直滚动                     |
-| 坐标空间与图元 | `(u, v) ∈ [0,1]²`，数组追加                              | `(pageIndex, (u, v) ∈ [0,1]²)`，数组追加 + `page` 字段              |
-| 墨迹层数量 | **1 块** canvas 铺满图片显示矩形                             | **每页 1 块**，尺寸严格等于该页 canvas                               |
-| 缩放来源   | P0 只有容器尺寸变化（无用户缩放）                            | 用户缩放（pinch / ⌘wheel）+ 滚动 + 翻页 + 页面旋转                    |
-| 命中测试   | 直接归一化                                                   | 先由 `clientY + scrollTop` 定位页，再页内归一化                       |
-| 烘焙导出   | 一次 `drawImage(img)` 即可                                   | 逐页导出，或只导当前页                                                |
-| 降级       | 无                                                           | pdfjs 初始化失败 → 回落 iframe（只能看，不能批注）                    |
+| 维度           | image                                        | pdf                                                    |
+| -------------- | -------------------------------------------- | ------------------------------------------------------ |
+| 底图           | 一个 `<img>`，`object-contain`，有 letterbox | N 个 `<canvas>`，一页一块，无 letterbox，垂直滚动      |
+| 坐标空间与图元 | `(u, v) ∈ [0,1]²`，数组追加                  | `(pageIndex, (u, v) ∈ [0,1]²)`，数组追加 + `page` 字段 |
+| 墨迹层数量     | **1 块** canvas 铺满图片显示矩形             | **每页 1 块**，尺寸严格等于该页 canvas                 |
+| 缩放来源       | P0 只有容器尺寸变化（无用户缩放）            | 用户缩放（pinch / ⌘wheel）+ 滚动 + 翻页 + 页面旋转     |
+| 命中测试       | 直接归一化                                   | 先由 `clientY + scrollTop` 定位页，再页内归一化        |
+| 烘焙导出       | 一次 `drawImage(img)` 即可                   | 逐页导出，或只导当前页                                 |
+| 降级           | 无                                           | pdfjs 初始化失败 → 回落 iframe（只能看，不能批注）     |
 
 ---
 
@@ -171,32 +171,32 @@
 
 `AnnotationTool` 是一个判别字符串，toolbar 的状态就是它的一个超集：
 
-| 工具         | 图标（lucide）  | 快捷键 | 触屏入口       | 状态与行为                                                                                                       |
-| ------------ | --------------- | ------ | -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 笔           | `Pen`           | `P` / `1` | 主按钮（默认） | `size` / `thinning` / `smoothing` / `streamline` 四参由预设决定；`simulatePressure` 由输入源自动判定（§4）         |
-| 荧光笔       | `Highlighter`   | `H` / `2` | 有            | 同 pen，但固定 `opacity: 0.35` + `globalCompositeOperation: "multiply"`，且 `thinning: 0`（等宽）                 |
-| 橡皮         | `Eraser`        | `E` / `3` | 有            | **整笔删除**，不是像素擦除（理由见 §3.3）；命中半径 = `size * 2`                                                  |
-| 套索         | `Lasso`         | `L` / `4` | 有            | 圈选 → 浮出「删除 / 改色」两个动作；**不做**移动/缩放选中的图元（§7）                                            |
-| 文本框       | `Type`          | `T` / `5` | 有            | 点一下落一个 textarea，失焦提交；`Esc` 放弃                                                                            |
-| 箭头         | `MoveUpRight`   | `A` / `6` | 有            | `from → to`，尾部带箭头（三角，非箭头线）                                                                        |
-| 矩形 / 椭圆  | `Square` / `Circle` | `R` / `O` | 在「形状」下拉里 | 拖动即定框，`filled` 默认 false                                                                                  |
-| 颜色         | ——              | `0`–`5` | 6 个 swatch     | 6 个**令牌化**取值（下 §2.3），不存 hex                                                                          |
-| 粗细         | ——              | `[` / `]` | 3 档 `ToggleGroup` | 细 / 中 / 粗，映射到归一化 `size`                                                                               |
-| 撤销 / 重做  | `Undo2` / `Redo2` | `⌘Z` / `⌘⇧Z` | 有（左固定） | 栈见 §0.3-7；无操作时 `disabled`                                                                                  |
-| 清除         | `Trash2`        | `⌘⇧⌫`   | 在「更多」里     | **必须二次确认**（`AlertDialog` 或两段式按钮），且错误后可 `⌘Z` 恢复一笔（清除进撤销栈）                          |
-| 隐藏批注     | `Eye` / `EyeOff` | `\`    | 有（右固定）   | 只影响 L1/L2 的 `visibility`，不影响数据；"要看原图"的高频动作                                                     |
-| 手指=书写    | ——              | ——     | 在「更多」里     | 兜底开关（§0.3-5）；默认关                                                                                       |
-| 导出图片     | `Download`      | ——     | 在「更多」里     | P2（§5）                                                                                                          |
+| 工具        | 图标（lucide）      | 快捷键       | 触屏入口           | 状态与行为                                                                                                           |
+| ----------- | ------------------- | ------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| 笔          | `Pen`               | `P` / `1`    | 主按钮（默认）     | `size` / `thinning` / `smoothing` / `streamline` 四参由预设决定；`simulatePressure` 由输入源自动判定（§4）           |
+| 荧光笔      | `Highlighter`       | `H` / `2`    | 有                 | 同 pen，但固定 `opacity: 0.35` + `globalCompositeOperation: "multiply"`，且 `thinning: 0`（等宽）                    |
+| 橡皮        | `Eraser`            | `E` / `3`    | 有                 | **整笔删除**，不是像素擦除（理由见 §3.3）；命中半径 = `size * 2`                                                     |
+| 套索        | `Lasso`             | `L` / `4`    | 有                 | 圈选 → 浮出「删除 / 改色」两个动作；**不做**移动/缩放选中的图元（§7）                                                |
+| 文本框      | `Type`              | `T` / `5`    | 有                 | 点一下落一个 textarea，失焦提交；`Esc` 放弃                                                                          |
+| 箭头        | `MoveUpRight`       | `A` / `6`    | 有                 | `from → to`，尾部带箭头（三角，非箭头线）                                                                            |
+| 矩形 / 椭圆 | `Square` / `Circle` | `R` / `O`    | 在「形状」下拉里   | 拖动即定框，`filled` 默认 false                                                                                      |
+| 颜色        | ——                  | `0`–`5`      | 6 个 swatch        | 6 个**令牌化**取值（下 §2.3），不存 hex                                                                              |
+| 粗细        | ——                  | `[` / `]`    | 3 档 `ToggleGroup` | 细 / 中 / 粗，映射到归一化 `size`                                                                                    |
+| 撤销 / 重做 | `Undo2` / `Redo2`   | `⌘Z` / `⌘⇧Z` | 有（左固定）       | 栈见 §0.3-7；无操作时 `disabled`                                                                                     |
+| 清除        | `Trash2`            | `⌘⇧⌫`        | 在「更多」里       | **必须二次确认**（`AlertDialog` 或两段式按钮），且错误后可 `⌘Z` 恢复一笔（清除进撤销栈）                             |
+| 隐藏批注    | `Eye` / `EyeOff`    | `\`          | 有（右固定）       | **只影响 L1/L2 的绘制**，数据一字不改；指针仍归批注层，所以隐藏后照样能平移/缩放看图（§4.6-2）。"要看原图"的高频动作 |
+| 手指=书写   | ——                  | ——           | 在「更多」里       | 兜底开关（§0.3-5）；默认关                                                                                           |
+| 导出图片    | `Download`          | ——           | 在「更多」里       | P2（§5）                                                                                                             |
 
 ### 2.2 两套交互
 
-| 维度       | 触屏（`(pointer: coarse)`）                            | 键鼠（`(hover: hover)`）                       |
-| ---------- | ------------------------------------------------------ | ---------------------------------------------- |
-| 命中区     | 每个按钮 ≥ 44×44（WCAG 2.2 §2.5.8）                    | 32×32                                          |
-| 提示       | 长按 400ms 出 `Tooltip`（无 hover）                     | hover 即出                                     |
-| 布局       | 单行可横滚；窄屏（<640px）折叠为「当前工具 + 更多」     | 单行全展开                                     |
-| 光标       | 不适用                                                  | `crosshair`（笔/形状）/ `cell`（橡皮）/ `text`（文本）/ `move`（手指=平移模式） |
-| 右键       | 不适用                                                  | 画布右键 = 上下文菜单（撤销 / 清除 / 隐藏批注） |
+| 维度   | 触屏（`(pointer: coarse)`）                         | 键鼠（`(hover: hover)`）                                                        |
+| ------ | --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 命中区 | 每个按钮 ≥ 44×44（WCAG 2.2 §2.5.8）                 | 32×32                                                                           |
+| 提示   | 长按 400ms 出 `Tooltip`（无 hover）                 | hover 即出                                                                      |
+| 布局   | 单行可横滚；窄屏（<640px）折叠为「当前工具 + 更多」 | 单行全展开                                                                      |
+| 光标   | 不适用                                              | `crosshair`（笔/形状）/ `cell`（橡皮）/ `text`（文本）/ `move`（手指=平移模式） |
+| 右键   | 不适用                                              | 画布右键 = 上下文菜单（撤销 / 清除 / 隐藏批注）                                 |
 
 ### 2.3 颜色的令牌化
 
@@ -338,11 +338,11 @@ export interface PdfContent {
 
 ### 3.3 擦除与命中
 
-| 操作              | 算法                                                                       | 复杂度 / 说明                                                                                     |
-| ----------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 整笔擦除（默认）  | 擦除笔迹的采样点 × 每个图元的采样点，最近距离 < `擦除半径 + 图元半宽` 即删  | O(N×M)，但用 `bbox` 预筛后只有邻近图元进入内层循环；一笔 200 点、一页 20 笔量级完全无压力            |
-| 点选              | `bbox` 包含点 → 精确测试（Stroke 用距离、Arrow/Shape 用点到线/边距离）      | O(图元数)                                                                                          |
-| 套索              | 射线法（或 `Path2D.isPointInPath`）判断图元采样点是否在多边形内              | O(图元数 × 采样点)；`bbox` 预筛后同样廉价                                                          |
+| 操作             | 算法                                                                       | 复杂度 / 说明                                                                             |
+| ---------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 整笔擦除（默认） | 擦除笔迹的采样点 × 每个图元的采样点，最近距离 < `擦除半径 + 图元半宽` 即删 | O(N×M)，但用 `bbox` 预筛后只有邻近图元进入内层循环；一笔 200 点、一页 20 笔量级完全无压力 |
+| 点选             | `bbox` 包含点 → 精确测试（Stroke 用距离、Arrow/Shape 用点到线/边距离）     | O(图元数)                                                                                 |
+| 套索             | 射线法（或 `Path2D.isPointInPath`）判断图元采样点是否在多边形内            | O(图元数 × 采样点)；`bbox` 预筛后同样廉价                                                 |
 
 **为什么不做像素擦除**：像素擦除在归一化模型下要额外存一个 mask（或把底图区域烘成位图），体积、缩放一致性、跨 dpr 一致性会一起崩，而且它与"整笔撤销"的语义直接冲突（擦掉半笔之后，撤销该恢复什么？）。取舍写进 §7-5。
 
@@ -392,31 +392,31 @@ function containRect(container: DOMRect, naturalW: number, naturalH: number) {
 
 ### 4.1 输入源 × 手势 × 结果
 
-| 输入源           | 手势                    | 批注层（L1）           | image 底图  | pdf 底图          |
-| ---------------- | ----------------------- | ---------------------- | ----------- | ----------------- |
-| `pen`            | down + move + up        | **起笔 / 描迹 / 收笔** | ——          | ——                |
-| `pen`            | hover（未接触，`pressure===0`） | 光标预览（十字）      | ——          | ——                |
-| `pen`            | 侧键 / `buttons & 2`    | 临时切橡皮（P1 可选）  | ——          | ——                |
-| `touch` × 1      | drag                    | **不画**（默认）       | P1 平移     | 滚动 / 平移       |
-| `touch` × 2      | pinch                   | 不画（吞掉直到抬起）   | P1 缩放     | 缩放              |
-| `touch` × 2      | 同向 drag               | 不画                   | P1 平移     | 滚动              |
-| `mouse`          | drag（左键）            | 画（`simulatePressure`） | ——        | ——                |
-| `mouse`          | wheel / ⌘wheel          | 不画                   | P0 无       | 滚动 / 缩放       |
-| `mouse`          | 中键 drag               | 不画                   | P0 无       | 平移              |
-| `keyboard`       | `Space` + drag          | 不画                   | P0 无       | 平移              |
-| 任意             | `pointercancel` / `lostpointercapture` | **收笔**（按已采样点成笔） | —— | ——                |
+| 输入源      | 手势                                   | 批注层（L1）               | image 底图 | pdf 底图    |
+| ----------- | -------------------------------------- | -------------------------- | ---------- | ----------- |
+| `pen`       | down + move + up                       | **起笔 / 描迹 / 收笔**     | ——         | ——          |
+| `pen`       | hover（未接触，`pressure===0`）        | 光标预览（十字）           | ——         | ——          |
+| `pen`       | 侧键 / `buttons & 2`                   | 临时切橡皮（P1 可选）      | ——         | ——          |
+| `touch` × 1 | drag                                   | **不画**（默认）           | P1 平移    | 滚动 / 平移 |
+| `touch` × 2 | pinch                                  | 不画（吞掉直到抬起）       | P1 缩放    | 缩放        |
+| `touch` × 2 | 同向 drag                              | 不画                       | P1 平移    | 滚动        |
+| `mouse`     | drag（左键）                           | 画（`simulatePressure`）   | ——         | ——          |
+| `mouse`     | wheel / ⌘wheel                         | 不画                       | P0 无      | 滚动 / 缩放 |
+| `mouse`     | 中键 drag                              | 不画                       | P0 无      | 平移        |
+| `keyboard`  | `Space` + drag                         | 不画                       | P0 无      | 平移        |
+| 任意        | `pointercancel` / `lostpointercapture` | **收笔**（按已采样点成笔） | ——         | ——          |
 
 "手指=书写"开关打开后，`touch` × 1 这一行改为"画"，其余不变（这是兜底，不是主路径）。
 
 ### 4.2 `touch-action` / `pointer-events` 的取舍
 
-| 元素            | `touch-action` | `pointer-events`                       | 理由                                                                                       |
-| --------------- | -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------ |
-| L0 底图         | `none`         | `none`                                 | 底图不该被点；它的滚动手势由外层滚动容器（pdf）或画布状态机（image）接管                     |
-| L1 墨迹 canvas  | **`none`**     | `auto`                                 | **必须**：否则浏览器会把笔的移动当滚动吞掉（§0.3-2）；代价是自己重建 pinch                  |
-| L2 文本层       | `auto`         | `none`（除正在编辑的那个）              | 只有编辑中的 textarea 需要 DOM 事件（IME）                                                  |
-| L3 toolbar      | **`auto`**     | `auto`                                 | 普通 DOM；**且必须与 canvas 同级而非其子级**，否则按钮上的点击会被画布状态机吃掉              |
-| pdf 滚动容器    | `pan-y pinch-zoom` | `auto`                             | 页之间的滚动交给浏览器；缩放由画布层自己算（否则和 L1 的 `none` 打架）                      |
+| 元素           | `touch-action`     | `pointer-events`           | 理由                                                                             |
+| -------------- | ------------------ | -------------------------- | -------------------------------------------------------------------------------- |
+| L0 底图        | `none`             | `none`                     | 底图不该被点；它的滚动手势由外层滚动容器（pdf）或画布状态机（image）接管         |
+| L1 墨迹 canvas | **`none`**         | `auto`                     | **必须**：否则浏览器会把笔的移动当滚动吞掉（§0.3-2）；代价是自己重建 pinch       |
+| L2 文本层      | `auto`             | `none`（除正在编辑的那个） | 只有编辑中的 textarea 需要 DOM 事件（IME）                                       |
+| L3 toolbar     | **`auto`**         | `auto`                     | 普通 DOM；**且必须与 canvas 同级而非其子级**，否则按钮上的点击会被画布状态机吃掉 |
+| pdf 滚动容器   | `pan-y pinch-zoom` | `auto`                     | 页之间的滚动交给浏览器；缩放由画布层自己算（否则和 L1 的 `none` 打架）           |
 
 ### 4.3 双指缩放/平移与单笔书写的仲裁
 
@@ -440,21 +440,61 @@ pen 抬起                            → 【新增】解冻
 
 **目标：笔迹跟手 ≤ 1 帧。** 60Hz 即 ≤ 16.7ms，一加平板 120Hz 即 ≤ 8.3ms。这里的"跟手"定义得可测：从 `pointermove` 回调入口到 `live` canvas 呈现 ≤ 1 帧。
 
-| 手段                              | 采用 | 说明                                                                                                            |
-| --------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------- |
-| 输入回调只 push + 请求 rAF         | ✅   | 硬要求。回调里不 stringify / 不写 store / 不 setState                                                             |
-| `getCoalescedEvents()`            | ✅   | 把被合并掉的中间点取回来，笔迹更顺。**非 Baseline**，需 feature-detect + 降级（§0.3-3）                            |
-| `pointerrawupdate`                | ❌   | MDN：不比 `pointermove` 更精确，只是更频繁；非 Baseline，跟不上反而更卡（§0.3-4）                                  |
-| `getPredictedEvents()`            | ⏸   | Baseline 2024，能"画在前面"降**感知**延迟；P0 不开，留作实测不达标时的下一步（§8 有测法）                          |
-| `streamline` 调大                  | ⏸   | 会减小抖动但也增加"笔迹落后于笔尖"的感觉，默认 0.5（`perfect-freehand` 默认值）                                   |
-| 离屏 canvas + 每帧只画当前笔画      | ✅   | §3.2                                                                                                             |
-| worker / OffscreenCanvas 渲染      | ❌ P0 | `packages/graph` 用它是因为 d3-force 也在 worker 里（`worker/canvas.ts:1-22`）；批注层没有同等的计算压力，先把复杂度省掉 |
+| 手段                           | 采用  | 说明                                                                                                                     |
+| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------ |
+| 输入回调只 push + 请求 rAF     | ✅    | 硬要求。回调里不 stringify / 不写 store / 不 setState                                                                    |
+| `getCoalescedEvents()`         | ✅    | 把被合并掉的中间点取回来，笔迹更顺。**非 Baseline**，需 feature-detect + 降级（§0.3-3）                                  |
+| `pointerrawupdate`             | ❌    | MDN：不比 `pointermove` 更精确，只是更频繁；非 Baseline，跟不上反而更卡（§0.3-4）                                        |
+| `getPredictedEvents()`         | ⏸     | Baseline 2024，能"画在前面"降**感知**延迟；P0 不开，留作实测不达标时的下一步（§8 有测法）                                |
+| `streamline` 调大              | ⏸     | 会减小抖动但也增加"笔迹落后于笔尖"的感觉，默认 0.5（`perfect-freehand` 默认值）                                          |
+| 离屏 canvas + 每帧只画当前笔画 | ✅    | §3.2                                                                                                                     |
+| worker / OffscreenCanvas 渲染  | ❌ P0 | `packages/graph` 用它是因为 d3-force 也在 worker 里（`worker/canvas.ts:1-22`）；批注层没有同等的计算压力，先把复杂度省掉 |
 
 `prefers-reduced-motion` 与书写**无关**：书写是直接操纵，不是装饰动画。要写进共识的是另一件事：**永远不要给笔迹加"生长 / 淡入"动画** —— 那会直接违反"跟手 ≤ 1 帧"。唯一合理的降级是低端机上关掉 `smoothing` / `streamline` 这类后处理。
 
 ### 4.5 `pressure` 的归一化
 
 `PointerEvent.pressure` 的语义因设备而异（笔：真实值；鼠标按下：通常 0.5；不支持压感的触屏：0 或 1）。**收笔时判定一次**，不逐点判定：全部点的 `p` 相同、或首点为 `0` → `simulatePressure: true`（此时 `perfect-freehand` 按**速度**模拟压力 —— README 原文："By default, the `getStroke` function will simulate pressure based on the distance between input points"）。`tiltX` / `tiltY`（笔的倾角）**本次不用**：Web 上支持参差，且收益只在艺术笔刷（§7-8）。
+
+### 4.6 视口手势（平移 / 缩放 / 恢复）—— 已实现
+
+§4.1 的表是 P0 的口径（手指只用于将来平移）；本节是**已落地**的视口手势，底图与墨迹共用一套变换。设计新增一条硬约束：
+
+> **底图与批注层不各自持有平移/缩放。** 宿主拥有唯一一个 `ViewportTransform`，用它画底图，并把由**同一组数字**算出的矩形交给批注层（`getBaseRect()`）。两侧因此不是"看起来对齐"，而是同一份数据的两次读。
+
+模块落在 `packages/ui/src/components/pan-zoom/`（宿主无关，pdf 宿主可复用）：
+
+| 文件               | 职责                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transform.ts`     | 纯数学：`applyTransform`（把底图矩形映射成变换后的矩形）、`zoomAbout` / `pinchTransform`、`clampTransform`（钳制）、`transformToCss`。零运行时依赖，`transform.test.ts` 逐条钉死                                  |
+| `recognizer.ts`    | 纯决策：`centroidOf` / `spreadOf`（多指重锚用质心与平均半径，避免 3→2 指跳变）、`classifyTapEnd`（几指轻点 = 撤销/重做/单击）、`isDoubleTap`。`recognizer.test.ts` 钉死阈值                                       |
+| `use-pan-zoom.ts`  | 状态的唯一所有者：`{ transform, controller }`。写入按帧合并（rAF），读走 `controller.current()`（含未提交值，连击不会互相吞掉）；原生非 passive `wheel`（普通滚轮平移、Ctrl/⌘+滚轮缩放）；`ResizeObserver` 重钳制 |
+| `reset-button.tsx` | `<PanZoomResetButton {...panZoom} />`：**鼠标侧的"恢复位置大小"**，底部居中，只在 `!isIdentityTransform(transform)` 时渲染。宿主无关，pdf 宿主同样一行接入                                                        |
+
+手势口径（全部在**墨迹画布**上识别，它是整个宿主唯一的指针目标）：
+
+| 输入                   | 手势                  | 结果                                                             |
+| ---------------------- | --------------------- | ---------------------------------------------------------------- |
+| `touch` × 1            | 拖动                  | 平移（`panEnabled`；"手指=书写"打开时改为画线）                  |
+| `touch` × 2+           | 捏合 / 同向拖动       | 以两指中点为锚缩放 + 随中点平移；手指增减只做**无跳变重锚**      |
+| `touch` × 1            | 单指双击              | **恢复位置大小**（`controller.reset()`）                         |
+| `mouse`                | 点击底部恢复按钮      | **恢复位置大小**（宿主渲染，见 §4.6-1；鼠标不做手势）            |
+| `mouse` 中键           | 拖动                  | 平移                                                             |
+| `wheel` / `Ctrl+wheel` | 滚动 / 缩放           | 平移 / 缩放                                                      |
+| `keyboard` `0`         | ——                    | 恢复位置大小                                                     |
+| `touch` × 2            | 轻点（<400ms、<10px） | **双指轻点撤回**（撤销一笔）                                     |
+| `touch` × 3            | 轻点                  | **三指轻点重做**                                                 |
+| `pen`                  | 任意                  | 永不属于视口手势（只画线）；笔按下期间触摸被吞（palm rejection） |
+
+五条实现时必须知道的坑：
+
+1. **恢复位置大小在桌面端是按钮，不是双击。** 鼠标单击必须落墨点（§4.6-4），而双击在浏览器里就是两次单击 —— 要让"双击恢复"不留墨点，只能把每一次单击延后一个双击窗口再提交，或者事后把第一个点删掉；两条都比一个按钮差。所以画布上**没有** `dblclick` 监听（早先那版有，已删）：桌面用 `<PanZoomResetButton>`，触屏用单指双击，键盘用 `0`。顺带一个实测结论记在这里，省得下次再试：Chrome 里合成鼠标 `pointerdown` 的 `PointerEvent.detail` 恒为 0，click count 本来也读不到。
+2. **画布必须铺满宿主，而不是只铺底图矩形。** 2:1 的图在 16:9 宿主里左右各有几百像素 letterbox；画布若只盖住图，落在 letterbox 上的那根手指收不到事件，双指捏合会退化成单指平移。墨迹仍只画在 `box`（底图矩形）内，靠 `ctx.translate(box.left, box.top)` 定位，落笔必须命中底图（`inBounds`）。**同一条推论有两个副作用**：① 画布的 `pointer-events: auto` 是必需的（layer 根是 `pointer-events-none`，该属性会被继承，少写一行整个手势面静默消失）；② "隐藏批注"因此不能再靠 `pointer-events: none` 实现，它只停止绘制（`replayCommitted` 清空缓存、`renderFrame` 跳过在画的笔画）——隐藏后手势仍在，这正是"要看原图"时想做的前一步。
+3. **缩放的锚点是宿主坐标系**：`origin` 是底图元素自身的 layout 左上角（即 CSS `transform-origin: 0 0`），`zoomAbout(t, f, pivot, origin)` 保证 pivot 不动。底图用 CSS 变换、墨迹用同一组数字重算矩形，两者在 `scale=1` 时都必须**逐像素**回到布局位置——`clampTransform` 对恒等变换直接短路，否则不对称 padding 会让"恢复"偏移半个 padding。
+4. **鼠标单击就是墨点**：一次点击和笔尖轻点一样提交一个点，鼠标拖拽和笔一样提交一条笔画。因此恢复位置大小绝不能挂在鼠标双击上（见 §4.6-1）。这个按钮本身也有两条硬要求：外层 `pointer-events-none` + 按钮 `pointer-events-auto`（整条横带否则会从照片底部切走一条画笔够不着的死区），以及 `z-20`（墨迹画布是 `z-10`，压不住的话按钮看得见却点不着，每次点击都变成画布上的一个墨点）。
+5. **断线要一起清**：`pointercancel` / `lostpointercapture` 只结束笔画，不判轻点；`visibilitychange→hidden` / `blur` 还要清空视口手势的指针表，否则下一次触摸会拿几分钟前的指距做基线。单指双击的窗口同样会被打断：任何**不是**干净单指轻点的触摸序列（拖动、长按、捏合、被取消）都会作废待定的第一下，所以"点一下 → 拖一下 → 再点一下"不会误判成双击。
+
+**pdf 宿主怎么接（M7 的接口面）**：`PdfDocumentView` 只需 (a) 用 `usePanZoom({ containerRef, getBounds })` 建一个控制器，`getBounds().content` 给当前页（或整条页带）的未旋转盒；(b) 用 `transformToCss(transform)` 画页；(c) 把同一个 `controller` 传给 `<AnnotationLayer panZoom={controller} />`，并在同一个 `relative` 容器里渲染 `<PanZoomResetButton {...panZoom} />`。`recognizer.ts` 与 `geometry.ts` 都不含 image 概念，因此手势与命中测试不需要第二套实现。
 
 ---
 
@@ -476,12 +516,12 @@ pointerup / pointercancel
 
 ### 5.2 冲突与协作
 
-| 场景                       | 今天的行为                                             | 是否接受 |
-| -------------------------- | ------------------------------------------------------ | -------- |
-| 同一客户端连续笔            | 内存即时、落库 2s 合并                                  | ✅       |
-| 两个客户端同一节点          | **后写整体覆盖**（节点级 last-write-wins）              | ✅ 明确接受，§7 |
-| 撤销后落库                  | 写回的是"当前真值"，覆盖即可，无需增量同步               | ✅ §0.3-7 |
-| 远端更新到达本地正在书写    | 本地 collection 未变，继续写；下次落库时以本地为准      | ✅（P2 再谈远端合并） |
+| 场景                     | 今天的行为                                         | 是否接受              |
+| ------------------------ | -------------------------------------------------- | --------------------- |
+| 同一客户端连续笔         | 内存即时、落库 2s 合并                             | ✅                    |
+| 两个客户端同一节点       | **后写整体覆盖**（节点级 last-write-wins）         | ✅ 明确接受，§7       |
+| 撤销后落库               | 写回的是"当前真值"，覆盖即可，无需增量同步         | ✅ §0.3-7             |
+| 远端更新到达本地正在书写 | 本地 collection 未变，继续写；下次落库时以本地为准 | ✅（P2 再谈远端合并） |
 
 P0/P1 必须做对的两个前提（否则 P2 无从下手）：① 图元 `id` 稳定；② 写回是**整体替换数组**，不是"追加"。形态上它已经是一个可 CRDT 化的"带 id 的集合"。
 
@@ -495,11 +535,11 @@ P0/P1 必须做对的两个前提（否则 P2 无从下手）：① 图元 `id` 
 
 ## 6. 分阶段路线图
 
-| 阶段   | 交付                                                                                                                                                                                                                                                                                                | 验收                                                                                                                                  |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0** | image 批注全链路：`annotation.ts`（类型）、`draw.ts` / `geometry.ts` / `use-annotation-input.ts` / `annotation-canvas.tsx` / `annotation-toolbar.tsx`、`image-node-content.tsx` 接入；`content.annotations` 贯通 domain VO → application → DTO mapper → infra mapper → **新 PB 迁移** → tRPC `add` schema；`perfect-freehand` 依赖 | 一加平板真机：笔迹跟手 ≤1 帧；手指画不出线；逐笔撤销/重做正确；刷新后批注在；窗口尺寸变化后位置不变；`typecheck` + `lint` 全绿         |
-| **P1** | pdf 批注：`pdfjs-dist` 客户端自绘（`pdf-document-view.tsx`）、多页批注层、缩放/滚动/翻页/旋转；toolbar 扩展到荧光笔 / 套索 / 文本 / 箭头 / 形状；iframe 降级路径                                                                                                                                    | 在第 3 页画的线，缩放、翻页、旋转后仍贴在同一句话上；pdfjs 失败时 iframe 仍能看；第一次进入不出现白屏或 worker 404                       |
-| **P2** | 协作与导出：图元级操作日志 + 远端合并策略（或明确保持 LWW）；PNG 烘焙导出（image / 当前页 pdf）；可选 `annotations` 的版本号迁移规约                                                                                                                                                                  | 两个客户端同时批注不出现"整份批注消失"（按策略覆盖可接受）；导出的 PNG 与屏幕所见像素级一致                                              |
+| 阶段   | 交付                                                                                                                                                                                                                                                                                                                               | 验收                                                                                                                           |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **P0** | image 批注全链路：`annotation.ts`（类型）、`draw.ts` / `geometry.ts` / `use-annotation-input.ts` / `annotation-canvas.tsx` / `annotation-toolbar.tsx`、`image-node-content.tsx` 接入；`content.annotations` 贯通 domain VO → application → DTO mapper → infra mapper → **新 PB 迁移** → tRPC `add` schema；`perfect-freehand` 依赖 | 一加平板真机：笔迹跟手 ≤1 帧；手指画不出线；逐笔撤销/重做正确；刷新后批注在；窗口尺寸变化后位置不变；`typecheck` + `lint` 全绿 |
+| **P1** | pdf 批注：`pdfjs-dist` 客户端自绘（`pdf-document-view.tsx`）、多页批注层、缩放/滚动/翻页/旋转；toolbar 扩展到荧光笔 / 套索 / 文本 / 箭头 / 形状；iframe 降级路径                                                                                                                                                                   | 在第 3 页画的线，缩放、翻页、旋转后仍贴在同一句话上；pdfjs 失败时 iframe 仍能看；第一次进入不出现白屏或 worker 404             |
+| **P2** | 协作与导出：图元级操作日志 + 远端合并策略（或明确保持 LWW）；PNG 烘焙导出（image / 当前页 pdf）；可选 `annotations` 的版本号迁移规约                                                                                                                                                                                               | 两个客户端同时批注不出现"整份批注消失"（按策略覆盖可接受）；导出的 PNG 与屏幕所见像素级一致                                    |
 
 阶段之间不并行推进：P1 的坐标变换链会**反向改写** P0 的 `geometry.ts` 接口（从"一个 rect"变成"rect + pageIndex + 旋转矩阵"），先冻结 P0 的接口再动手会返工。
 
@@ -565,6 +605,14 @@ P1 追加：
 12. **worker 与降级**：首屏 Network 面板确认 `pdf.worker.*.mjs` 被加载（不是 404 后回落假 worker）；再把 PDF url 改成 404，确认落到 iframe 分支而不是白屏。
 13. **CORS / taint**：调 `canvas.toBlob` 确认不抛 `SecurityError`（这是 §5.3 的前提）。
 
+视口手势（§4.6，已实现）追加：
+
+14. **重叠一致**：画一笔 → 双指捏合放大 → 单指从图中间拖到旁边：笔迹必须**始终贴在底图的同一个位置**（不是"大致跟着"）。再单指双击恢复，笔迹回到原位。
+15. **letterbox 上的手势**：找一张很宽（或很高）的图，让左右（或上下）出现大片空白；一只手的两根手指**一根落在空白上**做捏合 —— 仍要缩放（这是 §4.6-2 的判据），不是只平移。
+16. **鼠标单击落墨点**：鼠标在图上依次点三下 → 三个点（双击**不**恢复视图，两下就是两个点，见 §4.6-1/4）；同一个位置用笔尖点一下 → 同样一个点。
+17. **双指/三指轻点**：画两笔 → 双指轻点一次 → 少一笔；三指轻点一次 → 回来，且形状与原来一致。三个手指**快速**落下抬起才算轻点，拖着走只会平移/缩放。
+18. **恢复位置按钮**：拖动或缩放后，宿主**底部居中**出现"恢复位置大小"按钮；点它 → 底图与墨迹同时回位、按钮消失；在恒等状态下不应出现该按钮。按钮只占那一个小胶囊：**按钮左右两侧的照片仍能用笔画**（§4.6-4）。单指双击与键盘 `0` 都要与按钮效果完全一致。另外确认"点一下 → 拖着平移一段 → 再点一下"不会误判为双击（§4.6-5）。
+
 ### 8.2 触摸与笔的仿真
 
 **DevTools 触摸仿真**只能造出 `pointerType === "touch"`，**造不出笔**、也造不出 `pressure`。验证"笔专属分支"要用 getter 覆写（本环境唯一可行的做法）：
@@ -572,16 +620,23 @@ P1 追加：
 ```js
 // 控制台：把当前所有 pointer 事件伪造成 pen。返回一个还原函数。
 function forcePointerType(type = "pen") {
-  const desc = Object.getOwnPropertyDescriptor(PointerEvent.prototype, "pointerType");
+  const desc = Object.getOwnPropertyDescriptor(
+    PointerEvent.prototype,
+    "pointerType",
+  );
   Object.defineProperty(PointerEvent.prototype, "pointerType", {
-    get: () => type, configurable: true,
+    get: () => type,
+    configurable: true,
   });
-  return () => Object.defineProperty(PointerEvent.prototype, "pointerType", desc);
+  return () =>
+    Object.defineProperty(PointerEvent.prototype, "pointerType", desc);
 }
 // 压感同理（真实压力只能靠真机）：用 y 坐标伪造 0→1 的笔压，
 // 验证 thinning / simulatePressure 两个分支。
 Object.defineProperty(PointerEvent.prototype, "pressure", {
-  get() { return Math.min(1, Math.max(0, this.clientY / innerHeight)); },
+  get() {
+    return Math.min(1, Math.max(0, this.clientY / innerHeight));
+  },
   configurable: true,
 });
 ```
@@ -599,37 +654,37 @@ Object.defineProperty(PointerEvent.prototype, "pressure", {
 
 **新增**
 
-| 路径                                                                   | 说明                                                                        | 阶段 |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---- |
-| `packages/interfaces/src/models/node/nodes/annotation.ts`               | 图元判别联合 + `AnnotationLayerData`（image/pdf 共用）                       | P0   |
-| `packages/ui/src/components/annotation/annotation-toolbar.tsx`          | §2（`ToggleGroup` + `Slider` + `Popover` 色板 + `Tooltip` 组合）             | P0   |
-| `packages/ui/src/components/annotation/annotation-layer.tsx`            | 宿主无关的外壳：吃 `items` / `onItemsChange` / `tool` / `getBaseRect()`      | P0   |
-| `packages/ui/src/components/annotation/annotation-canvas.tsx`           | 墨迹 canvas + rAF 循环 + committed 缓存 + dpr 处理                           | P0   |
-| `packages/ui/src/components/annotation/annotation-text-layer.tsx`       | 文本图元的 DOM / IME 层（§3.4）                                              | P1   |
-| `packages/ui/src/components/annotation/use-annotation-input.ts`         | pointer 状态机：笔/手指分离、pinch 仲裁、`pointercancel`、flush              | P0   |
-| `packages/ui/src/components/annotation/draw.ts`                         | **纯函数**：`perfect-freehand` 包装 + 图元重放（无 React，导出复用同一份）     | P0   |
-| `packages/ui/src/components/annotation/geometry.ts`                     | 归一化 ⇄ 显示坐标、`containRect`、bbox、命中测试                              | P0   |
-| `packages/ui/src/components/annotation/types.ts`                        | UI 侧类型（`Tool`、toolbar 状态）                                            | P0   |
-| `packages/ui/src/components/annotation/export.ts`                       | P2：canvas 烘焙 → Blob                                                       | P2   |
-| `packages/ui/src/components/dialog/editor/content/pdf-document-view.tsx` | P1：pdfjs 逐页渲染 + 滚动/缩放容器 + iframe 降级                              | P1   |
-| `pb/pb_migrations/1700000001_node_annotations.js`                       | 新增 `annotations` json 列（**不得**改 0 号脚本，§0.3-11）                    | P0   |
+| 路径                                                                     | 说明                                                                       | 阶段 |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- | ---- |
+| `packages/interfaces/src/models/node/nodes/annotation.ts`                | 图元判别联合 + `AnnotationLayerData`（image/pdf 共用）                     | P0   |
+| `packages/ui/src/components/annotation/annotation-toolbar.tsx`           | §2（`ToggleGroup` + `Slider` + `Popover` 色板 + `Tooltip` 组合）           | P0   |
+| `packages/ui/src/components/annotation/annotation-layer.tsx`             | 宿主无关的外壳：吃 `items` / `onItemsChange` / `tool` / `getBaseRect()`    | P0   |
+| `packages/ui/src/components/annotation/annotation-canvas.tsx`            | 墨迹 canvas + rAF 循环 + committed 缓存 + dpr 处理                         | P0   |
+| `packages/ui/src/components/annotation/annotation-text-layer.tsx`        | 文本图元的 DOM / IME 层（§3.4）                                            | P1   |
+| `packages/ui/src/components/annotation/use-annotation-input.ts`          | pointer 状态机：笔/手指分离、pinch 仲裁、`pointercancel`、flush            | P0   |
+| `packages/ui/src/components/annotation/draw.ts`                          | **纯函数**：`perfect-freehand` 包装 + 图元重放（无 React，导出复用同一份） | P0   |
+| `packages/ui/src/components/annotation/geometry.ts`                      | 归一化 ⇄ 显示坐标、`containRect`、bbox、命中测试                           | P0   |
+| `packages/ui/src/components/annotation/types.ts`                         | UI 侧类型（`Tool`、toolbar 状态）                                          | P0   |
+| `packages/ui/src/components/annotation/export.ts`                        | P2：canvas 烘焙 → Blob                                                     | P2   |
+| `packages/ui/src/components/dialog/editor/content/pdf-document-view.tsx` | P1：pdfjs 逐页渲染 + 滚动/缩放容器 + iframe 降级                           | P1   |
+| `pb/pb_migrations/1700000001_node_annotations.js`                        | 新增 `annotations` json 列（**不得**改 0 号脚本，§0.3-11）                 | P0   |
 
 **修改**
 
-| 路径                                                                             | 改动                                                                                     | 阶段 |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---- |
-| `packages/ui/package.json`                                                        | `+ perfect-freehand ^1.2`；P1 `+ pdfjs-dist ^4.10`（与服务端同 major）                     | P0/P1 |
-| `packages/interfaces/src/models/node/nodes/single/image.ts`                       | `ImageContent.annotations?`（`:14-16`）                                                   | P0   |
-| `packages/interfaces/src/models/node/nodes/single/pdf.ts`                         | `PdfContent.annotations?`（`:11-14`）                                                     | P1   |
-| `packages/ui/src/components/dialog/editor/content/image-node-content.tsx`         | 包一层批注层 + toolbar（`:46-66`）                                                        | P0   |
-| `packages/ui/src/components/dialog/editor/content/pdf-node-content.tsx`           | iframe → `<PdfDocumentView>`，保留 iframe 兜底（`:44-53`）                                 | P1   |
-| `packages/ui/src/styles/globals.css`                                              | `+ --annotation-1..6`（§2.3）。**若**批注落在新 workspace 包才需补 `@source`，本方案不需要   | P0   |
-| `backend/domain/src/models/node/value-objects.ts`                                 | `ImageContent`（`:167`）/ `PdfContent`（`:186`）收 annotations                             | P0   |
-| `backend/application/src/commands/node/node-command.service.ts`                   | `:96` / `:112` / `:348` / `:355` 四处构造 VO 时传 annotations                              | P0   |
-| `backend/application/src/dto/node-dto.mapper.ts`                                  | `:48-53`（image）与 `:61-69`（pdf）两个 content 字面量补 `annotations`；**漏了就是 `hlsUrl` 的翻版**（该文件 `:15-24` 的注释警告过这件事） | P0   |
-| `backend/infrastructure/src/database/mappers/node.mapper.ts`                      | 读 `:272` / `:292`，写 `:481-491` / `:493-501`，各自带上 `annotations` 列                     | P0   |
-| `backend/adapter-front/src/trpc/router/node.ts`                                   | `add` 路径的 `imageContentSchema`（`:23-25`）/ `pdfContentSchema`（`:27-30`）补字段。**注意**：`update` 路径的 `content` 是 `z.any()`（`:268`），不会被 strip —— 两条路径行为不同，容易只改一处就"能保存但读不出来" | P0   |
-| `packages/ui/src/components/dialog/editor/content/node-content-editor.tsx`        | `case "image"`（`:33-34`）/ `case "pdf"`（`:35-36`）改为传批注所需的 props（若批注层需要宿主注入的话） | P0/P1 |
+| 路径                                                                       | 改动                                                                                                                                                                                                                | 阶段  |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `packages/ui/package.json`                                                 | `+ perfect-freehand ^1.2`；P1 `+ pdfjs-dist ^4.10`（与服务端同 major）                                                                                                                                              | P0/P1 |
+| `packages/interfaces/src/models/node/nodes/single/image.ts`                | `ImageContent.annotations?`（`:14-16`）                                                                                                                                                                             | P0    |
+| `packages/interfaces/src/models/node/nodes/single/pdf.ts`                  | `PdfContent.annotations?`（`:11-14`）                                                                                                                                                                               | P1    |
+| `packages/ui/src/components/dialog/editor/content/image-node-content.tsx`  | 包一层批注层 + toolbar（`:46-66`）                                                                                                                                                                                  | P0    |
+| `packages/ui/src/components/dialog/editor/content/pdf-node-content.tsx`    | iframe → `<PdfDocumentView>`，保留 iframe 兜底（`:44-53`）                                                                                                                                                          | P1    |
+| `packages/ui/src/styles/globals.css`                                       | `+ --annotation-1..6`（§2.3）。**若**批注落在新 workspace 包才需补 `@source`，本方案不需要                                                                                                                          | P0    |
+| `backend/domain/src/models/node/value-objects.ts`                          | `ImageContent`（`:167`）/ `PdfContent`（`:186`）收 annotations                                                                                                                                                      | P0    |
+| `backend/application/src/commands/node/node-command.service.ts`            | `:96` / `:112` / `:348` / `:355` 四处构造 VO 时传 annotations                                                                                                                                                       | P0    |
+| `backend/application/src/dto/node-dto.mapper.ts`                           | `:48-53`（image）与 `:61-69`（pdf）两个 content 字面量补 `annotations`；**漏了就是 `hlsUrl` 的翻版**（该文件 `:15-24` 的注释警告过这件事）                                                                          | P0    |
+| `backend/infrastructure/src/database/mappers/node.mapper.ts`               | 读 `:272` / `:292`，写 `:481-491` / `:493-501`，各自带上 `annotations` 列                                                                                                                                           | P0    |
+| `backend/adapter-front/src/trpc/router/node.ts`                            | `add` 路径的 `imageContentSchema`（`:23-25`）/ `pdfContentSchema`（`:27-30`）补字段。**注意**：`update` 路径的 `content` 是 `z.any()`（`:268`），不会被 strip —— 两条路径行为不同，容易只改一处就"能保存但读不出来" | P0    |
+| `packages/ui/src/components/dialog/editor/content/node-content-editor.tsx` | `case "image"`（`:33-34`）/ `case "pdf"`（`:35-36`）改为传批注所需的 props（若批注层需要宿主注入的话）                                                                                                              | P0/P1 |
 
 ---
 

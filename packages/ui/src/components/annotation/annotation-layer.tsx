@@ -23,6 +23,16 @@
  * the ink canvas (L1) and the toolbar (L3) are the only two things that take
  * pointers, and they are **siblings** — the toolbar floats in its own corner rather
  * than inside the canvas, so a click on a button never reaches the state machine.
+ *
+ * ## Viewport gestures live one level down
+ *
+ * Pan / pinch / 恢复位置大小 (单指双击) are the host's *transform* (`panZoom`), and
+ * 双指轻点撤回 / 三指轻点重做 are this layer's *history* (`undo` / `redo`). Both
+ * are recognised on the ink canvas — the only element a pointer ever lands on —
+ * by `use-annotation-input.ts`, which then either drives the controller or calls
+ * the two callbacks forwarded here. The layer itself never holds a viewport: it
+ * stays host-agnostic, which is why a pdf host can mount it later with its own
+ * controller and get the same gestures for free.
  */
 import {
   useCallback,
@@ -118,6 +128,7 @@ export function AnnotationLayer({
   defaultTool = DEFAULT_ANNOTATION_TOOL,
   compact,
   readOnly = false,
+  panZoom,
   className,
 }: AnnotationLayerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -141,10 +152,15 @@ export function AnnotationLayer({
   const [touchDraws, setTouchDraws] = useState(false);
   const [active, setActive] = useState(false);
 
-  /** The base rectangle (viewport) and its box (container) — always in one read. */
+  /**
+   * The base rectangle (viewport), its box (the ink origin, in the layer root's
+   * own pixels) and the root's layout size (the canvas element's box) — always in
+   * one read, so they cannot describe different frames.
+   */
   const [geometry, setGeometry] = useState<{
     rect: BaseRect;
     box: LayerBox;
+    canvas: { width: number; height: number };
   } | null>(null);
 
   /**
@@ -170,6 +186,7 @@ export function AnnotationLayer({
       return;
     }
     const origin = root.getBoundingClientRect();
+    const canvas = { width: root.offsetWidth, height: root.offsetHeight };
     const box = toLayerBox(
       rect,
       {
@@ -178,12 +195,16 @@ export function AnnotationLayer({
         width: origin.width,
         height: origin.height,
       },
-      { width: root.offsetWidth, height: root.offsetHeight },
+      canvas,
     );
     setGeometry((previous) =>
-      previous && sameRect(previous.rect, rect) && sameRect(previous.box, box)
+      previous &&
+      sameRect(previous.rect, rect) &&
+      sameRect(previous.box, box) &&
+      previous.canvas.width === canvas.width &&
+      previous.canvas.height === canvas.height
         ? previous
-        : { rect, box },
+        : { rect, box, canvas },
     );
   }, [getBaseRect]);
 
@@ -399,11 +420,19 @@ export function AnnotationLayer({
         case "\\":
           setHidden((current) => !current);
           return;
+        // 恢复位置大小, the keyboard twin of the single-finger double tap and of
+        // the host's reset button. `0` is free: the
+        // design's digit shortcuts for colours were never implemented (the layer
+        // registers no global keyboard and colours are toolbar-only), and the
+        // letters above are what the toolbar lists.
+        case "0":
+          panZoom?.reset();
+          return;
         default:
           return;
       }
     },
-    [readOnly, redo, stepSize, undo],
+    [panZoom, readOnly, redo, stepSize, undo],
   );
 
   const toolbar = useMemo(
@@ -458,6 +487,7 @@ export function AnnotationLayer({
       {geometry && (
         <AnnotationCanvas
           box={geometry.box}
+          canvas={geometry.canvas}
           rect={geometry.rect}
           items={items}
           tool={tool}
@@ -465,6 +495,9 @@ export function AnnotationLayer({
           color={color}
           touchDraws={touchDraws}
           hidden={hidden}
+          panZoom={panZoom}
+          onUndo={undo}
+          onRedo={redo}
           onOperation={handleOperation}
           onActiveChange={setActive}
         />

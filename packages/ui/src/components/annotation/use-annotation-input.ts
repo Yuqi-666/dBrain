@@ -36,14 +36,44 @@
  * turns `touchDraws` on, and never while a pen pointer is down — that is the
  * application-level half of palm rejection (design §0.3-5: the specification
  * lets a device ignore touch while a pen is in use, so an app must assume it
- * does not). `mouse` draws, with velocity-simulated pressure.
+ * does not). `mouse` draws, with velocity-simulated pressure, and a mouse click
+ * lands a dot exactly like a pen tap.
  *
  * ## Not in P0
  *
- * No pinch arbitration on an image host: `touch` simply does not produce ink
- * (design §4.1), and the image host has no zoom for P0 to take over. There is
- * also no hover preview, no `pointerrawupdate` and no `getPredictedEvents()`
+ * No hover preview, no `pointerrawupdate` and no `getPredictedEvents()`
  * (design §0.3-4) — the next step there is measured latency, not guesswork.
+ *
+ * ## Viewport gestures (pan / pinch / taps)
+ *
+ * The ink canvas is the only element a pointer lands on, so it is also where the
+ * *shared* viewport is driven. Every touch that is not drawing is arbitrated here
+ * and handed to the host's {@link PanZoomController}; the multi-finger taps go
+ * back to the layer, which owns the history:
+ *
+ * | gesture                    | result                                        |
+ * | -------------------------- | --------------------------------------------- |
+ * | one finger drag            | pan (`panEnabled`, i.e. 手指=书写 off)         |
+ * | two+ fingers pinch / drag  | zoom about the midpoint + pan with it         |
+ * | one-finger double tap      | 恢复位置大小 (`controller.reset()`)             |
+ * | two-finger tap             | 双指轻点撤回 (`onUndo`)                          |
+ * | three-finger tap           | 三指轻点重做 (`onRedo`)                          |
+ * | pen, any                   | never a viewport gesture — it draws            |
+ *
+ * The **mouse** has no entry here, on purpose: its clicks are ink (see
+ * `endGesture`), so 恢复位置大小 on a desktop is the host's
+ * `pan-zoom/reset-button.tsx`, which needs no recogniser at all.
+ *
+ * Two invariants are worth stating because they are easy to break:
+ *
+ * 1. **The pinch is composed from the transform snapshot taken when the gesture
+ *    (re)anchored**, not from the previous frame — adding or lifting a finger
+ *    re-anchors, which is what makes a 3→2 finger change continue without a jump
+ *    (the semantics `packages/graph/src/force/eventListener.ts` established).
+ * 2. **A second finger closes the stroke in flight before the pinch starts.** A
+ *    finger that lands mid-stroke is a pinch, not a second pen; without the
+ *    explicit `endGesture()` the first stroke would keep growing while the view
+ *    zoomed under it.
  */
 import { useCallback, useEffect, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
@@ -51,6 +81,17 @@ import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
 
 import { hitTestItem, simplifyPoints, withBBox } from "./geometry";
 import { shouldSimulatePressure } from "./draw";
+import {
+  centroidOf,
+  classifyTapEnd,
+  isDoubleTap,
+  spreadOf,
+  TAP_SLOP,
+} from "../pan-zoom/recognizer";
+import type {
+  ViewportGestureOptions,
+  ViewportTransform,
+} from "../pan-zoom/types";
 import type { AnnotationColorKey, AnnotationTool } from "./types";
 
 /**
@@ -84,6 +125,15 @@ export interface GestureHandle {
   tick: number;
   /** `true` from `pointerdown` until the gesture is committed. */
   active: boolean;
+  /**
+   * The pointer that opened the gesture.
+   *
+   * A touch landing while the pen is down, or the pen being lifted while a palm
+   * rests on the screen, must not be able to end *someone else's* stroke — the
+   * four end paths are all pointer events, and without this every one of them
+   * would close whatever happened to be open.
+   */
+  pointerId: number;
 }
 
 /** The three knobs the canvas owns and the state machine only reads. */
@@ -109,6 +159,16 @@ export interface AnnotationInputOptions {
     clientY: number,
     pressure: number,
   ) => AnnotationPoint;
+  /**
+   * Is this viewport point on the base rectangle?
+   *
+   * A stroke may only **start** on the base. The canvas element covers the whole
+   * host (so a pinch can begin on a letterbox), and without this a pen going down
+   * beside a letterboxed photo would draw a clamped line along its edge instead
+   * of doing nothing. Points sampled *during* a stroke are still clamped, not
+   * rejected — a stroke that leaves the image keeps the part that is on it.
+   */
+  inBounds: (clientX: number, clientY: number) => boolean;
   /** One finished gesture, reported once (design §1.2 boundary 2). */
   onOperation: (
     operation:
@@ -119,6 +179,14 @@ export interface AnnotationInputOptions {
   onActiveChange?: (active: boolean) => void;
   /** Ask the canvas for a frame. Called from input callbacks; never mutates. */
   requestFrame: () => void;
+  /**
+   * The shared viewport, when the host has one. Its presence is what turns the
+   * non-drawing touch sequences into pan/pinch/double-tap and the two- and
+   * three-finger taps into undo/redo (see the file header). Absent, the canvas
+   * behaves exactly as it did before gestures existed: touch never draws and
+   * never moves anything.
+   */
+  viewport?: ViewportGestureOptions;
   /**
    * Called when `gesture` changed in a way a *frame* cannot express — today: the
    * eraser hit at least one new mark, so the cached layer must be replayed with the
@@ -174,6 +242,62 @@ function coalescedPoints(event: PointerEvent): PointerEvent[] {
   return [event];
 }
 
+/* ------------------------------------------------------------------ *
+ * Viewport gesture recognition
+ * ------------------------------------------------------------------ */
+
+/** One pointer the viewport recognizer is tracking. */
+interface ViewPointer {
+  x: number;
+  y: number;
+  /** Where it went down — the tap-vs-drag test is against this, not the last frame. */
+  downX: number;
+  downY: number;
+  /** `true` when the drawing state machine must not see this pointer. */
+  claimed: boolean;
+}
+
+/**
+ * The mutable state of one touch sequence, shared by down/move/up.
+ *
+ * Everything is in a ref for the same reason the stroke is: a pinch delivers
+ * samples at pointer rate and a `setState` per sample would be exactly the cost
+ * the "push + rAF" rule exists to avoid. Only the controller and the layer see
+ * the result.
+ */
+interface ViewportGesture {
+  pointers: Map<number, ViewPointer>;
+  /** The most fingers that were down at once — what a tap's finger count means. */
+  peak: number;
+  /** `true` once the fingers actually moved: this sequence is a drag, not a tap. */
+  moved: boolean;
+  /** `true` while the sequence owns the view (a pan or a pinch is in flight). */
+  engaged: boolean;
+  /** A tap is only a tap on a touch screen; a mouse drag never becomes undo. */
+  touch: boolean;
+  startedAt: number;
+  /** Finger spread when the pinch last re-anchored; `0` means "no pinch yet". */
+  startSpread: number;
+  /** Transform snapshot taken when the pan/pinch re-anchored. */
+  startTransform: ViewportTransform | null;
+  /** Midpoint when the pan/pinch re-anchored. */
+  startMidpoint: { x: number; y: number };
+}
+
+function emptyViewportGesture(): ViewportGesture {
+  return {
+    pointers: new Map(),
+    peak: 0,
+    moved: false,
+    engaged: false,
+    touch: false,
+    startedAt: 0,
+    startSpread: 0,
+    startTransform: null,
+    startMidpoint: { x: 0, y: 0 },
+  };
+}
+
 /**
  * Wire the pointer state machine to a canvas.
  *
@@ -205,11 +329,38 @@ export function useAnnotationInput(
   /** Which pointer owns the gesture, and whether a pen pointer is down. */
   const activePointers = useRef<Map<number, string>>(new Map());
 
+  /** The touch sequence in flight, if any — see {@link ViewportGesture}. */
+  const viewportRef = useRef<ViewportGesture>(emptyViewportGesture());
+
+  /** The previous one-finger tap, for 单指双击恢复位置大小. */
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(
+    null,
+  );
+
   const penIsDown = useCallback((): boolean => {
     for (const type of activePointers.current.values()) {
       if (type === "pen") return true;
     }
     return false;
+  }, []);
+
+  /**
+   * Re-take the pinch's baseline from whatever is down *now*.
+   *
+   * Called on every change to the finger set — the second finger landing, one of
+   * three lifting, a pointer cancel — so the very next move is measured against
+   * the current spread and midpoint instead of against a pair that no longer
+   * exists. Without it, lifting one finger of a pinch snaps the zoom by the ratio
+   * between the old and new spreads (the pdf viewer documents the same fix at its
+   * `onPointerEnd`).
+   */
+  const reanchorViewport = useCallback(() => {
+    const config = latest.current.viewport;
+    const state = viewportRef.current;
+    if (!config) return;
+    state.startTransform = config.controller.current();
+    state.startMidpoint = centroidOf(state.pointers.values());
+    state.startSpread = spreadOf(state.pointers.values(), state.startMidpoint);
   }, []);
 
   const isDrawable = useCallback((pointerType: string): boolean => {
@@ -259,6 +410,11 @@ export function useAnnotationInput(
     }
 
     const points = current.points;
+    // A one-point gesture **is** a mark here, whatever the pointer type: a pen tap
+    // and a mouse click both land a dot, and a mouse drag is a stroke just like a
+    // pen drag. Nothing delays a click or deletes it retroactively, which is why
+    // 恢复位置大小 cannot ride on a desktop double click (see the file header) and
+    // why a host that wants one offers a button (`pan-zoom/reset-button.tsx`).
     if (points.length > 0) {
       // Everything after the id is derived and settled here, never at sample
       // time: the id is stable for the item's whole life, `simulatePressure` is
@@ -290,6 +446,197 @@ export function useAnnotationInput(
     requestFrame();
   }, [gesture, onActiveChange, requestFrame]);
 
+  /* ---------------- The shared viewport ---------------- */
+
+  /**
+   * A pointer landed. Returns `true` when the viewport owns it and the drawing
+   * state machine must keep its hands off.
+   *
+   * The order of the three cases is the whole arbitration: a pen is never a
+   * viewport pointer, a mouse is only one while its middle button is down (the
+   * left button draws), and a touch is one whenever it is not drawing — plus
+   * **always** from the second finger on, which is why `touchDraws` can never
+   * make a pinch impossible.
+   */
+  const handleViewportDown = useCallback(
+    (event: ReactPointerEvent<HTMLCanvasElement>): boolean => {
+      const config = latest.current.viewport;
+      // `hidden` deliberately does not stop viewport gestures: 隐藏批注 is about
+      // the ink, and panning/zooming to inspect the original is exactly what the
+      // user does next. It only reaches the drawing path (see `onPointerDown`).
+      if (!config) return false;
+
+      const pointerType = event.pointerType;
+      const isTouch = pointerType === "touch";
+      const isMiddle = pointerType === "mouse" && event.button === 1;
+      if (!isTouch && !isMiddle) return false;
+
+      const state = viewportRef.current;
+      const entry: ViewPointer = {
+        x: event.clientX,
+        y: event.clientY,
+        downX: event.clientX,
+        downY: event.clientY,
+        claimed: false,
+      };
+
+      if (isTouch && penIsDown()) {
+        // Palm rejection: the pen owns the surface. The touch is swallowed —
+        // never drawn, never panned — until every finger is up.
+        entry.claimed = true;
+        state.pointers.set(event.pointerId, entry);
+        return true;
+      }
+
+      if (
+        isMiddle ||
+        (isTouch && config.panEnabled && state.pointers.size === 0)
+      ) {
+        entry.claimed = true;
+      }
+      state.pointers.set(event.pointerId, entry);
+
+      if (state.pointers.size === 1) {
+        state.startedAt = event.timeStamp;
+        state.peak = 1;
+        state.moved = false;
+        state.touch = isTouch;
+        state.engaged = entry.claimed;
+        reanchorViewport();
+        return entry.claimed;
+      }
+
+      // Second finger: the viewport takes over from here, and a stroke in
+      // flight has to land *before* the pinch starts, or it would keep growing
+      // while the world zooms under it.
+      state.peak = Math.max(state.peak, state.pointers.size);
+      state.touch = state.touch || isTouch;
+      endGesture();
+      activePointers.current.clear();
+      state.engaged = true;
+      reanchorViewport();
+      return true;
+    },
+    [endGesture, penIsDown, reanchorViewport],
+  );
+
+  /** A tracked pointer moved: pan, pinch, or report "this was a drag, not a tap". */
+  const handleViewportMove = useCallback(
+    (event: ReactPointerEvent<HTMLCanvasElement>): boolean => {
+      const state = viewportRef.current;
+      const entry = state.pointers.get(event.pointerId);
+      if (!entry) return false;
+
+      const dx = event.clientX - entry.x;
+      const dy = event.clientY - entry.y;
+      entry.x = event.clientX;
+      entry.y = event.clientY;
+      if (Math.hypot(entry.x - entry.downX, entry.y - entry.downY) > TAP_SLOP) {
+        state.moved = true;
+      }
+
+      const config = latest.current.viewport;
+      if (!config || !state.engaged) return entry.claimed;
+
+      const centre = centroidOf(state.pointers.values());
+      if (state.pointers.size >= 2) {
+        const spread = spreadOf(state.pointers.values(), centre);
+        if (state.startTransform && state.startSpread > 0 && spread > 0) {
+          if (Math.abs(spread - state.startSpread) > TAP_SLOP) {
+            state.moved = true;
+          }
+          config.controller.pinch(
+            state.startTransform,
+            spread / state.startSpread,
+            state.startMidpoint.x,
+            state.startMidpoint.y,
+            centre.x,
+            centre.y,
+          );
+        }
+      } else if (dx || dy) {
+        config.controller.panBy(dx, dy);
+      }
+      return true;
+    },
+    [],
+  );
+
+  /**
+   * A tracked pointer ended. `tap` is false for `pointercancel` /
+   * `lostpointercapture`: a sequence the browser took away is never a tap, and
+   * reporting one would undo a stroke the user never asked to undo.
+   */
+  const handleViewportEnd = useCallback(
+    (event: ReactPointerEvent<HTMLCanvasElement>, tap: boolean): boolean => {
+      const state = viewportRef.current;
+      const entry = state.pointers.get(event.pointerId);
+      if (!entry) return false;
+
+      const claimed = entry.claimed || state.engaged;
+      state.pointers.delete(event.pointerId);
+
+      if (state.pointers.size > 0) {
+        // One of several fingers lifted: re-take the baseline so the remaining
+        // fingers continue from where the view actually is. (`reanchorViewport`
+        // also zeroes the spread when a lone finger is left, which turns the
+        // gesture from a pinch back into a pan.)
+        reanchorViewport();
+        return claimed;
+      }
+
+      const config = latest.current.viewport;
+      const { peak, moved, touch, startedAt } = state;
+      const duration = event.timeStamp - startedAt;
+      viewportRef.current = emptyViewportGesture();
+
+      const outcome = classifyTapEnd({ tap, touch, moved, duration, peak });
+      if (!config) return claimed;
+
+      if (!outcome) {
+        // A touch sequence that was not a clean one-finger tap — a drag, a press,
+        // a pinch, a cancelled pointer — **closes** the double-tap window rather
+        // than leaving it open: 单指双击 must be two taps in a row, not "tap …
+        // pan … tap", and the second tap of such a pair is a fresh first tap. It
+        // is also what keeps a mouse out of the window entirely, since only
+        // touches ever reach here.
+        if (touch) lastTapRef.current = null;
+        return claimed;
+      }
+
+      if (outcome === "redo") {
+        lastTapRef.current = null;
+        config.onRedo?.();
+        return claimed;
+      }
+      if (outcome === "undo") {
+        lastTapRef.current = null;
+        config.onUndo?.();
+        return claimed;
+      }
+
+      // 手指=书写 turns a one-finger tap into a dot, so it must not also be the
+      // first half of a double tap.
+      if (!config.panEnabled) return claimed;
+
+      const now = event.timeStamp;
+      if (
+        isDoubleTap(lastTapRef.current, {
+          time: now,
+          x: event.clientX,
+          y: event.clientY,
+        })
+      ) {
+        lastTapRef.current = null;
+        config.controller.reset();
+      } else {
+        lastTapRef.current = { time: now, x: event.clientX, y: event.clientY };
+      }
+      return claimed;
+    },
+    [reanchorViewport],
+  );
+
   /**
    * The two end signals that are not pointer events on the canvas.
    *
@@ -300,9 +647,18 @@ export function useAnnotationInput(
    */
   useEffect(() => {
     const onHidden = () => {
-      if (document.visibilityState === "hidden") endGesture();
+      if (document.visibilityState === "hidden") {
+        endGesture();
+        // A pinch cannot survive the tab losing focus: the `pointerup`s that
+        // would have ended it are never delivered, and the next touch would be
+        // measured against a finger set that has not existed for minutes.
+        viewportRef.current = emptyViewportGesture();
+      }
     };
-    const onBlur = () => endGesture();
+    const onBlur = () => {
+      endGesture();
+      viewportRef.current = emptyViewportGesture();
+    };
     document.addEventListener("visibilitychange", onHidden);
     window.addEventListener("blur", onBlur);
     return () => {
@@ -317,7 +673,13 @@ export function useAnnotationInput(
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      // The shared viewport gets first refusal: a finger that pans, a second
+      // finger that starts a pinch and a middle-button drag all stop here — and
+      // they keep working while the ink is hidden.
+      if (handleViewportDown(event)) return;
+      // Hiding only stops *drawing* from here on.
       if (latest.current.hidden) return;
+
       const current = gesture.current;
       if (!current) return;
       // One gesture at a time: a second pointer landing mid-stroke is a palm,
@@ -333,9 +695,11 @@ export function useAnnotationInput(
       )
         return;
       if (!isDrawable(pointerType)) return;
+      if (!latest.current.inBounds(event.clientX, event.clientY)) return;
 
       activePointers.current.set(event.pointerId, pointerType);
       current.active = true;
+      current.pointerId = event.pointerId;
 
       // Capture as early as possible so a sequence that leaves the canvas still
       // arrives here. Failure is non-fatal (some synthetic pointers cannot be
@@ -356,13 +720,28 @@ export function useAnnotationInput(
       onActiveChange?.(true);
       requestFrame();
     },
-    [gesture, isDrawable, onActiveChange, penIsDown, requestFrame],
+    [
+      gesture,
+      handleViewportDown,
+      isDrawable,
+      onActiveChange,
+      penIsDown,
+      requestFrame,
+    ],
   );
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      // A pointer the viewport owns never reaches the sampler — and a pen or a
+      // drawing finger that is merely *tracked* (so a pinch can re-anchor) still
+      // does, which is what `entry.claimed` decides inside the recognizer.
+      if (handleViewportMove(event)) return;
+
       const current = gesture.current;
       if (!current || !current.active) return;
+      // Only the pointer that opened the stroke may extend it (a second finger
+      // or a palm is never a second sample of the pen).
+      if (event.pointerId !== current.pointerId) return;
 
       // `pointerType` is "" when the browser cannot tell — treat that as neither.
       if (event.pointerType === "touch" && penIsDown()) return;
@@ -408,16 +787,18 @@ export function useAnnotationInput(
       if (hit) onGestureChange?.();
       requestFrame();
     },
-    [gesture, onGestureChange, penIsDown, requestFrame],
+    [gesture, handleViewportMove, onGestureChange, penIsDown, requestFrame],
   );
 
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
-      if (!gesture.current?.active) return;
+      if (handleViewportEnd(event, true)) return;
+      const current = gesture.current;
+      if (!current?.active || event.pointerId !== current.pointerId) return;
       endGesture();
       activePointers.current.delete(event.pointerId);
     },
-    [endGesture, gesture],
+    [endGesture, gesture, handleViewportEnd],
   );
 
   const onPointerCancel = useCallback(
@@ -425,18 +806,25 @@ export function useAnnotationInput(
       // The browser took the sequence over (scroll, system gesture, a Radix
       // focus trap). The stroke still has to be committed from what was sampled
       // — dropping it here is what "停在半截" looks like (design §0.3-8).
+      // A cancelled *viewport* gesture is not a tap, so it never undoes anything.
+      if (handleViewportEnd(event, false)) return;
+      const current = gesture.current;
+      if (!current?.active || event.pointerId !== current.pointerId) return;
       endGesture();
       activePointers.current.delete(event.pointerId);
     },
-    [endGesture],
+    [endGesture, gesture, handleViewportEnd],
   );
 
   const onLostPointerCapture = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      if (handleViewportEnd(event, false)) return;
+      const current = gesture.current;
+      if (!current?.active || event.pointerId !== current.pointerId) return;
       endGesture();
       activePointers.current.delete(event.pointerId);
     },
-    [endGesture],
+    [endGesture, gesture, handleViewportEnd],
   );
 
   return {

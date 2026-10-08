@@ -32,9 +32,12 @@
  *   `oklch(…)`. The resolution is a DOM question, so it happens here, once per
  *   replay, by parking `var(--annotation-N)` on a hidden span and reading the
  *   computed colour back.
- * - **`hidden`** (design §1.2 / §2.1): "隐藏批注" is a *visibility* concern. The
- *   ink element is hidden and stops taking pointers, and the data is not touched
- *   by a single byte.
+ * - **`hidden`** (design §1.2 / §2.1): "隐藏批注" is a *visibility* concern — the
+ *   data is not touched by a single byte. It stops the ink being **painted**
+ *   (the cache is emptied and the stroke in flight is skipped) but leaves the
+ *   element hit-testable: since the canvas is also the host's gesture surface,
+ *   making it `pointer-events: none` would take pan/zoom away from "let me look
+ *   at the original".
  *
  * ## The one rule this file must not break
  *
@@ -45,10 +48,22 @@
  *
  * ## Not in P0
  *
- * One canvas for the whole image: no pdf pages, no pinch/pan arbitration (design
- * §4.1: on an image, a touch that is not drawing does nothing) and no dirty
- * rectangles (design §3.2 explicitly defers them until a measurement says the
- * full-frame blit is too slow).
+ * One canvas for the whole image: no pdf pages, and no dirty rectangles (design
+ * §3.2 explicitly defers them until a measurement says the full-frame blit is too
+ * slow).
+ *
+ * The **viewport** is not this file's either: pan / pinch / 恢复位置大小 (单指双击)
+ * are recognised by `use-annotation-input.ts` but *owned* by the host, which hands
+ * in a `PanZoomController`. This canvas therefore never reads a transform — it
+ * only reports gestures, exactly as it reports strokes. Its own geometry stays
+ * whatever `box`/`rect` the layer measured, which is the rectangle the host
+ * derived from that same transform; that is the whole overlap guarantee.
+ *
+ * There is deliberately **no `onDoubleClick`** here any more. 恢复位置大小 is a
+ * single-finger double *tap* (the mouse half is the host's
+ * `pan-zoom/reset-button.tsx`), because a mouse click is ink: a `dblclick`
+ * listener would have to suppress the first click's dot, and "click once, get a
+ * dot" is worth more than a desktop gesture the button already covers.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
@@ -100,6 +115,7 @@ function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
 
 export function AnnotationCanvas({
   box,
+  canvas: canvasBox,
   rect,
   items,
   tool,
@@ -107,6 +123,9 @@ export function AnnotationCanvas({
   color,
   touchDraws = false,
   hidden = false,
+  panZoom,
+  onUndo,
+  onRedo,
   onOperation,
   onActiveChange,
 }: AnnotationCanvasProps) {
@@ -123,6 +142,7 @@ export function AnnotationCanvas({
     erasedIds: new Set<string>(),
     tick: 0,
     active: false,
+    pointerId: -1,
   });
   const gesture = gestureRef.current;
 
@@ -216,20 +236,25 @@ export function AnnotationCanvas({
       color: activeColor,
     } = styleRef.current;
 
-    // The element is exactly as large as the base rectangle and sits on its
-    // top-left (`style.left/top` below), so this origin is the rectangle's
+    // The canvas element covers the whole layer root (`style.left/top/width/
+    // height` below), so `box` is *inside* it: translate to the base rectangle's
     // origin and every coordinate from here on is in the rectangle's own CSS
     // pixel space — the convention `draw.ts` is written against.
     ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
-    ctx.clearRect(0, 0, box.width, box.height);
+    ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
 
     if (hasSize(rect) && hasSize(box) && committed.width > 0) {
-      // 1:1: the cache has the rectangle's dimensions too, so there is nothing
-      // to letterbox and nothing to offset.
-      ctx.drawImage(committed, 0, 0, box.width, box.height);
+      // 1:1: the cache has the canvas's dimensions too, so there is nothing to
+      // letterbox — just the same translation the ink below uses.
+      ctx.drawImage(committed, 0, 0, canvasBox.width, canvasBox.height);
     }
 
-    if (activeTool === "pen" && inside.points.length > 0 && hasSize(rect)) {
+    if (
+      !hidden &&
+      activeTool === "pen" &&
+      inside.points.length > 0 &&
+      hasSize(rect)
+    ) {
       // The in-flight stroke goes through the same renderer as the stored ones —
       // the normalized input becomes a display-space item here and nowhere else,
       // so a stroke cannot change shape the moment it is committed.
@@ -248,9 +273,20 @@ export function AnnotationCanvas({
         streamline: 0.5,
         simulatePressure: false,
       };
+      ctx.save();
+      ctx.translate(box.left, box.top);
       drawAnnotation(ctx, live, rect, resolveColor);
+      ctx.restore();
     }
-  }, [box, gesture, rect, resolveColor]);
+  }, [
+    box,
+    canvasBox.height,
+    canvasBox.width,
+    gesture,
+    hidden,
+    rect,
+    resolveColor,
+  ]);
 
   /** Request a frame; a request already outstanding is not queued twice. */
   const requestFrame = useCallback(() => {
@@ -260,25 +296,27 @@ export function AnnotationCanvas({
 
   // ---- Sizing, dpr and the committed cache -------------------------------
 
-  const outsideWidth = Math.max(1, Math.round(box.width * dpr));
-  const outsideHeight = Math.max(1, Math.round(box.height * dpr));
+  const outsideWidth = Math.max(1, Math.round(canvasBox.width * dpr));
+  const outsideHeight = Math.max(1, Math.round(canvasBox.height * dpr));
 
   /**
    * Size both backing stores and place the element.
    *
-   * `box.left/top` are container CSS pixels, so the element lands exactly on the
-   * base rectangle; `width/height` are the CSS box, `outsideWidth/Height` the
-   * device-pixel store — setting only the former is the classic blurry-ink bug
+   * The element covers the whole layer root (`left: 0 / top: 0`), **not** just the
+   * base rectangle: the extra area is where a finger lands when it pinches beside
+   * a letterboxed photo, and it costs nothing because the ink is clipped by the
+   * same box the canvas is. `canvasBox` is layout pixels, `outsideWidth/Height` the
+   * device-pixel store — setting only the CSS box is the classic blurry-ink bug
    * (design §0.3-6). Re-running on a dpr change is what rebuilds the cache.
    */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.style.left = `${box.left}px`;
-    canvas.style.top = `${box.top}px`;
-    canvas.style.width = `${box.width}px`;
-    canvas.style.height = `${box.height}px`;
+    canvas.style.left = "0px";
+    canvas.style.top = "0px";
+    canvas.style.width = `${canvasBox.width}px`;
+    canvas.style.height = `${canvasBox.height}px`;
 
     if (canvas.width !== outsideWidth) canvas.width = outsideWidth;
     if (canvas.height !== outsideHeight) canvas.height = outsideHeight;
@@ -295,10 +333,8 @@ export function AnnotationCanvas({
 
     requestFrame();
   }, [
-    box.left,
-    box.top,
-    box.width,
-    box.height,
+    canvasBox.height,
+    canvasBox.width,
     dpr,
     outsideWidth,
     outsideHeight,
@@ -338,17 +374,29 @@ export function AnnotationCanvas({
     // density the sizing effect just gave both stores, and a live read could differ
     // from it for the frame between the screen change and the media query firing.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, box.width, box.height);
+    ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
     if (!hidden) {
-      // No translate: the cache and the base rectangle share an origin (§3.4).
-      // Marks the eraser hit are passed along as ghosts: they stay visible at
-      // reduced alpha until the layer lands the removal, so the user can see what
-      // the pass is about to delete (G5's third report).
+      // The translate puts the cache into the base rectangle's own space, which
+      // is the convention `draw.ts` is written against (§3.4). Marks the eraser
+      // hit are passed along as ghosts: they stay visible at reduced alpha until
+      // the layer lands the removal, so the user can see what the pass is about
+      // to delete (G5's third report).
+      ctx.translate(box.left, box.top);
       drawAnnotations(ctx, items, rect, resolveColor, {
         ghostIds: gesture.erasedIds,
       });
     }
-  }, [box, dpr, gesture, hidden, items, rect, resolveColor]);
+  }, [
+    box,
+    canvasBox.height,
+    canvasBox.width,
+    dpr,
+    gesture,
+    hidden,
+    items,
+    rect,
+    resolveColor,
+  ]);
 
   useEffect(() => {
     replayCommitted();
@@ -389,6 +437,19 @@ export function AnnotationCanvas({
     [rect],
   );
 
+  /**
+   * The base rectangle test a stroke has to pass to *begin* (the canvas is larger
+   * than the base — see {@link AnnotationCanvasProps.canvas}).
+   */
+  const inBounds = useCallback(
+    (clientX: number, clientY: number): boolean =>
+      clientX >= rect.left &&
+      clientX <= rect.left + rect.width &&
+      clientY >= rect.top &&
+      clientY <= rect.top + rect.height,
+    [rect],
+  );
+
   // The options object is rebuilt every render on purpose: the hook mirrors the
   // latest one into a ref, so a callback that outlives its render still reads the
   // current tool, nib, colour and 手指=书写 switch. `onGestureChange` is the eraser's
@@ -403,10 +464,17 @@ export function AnnotationCanvas({
     hidden,
     itemsRef,
     onPoint,
+    inBounds,
     onOperation,
     onActiveChange,
     requestFrame,
     onGestureChange: replayCommitted,
+    // The host's viewport (image / pdf). `panEnabled` is the 手指=书写 contract:
+    // while a finger draws, only two or more fingers may pan/zoom — which also
+    // means a pinch still works, because the second finger closes the stroke.
+    viewport: panZoom
+      ? { controller: panZoom, panEnabled: !touchDraws, onUndo, onRedo }
+      : undefined,
   });
 
   return (
@@ -420,14 +488,20 @@ export function AnnotationCanvas({
       // pen's moves as a scroll and never delivers them (design §0.3-2). It is
       // also why the canvas — not its parent — is `pointer-events: auto`.
       //
-      // `hidden` is `visibility` plus `pointer-events`, never `display` and never
-      // a data change: the layer stays measured and laid out, so unhiding cannot
-      // move the base rectangle (design §2.1's 隐藏批注 row).
+      // `hidden` is "do not paint the ink" — never `display`, never a data change,
+      // and deliberately **not** `pointer-events: none`: the element stays the
+      // host's gesture surface, so 隐藏批注 can be inspected with pan/zoom (design
+      // §2.1's 隐藏批注 row says the data is untouched; the layer header says why
+      // the pointers stay).
+      //
+      // `pointer-events: auto` is **load-bearing**, not decoration: the layer root
+      // is `pointer-events: none` and the property is inherited, so a canvas
+      // without this line is not hit-testable at all — the whole gesture surface
+      // silently disappears.
       style={{
         position: "absolute",
         touchAction: "none",
-        visibility: hidden ? "hidden" : "visible",
-        pointerEvents: hidden ? "none" : "auto",
+        pointerEvents: "auto",
         cursor: tool === "eraser" ? "cell" : "crosshair",
       }}
       className={cn("z-10 block select-none")}

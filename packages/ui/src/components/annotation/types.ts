@@ -20,6 +20,8 @@
  */
 import type { Annotation } from "@workspace/interfaces";
 
+import type { PanZoomController } from "../pan-zoom/types";
+
 /**
  * The selected drawing tool.
  *
@@ -166,6 +168,21 @@ export interface AnnotationLayerProps {
    * plan §9). It is implemented, but G5 does not test it.
    */
   readOnly?: boolean;
+  /**
+   * The **shared viewport transform**, owned by the host (design: the base and
+   * the ink must never each own a pan/zoom, or they drift). The layer does not
+   * read a transform of its own — it learns the result through
+   * {@link AnnotationLayerProps.getBaseRect}, which the host derives from this
+   * same controller. What the controller buys the layer is the *gestures*: one
+   * finger pans, two pinch, a single-finger double tap restores fit, and the
+   * canvas is the only surface a pointer actually lands on. The desktop half of
+   * 恢复位置大小 is not here — a mouse click is ink, so the host renders
+   * `pan-zoom/reset-button.tsx` instead.
+   *
+   * `undefined` (no host transform, e.g. a plain `readOnly` embed) means the ink
+   * canvas takes no viewport gestures at all.
+   */
+  panZoom?: PanZoomController;
   className?: string;
 }
 
@@ -209,13 +226,23 @@ export interface AnnotationToolbarProps {
  * only pointer target.
  *
  * `box` and `rect` are the same rectangle in two coordinate systems on purpose:
- * the canvas positions itself with `box` (container-relative) and normalizes
- * pointers with `rect` (viewport). Deriving one from the other inside the canvas
- * would mean measuring its own offset parent, which is exactly the kind of
- * hidden coupling the frozen contract exists to avoid.
+ * the ink is drawn through `box` (the base rectangle in the layer root's own CSS
+ * pixels) and pointers are normalized with `rect` (viewport). Deriving one from
+ * the other inside the canvas would mean measuring its own offset parent, which
+ * is exactly the kind of hidden coupling the frozen contract exists to avoid.
+ *
+ * The canvas element itself is bigger than that rectangle: it covers the whole
+ * layer root ({@link AnnotationCanvasProps.canvas}). Two reasons, both about
+ * gestures — the host's pan/pinch must work when a finger lands on the
+ * `object-contain` letterbox beside the photo, and the ink must not be clipped
+ * any earlier than the host clips it. The ink simply stops being drawn outside
+ * `box`.
  */
 export interface AnnotationCanvasProps {
+  /** The base rectangle, in the layer root's own CSS pixels — the ink origin. */
   box: LayerBox;
+  /** The canvas element's own CSS box; always the layer root's layout size. */
+  canvas: { width: number; height: number };
   rect: BaseRect;
   items: Annotation[];
   tool: AnnotationTool;
@@ -229,6 +256,16 @@ export interface AnnotationCanvasProps {
    */
   touchDraws?: boolean;
   hidden?: boolean;
+  /**
+   * The host's viewport controller. When present the ink canvas also becomes the
+   * gesture surface for the whole stack (see
+   * {@link AnnotationLayerProps.panZoom}).
+   */
+  panZoom?: PanZoomController;
+  /** 双指轻点撤回 — the layer's own history, so the canvas only reports the tap. */
+  onUndo?: () => void;
+  /** 三指轻点重做. */
+  onRedo?: () => void;
   /** One finished gesture, reported once. */
   onOperation: (operation: AnnotationOperation) => void;
   /** A gesture started / ended — the layer uses it for the cursor and for ⌘Z focus. */
