@@ -38,6 +38,8 @@ interface AnnotationBase {
 
 export interface Stroke extends AnnotationBase {
   kind: "stroke";
+  /** Omitted for legacy smooth ink. */
+  brush?: "pen" | "pencil" | "fountain" | "marker";
   points: AnnotationPoint[];
   /** Normalized stroke width, relative to the base image's short edge. */
   size: number;
@@ -81,12 +83,7 @@ export interface ShapeAnno extends AnnotationBase {
   filled: boolean;
 }
 
-export type Annotation =
-  | Stroke
-  | Highlight
-  | TextAnno
-  | ArrowAnno
-  | ShapeAnno;
+export type Annotation = Stroke | Highlight | TextAnno | ArrowAnno | ShapeAnno;
 
 /**
  * Persisted form of the whole layer — versioned so a future migration has a

@@ -80,7 +80,8 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
 
 import { hitTestItem, simplifyPoints, withBBox } from "./geometry";
-import { shouldSimulatePressure } from "./draw";
+import { createBrushAnnotation } from "./brushes";
+import { erasePath, eraserSamples } from "./erase";
 import {
   centroidOf,
   classifyTapEnd,
@@ -92,7 +93,12 @@ import type {
   ViewportGestureOptions,
   ViewportTransform,
 } from "../pan-zoom/types";
-import type { AnnotationColorKey, AnnotationTool } from "./types";
+import type {
+  AnnotationColorKey,
+  AnnotationTool,
+  EraserMode,
+  AnnotationOperation,
+} from "./types";
 
 /**
  * The mutable state of one in-flight gesture, shared with the renderer.
@@ -114,6 +120,7 @@ export interface GestureHandle {
    * operation and the parent landing it.
    */
   readonly erasedIds: Set<string>;
+  readonly replacements: Map<string, Annotation[]>;
   /**
    * Bumped whenever a sample lands.
    *
@@ -142,6 +149,7 @@ export interface AnnotationInputOptions {
   /** The live gesture, allocated once by the canvas via `useRef`. */
   gesture: RefObject<GestureHandle>;
   tool: AnnotationTool;
+  eraserMode?: EraserMode;
   /** Nib width in normalized units — also the eraser's reach (`size × 2`). */
   size: number;
   color: AnnotationColorKey;
@@ -173,11 +181,7 @@ export interface AnnotationInputOptions {
    */
   inBounds: (clientX: number, clientY: number) => boolean;
   /** One finished gesture, reported once (design §1.2 boundary 2). */
-  onOperation: (
-    operation:
-      | { kind: "add"; item: Annotation }
-      | { kind: "remove"; items: Annotation[] },
-  ) => void;
+  onOperation: (operation: AnnotationOperation) => void;
   /** A gesture started / ended — the layer uses it for the cursor and ⌘Z focus. */
   onActiveChange?: (active: boolean) => void;
   /** Ask the canvas for a frame. Called from input callbacks; never mutates. */
@@ -407,7 +411,25 @@ export function useAnnotationInput(
       // therefore passes to the renderer, which clears it when the `items` prop
       // actually changes — the layer having landed the deletion.
       current.points.length = 0;
-      if (removed.length > 0) emit({ kind: "remove", items: removed });
+      if (latest.current.eraserMode === "path") {
+        const replacements = (latest.current.itemsRef.current ?? []).flatMap(
+          (original) => {
+            const fragments = current.replacements.get(original.id);
+            return fragments
+              ? [
+                  {
+                    original,
+                    items: fragments.map((item) => ({
+                      ...item,
+                      id: randomId(),
+                    })),
+                  },
+                ]
+              : [];
+          },
+        );
+        if (replacements.length) emit({ kind: "replace", replacements });
+      } else if (removed.length > 0) emit({ kind: "remove", items: removed });
       requestFrame();
       return;
     }
@@ -418,7 +440,7 @@ export function useAnnotationInput(
     // pen drag. Nothing delays a click or deletes it retroactively, which is why
     // 恢复位置大小 cannot ride on a desktop double click (see the file header) and
     // why a host that wants one offers a button (`pan-zoom/reset-button.tsx`).
-    if (points.length > 0) {
+    if (points.length > 0 && activeTool !== "pointer") {
       // Everything after the id is derived and settled here, never at sample
       // time: the id is stable for the item's whole life, `simulatePressure` is
       // decided once on release (design §4.5), `points` are thinned only on the
@@ -429,19 +451,16 @@ export function useAnnotationInput(
         if (item.z > z) z = item.z;
       }
       const item: Annotation = withBBox({
+        ...createBrushAnnotation(
+          activeTool,
+          simplifyPoints(points),
+          activeSize,
+          activeColor,
+          document.documentElement.classList.contains("dark"),
+        ),
         id: randomId(),
-        kind: "stroke",
         z: z + 1,
-        bbox: [0, 0, 0, 0],
-        color: activeColor,
-        opacity: 1,
         createdAt: Date.now(),
-        points: simplifyPoints(points),
-        size: activeSize,
-        thinning: 0.5,
-        smoothing: 0.5,
-        streamline: 0.5,
-        simulatePressure: shouldSimulatePressure(points),
       });
       current.points.length = 0;
       emit({ kind: "add", item });
@@ -471,7 +490,9 @@ export function useAnnotationInput(
 
       const pointerType = event.pointerType;
       const isTouch = pointerType === "touch";
-      const isMiddle = pointerType === "mouse" && event.button === 1;
+      const isMiddle =
+        (pointerType === "mouse" && event.button === 1) ||
+        (latest.current.tool === "pointer" && event.button === 0 && !isTouch);
       if (!isTouch && !isMiddle) return false;
 
       const state = viewportRef.current;
@@ -689,6 +710,38 @@ export function useAnnotationInput(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const eraseAt = useCallback(
+    (from: AnnotationPoint, to: AnnotationPoint) => {
+      const current = gesture.current;
+      const options = latest.current;
+      const radius = options.size * 2;
+      if (radius <= 0) return;
+      const samples = eraserSamples(from, to, radius);
+      let changed = false;
+      for (const original of options.itemsRef.current ?? []) {
+        if (options.eraserMode === "path") {
+          const previous = current.replacements.get(original.id) ?? [original];
+          const next = erasePath(previous, samples, radius);
+          if (
+            next.length !== previous.length ||
+            next.some((item, i) => item !== previous[i])
+          ) {
+            current.replacements.set(original.id, next);
+            changed = true;
+          }
+        } else if (
+          !current.erasedIds.has(original.id) &&
+          samples.some((point) => hitTestItem(original, point, radius))
+        ) {
+          current.erasedIds.add(original.id);
+          changed = true;
+        }
+      }
+      if (changed) onGestureChange?.();
+    },
+    [gesture, onGestureChange],
+  );
+
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       // The shared viewport gets first refusal: a finger that pans, a second
@@ -697,7 +750,7 @@ export function useAnnotationInput(
       if (handleViewportDown(event)) return;
       if (latest.current.isNavigationGesture?.(event.nativeEvent)) return;
       // Hiding only stops *drawing* from here on.
-      if (latest.current.hidden) return;
+      if (latest.current.hidden || latest.current.tool === "pointer") return;
       // So does a read-only layer: the ink is on screen, but there is nowhere to
       // put a new stroke (see `AnnotationInputOptions.readOnly`).
       if (latest.current.readOnly) return;
@@ -720,6 +773,8 @@ export function useAnnotationInput(
       if (!latest.current.inBounds(event.clientX, event.clientY)) return;
 
       activePointers.current.set(event.pointerId, pointerType);
+      current.replacements.clear();
+      current.erasedIds.clear();
       current.active = true;
       current.pointerId = event.pointerId;
 
@@ -738,12 +793,17 @@ export function useAnnotationInput(
       current.points.push(
         latest.current.onPoint(event.clientX, event.clientY, event.pressure),
       );
+      if (latest.current.tool === "eraser") {
+        const first = current.points[current.points.length - 1]!;
+        eraseAt(first, first);
+      }
       current.tick += 1;
       onActiveChange?.(true);
       requestFrame();
     },
     [
       gesture,
+      eraseAt,
       handleViewportDown,
       isDrawable,
       onActiveChange,
@@ -770,46 +830,19 @@ export function useAnnotationInput(
 
       const native = event.nativeEvent;
       const samples = coalescedPoints(native);
-      const {
-        onPoint: toPoint,
-        tool: activeTool,
-        size: activeSize,
-      } = latest.current;
+      const { onPoint: toPoint, tool: activeTool } = latest.current;
 
-      let last: AnnotationPoint | null = null;
+      let previous = current.points[current.points.length - 1]!;
       for (const sample of samples) {
-        last = toPoint(sample.clientX, sample.clientY, sample.pressure);
-        current.points.push(last);
+        const point = toPoint(sample.clientX, sample.clientY, sample.pressure);
+        current.points.push(point);
+        if (activeTool === "eraser") eraseAt(previous, point);
+        previous = point;
       }
       current.tick += 1;
-
-      let hit = false;
-      if (activeTool === "eraser" && last) {
-        // Whole-stroke erase, reach = nib × 2 (design §3.3). The reach is
-        // normalized like the nib, so it stays a constant fraction of the image.
-        // Radius 0 would make the bbox prefilter contain every point, so an
-        // unmeasurable image (no size yet) erases nothing instead.
-        const radius = activeSize * 2;
-        if (radius > 0) {
-          for (const item of latest.current.itemsRef.current ?? []) {
-            if (current.erasedIds.has(item.id)) continue;
-            if (hitTestItem(item, last, radius)) {
-              current.erasedIds.add(item.id);
-              hit = true;
-            }
-          }
-        }
-      }
-
-      // The eraser's set growing is the one mutation a paint cannot pick up on its
-      // own: `order` is a ref, so nothing re-renders and the cached layer would
-      // keep showing the mark at full alpha until the next render (the gesture's own
-      // `active` change on pointerup). The pen needs no such signal — its samples
-      // are drawn live every frame.
-      if (hit) onGestureChange?.();
       requestFrame();
     },
-    [gesture, handleViewportMove, onGestureChange, penIsDown, requestFrame],
+    [gesture, eraseAt, handleViewportMove, penIsDown, requestFrame],
   );
 
   const onPointerUp = useCallback(

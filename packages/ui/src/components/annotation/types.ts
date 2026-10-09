@@ -22,16 +22,17 @@ import type { Annotation } from "@workspace/interfaces";
 
 import type { PanZoomController } from "../pan-zoom/types";
 
-/**
- * The selected drawing tool.
- *
- * **P0 ships pen + eraser only.** The plan puts the rest of the design's §2.1 tool
- * table (荧光笔 / 套索 / 文本框 / 箭头 / 矩形 / 椭圆) in **M7**, together with the
- * text layer, and registers that split as R20. `draw.ts` already *renders* every
- * item kind, so M7 only has to extend this union and add the input branches —
- * widening it earlier would mean shipping toolbar buttons that draw nothing.
- */
-export type AnnotationTool = "pen" | "eraser";
+/** Drawing tools share the existing stroke/highlight persistence format. */
+export type EraserMode = "stroke" | "path";
+
+export type AnnotationTool =
+  | "pointer"
+  | "pen"
+  | "pencil"
+  | "fountain"
+  | "marker"
+  | "highlighter"
+  | "eraser";
 
 /** A rectangle in **viewport** (client) CSS pixels. */
 export interface BaseRect {
@@ -127,7 +128,11 @@ export const HIGHLIGHT_BLEND_DARK = "screen" as const;
  */
 export type AnnotationOperation =
   | { kind: "add"; item: Annotation }
-  | { kind: "remove"; items: Annotation[] };
+  | { kind: "remove"; items: Annotation[] }
+  | {
+      kind: "replace";
+      replacements: { original: Annotation; items: Annotation[] }[];
+    };
 
 /**
  * One ink surface of a **paginated** base (a pdf).
@@ -288,20 +293,16 @@ export interface AnnotationLayerProps {
   className?: string;
 }
 
-/**
- * Props of `annotation-toolbar.tsx`.
- *
- * The toolbar is **presentational**: it renders state and calls back, and it owns
- * exactly one piece of local state — the two-stage confirmation of 清除 (the
- * design allows an `AlertDialog` "或两段式按钮"; the repo has no `alert-dialog`
- * primitive, so it is the second option).
- */
+/** Controlled drawing settings; toolbar owns floating position and clear confirmation. */
 export interface AnnotationToolbarProps {
   tool: AnnotationTool;
+  eraserMode?: EraserMode;
   onToolChange: (tool: AnnotationTool) => void;
+  onEraserModeChange?: (mode: EraserMode) => void;
+  onResetView?: () => void;
   color: AnnotationColorKey;
   onColorChange: (color: AnnotationColorKey) => void;
-  /** One of {@link ANNOTATION_SIZES} (normalized to the short edge). */
+  /** Continuous width normalized to the short edge; ANNOTATION_SIZES are presets. */
   size: number;
   onSizeChange: (size: number) => void;
   canUndo: boolean;
@@ -316,9 +317,6 @@ export interface AnnotationToolbarProps {
   /** The "finger draws too" fallback switch (design §0.3-5); default off. */
   touchDraws: boolean;
   onToggleTouchDraws: () => void;
-  /** Browsing makes the ink inert; the host must retain navigation. */
-  pointerEnabled?: boolean;
-  onTogglePointer?: () => void;
   /** How many items the layer currently holds — 清除 is disabled at zero. */
   itemCount: number;
   /** Folded layout for the Dialog host (design §2.4). */
@@ -411,6 +409,7 @@ export interface AnnotationCanvasProps {
   maxPixels?: number;
   items: Annotation[];
   tool: AnnotationTool;
+  eraserMode?: EraserMode;
   /** Nib width in normalized units ({@link ANNOTATION_SIZES}). */
   size: number;
   color: AnnotationColorKey;

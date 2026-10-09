@@ -70,6 +70,7 @@
  * listener would have to suppress the first click's dot, and "click once, get a
  * dot" is worth more than a desktop gesture the button already covers.
  */
+import { createBrushAnnotation } from "./brushes";
 import {
   useCallback,
   useEffect,
@@ -148,6 +149,7 @@ export function AnnotationCanvas({
   maxPixels,
   items,
   tool,
+  eraserMode = "stroke",
   size,
   color,
   touchDraws = false,
@@ -183,6 +185,7 @@ export function AnnotationCanvas({
   const gestureRef = useRef<GestureHandle>({
     points: [],
     erasedIds: new Set<string>(),
+    replacements: new Map(),
     tick: 0,
     active: false,
     pointerId: -1,
@@ -349,28 +352,21 @@ export function AnnotationCanvas({
 
     if (
       !frameHidden &&
-      activeTool === "pen" &&
+      activeTool !== "eraser" &&
+      activeTool !== "pointer" &&
       inside.points.length > 0 &&
       hasSize(frameRect)
     ) {
       // The in-flight stroke goes through the same renderer as the stored ones —
       // the normalized input becomes a display-space item here and nowhere else,
       // so a stroke cannot change shape the moment it is committed.
-      const live: Annotation = {
-        id: "",
-        kind: "stroke",
-        z: 0,
-        bbox: [0, 0, 0, 0],
-        color: activeColor,
-        opacity: 1,
-        createdAt: 0,
-        points: inside.points,
-        size: activeSize,
-        thinning: 0.5,
-        smoothing: 0.5,
-        streamline: 0.5,
-        simulatePressure: false,
-      };
+      const live = createBrushAnnotation(
+        activeTool,
+        inside.points,
+        activeSize,
+        activeColor,
+        document.documentElement.classList.contains("dark"),
+      );
       ctx.save();
       ctx.translate(frameBox.left, frameBox.top);
       drawAnnotation(ctx, live, frameRect, resolveColor);
@@ -564,9 +560,15 @@ export function AnnotationCanvas({
       // the layer lands the removal, so the user can see what the pass is about
       // to delete (G5's third report).
       ctx.translate(box.left, box.top);
-      drawAnnotations(ctx, items, rect, resolveColor, {
-        ghostIds: gesture.erasedIds,
-      });
+      drawAnnotations(
+        ctx,
+        items.flatMap((item) => gesture.replacements.get(item.id) ?? [item]),
+        rect,
+        resolveColor,
+        {
+          ghostIds: gesture.erasedIds,
+        },
+      );
     }
 
     // And the visible canvas, in the same task. The effect below runs in the
@@ -604,6 +606,7 @@ export function AnnotationCanvas({
     if (lastItemsRef.current === items) return;
     lastItemsRef.current = items;
     gesture.erasedIds.clear();
+    gesture.replacements.clear();
     requestFrame();
   }, [items, gesture, requestFrame]);
 
@@ -707,6 +710,7 @@ export function AnnotationCanvas({
     isNavigationGesture,
     gesture: gestureRef,
     tool,
+    eraserMode,
     size,
     color,
     touchDraws,
@@ -724,7 +728,12 @@ export function AnnotationCanvas({
     // means a pinch still works, because the second finger closes the stroke.
     viewport:
       panZoom || arbitrateViewport
-        ? { controller: panZoom, panEnabled: !touchDraws, onUndo, onRedo }
+        ? {
+            controller: panZoom,
+            panEnabled: tool === "pointer" || !touchDraws,
+            onUndo,
+            onRedo,
+          }
         : undefined,
   });
 
@@ -762,9 +771,11 @@ export function AnnotationCanvas({
         cursor:
           !pointerEnabled || readOnly
             ? "default"
-            : tool === "eraser"
-              ? "cell"
-              : "crosshair",
+            : tool === "pointer"
+              ? "grab"
+              : tool === "eraser"
+                ? "cell"
+                : "crosshair",
       }}
       className={cn("z-10 block select-none")}
       onPointerDown={input.handlers.onPointerDown}

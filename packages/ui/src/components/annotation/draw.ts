@@ -176,25 +176,73 @@ function drawStroke(
   rect: BaseRect,
   color: string,
 ): void {
-  fillOutline(
-    ctx,
-    strokeOutline(item.points, rect, {
-      size: item.size,
-      thinning: item.thinning,
-      smoothing: item.smoothing,
-      streamline: item.streamline,
-      simulatePressure: item.simulatePressure,
-    }),
-    color,
-    item.opacity,
-  );
+  const outline = strokeOutline(item.points, rect, {
+    size: item.size,
+    thinning: item.thinning,
+    smoothing: item.smoothing,
+    streamline: item.streamline,
+    simulatePressure: item.simulatePressure,
+  });
+  if (item.brush === "pencil") {
+    drawGraphite(ctx, outline, rect, color, item.opacity);
+  } else {
+    fillOutline(ctx, outline, color, item.opacity);
+  }
 }
 
-/**
- * A highlighter is the same outline with **no pressure taper** (`thinning: 0`) and
- * a blend mode instead of an opacity that would hide the text underneath
- * (design §2.1). The blend is a stored field because `multiply` darkens on a dark
- * theme and has to become `screen` (design §2.3).
+/** Grain is anchored to paper coordinates, so replay and zoom never randomize it.
+ * Scanline spans keep the work proportional to ink area, not its bounding box.
+ */
+function drawGraphite(
+  ctx: InkContext,
+  outline: readonly number[][],
+  rect: BaseRect,
+  color: string,
+  opacity: number,
+): void {
+  if (outline.length < 3) return;
+  const grain = Math.min(rect.width, rect.height) / 650;
+  const minY = outline.reduce((min, p) => Math.min(min, p[1]!), Infinity);
+  const maxY = outline.reduce((max, p) => Math.max(max, p[1]!), -Infinity);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = opacity;
+  ctx.beginPath();
+  for (let row = Math.floor(minY / grain); row * grain < maxY; row++) {
+    const y = (row + 0.5) * grain;
+    const crossings: number[] = [];
+    for (let i = 0; i < outline.length; i++) {
+      const a = outline[i]!;
+      const b = outline[(i + 1) % outline.length]!;
+      if (a[1]! > y === b[1]! > y) continue;
+      crossings.push(a[0]! + ((y - a[1]!) / (b[1]! - a[1]!)) * (b[0]! - a[0]!));
+    }
+    crossings.sort((a, b) => a - b);
+    for (let i = 0; i + 1 < crossings.length; i += 2) {
+      const left = crossings[i]!;
+      const right = crossings[i + 1]!;
+      for (
+        let col = Math.ceil(left / grain);
+        (col + 1) * grain < right;
+        col++
+      ) {
+        let hash = Math.imul(col, 374761393) ^ Math.imul(row, 668265263);
+        hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
+        const noise = ((hash ^ (hash >>> 16)) >>> 0) / 4294967296;
+        if (noise < 0.22) continue;
+        const dot = grain * (0.3 + noise * 0.65);
+        ctx.rect((col + noise * 0.25) * grain, y - dot / 2, dot, dot);
+      }
+    }
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+/** A uniform translucent native path, without self-intersecting outline fills.
+ * Source-over is stable across the separate live and committed canvases; a
+ * canvas blend cannot interact with the document underneath its transparent layer.
+ * The legacy blend field remains readable for persisted annotation compatibility.
  */
 function drawHighlight(
   ctx: InkContext,
@@ -202,19 +250,38 @@ function drawHighlight(
   rect: BaseRect,
   color: string,
 ): void {
-  fillOutline(
-    ctx,
-    strokeOutline(item.points, rect, {
-      size: item.size,
-      thinning: 0,
-      smoothing: 0.5,
-      streamline: 0.5,
-      simulatePressure: false,
-    }),
-    color,
-    item.opacity,
-    item.blend,
-  );
+  if (item.points.length === 0) return;
+  // One native stroke unions all segments before applying alpha. Freehand's
+  // outline polygon can self-intersect on tight turns and scribbles, producing
+  // winding holes that read as horizontal bands in broad translucent ink.
+  ctx.save();
+  ctx.globalAlpha = item.opacity;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = toDisplaySize(item.size, rect);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  const first = item.points[0]!;
+  if (item.points.length === 1) {
+    ctx.ellipse(
+      first.x * rect.width,
+      first.y * rect.height,
+      ctx.lineWidth / 2,
+      ctx.lineWidth / 2,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  } else {
+    ctx.moveTo(first.x * rect.width, first.y * rect.height);
+    for (const point of item.points.slice(1))
+      ctx.lineTo(point.x * rect.width, point.y * rect.height);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawArrow(

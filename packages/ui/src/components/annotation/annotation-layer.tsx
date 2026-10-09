@@ -46,23 +46,20 @@ import { createPortal } from "react-dom";
 import type { Annotation } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { useBrushSettings } from "./use-brush-settings";
+import { useToolbarPreference } from "./use-toolbar-preference";
 import { AnnotationCanvas } from "./annotation-canvas";
 import { AnnotationToolbar } from "./annotation-toolbar";
 import { toLayerBox } from "./geometry";
 import type {
-  AnnotationColorKey,
   AnnotationLayerProps,
   AnnotationOperation,
   AnnotationTool,
+  EraserMode,
   BaseRect,
   LayerBox,
 } from "./types";
-import {
-  ANNOTATION_SIZES,
-  DEFAULT_ANNOTATION_COLOR,
-  DEFAULT_ANNOTATION_SIZE,
-  DEFAULT_ANNOTATION_TOOL,
-} from "./types";
+import { ANNOTATION_SIZES, DEFAULT_ANNOTATION_TOOL } from "./types";
 
 const NO_ITEMS: Annotation[] = [];
 
@@ -79,7 +76,11 @@ const HISTORY_LIMIT = 200;
  */
 type HistoryEntry =
   | { kind: "add"; item: Annotation }
-  | { kind: "remove"; removed: { item: Annotation; index: number }[] };
+  | {
+      kind: "remove";
+      removed: { item: Annotation; index: number }[];
+      added?: { item: Annotation; index: number }[];
+    };
 
 interface History {
   entries: HistoryEntry[];
@@ -236,15 +237,39 @@ export function AnnotationLayer({
   itemsRef.current = items;
 
   const [history, setHistory] = useState<History>(EMPTY_HISTORY);
-  const [tool, setTool] = useState<AnnotationTool>(defaultTool);
-  const [color, setColor] = useState<AnnotationColorKey>(
-    DEFAULT_ANNOTATION_COLOR,
+  const [tool, setTool] = useToolbarPreference<AnnotationTool>(
+    "tool",
+    defaultPointerEnabled ? defaultTool : "pointer",
+    (value): value is AnnotationTool =>
+      typeof value === "string" &&
+      [
+        "pointer",
+        "pen",
+        "pencil",
+        "fountain",
+        "marker",
+        "highlighter",
+        "eraser",
+      ].includes(value),
   );
-  const [size, setSize] = useState<number>(DEFAULT_ANNOTATION_SIZE);
-  const [hidden, setHidden] = useState(false);
-  const [touchDraws, setTouchDraws] = useState(false);
+  const { color, size, setColor, setSize } = useBrushSettings(tool);
+  const [hidden, setHidden] = useToolbarPreference(
+    "hidden",
+    false,
+    (value): value is boolean => typeof value === "boolean",
+  );
+  const [touchDraws, setTouchDraws] = useToolbarPreference(
+    "touchDraws",
+    false,
+    (value): value is boolean => typeof value === "boolean",
+  );
   /** Ink ownership; navigation remains on the host in browsing mode. */
-  const [pointerEnabled, setPointerEnabled] = useState(defaultPointerEnabled);
+  const pointerEnabled = tool !== "pointer";
+  const [eraserMode, setEraserMode] = useToolbarPreference<EraserMode>(
+    "eraserMode",
+    "stroke",
+    (value): value is EraserMode => value === "stroke" || value === "path",
+  );
   const [active, setActive] = useState(false);
 
   useEffect(() => {
@@ -570,6 +595,24 @@ export function AnnotationLayer({
         });
         return;
       }
+      if (stamped.kind === "replace") {
+        const replacements = new Map(
+          stamped.replacements.map((entry) => [entry.original.id, entry.items]),
+        );
+        const removed = current
+          .map((item, index) => ({ item, index }))
+          .filter((entry) => replacements.has(entry.item.id));
+        if (!removed.length) return;
+        const next = current.flatMap(
+          (item) => replacements.get(item.id) ?? [item],
+        );
+        const originalIds = new Set(current.map((item) => item.id));
+        const added = next
+          .map((item, index) => ({ item, index }))
+          .filter((entry) => !originalIds.has(entry.item.id));
+        commit(next, { kind: "remove", removed, added });
+        return;
+      }
       if (stamped.items.length === 0) return;
 
       const removedIds = new Set(stamped.items.map((item) => item.id));
@@ -592,8 +635,8 @@ export function AnnotationLayer({
    * otherwise pan with the same finger the pen is writing with.
    */
   useEffect(() => {
-    onTouchDrawsChange?.(touchDraws);
-  }, [onTouchDrawsChange, touchDraws]);
+    onTouchDrawsChange?.(touchDraws && pointerEnabled);
+  }, [onTouchDrawsChange, touchDraws, pointerEnabled]);
 
   const canUndo = history.index > 0;
   const canRedo = history.index < history.entries.length;
@@ -608,7 +651,13 @@ export function AnnotationLayer({
     const next =
       entry.kind === "add"
         ? current.filter((item) => item.id !== entry.item.id)
-        : reinsert(current, entry.removed);
+        : reinsert(
+            current.filter(
+              (item) =>
+                !entry.added?.some((added) => added.item.id === item.id),
+            ),
+            entry.removed,
+          );
     emittedRef.current = next;
     setHistory({ entries: history.entries, index: history.index - 1 });
     if (onItemsChange) onItemsChange(next);
@@ -622,9 +671,11 @@ export function AnnotationLayer({
     const next =
       entry.kind === "add"
         ? [...current, entry.item]
-        : current.filter(
-            (item) =>
-              !entry.removed.some(({ item: gone }) => gone.id === item.id),
+        : reinsert(
+            current.filter(
+              (item) => !entry.removed.some((gone) => gone.item.id === item.id),
+            ),
+            entry.added ?? [],
           );
     emittedRef.current = next;
     setHistory({ entries: history.entries, index: history.index + 1 });
@@ -643,16 +694,19 @@ export function AnnotationLayer({
     });
   }, [commit]);
 
-  const stepSize = useCallback((direction: number) => {
-    setSize((current) => {
-      const at = ANNOTATION_SIZES.indexOf(current);
-      const next = Math.min(
-        Math.max((at === -1 ? 1 : at) + direction, 0),
-        ANNOTATION_SIZES.length - 1,
-      );
-      return ANNOTATION_SIZES[next]!;
-    });
-  }, []);
+  const stepSize = useCallback(
+    (direction: number) => {
+      setSize((current) => {
+        const at = ANNOTATION_SIZES.indexOf(current);
+        const next = Math.min(
+          Math.max((at === -1 ? 1 : at) + direction, 0),
+          ANNOTATION_SIZES.length - 1,
+        );
+        return ANNOTATION_SIZES[next]!;
+      });
+    },
+    [setSize],
+  );
 
   /**
    * Keyboard, scoped to the layer's own subtree (boundary 3).
@@ -675,10 +729,31 @@ export function AnnotationLayer({
       if (modifier || event.altKey) return;
 
       switch (event.key) {
+        case "v":
+        case "V":
+          setTool("pointer");
+          return;
         case "p":
         case "P":
         case "1":
           setTool("pen");
+          return;
+        case "b":
+        case "B":
+          setTool("pencil");
+          return;
+        case "f":
+        case "F":
+          setTool("fountain");
+          return;
+        case "m":
+        case "M":
+          setTool("marker");
+          return;
+        case "h":
+        case "H":
+        case "2":
+          setTool("highlighter");
           return;
         case "e":
         case "E":
@@ -709,7 +784,7 @@ export function AnnotationLayer({
           return;
       }
     },
-    [onResetView, panZoom, readOnly, redo, stepSize, undo],
+    [onResetView, panZoom, readOnly, redo, stepSize, undo, setHidden, setTool],
   );
 
   // No document-level key handler is needed for a portaled page canvas: React
@@ -737,19 +812,21 @@ export function AnnotationLayer({
           onToggleHidden={() => setHidden((current) => !current)}
           touchDraws={touchDraws}
           onToggleTouchDraws={() => setTouchDraws((current) => !current)}
-          pointerEnabled={pointerEnabled}
-          onTogglePointer={
-            // Hosts that own navigation outside the ink can offer browsing.
-            pointerToggle
-              ? () => setPointerEnabled((current) => !current)
-              : undefined
-          }
+          eraserMode={eraserMode}
+          onEraserModeChange={setEraserMode}
+          onResetView={() => (panZoom ? panZoom.reset() : onResetView?.())}
           itemCount={items.length}
           compact={compact}
-          className="absolute left-2 top-2 z-30 max-w-[calc(100%-1rem)]"
+          className="z-30"
         />
       ),
     [
+      setColor,
+      setEraserMode,
+      setHidden,
+      setSize,
+      setTool,
+      setTouchDraws,
       canRedo,
       canUndo,
       clear,
@@ -757,8 +834,9 @@ export function AnnotationLayer({
       compact,
       hidden,
       items.length,
-      pointerEnabled,
-      pointerToggle,
+      eraserMode,
+      panZoom,
+      onResetView,
       readOnly,
       redo,
       size,
@@ -793,6 +871,7 @@ export function AnnotationLayer({
                 : (pageItems.get(surface.page) ?? NO_ITEMS)
             }
             tool={tool}
+            eraserMode={eraserMode}
             size={size}
             color={color}
             touchDraws={touchDraws}
@@ -800,7 +879,7 @@ export function AnnotationLayer({
             readOnly={readOnly}
             panZoom={panZoom}
             arbitrateViewport={arbitrateViewport}
-            pointerEnabled={pointerEnabled}
+            pointerEnabled={!pointerToggle || pointerEnabled}
             isNavigationGesture={isNavigationGesture}
             onUndo={undo}
             onRedo={redo}

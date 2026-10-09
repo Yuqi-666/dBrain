@@ -117,6 +117,11 @@ class RecordingContext implements InkContext {
     });
   }
   stroke(): void {
+    this.fills.push({
+      alpha: this.globalAlpha,
+      color: this.strokeStyle,
+      blend: this.globalCompositeOperation,
+    });
     this.ops.push("stroke");
   }
   fillText(text: string): void {
@@ -293,7 +298,7 @@ test("an empty ghost set draws every mark at full alpha", () => {
   );
 });
 
-test("a highlighter blends instead of darkening with alpha", () => {
+test("a highlighter paints a single translucent path without outline winding holes", () => {
   const ctx = new RecordingContext();
   const highlight: Annotation = {
     ...nibPen,
@@ -303,7 +308,7 @@ test("a highlighter blends instead of darkening with alpha", () => {
   };
   drawAnnotation(ctx, highlight, RECT, () => "yellow");
   assert.deepEqual(ctx.fills, [
-    { alpha: 0.35, color: "yellow", blend: "multiply" },
+    { alpha: 0.35, color: "yellow", blend: "source-over" },
   ]);
 });
 
@@ -389,4 +394,65 @@ test("text draws one line per newline at the shared line height", () => {
   assert.match(ctx.font, /^20px /);
   assert.equal(ctx.textAlign, "left");
   assert.equal(ctx.textBaseline, "top");
+});
+
+test("brush recipes preserve real pressure and use simulated pressure for mouse input", async () => {
+  const { createBrushAnnotation } = await import("./brushes.ts");
+  const points = [
+    { x: 0.1, y: 0.1, p: 0.2 },
+    { x: 0.4, y: 0.3, p: 0.8 },
+  ];
+  for (const tool of ["pen", "pencil", "fountain"] as const) {
+    const pen = createBrushAnnotation(tool, points, 0.008, "red", false);
+    assert.equal(pen.kind, "stroke");
+    if (pen.kind === "stroke") assert.equal(pen.simulatePressure, false);
+    const mouse = createBrushAnnotation(
+      tool,
+      points.map((p) => ({ ...p, p: 0.5 })),
+      0.008,
+      "red",
+      false,
+    );
+    if (mouse.kind === "stroke") assert.equal(mouse.simulatePressure, true);
+  }
+  const marker = createBrushAnnotation("marker", points, 0.008, "blue", false);
+  assert.equal(marker.kind, "stroke");
+  if (marker.kind === "stroke") assert.equal(marker.simulatePressure, false);
+});
+
+test("highlighter stores translucent wide ink with the theme's readable blend", async () => {
+  const { createBrushAnnotation } = await import("./brushes.ts");
+  for (const dark of [false, true]) {
+    const mark = createBrushAnnotation(
+      "highlighter",
+      [{ x: 0.2, y: 0.3 }],
+      0.008,
+      "yellow",
+      dark,
+    );
+    assert.equal(mark.kind, "highlight");
+    assert.ok(mark.opacity > 0 && mark.opacity < 1);
+    assert.ok(mark.size > 0.008);
+    if (mark.kind === "highlight")
+      assert.equal(mark.blend, dark ? "screen" : "multiply");
+  }
+});
+
+test("graphite produces deterministic grain instead of a solid outline", () => {
+  const pencil: Annotation = {
+    ...nibPen,
+    kind: "stroke",
+    brush: "pencil",
+    points: [
+      { x: 0.1, y: 0.5, p: 0.5 },
+      { x: 0.8, y: 0.5, p: 0.7 },
+    ],
+  };
+  const first = new RecordingContext();
+  const second = new RecordingContext();
+  drawAnnotation(first, pencil, RECT, () => "gray");
+  drawAnnotation(second, pencil, RECT, () => "gray");
+  assert.ok(first.ops.filter((op) => op === "rect").length > 100);
+  assert.deepEqual(first.ops, second.ops);
+  assert.equal(first.ops.includes("lineTo"), false);
 });
