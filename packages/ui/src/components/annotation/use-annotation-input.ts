@@ -138,6 +138,7 @@ export interface GestureHandle {
 
 /** The three knobs the canvas owns and the state machine only reads. */
 export interface AnnotationInputOptions {
+  isNavigationGesture?: (event: PointerEvent) => boolean;
   /** The live gesture, allocated once by the canvas via `useRef`. */
   gesture: RefObject<GestureHandle>;
   tool: AnnotationTool;
@@ -694,6 +695,7 @@ export function useAnnotationInput(
       // finger that starts a pinch and a middle-button drag all stop here — and
       // they keep working while the ink is hidden.
       if (handleViewportDown(event)) return;
+      if (latest.current.isNavigationGesture?.(event.nativeEvent)) return;
       // Hiding only stops *drawing* from here on.
       if (latest.current.hidden) return;
       // So does a read-only layer: the ink is on screen, but there is nowhere to

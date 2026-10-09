@@ -481,7 +481,7 @@ export function AnnotationToolbar({
             {onTogglePointer && (
               <ToolbarButton
                 data-annotation-pointer
-                label={pointerEnabled ? "浏览（可选文字）" : "批注（可书写）"}
+                label={pointerEnabled ? "切换到浏览" : "切换到批注"}
                 aria-pressed={pointerEnabled}
                 onClick={onTogglePointer}
                 className="aria-pressed:bg-accent aria-pressed:text-foreground"
@@ -557,7 +557,7 @@ export function AnnotationToolbar({
                 checked={pointerEnabled}
                 onCheckedChange={() => onTogglePointer()}
               >
-                {pointerEnabled ? "批注（可书写）" : "浏览（可选文字）"}
+                {pointerEnabled ? "批注" : "浏览"}
               </DropdownMenuCheckboxItem>
             )}
             {/* The folded row only has room for 当前工具 + 橡皮 + 撤销 + 颜色 +

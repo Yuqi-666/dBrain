@@ -12,7 +12,7 @@
  * is what the box is laid out at, and it follows a gesture immediately.
  * `renderScale` is what the canvas bitmap and the text layer were actually built
  * at, which lags while a zoom gesture is streaming: the bitmap is then stretched
- * to fit the box by plain CSS, and the text layer and the highlight rectangles go
+ * to fit the box by a CSS transform, and the text layer and the highlight rectangles go
  * invisible, because they are still positioned for the smaller box and cannot be
  * re-laid-out without the very repaint the stretch exists to avoid. The repaint
  * that ends the gesture brings the two multipliers back together.
@@ -269,8 +269,9 @@ export function PdfPage({
         viewport.width,
         viewport.height,
       );
-      canvas.width = Math.max(1, Math.floor(viewport.width * dpr));
-      canvas.height = Math.max(1, Math.floor(viewport.height * dpr));
+      const buffer = document.createElement("canvas");
+      buffer.width = Math.max(1, Math.floor(viewport.width * dpr));
+      buffer.height = Math.max(1, Math.floor(viewport.height * dpr));
       // No inline width/height: the canvas is stretched to the page box by CSS,
       // which is what lets a zoom gesture repaint later than it re-lays-out.
 
@@ -292,7 +293,7 @@ export function PdfPage({
        * a fresh canvas nor a just-resized one was ever the black frame. Only a wipe
        * that outlives the paint was, i.e. `release()`.)
        */
-      const context = canvas.getContext("2d", { alpha: true });
+      const context = buffer.getContext("2d", { alpha: true });
       if (!context) {
         // A refusal, not an exception: the canvas is already at the size that was
         // asked of it and there is no white to fill in, because there is no context
@@ -308,7 +309,7 @@ export function PdfPage({
       // draw, and it keeps the *bitmap* paper-coloured even if the page box stops
       // being.
       context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillRect(0, 0, buffer.width, buffer.height);
 
       renderTask = proxy.render({
         canvasContext: context,
@@ -318,6 +319,11 @@ export function PdfPage({
       });
       await renderTask.promise;
       if (cancelled) return;
+
+      canvas.width = buffer.width;
+      canvas.height = buffer.height;
+      canvas.getContext("2d")?.drawImage(buffer, 0, 0);
+      setStage("ready");
 
       const next = await getTextContent(pageNumber);
       if (cancelled) return;
@@ -494,13 +500,23 @@ export function PdfPage({
       style={boxStyle}
     >
       {/*
-        The canvas is stretched to the box by CSS (`h-full w-full`) rather than
-        sized in pixels: the bitmap is painted for `renderScale` and the box is
-        laid out for `scale`, and between a gesture and its repaint those two
-        differ. The browser scales the bitmap — a compositor job — where
-        repainting it would be a pdfjs render per gesture notch.
+        The bitmap keeps its raster dimensions and follows the box through a
+        CSS transform. The scroll geometry changes immediately; pdfjs paints
+        once the gesture settles rather than once per input event.
       */}
-      <canvas ref={canvasRef} className="block h-full w-full" />
+      <canvas
+        ref={canvasRef}
+        className="absolute left-0 top-0 block origin-top-left"
+        style={{
+          // Keep the bitmap's CSS size stable throughout a gesture. Changing
+          // width/height each frame repaints it; transform can reuse the same
+          // composited texture while the outer box owns scroll geometry.
+          width: base.width * renderScale,
+          height: base.height * renderScale,
+          transform: `scale(${scale / renderScale})`,
+          willChange: active && scale !== renderScale ? "transform" : undefined,
+        }}
+      />
 
       {rects.length > 0 && (
         <div

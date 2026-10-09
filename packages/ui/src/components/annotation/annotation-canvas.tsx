@@ -138,10 +138,12 @@ function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
 }
 
 export function AnnotationCanvas({
+  isNavigationGesture,
   box,
   canvas: canvasBox,
   rect,
   selfMeasured = false,
+  rasterScale = 1,
   maxDpr,
   maxPixels,
   items,
@@ -239,7 +241,8 @@ export function AnnotationCanvas({
    * meaningless budget gets the display's density rather than a vanished canvas.
    */
   const cappedDpr =
-    maxDpr === undefined ? deviceDpr : Math.min(deviceDpr, maxDpr);
+    (maxDpr === undefined ? deviceDpr : Math.min(deviceDpr, maxDpr)) *
+    rasterScale;
   const dpr =
     maxPixels === undefined || !(maxPixels > 0)
       ? cappedDpr
@@ -701,6 +704,7 @@ export function AnnotationCanvas({
   // discrete signal (a mark was just hit): it replays the cached layer at once,
   // without a render — the hook never calls it for a plain pen sample.
   const input = useAnnotationInput({
+    isNavigationGesture,
     gesture: gestureRef,
     tool,
     size,

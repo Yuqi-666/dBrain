@@ -199,6 +199,14 @@ function singleSurface(
 }
 
 export function AnnotationLayer({
+  selfMeasured = false,
+  rasterScale = 1,
+  suspendMeasurement = false,
+  toolbarContainer,
+  defaultPointerEnabled = true,
+  onPointerEnabledChange,
+  isNavigationGesture,
+  onActiveChange,
   items: itemsProp,
   onItemsChange,
   getBaseRect,
@@ -235,17 +243,16 @@ export function AnnotationLayer({
   const [size, setSize] = useState<number>(DEFAULT_ANNOTATION_SIZE);
   const [hidden, setHidden] = useState(false);
   const [touchDraws, setTouchDraws] = useState(false);
-  /**
-   * 批注 vs 浏览 — whether the ink canvas takes the page's pointers.
-   *
-   * Layer state, not a host prop: the mode changes nothing the host has to know
-   * (its own gestures are recognised on its own scroller, and they work in both),
-   * so lifting it would make every host re-implement the toggle. Defaults to 批注,
-   * because writing is what an annotation layer is for; the toolbar's switch is the
-   * way back to selecting text.
-   */
-  const [pointerEnabled, setPointerEnabled] = useState(true);
+  /** Ink ownership; navigation remains on the host in browsing mode. */
+  const [pointerEnabled, setPointerEnabled] = useState(defaultPointerEnabled);
   const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    onPointerEnabledChange?.(pointerEnabled);
+  }, [onPointerEnabledChange, pointerEnabled]);
+  useEffect(() => {
+    onActiveChange?.(active);
+  }, [active, onActiveChange]);
 
   /**
    * The geometry of every surface — always in one read, so a canvas can never be
@@ -318,6 +325,7 @@ export function AnnotationLayer({
    * canvas element is laid out in (and is pinned by `geometry.test.ts`).
    */
   const measure = useCallback(() => {
+    if (suspendMeasurement) return;
     const root = rootRef.current;
     if (!root) return;
     const origin = root.getBoundingClientRect();
@@ -382,6 +390,21 @@ export function AnnotationLayer({
       return;
     }
 
+    if (selfMeasured) {
+      // Image and ink share one transformed parent. Keep the backing store in
+      // its unscaled layout space; pointer sampling measures the live canvas.
+      const rect = { left: 0, top: 0, ...canvas };
+      const surface = {
+        ...singleSurface(rect, rect, canvas),
+        selfMeasured: true,
+      };
+      setGeometry((previous) =>
+        previous && sameSurfaces(previous.surfaces, [surface])
+          ? previous
+          : { surfaces: [surface] },
+      );
+      return;
+    }
     const rect = getBaseRect?.() ?? null;
     if (!rect || rect.width <= 0 || rect.height <= 0) {
       syncObserved([]);
@@ -399,7 +422,13 @@ export function AnnotationLayer({
         ? previous
         : { surfaces: [singleSurface(rect, box, canvas)] },
     );
-  }, [getBaseRect, getSurfaces, syncObserved]);
+  }, [
+    getBaseRect,
+    getSurfaces,
+    selfMeasured,
+    suspendMeasurement,
+    syncObserved,
+  ]);
   // Read by the observer callback, which outlives the render that created it.
   measureRef.current = measure;
 
@@ -710,8 +739,7 @@ export function AnnotationLayer({
           onToggleTouchDraws={() => setTouchDraws((current) => !current)}
           pointerEnabled={pointerEnabled}
           onTogglePointer={
-            // Never offered to a single-surface host: its canvas *is* the gesture
-            // surface, so 浏览 would take pan and pinch with the pointers.
+            // Hosts that own navigation outside the ink can offer browsing.
             pointerToggle
               ? () => setPointerEnabled((current) => !current)
               : undefined
@@ -756,6 +784,7 @@ export function AnnotationLayer({
             canvas={surface.canvas}
             rect={surface.rect}
             selfMeasured={surface.selfMeasured}
+            rasterScale={rasterScale}
             maxDpr={maxDpr}
             maxPixels={maxPixels}
             items={
@@ -772,6 +801,7 @@ export function AnnotationLayer({
             panZoom={panZoom}
             arbitrateViewport={arbitrateViewport}
             pointerEnabled={pointerEnabled}
+            isNavigationGesture={isNavigationGesture}
             onUndo={undo}
             onRedo={redo}
             onOperation={(operation) =>
@@ -794,7 +824,7 @@ export function AnnotationLayer({
           ? createPortal(canvas, surface.element, surface.page ?? "single")
           : canvas;
       })}
-      {toolbar}
+      {toolbarContainer ? createPortal(toolbar, toolbarContainer) : toolbar}
     </div>
   );
 }

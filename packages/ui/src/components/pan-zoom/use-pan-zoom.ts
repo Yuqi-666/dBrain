@@ -138,14 +138,9 @@ export function usePanZoom({
       const { getBounds: read, minScale: min, maxScale: max } = options.current;
       const bounds = read?.() ?? null;
       const wanted = mutate(current(), bounds);
-      const scaled: ViewportTransform = {
-        scale: clampScale(wanted.scale, min, max),
-        x: wanted.x,
-        y: wanted.y,
-      };
       pendingRef.current = bounds
-        ? clampTransform(scaled, bounds, min, max)
-        : scaled;
+        ? clampTransform(wanted, bounds, min, max)
+        : { ...wanted, scale: clampScale(wanted.scale, min, max) };
       if (!frameRef.current) frameRef.current = requestAnimationFrame(flush);
     },
     [current, flush],
@@ -160,7 +155,11 @@ export function usePanZoom({
         apply((live, bounds) =>
           zoomAbout(
             live,
-            factor,
+            clampScale(
+              live.scale * factor,
+              options.current.minScale,
+              options.current.maxScale,
+            ) / live.scale,
             { x: clientX, y: clientY },
             bounds?.origin ?? NO_ORIGIN,
           ),
@@ -172,7 +171,11 @@ export function usePanZoom({
         apply((_live, bounds) =>
           pinchTransform(
             base,
-            factor,
+            clampScale(
+              base.scale * factor,
+              options.current.minScale,
+              options.current.maxScale,
+            ) / base.scale,
             { x: fromX, y: fromY },
             { x: toX, y: toY },
             bounds?.origin ?? NO_ORIGIN,
@@ -191,7 +194,7 @@ export function usePanZoom({
     const onWheel = (event: WheelEvent) => {
       // Without something measurable there is no base to move; leaving the event
       // alone lets a host that scrolls keep scrolling.
-      if (!options.current.getBounds) return;
+      if (!options.current.getBounds?.()) return;
       event.preventDefault();
       const delta = wheelDelta(event, element);
 
@@ -200,7 +203,11 @@ export function usePanZoom({
         apply((live, bounds) =>
           zoomAbout(
             live,
-            factor,
+            clampScale(
+              live.scale * factor,
+              options.current.minScale,
+              options.current.maxScale,
+            ) / live.scale,
             { x: event.clientX, y: event.clientY },
             bounds?.origin ?? NO_ORIGIN,
           ),

@@ -124,11 +124,10 @@ export function zoomAbout(
   if (!Number.isFinite(factor) || factor <= 0) return transform;
   const scale = transform.scale * factor;
   if (!Number.isFinite(scale) || scale <= 0) return transform;
-  const delta = scale - transform.scale;
   return {
     scale,
-    x: transform.x + delta * (origin.x - pivot.x),
-    y: transform.y + delta * (origin.y - pivot.y),
+    x: factor * transform.x + (1 - factor) * (pivot.x - origin.x),
+    y: factor * transform.y + (1 - factor) * (pivot.y - origin.y),
   };
 }
 

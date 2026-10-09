@@ -93,10 +93,13 @@ test("zoomAbout leaves the pivot exactly where it was", () => {
   const base: ViewportTransform = { scale: 1.7, x: -25, y: 60 };
   const zoomed = zoomAbout(base, 1.6, pivot, origin);
 
-  const before = mapPoint(pivot, base, origin);
-  const after = mapPoint(pivot, zoomed, origin);
-  close(after.x, before.x);
-  close(after.y, before.y);
+  const contentPoint = {
+    x: origin.x + (pivot.x - origin.x - base.x) / base.scale,
+    y: origin.y + (pivot.y - origin.y - base.y) / base.scale,
+  };
+  const after = mapPoint(contentPoint, zoomed, origin);
+  close(after.x, pivot.x);
+  close(after.y, pivot.y);
   close(zoomed.scale, 1.7 * 1.6);
 });
 
@@ -131,6 +134,24 @@ test("pinchTransform keeps the anchored content point under the fingers' midpoin
   close(followed.x, to.x);
   close(followed.y, to.y);
   close(next.scale, 2);
+});
+
+test("a pinch from a zoomed and panned view preserves the screen anchor", () => {
+  const origin = { x: 40, y: 30 };
+  const base = { scale: 2, x: -100, y: -70 };
+  const from = { x: 240, y: 200 };
+  const to = { x: 260, y: 230 };
+  const point = {
+    x: origin.x + (from.x - origin.x - base.x) / base.scale,
+    y: origin.y + (from.y - origin.y - base.y) / base.scale,
+  };
+  const mapped = mapPoint(
+    point,
+    pinchTransform(base, 1.5, from, to, origin),
+    origin,
+  );
+  close(mapped.x, to.x);
+  close(mapped.y, to.y);
 });
 
 test("panTransform adds viewport pixels and ignores a no-op", () => {

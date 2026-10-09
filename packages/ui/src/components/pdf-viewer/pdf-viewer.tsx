@@ -66,6 +66,14 @@ import {
   TAP_SLOP,
 } from "@workspace/ui/components/pan-zoom/recognizer";
 
+import { createScrollInertia } from "@workspace/ui/components/pan-zoom/scroll-inertia";
+import { useNavigationKey } from "@workspace/ui/components/pan-zoom/use-navigation-key";
+import {
+  pdfAnchorPoint,
+  pdfAnchorDelta,
+  pdfReanchorPending,
+} from "./pdf-anchor";
+import type { PdfZoomAnchor } from "./pdf-anchor";
 import { pdfIsInitialView, pdfPinchFrame } from "./pdf-gesture";
 import type { PdfPinchAnchor } from "./pdf-gesture";
 import { PdfPage } from "./pdf-page";
@@ -219,6 +227,8 @@ export function PdfViewer({
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const { pressed: navigationPressed, pressedRef: navigationPressedRef } =
+    useNavigationKey(rootRef);
   /**
    * Set by {@link resetView}, consumed by the layout effect that runs with the commit
    * which moved the boxes. `goToPage` measures the slots, so it has to run against
@@ -226,9 +236,10 @@ export function PdfViewer({
    * the previous multiplier's boxes.
    */
   const seatRef = useRef(false);
+  const navigationTargetRef = useRef<number | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const slotRefs = useRef(new Map<number, HTMLDivElement>());
-  const zoomAnchor = useRef<{ scroll: number } | null>(null);
+  const zoomAnchor = useRef<PdfZoomAnchor | null>(null);
   const scrollFrame = useRef(0);
   /**
    * Two multipliers, because they answer different questions. `scaleRef` is what
@@ -286,6 +297,11 @@ export function PdfViewer({
    * the page out from under itself.
    */
   const touchDrawsRef = useRef(false);
+  const annotationEnabledRef = useRef(false);
+  const activeStrokeRef = useRef(false);
+  const inertiaRef = useRef<ReturnType<typeof createScrollInertia> | null>(
+    null,
+  );
 
   const horizontal = mode.direction === "horizontal";
   const pagesPerSlot = pdfSpreadStep(mode.spread);
@@ -481,39 +497,88 @@ export function PdfViewer({
     searchOpenRef.current = search.open;
   }, [search.open]);
 
-  /**
-   * Remember where the reader is standing, in a form that survives the remount
-   * of every page at a new multiplier.
-   *
-   * Pages scale by exactly `target / current`, so the scroll offset that keeps
-   * the point under the cursor (or the viewport centre) in place is the same
-   * linear map — no ratio against `scrollWidth`, which also contains the strip's
-   * padding and gaps and therefore does not scale with the pages.
-   *
-   * An anchor is a *pending* value: it is consumed by the next commit that moves
-   * the boxes. So a call that decides nothing has to move must also disarm any
-   * anchor an earlier call left behind — otherwise the offset computed for one
-   * zoom would be applied by an unrelated reflow (a window resize, a sidebar
-   * toggle) and scroll the reader somewhere neither gesture asked for.
+  /** Capture a page-local point rather than scaling the whole scroll offset:
+   * page gutters, padding and auto margins do not scale with PDF page sizes.
+   * Restore both axes from the page's actual post-layout rectangle.
    */
+  const captureZoomAnchor = useCallback(
+    (clientX?: number, clientY?: number): PdfZoomAnchor | null => {
+      const element = scrollRef.current;
+      if (!element) return null;
+      const view = element.getBoundingClientRect();
+      const originX = view.left + element.clientLeft;
+      const originY = view.top + element.clientTop;
+      const x = clientX ?? originX + element.clientWidth / 2;
+      const y = clientY ?? originY + element.clientHeight / 2;
+      const offsetX = x - originX;
+      const offsetY = y - originY;
+      const pending = zoomAnchor.current;
+      if (pending && Math.abs(pending.scale - scaleRef.current) > 0.001) {
+        const pageBox = pageBoxesRef.current.get(pending.page);
+        if (pageBox)
+          return pdfReanchorPending(
+            pending,
+            pageBox.getBoundingClientRect(),
+            scaleRef.current,
+            offsetX,
+            offsetY,
+          );
+      }
+      let nearest: PdfZoomAnchor | null = null;
+      let distance = Infinity;
+      // Usually only a handful of page rectangles are needed. Keep the full
+      // fallback when the observer has not caught up with a pan yet.
+      const candidates = pdfSurfacedPages(
+        pageBoxesRef.current.keys(),
+        visibleSlotsRef.current,
+        spreadRef.current,
+      );
+      const scan = (numbers: Iterable<number>) => {
+        for (const number of numbers) {
+          const box = pageBoxesRef.current.get(number)?.getBoundingClientRect();
+          if (!box || box.width <= 0 || box.height <= 0) continue;
+          const dx = Math.max(box.left - x, 0, x - box.right);
+          const dy = Math.max(box.top - y, 0, y - box.bottom);
+          if (dx * dx + dy * dy >= distance) continue;
+          distance = dx * dx + dy * dy;
+          nearest = {
+            page: number,
+            ...pdfAnchorPoint(box, x, y),
+            offsetX,
+            offsetY,
+            scale: scaleRef.current,
+          };
+        }
+      };
+      scan(candidates);
+      if (distance > 0) scan(pageBoxesRef.current.keys());
+      return nearest;
+    },
+    [],
+  );
+
+  const restoreZoomAnchor = useCallback((anchor: PdfZoomAnchor) => {
+    const element = scrollRef.current;
+    const box = pageBoxesRef.current.get(anchor.page);
+    if (!element || !box) return;
+    const view = element.getBoundingClientRect();
+    const delta = pdfAnchorDelta(anchor, box.getBoundingClientRect(), {
+      x: view.left + element.clientLeft,
+      y: view.top + element.clientTop,
+    });
+    element.scrollLeft += delta.x;
+    element.scrollTop += delta.y;
+  }, []);
+
   const anchorScroll = useCallback(
     (target: number, clientX?: number, clientY?: number) => {
-      const element = scrollRef.current;
-      const current = scaleRef.current;
-      if (!element || Math.abs(target - current) <= 0.001) {
-        zoomAnchor.current = null;
-        return;
-      }
-      const rect = element.getBoundingClientRect();
-      const offset = horizontal
-        ? (clientX ?? rect.left + rect.width / 2) - rect.left
-        : (clientY ?? rect.top + rect.height / 2) - rect.top;
-      const position = horizontal
-        ? element.scrollLeft + offset
-        : element.scrollTop + offset;
-      zoomAnchor.current = { scroll: position * (target / current) - offset };
+      const anchor = captureZoomAnchor(clientX, clientY);
+      zoomAnchor.current =
+        anchor && Math.abs(target - scaleRef.current) > 0.001
+          ? { ...anchor, scale: target }
+          : null;
     },
-    [horizontal],
+    [captureZoomAnchor],
   );
 
   /**
@@ -574,6 +639,7 @@ export function PdfViewer({
    */
   const applyScale = useCallback(
     (next: number, defer = false) => {
+      inertiaRef.current?.stop();
       const target = clamp(next, PDF_MIN_SCALE, PDF_MAX_SCALE);
       // Synced here rather than in an effect: the next notch of a fast spin has
       // to compose on this one even if React has not re-rendered.
@@ -593,7 +659,7 @@ export function PdfViewer({
   const applyZoom = useCallback(
     (next: number, clientX?: number, clientY?: number, defer = false) => {
       applyScale(next, defer);
-      anchorScroll(next, clientX, clientY);
+      anchorScroll(clamp(next, PDF_MIN_SCALE, PDF_MAX_SCALE), clientX, clientY);
     },
     [anchorScroll, applyScale],
   );
@@ -607,9 +673,8 @@ export function PdfViewer({
     zoomAnchor.current = null;
     const element = scrollRef.current;
     if (!element) return;
-    if (horizontal) element.scrollLeft = anchor.scroll;
-    else element.scrollTop = anchor.scroll;
-  }, [effectiveScale, horizontal]);
+    restoreZoomAnchor(anchor);
+  }, [effectiveScale, restoreZoomAnchor]);
 
   /**
    * A fit mode changes the multiplier on its own, so it goes through the same
@@ -618,6 +683,7 @@ export function PdfViewer({
    */
   const applyFit = useCallback(
     (next: PdfFitMode) => {
+      inertiaRef.current?.stop();
       // No "already selected" guard: it would have to read the committed `fit`,
       // and picking 适配宽度 on the same tick as a wheel zoom (which sets `free`)
       // would then be swallowed. Re-picking the active mode resolves to the scale
@@ -685,6 +751,14 @@ export function PdfViewer({
       const index = pdfSlotOf(clamped, mode.spread);
       const next = pdfSlotStartPage(index, mode.spread);
       setPage(next);
+      inertiaRef.current?.stop();
+      // Fit can change with the destination's page dimensions. Smooth travel
+      // through intermediate pages would keep changing its destination layout.
+      // Jump, then re-seat after the target page's fit has committed.
+      if (behavior === "smooth" && fit !== "free") {
+        navigationTargetRef.current = next;
+        behavior = "auto";
+      }
 
       const element = scrollRef.current;
       const slot = slotRefs.current.get(index);
@@ -714,8 +788,15 @@ export function PdfViewer({
         });
       }
     },
-    [pageCount, horizontal, mode.spread],
+    [pageCount, horizontal, mode.spread, fit],
   );
+
+  useLayoutEffect(() => {
+    const target = navigationTargetRef.current;
+    if (target === null) return;
+    navigationTargetRef.current = null;
+    goToPage(target, "auto");
+  }, [page, effectiveScale, goToPage]);
 
   const resetView = useCallback(() => {
     const opening = openingRef.current;
@@ -1040,7 +1121,9 @@ export function PdfViewer({
     if (!element || status !== "ready") return;
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
+      if (activeStrokeRef.current) return;
       event.preventDefault();
+      inertiaRef.current?.stop();
       const factor = Math.exp(
         -wheelDelta(event, element) * WHEEL_ZOOM_SENSITIVITY,
       );
@@ -1085,6 +1168,9 @@ export function PdfViewer({
     }
 
     const pointers = new Map<number, Tracked>();
+    const inertia = createScrollInertia(element);
+    inertiaRef.current = inertia;
+    let mouseDrag: { id: number; x: number; y: number } | null = null;
     /**
      * The pinch baseline — the whole view when the fingers last (re)anchored, which
      * is what every frame is composed from. It carries the *offset* too: a frame is
@@ -1092,6 +1178,7 @@ export function PdfViewer({
      * against this snapshot rather than added to the live offset once per sample.
      */
     let anchor: PdfPinchAnchor | null = null;
+    let pinchPoint: PdfZoomAnchor | null = null;
     /** Tap bookkeeping for 单指双击 (see `classifyTapEnd` / `isDoubleTap`). */
     let startedAt = 0;
     let peak = 0;
@@ -1122,7 +1209,10 @@ export function PdfViewer({
       const values = [...pointers.values()];
       const centre = centroidOf(values);
       const rect = element.getBoundingClientRect();
-      viewportOrigin = { x: rect.left, y: rect.top };
+      viewportOrigin = {
+        x: rect.left + element.clientLeft,
+        y: rect.top + element.clientTop,
+      };
       /**
        * The scale and the offset have to describe the *same* layout. `zoomTargetRef`
        * is what the reader asked for, which can be one commit ahead of the layout on
@@ -1132,23 +1222,14 @@ export function PdfViewer({
        * would put every following frame out by the ratio between them.
        */
       const target = zoomTargetRef.current;
-      const pending =
-        Math.abs(target - scaleRef.current) > 0.001
-          ? (zoomAnchor.current?.scroll ?? null)
-          : null;
+      pinchPoint = captureZoomAnchor(centre.x, centre.y);
       anchor = {
         scale: target,
-        // The mean radius and the centroid, not "the first two fingers" — that is
-        // what makes adding or lifting a finger continuous instead of a jump.
         spread: spreadOf(values, centre),
         midX: centre.x,
         midY: centre.y,
-        scrollLeft: horizontal
-          ? (pending ?? element.scrollLeft)
-          : element.scrollLeft,
-        scrollTop: horizontal
-          ? element.scrollTop
-          : (pending ?? element.scrollTop),
+        scrollLeft: element.scrollLeft,
+        scrollTop: element.scrollTop,
       };
     };
 
@@ -1160,6 +1241,9 @@ export function PdfViewer({
      */
     const resetPointers = () => {
       dropTouches();
+      mouseDrag = null;
+      element.style.cursor = "";
+      inertia.stop();
       lastTap = null;
       // A tab that goes away takes the pen's `pointerup` with it; the next touch
       // must not be measured against a hand that is no longer there.
@@ -1180,6 +1264,7 @@ export function PdfViewer({
     }
 
     const onPointerDown = (event: PointerEvent) => {
+      inertia.stop();
       if (event.pointerType === "pen") {
         // Tracked, never handled: the pen draws (the ink canvas has it) and its
         // presence is what keeps a resting palm from scrolling the page. A palm that
@@ -1188,12 +1273,43 @@ export function PdfViewer({
         dropTouches();
         return;
       }
-      // A mouse uses the wheel, the scrollbar and the toolbar — its clicks are ink,
-      // exactly as on an image.
-      if (event.pointerType === "mouse") return;
+      // Ordinary left clicks select text or draw; middle/space drag grabs paper.
+      if (event.pointerType === "mouse") {
+        if (
+          event.button !== 1 &&
+          !(event.button === 0 && navigationPressedRef.current)
+        )
+          return;
+        const target = event.target as HTMLElement | null;
+        if (
+          target?.closest(
+            "a, button, input, textarea, [contenteditable='true']",
+          )
+        )
+          return;
+        // Leave actual scrollbars to the browser.
+        const box = element.getBoundingClientRect();
+        if (
+          event.clientX >=
+            box.left + element.clientLeft + element.clientWidth ||
+          event.clientY >= box.top + element.clientTop + element.clientHeight
+        )
+          return;
+        event.preventDefault();
+        mouseDrag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        element.style.cursor = "grabbing";
+        return;
+      }
       // Palm rejection: while the pen is down every touch is dropped, so a resting
       // hand cannot pan the page the pen is writing on.
       if (penIsDown()) return;
+      if (event.target === element) {
+        try {
+          element.setPointerCapture(event.pointerId);
+        } catch {
+          /* Capture can be unavailable. */
+        }
+      }
       pointers.set(event.pointerId, {
         x: event.clientX,
         y: event.clientY,
@@ -1260,9 +1376,14 @@ export function PdfViewer({
           // therefore posted as the pending anchor, which the commit that moves the
           // boxes consumes (`anchorScroll` cannot be used here — its ratio comes from
           // the layout on screen, which is the one being replaced).
-          zoomAnchor.current = {
-            scroll: horizontal ? frame.scrollLeft : frame.scrollTop,
-          };
+          zoomAnchor.current = pinchPoint
+            ? {
+                ...pinchPoint,
+                scale: target,
+                offsetX: midX - viewportOrigin.x,
+                offsetY: midY - viewportOrigin.y,
+              }
+            : null;
           applyScale(frame.scale, true);
           return;
         }
@@ -1272,18 +1393,24 @@ export function PdfViewer({
         // therefore *disarmed* rather than left to be applied by some unrelated
         // reflow, which is the rule `anchorScroll` follows for the same reason.
         zoomAnchor.current = null;
-        element.scrollLeft = frame.scrollLeft;
-        element.scrollTop = frame.scrollTop;
+        if (pinchPoint)
+          restoreZoomAnchor({
+            ...pinchPoint,
+            offsetX: midX - viewportOrigin.x,
+            offsetY: midY - viewportOrigin.y,
+          });
         return;
       }
 
       if (pointers.size === 1) {
         // 手指=书写: the finger is a pen, and the ink canvas is drawing with it.
-        if (touchDrawsRef.current) return;
+        if (annotationEnabledRef.current && touchDrawsRef.current) return;
         event.preventDefault();
-        // The paper follows the hand: a finger moving right scrolls the strip left.
-        element.scrollLeft -= event.clientX - previousX;
-        element.scrollTop -= event.clientY - previousY;
+        const dx = previousX - event.clientX;
+        const dy = previousY - event.clientY;
+        element.scrollLeft += dx;
+        element.scrollTop += dy;
+        inertia.sample(dx, dy, event.timeStamp);
       }
     };
 
@@ -1297,6 +1424,13 @@ export function PdfViewer({
         return;
       }
 
+      if (
+        event.type === "pointerup" &&
+        peak === 1 &&
+        moved &&
+        !(annotationEnabledRef.current && touchDrawsRef.current)
+      )
+        inertia.start(event.timeStamp);
       // The sequence is over: it was a tap if nothing moved and it did not last.
       const outcome = classifyTapEnd({
         tap: event.type === "pointerup",
@@ -1319,7 +1453,7 @@ export function PdfViewer({
       }
       // 手指=书写 turns a one-finger tap into a dot, so it must not also be the
       // first half of a double tap (the image host's rule, same reason).
-      if (touchDrawsRef.current) return;
+      if (annotationEnabledRef.current && touchDrawsRef.current) return;
 
       if (isDoubleTap(lastTap, { time: event.timeStamp, ...at })) {
         lastTap = null;
@@ -1342,6 +1476,19 @@ export function PdfViewer({
      * leave every later touch dropped. Two styluses are tracked separately for the
      * same reason.
      */
+    const onMouseMove = (event: PointerEvent) => {
+      if (!mouseDrag || mouseDrag.id !== event.pointerId) return;
+      event.preventDefault();
+      element.scrollLeft += mouseDrag.x - event.clientX;
+      element.scrollTop += mouseDrag.y - event.clientY;
+      mouseDrag.x = event.clientX;
+      mouseDrag.y = event.clientY;
+    };
+    const onMouseEnd = (event: PointerEvent) => {
+      if (mouseDrag?.id !== event.pointerId) return;
+      mouseDrag = null;
+      element.style.cursor = "";
+    };
     const onPenEnd = (event: PointerEvent) => {
       if (event.pointerType === "pen") penPointers.delete(event.pointerId);
     };
@@ -1365,12 +1512,23 @@ export function PdfViewer({
     element.addEventListener("pointerup", onPointerEnd);
     element.addEventListener("pointercancel", onPointerEnd);
     element.addEventListener("lostpointercapture", onLostCapture);
+    window.addEventListener("pointermove", onMouseMove);
+    window.addEventListener("pointerup", onMouseEnd);
+    window.addEventListener("pointercancel", onMouseEnd);
+    element.addEventListener("wheel", inertia.stop, { passive: true });
     window.addEventListener("pointerup", onPenEnd);
     window.addEventListener("pointercancel", onPenEnd);
     window.addEventListener("lostpointercapture", onPenEnd);
     document.addEventListener("visibilitychange", onHidden);
     window.addEventListener("blur", resetPointers);
     return () => {
+      inertia.stop();
+      inertiaRef.current = null;
+      element.style.cursor = "";
+      window.removeEventListener("pointermove", onMouseMove);
+      window.removeEventListener("pointerup", onMouseEnd);
+      window.removeEventListener("pointercancel", onMouseEnd);
+      element.removeEventListener("wheel", inertia.stop);
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", onPointerEnd);
@@ -1382,10 +1540,16 @@ export function PdfViewer({
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("blur", resetPointers);
     };
-    // `applyScale` and `horizontal` are read by the pinch branch: the first is stable
-    // (`queueScale` → `flushScale` → no deps), so a touch sequence is never cut short
-    // by a re-attach, and the second only changes when the reader switches axis.
-  }, [applyScale, applyZoom, horizontal, status]);
+    // Stable gesture callbacks keep pointer tracking alive across zoom commits;
+    // changing the document layout explicitly starts a new gesture scope.
+  }, [
+    applyScale,
+    captureZoomAnchor,
+    restoreZoomAnchor,
+    status,
+    layoutKey,
+    navigationPressedRef,
+  ]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -1693,17 +1857,12 @@ export function PdfViewer({
               "focus-visible:ring-2 focus-visible:ring-ring/40",
               horizontal ? "flex-row" : "flex-col",
               paged && "gap-6 p-4",
+              navigationPressed && "cursor-grab active:cursor-grabbing",
             )}
             style={{
               scrollSnapType: snapType,
-              // All touch panning is ours. The ink canvases need
-              // `touch-action: none` (a browser that claims the pen's moves as a
-              // scroll never delivers them — design §0.3-2), and a scroller that
-              // kept native panning would then pan from the gutters with inertia
-              // and from the pages without it — two different feels for one
-              // document. So the handler in the effect above owns every touch, and
-              // `pinch-zoom` stays off the browser's list: page zoom of the whole
-              // app is not document zoom.
+              // One touch controller owns pages and gutters, including bounded
+              // momentum. Browser page zoom must not compete with document pinch.
               touchAction: "none",
             }}
           >
@@ -1736,7 +1895,7 @@ export function PdfViewer({
                     // thing happens vertically in 水平 mode, where a page taller
                     // than the viewport must be reachable from its first line.
                     "flex shrink-0",
-                    horizontal ? undefined : "w-full",
+                    horizontal ? undefined : "w-max min-w-full",
                     paged && (horizontal ? "min-w-full" : "min-h-full"),
                   )}
                   style={paged ? { scrollSnapAlign: "center" } : undefined}
@@ -1792,6 +1951,7 @@ export function PdfViewer({
             <AnnotationLayer
               items={annotations}
               onItemsChange={onAnnotationsChange && handleAnnotationsChange}
+              suspendMeasurement={effectiveScale !== canvasScale}
               getSurfaces={getSurfaces}
               surfacesKey={surfacesKey}
               onTouchDrawsChange={handleTouchDrawsChange}
@@ -1803,6 +1963,18 @@ export function PdfViewer({
               // the scroller: 浏览 hands each page's pointers back to the text layer
               // so a passage can be selected, and pan/pinch keep working.
               pointerToggle
+              defaultPointerEnabled={false}
+              onPointerEnabledChange={(enabled) => {
+                annotationEnabledRef.current = enabled;
+              }}
+              onActiveChange={(active) => {
+                activeStrokeRef.current = active;
+                if (active) inertiaRef.current?.stop();
+              }}
+              isNavigationGesture={(event) =>
+                event.pointerType === "mouse" &&
+                (event.button === 1 || navigationPressedRef.current)
+              }
               onResetView={resetView}
               compact={compact}
               maxDpr={PDF_MAX_DPR}

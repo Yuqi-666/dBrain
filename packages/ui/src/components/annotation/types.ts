@@ -170,6 +170,19 @@ export interface AnnotationSurface {
  * (`docs/plan/annotation.md` §M5.2).
  */
 export interface AnnotationLayerProps {
+  /** The layer fills an exact image box and shares its parent's CSS transform. */
+  selfMeasured?: boolean;
+  /** Settled CSS zoom, used only to refresh the ink's backing-store density. */
+  /** Keep the existing ink bitmap while the host streams a zoom gesture. */
+  suspendMeasurement?: boolean;
+  rasterScale?: number;
+  /** Keep the toolbar outside a transformed image content box. */
+  toolbarContainer?: HTMLElement | null;
+  defaultPointerEnabled?: boolean;
+  onPointerEnabledChange?: (enabled: boolean) => void;
+  /** A host-reserved mouse gesture (for example space + drag) must not draw. */
+  isNavigationGesture?: (event: PointerEvent) => boolean;
+  onActiveChange?: (active: boolean) => void;
   /**
    * The persisted layer. `undefined` is normal — an old record has no
    * `annotations` key at all (design §0.2-①), and it means "empty".
@@ -232,16 +245,7 @@ export interface AnnotationLayerProps {
    * host's toolbar is then the way to undo (see `AnnotationLayerProps.pointerToggle`).
    */
   arbitrateViewport?: boolean;
-  /**
-   * Show the 批注 / 浏览 switch ({@link AnnotationToolbarProps.onTogglePointer}).
-   *
-   * Only a host whose gestures live elsewhere can offer it safely — see that prop.
-   * The pdf does: 浏览 mode gives the page's pointers back to the text layer, so a
-   * passage can be selected, while the viewer's own pan/pinch (recognised on the
-   * scroller) keep working in both modes. What 浏览 mode gives up is everything the
-   * *canvas* would have recognised: the drawing itself, its keyboard shortcuts (the
-   * element can no longer take focus) and the two-/three-finger undo/redo taps.
-   */
+  /** Show a browsing/annotation switch when the host owns navigation outside ink. */
   pointerToggle?: boolean;
   /**
    * 恢复位置大小, for a host with no `panZoom` controller: the layer's `0` key.
@@ -312,14 +316,7 @@ export interface AnnotationToolbarProps {
   /** The "finger draws too" fallback switch (design §0.3-5); default off. */
   touchDraws: boolean;
   onToggleTouchDraws: () => void;
-  /**
-   * 批注 / 浏览 — whether the ink canvas takes the page's pointers.
-   *
-   * Rendered only when {@link AnnotationToolbarProps.onTogglePointer} is given,
-   * because it is only *safe* on a host whose own viewport gestures live elsewhere:
-   * on an image the ink canvas **is** the gesture surface, so handing the pointers
-   * back would take pan and pinch with them (see `AnnotationLayerProps.pointerToggle`).
-   */
+  /** Browsing makes the ink inert; the host must retain navigation. */
   pointerEnabled?: boolean;
   onTogglePointer?: () => void;
   /** How many items the layer currently holds — 清除 is disabled at zero. */
@@ -352,6 +349,8 @@ export interface AnnotationToolbarProps {
  * ({@link AnnotationCanvasProps.selfMeasured}).
  */
 export interface AnnotationCanvasProps {
+  rasterScale?: number;
+  isNavigationGesture?: (event: PointerEvent) => boolean;
   /** The base rectangle, in the layer root's own CSS pixels — the ink origin. */
   box: LayerBox;
   /** The canvas element's own CSS box; always the layer root's layout size. */
