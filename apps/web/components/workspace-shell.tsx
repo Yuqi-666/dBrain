@@ -7,7 +7,7 @@ import { Graph } from "@workspace/graph";
 import { useUIStore } from "@workspace/store";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { MainLayout } from "@workspace/ui/components/layout/main-layout";
-import { MainSidebar } from "@workspace/ui/components/sidebar/main-sidebar";
+import { GraphSidebar } from "@workspace/ui/components/sidebar/graph-sidebar";
 import { NodeEditor } from "@workspace/ui/components/editor";
 import {
   NodeSemanticDialog,
@@ -92,7 +92,7 @@ export function WorkspaceShell(): ReactNode {
   }, [activeView]);
 
   return (
-    <MainLayout sidebar={activeView === "dashboard" ? null : <MainSidebar />}>
+    <MainLayout sidebar={activeView === "dashboard" ? null : <GraphSidebar />}>
       <div className="absolute inset-0 z-0">
         {error ? (
           <div

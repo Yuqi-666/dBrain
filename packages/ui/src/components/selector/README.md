@@ -15,6 +15,7 @@ that purpose, even when the picker is rendered inside a dropdown menu.
 | `node-tag-selector.tsx` / `NodeTagSelector`            | Apply/create/delete node tags                     | `PopoverContent`                |
 | `node-semantic-selector.tsx` / `NodeSemanticSelector`  | Node semantic                                     | Body only                       |
 | `edge-semantic-selector.tsx` / `EdgeSemanticSelector`  | Edge semantic                                     | Body only                       |
+| `workspace-selector.tsx` / `WorkSpaceSelector`         | Current workspace (switch / create)               | Complete dropdown and trigger   |
 
 Keep the existing host container for each selector. A dropdown body uses Radix
 menu items and must stay inside a dropdown menu; placing it directly in a popover

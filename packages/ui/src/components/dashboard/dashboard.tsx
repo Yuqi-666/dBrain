@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
   useContainerWidth,
   verticalCompactor,
@@ -9,7 +9,7 @@ import type { DashboardPage, NodeData } from "@workspace/interfaces";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { DashboardService } from "@workspace/services";
 import { DashboardLibrary } from "./dashboard-library";
-import { DashboardWorkspaceSelector } from "./workspace-selector";
+import { WorkSpaceSelector } from "@workspace/ui/components/selector/workspace-selector";
 import { useDashboard } from "@workspace/ui/hooks/use-dashboard";
 import { NodeContentEditor } from "@workspace/ui/components/node-content/node-content-editor";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -23,14 +23,19 @@ import {
   DialogFooter,
 } from "@workspace/ui/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@workspace/ui/components/ui/context-menu";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@workspace/ui/components/ui/tabs";
 import { cn } from "@workspace/ui/lib/utils";
 import {
-  Check,
   CloudCheck,
   LoaderCircle,
   Maximize2,
@@ -38,7 +43,6 @@ import {
   WandSparkles,
   LayoutDashboard,
   Library,
-  MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
@@ -51,17 +55,18 @@ export function Dashboard() {
   const { scope, workspace, ready, syncState, reload } = useDashboard();
   const canEdit = ready && !syncState?.loading;
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"create" | "rename" | "delete" | null>(
     null,
   );
+  const [dialogPageId, setDialogPageId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const nodes = useDataStore((state) => state.nodes);
   const pages = workspace?.pages ?? [];
   const page =
     pages.find((item) => item.id === workspace?.activePageId) ?? pages[0];
+  const dialogPage = pages.find((item) => item.id === dialogPageId);
   const candidates = (workspace?.candidates ?? [])
     .map((id) => nodes.get(id))
     .filter(
@@ -71,76 +76,55 @@ export function Dashboard() {
     );
   const store = DashboardService;
   useEffect(() => {
-    setEditing(false);
     setLibraryOpen(false);
     setDragNodeId(null);
     setSearch("");
     setDialog(null);
   }, [scope]);
   const openLibrary = () => {
-    setEditing(true);
     setLibraryOpen(true);
   };
   const addNode = (nodeId: string, position?: { x: number; y: number }) => {
     if (!scope || !page || !nodes.has(nodeId)) return;
     store.addWidget(scope, page.id, nodeId, position);
   };
-  const openDialog = (kind: "create" | "rename" | "delete") => {
-    setName(kind === "create" ? "" : (page?.name ?? ""));
+  const openDialog = (kind: "create" | "rename" | "delete", target = page) => {
+    setDialogPageId(kind === "create" ? null : (target?.id ?? null));
+    setName(kind === "create" ? "" : (target?.name ?? ""));
     setDialog(kind);
   };
   const submit = () => {
-    if (!scope) return;
+    if (!scope || !canEdit) return;
     if (dialog === "create") store.createPage(scope, name);
-    if (dialog === "rename" && page) store.renamePage(scope, page.id, name);
-    if (dialog === "delete" && page) store.deletePage(scope, page.id);
+    if (dialog === "rename" && dialogPage)
+      store.renamePage(scope, dialogPage.id, name);
+    if (dialog === "delete" && dialogPage)
+      store.deletePage(scope, dialogPage.id);
     setDialog(null);
   };
 
   return (
-    <section className="flex h-dvh min-w-0 flex-col bg-background">
-      <header className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 border-b px-4 py-3 sm:px-6">
-        <div className="flex shrink-0 items-center gap-3">
-          <LayoutDashboard className="size-5 text-muted-foreground" />
-          <span className="text-sm font-semibold">Dashboard</span>
-          <span className="h-4 border-l" aria-hidden="true" />
-          <DashboardWorkspaceSelector />
+    <Tabs
+      value={page?.id ?? "empty"}
+      onValueChange={(id) => scope && canEdit && store.selectPage(scope, id)}
+      className="flex h-dvh min-w-0 flex-col gap-0 bg-background"
+    >
+      <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/60 px-4 py-2 sm:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2">
+            <LayoutDashboard className="size-4 text-muted-foreground" />
+            <span className="hidden text-sm font-semibold sm:inline">
+              Dashboard
+            </span>
+          </div>
+          <span className="h-4 shrink-0 border-l" aria-hidden="true" />
+          <div className="min-w-0 max-w-64 flex-1">
+            <WorkSpaceSelector side="bottom" />
+          </div>
         </div>
-        <nav
-          className="order-3 flex min-w-0 basis-full items-center gap-1 overflow-x-auto sm:order-none sm:flex-1 sm:basis-auto"
-          aria-label="Dashboard 页面"
-        >
-          {pages.map((item) => (
-            <Button
-              key={item.id}
-              aria-current={page?.id === item.id ? "page" : undefined}
-              disabled={!canEdit}
-              variant="ghost"
-              className={cn(
-                "max-w-48 shrink-0",
-                page?.id === item.id &&
-                  "bg-secondary font-semibold text-foreground",
-              )}
-              onClick={() => scope && store.selectPage(scope, item.id)}
-            >
-              <span className="truncate">{item.name}</span>
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            aria-label="新建页面"
-            title="新建页面"
-            disabled={!canEdit}
-            onClick={() => openDialog("create")}
-          >
-            <Plus className="size-4" />
-          </Button>
-        </nav>
         <span
           className={cn(
-            "ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground",
+            "flex min-w-20 shrink-0 items-center justify-end gap-2 text-xs text-muted-foreground",
             syncState?.error && "text-destructive",
           )}
           role="status"
@@ -162,6 +146,62 @@ export function Dashboard() {
                   : ""}
         </span>
       </header>
+      <nav
+        aria-label="Dashboard 标签栏"
+        className="flex min-w-0 shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 sm:px-8"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden">
+          <TabsList
+            aria-label="Dashboard 页面"
+            className="shrink-0 justify-start gap-1 rounded-none bg-transparent p-0"
+          >
+            {pages.map((item) => (
+              <ContextMenu key={item.id}>
+                <ContextMenuTrigger asChild>
+                  <TabsTrigger
+                    value={item.id}
+                    disabled={!canEdit}
+                    title={item.name}
+                    // ContextMenuTrigger supplies data-state="open/closed" via asChild.
+                    // Use the tab's aria-selected so the two states do not collide.
+                    className="h-8 max-w-48 shrink-0 flex-none justify-start rounded-md px-4 font-medium shadow-none hover:bg-muted/60 aria-selected:border-primary/20 aria-selected:bg-primary/10 aria-selected:font-semibold aria-selected:text-primary aria-selected:shadow-none dark:aria-selected:border-primary/20 dark:aria-selected:bg-primary/10 dark:aria-selected:text-primary"
+                  >
+                    <span className="truncate">{item.name}</span>
+                  </TabsTrigger>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-44">
+                  <ContextMenuItem
+                    disabled={!canEdit}
+                    onSelect={() => openDialog("rename", item)}
+                  >
+                    <Pencil />
+                    重命名
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="destructive"
+                    disabled={!canEdit}
+                    onSelect={() => openDialog("delete", item)}
+                  >
+                    <Trash2 />
+                    删除 Dashboard
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            ))}
+          </TabsList>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 text-muted-foreground"
+            disabled={!canEdit}
+            aria-label="新建 Dashboard"
+            title="新建 Dashboard"
+            onClick={() => openDialog("create")}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+      </nav>
       {syncState?.error && (
         <div
           className="flex items-center gap-3 border-b px-4 py-2 text-sm text-destructive"
@@ -173,7 +213,10 @@ export function Dashboard() {
           </Button>
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+      <TabsContent
+        value={page?.id ?? "empty"}
+        className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row"
+      >
         <div
           className="order-2 min-h-0 min-w-0 flex-1 overflow-y-auto bg-muted/30 pb-[calc(var(--dynamic-island-height,48px)+32px)] lg:order-1"
           role="region"
@@ -181,73 +224,25 @@ export function Dashboard() {
         >
           <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-8">
             {page && (
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h1
-                      className="max-w-[min(60vw,40rem)] truncate text-2xl font-semibold tracking-tight"
-                      title={page.name}
-                    >
-                      {page.name}
-                    </h1>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={!canEdit}
-                          aria-label="页面操作"
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onSelect={() => openDialog("rename")}>
-                          <Pencil />
-                          重命名页面
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => openDialog("delete")}
-                        >
-                          <Trash2 />
-                          删除页面
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {editing
-                      ? "布局修改会自动保存。"
-                      : `${page.widgets.length} 个节点组件`}
-                  </p>
+              <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <div className="min-w-0 flex-1">
+                  <DashboardTitle
+                    key={`${scope}:${page.id}`}
+                    name={page.name}
+                    enabled={canEdit}
+                    onRename={(next) =>
+                      scope && store.renamePage(scope, page.id, next)
+                    }
+                  />
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {editing && (
-                    <Button
-                      variant="ghost"
-                      disabled={!canEdit || !page.widgets.length}
-                      onClick={() => scope && store.arrangePage(scope, page.id)}
-                    >
-                      <WandSparkles className="size-4" />
-                      自动布局
-                    </Button>
-                  )}
+                <div className="flex shrink-0 items-center gap-2">
                   <Button
-                    variant={editing ? "secondary" : "outline"}
-                    disabled={!canEdit}
-                    onClick={() => {
-                      setEditing(!editing);
-                      if (editing) setLibraryOpen(false);
-                    }}
-                    aria-pressed={editing}
+                    variant="outline"
+                    disabled={!canEdit || !page.widgets.length}
+                    onClick={() => scope && store.arrangePage(scope, page.id)}
                   >
-                    {editing ? (
-                      <Check className="size-4" />
-                    ) : (
-                      <Pencil className="size-4" />
-                    )}
-                    {editing ? "完成布局" : "编辑布局"}
+                    <WandSparkles className="size-4" />
+                    自动布局
                   </Button>
                   <Button
                     disabled={!canEdit}
@@ -299,7 +294,7 @@ export function Dashboard() {
                 key={`${scope}:${page.id}`}
                 scope={scope!}
                 page={page}
-                editing={canEdit && editing}
+                enabled={canEdit}
                 dragNodeId={dragNodeId}
                 onOpenLibrary={openLibrary}
                 onDropNode={(nodeId, position) => {
@@ -314,7 +309,7 @@ export function Dashboard() {
           <DashboardLibrary
             candidates={candidates}
             page={page}
-            enabled={canEdit && editing}
+            enabled={canEdit}
             search={search}
             onSearch={setSearch}
             onClose={() => setLibraryOpen(false)}
@@ -322,7 +317,7 @@ export function Dashboard() {
             onDragNode={setDragNodeId}
           />
         )}
-      </div>
+      </TabsContent>
       <Dialog
         open={dialog !== null}
         onOpenChange={(open) => {
@@ -346,7 +341,7 @@ export function Dashboard() {
               </DialogTitle>
               <DialogDescription>
                 {dialog === "delete"
-                  ? `删除“${page?.name}”及其布局？节点内容和组件库会保留。`
+                  ? `删除“${dialogPage?.name}”及其布局？节点内容和组件库会保留。`
                   : "为这个工作页面取一个名称。"}
               </DialogDescription>
             </DialogHeader>
@@ -372,7 +367,11 @@ export function Dashboard() {
               <Button
                 type="submit"
                 variant={dialog === "delete" ? "destructive" : "default"}
-                disabled={!canEdit || (dialog !== "delete" && !name.trim())}
+                disabled={
+                  !canEdit ||
+                  (dialog !== "create" && !dialogPage) ||
+                  (dialog !== "delete" && !name.trim())
+                }
               >
                 {dialog === "delete" ? "删除" : "保存"}
               </Button>
@@ -380,21 +379,90 @@ export function Dashboard() {
           </form>
         </DialogContent>
       </Dialog>
-    </section>
+    </Tabs>
+  );
+}
+
+function DashboardTitle({
+  name,
+  enabled,
+  onRename,
+}: {
+  name: string;
+  enabled: boolean;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const finished = useRef(false);
+  const start = () => {
+    if (!enabled) return;
+    finished.current = false;
+    setDraft(name);
+    setEditing(true);
+  };
+  const save = () => {
+    if (finished.current) return;
+    finished.current = true;
+    const next = draft.trim();
+    if (enabled && next && next !== name) onRename(next);
+    setEditing(false);
+  };
+  return editing ? (
+    <Input
+      autoFocus
+      aria-label="Dashboard 标题"
+      maxLength={80}
+      value={draft}
+      className="h-9 w-full max-w-xl text-2xl font-semibold tracking-tight md:text-2xl"
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={save}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === "Enter") {
+          event.preventDefault();
+          save();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          finished.current = true;
+          setEditing(false);
+        }
+      }}
+    />
+  ) : (
+    <h1 className="max-w-xl truncate text-2xl leading-9 font-semibold tracking-tight">
+      <button
+        type="button"
+        disabled={!enabled}
+        title="双击重命名"
+        aria-label={`Dashboard 标题：${name}，双击或按回车重命名`}
+        className="max-w-full truncate rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onDoubleClick={start}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === "F2") {
+            event.preventDefault();
+            start();
+          }
+        }}
+      >
+        {name}
+      </button>
+    </h1>
   );
 }
 
 function DashboardGrid({
   scope,
   page,
-  editing,
+  enabled,
   dragNodeId,
   onDropNode,
   onOpenLibrary,
 }: {
   scope: string;
   page: DashboardPage;
-  editing: boolean;
+  enabled: boolean;
   dragNodeId: string | null;
   onOpenLibrary: () => void;
   onDropNode: (nodeId: string, position: { x: number; y: number }) => void;
@@ -424,16 +492,9 @@ function DashboardGrid({
       ref={containerRef}
       className={cn(
         "dashboard-grid relative min-h-80",
-        editing && !narrow && "dashboard-grid-editing",
+        enabled && !narrow && "dashboard-grid-editing",
       )}
     >
-      {editing && (
-        <p className="mb-4 text-xs text-muted-foreground">
-          {narrow
-            ? "当前宽度下组件自动纵向排列。可在更宽的窗口中拖动和缩放。"
-            : "拖动标题移动组件，拖动右下角调整大小。"}
-        </p>
-      )}
       {page.widgets.length === 0 && (
         <div className="absolute inset-x-0 flex min-h-96 flex-col items-center justify-center rounded-2xl border border-dashed bg-background/60 px-6 text-center">
           <Library className="mb-4 size-8 text-muted-foreground" />
@@ -441,7 +502,7 @@ function DashboardGrid({
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
             把常用节点添加到这个页面，再按你的工作方式安排它们。
           </p>
-          <Button className="mt-6" onClick={onOpenLibrary}>
+          <Button className="mt-6" disabled={!enabled} onClick={onOpenLibrary}>
             <Plus className="size-4" />
             添加组件
           </Button>
@@ -458,12 +519,12 @@ function DashboardGrid({
             containerPadding: [0, 0],
           }}
           dragConfig={{
-            enabled: editing && !narrow,
+            enabled: enabled && !narrow,
             handle: ".dashboard-drag-handle",
             cancel: "button",
           }}
-          resizeConfig={{ enabled: editing && !narrow, handles: ["se"] }}
-          dropConfig={{ enabled: editing && !narrow }}
+          resizeConfig={{ enabled: enabled && !narrow, handles: ["se"] }}
+          dropConfig={{ enabled: enabled && !narrow }}
           droppingItem={{ i: "__dashboard_drop__", x: 0, y: 0, w: 6, h: 8 }}
           compactor={verticalCompactor}
           style={{
@@ -472,7 +533,7 @@ function DashboardGrid({
               page.widgets.length || dragNodeId ? undefined : "none",
           }}
           onLayoutChange={(next) => {
-            if (editing && !narrow)
+            if (enabled && !narrow)
               DashboardService.updateLayout(scope, page.id, next);
           }}
           onDropDragOver={() => (dragNodeId ? { w: 6, h: 8 } : false)}
@@ -488,16 +549,16 @@ function DashboardGrid({
                 key={widget.id}
                 className={cn(
                   "@container flex min-h-0 flex-col overflow-hidden rounded-xl border bg-background",
-                  editing && "ring-1 ring-border",
+                  enabled && "ring-1 ring-border",
                 )}
               >
                 <div
                   className={cn(
                     "dashboard-drag-handle flex h-12 shrink-0 items-center gap-1 border-b border-border/60 px-2 @min-[200px]:gap-2 @min-[200px]:px-4",
-                    editing && !narrow && "cursor-grab active:cursor-grabbing",
+                    enabled && !narrow && "cursor-grab active:cursor-grabbing",
                   )}
                 >
-                  {editing && (
+                  {enabled && (
                     <GripVertical className="hidden size-4 shrink-0 text-muted-foreground @min-[200px]:block" />
                   )}
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -517,7 +578,7 @@ function DashboardGrid({
                       <Maximize2 className="size-3.5" />
                     </Button>
                   )}
-                  {editing && (
+                  {enabled && (
                     <Button
                       variant="ghost"
                       size="icon"

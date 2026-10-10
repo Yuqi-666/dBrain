@@ -1,10 +1,5 @@
 "use client";
-import {
-  useAuthStore,
-  useDataStore,
-  useUIStore,
-  useWorkspaceStore,
-} from "@workspace/store";
+import { useAuthStore, useDataStore, useUIStore } from "@workspace/store";
 import {
   clearAuthSession,
   reconnectTRPCClient,
@@ -15,14 +10,12 @@ import {
   NodeSemanticService,
   EdgeSemanticService,
   ViewService,
-  WorkspaceService,
 } from "@workspace/services";
 import type {
   EdgeSemantic,
   NodeData,
   NodeSemantic,
   View,
-  Workspace,
 } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -43,7 +36,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-data-type-selector";
 import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
-import { Separator } from "@workspace/ui/components/ui/separator";
+import { WorkSpaceSelector } from "@workspace/ui/components/selector/workspace-selector";
 import {
   Tabs,
   TabsContent,
@@ -52,11 +45,8 @@ import {
 } from "@workspace/ui/components/ui/tabs";
 import { cn } from "@workspace/ui/lib/utils";
 import {
-  ChevronDownIcon,
   ChevronRight,
-  ChevronUpIcon,
   CircleDot,
-  Globe,
   LayoutGrid,
   Link2,
   LogOut,
@@ -70,12 +60,12 @@ import {
   Sun,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import LogoIcon from "../../img/icon/logo.svg";
 import { useGraph } from "@workspace/hooks";
 
-export function MainSidebar() {
+export function GraphSidebar() {
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
   const { views, nodes } = useDataStore();
@@ -144,7 +134,7 @@ export function MainSidebar() {
       <div className="h-px bg-sidebar-border" />
 
       <div className="flex flex-col gap-1 px-3 py-4">
-        <SpaceSelector />
+        <WorkSpaceSelector />
       </div>
 
       <div className="h-px bg-sidebar-border" />
@@ -323,89 +313,6 @@ function SidebarHeader({ onToggle }: { onToggle: () => void }) {
         </Button>
       </div>
     </header>
-  );
-}
-
-function SpaceSelector() {
-  const workspaces = useWorkspaceStore((state) => state.workspaces);
-  const currentWorkspaceId = useWorkspaceStore(
-    (state) => state.currentWorkspaceId,
-  );
-  const openCreateWorkspaceDialog = useUIStore(
-    (state) => state.openWorkspaceCreateDialog,
-  );
-  const workspaceList = useMemo(
-    () => Array.from(workspaces.values()),
-    [workspaces],
-  );
-  const currentWorkspace = workspaceList.find(
-    (w) => w.id === currentWorkspaceId,
-  );
-
-  const handleSelect = async (workspace: Workspace) => {
-    if (workspace.id === currentWorkspaceId) return;
-    try {
-      await WorkspaceService.open(workspace.id);
-    } catch (err) {
-      console.error("[CognitiveSidebar] switch workspace failed:", err);
-    }
-  };
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="w-full justify-between px-2.5 h-10 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 group"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Globe className="size-4 text-sidebar-primary shrink-0" />
-            <span className="text-[13px] font-medium text-sidebar-foreground truncate">
-              {currentWorkspace?.name ?? "Select workspace"}
-            </span>
-          </div>
-          <div className="flex items-center text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60 transition-colors">
-            <div className="flex flex-col items-center ml-1 leading-none">
-              <ChevronUpIcon className="size-3" />
-              <ChevronDownIcon className="size-3 -mt-1" />
-            </div>
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        side="right"
-        sideOffset={12}
-        className="w-52 rounded-xl border-sidebar-border bg-sidebar p-1.5 shadow-lg"
-      >
-        {workspaceList.length > 0 ? (
-          workspaceList.map((workspace) => (
-            <DropdownMenuItem
-              key={workspace.id}
-              onClick={() => handleSelect(workspace)}
-              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-            >
-              {workspace.name}
-            </DropdownMenuItem>
-          ))
-        ) : (
-          <DropdownMenuItem
-            disabled
-            className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground/50 cursor-default"
-          >
-            No workspaces
-          </DropdownMenuItem>
-        )}
-        <Separator className="my-1.5 bg-sidebar-border" />
-        <DropdownMenuItem
-          onClick={() => openCreateWorkspaceDialog()}
-          className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-        >
-          <Plus className="mr-2 size-4" />
-          Create new workspace
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

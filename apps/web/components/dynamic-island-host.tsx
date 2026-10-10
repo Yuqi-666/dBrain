@@ -15,7 +15,6 @@ import { IslandNodePreview } from "@workspace/ui/components/preview-block/island
 
 import {
   ISLAND_ROUTES,
-  islandRouteShortcuts,
   stepIslandRoute,
   type IslandRoute,
 } from "@/components/island-routes";
@@ -113,9 +112,9 @@ export function DynamicIslandHost() {
           active: activeView === route.key || pathname === route.href,
           enabled: route.enabled,
           disabledReason: route.disabledReason,
-          // The keys that *reach* this destination from where the user is now —
-          // the tooltip is the only place a collapsed capsule can teach them.
-          shortcuts: islandRouteShortcuts(pathname, route),
+          // Deliberately no `shortcuts`: the page tooltip only *names* the
+          // destination. Ctrl+H / Ctrl+L are ambient (they read as "left/right"
+          // here), so printing both keys on every page item taught nothing.
           onSelect: () => navigate(route),
         };
       }),

@@ -3,7 +3,7 @@ export {
   type GraphContextMenuProps,
 } from "./menu/graph-context-menu/graph-context-menu";
 export { MainLayout as CognitiveGraphLayout } from "./layout/main-layout";
-export { MainSidebar } from "./sidebar/main-sidebar";
+export { GraphSidebar } from "./sidebar/graph-sidebar";
 export { QuickPanel } from "./dialog/quick-panel/quick-panel";
 export { COMMANDS, getCommand } from "./command/command-registry";
 export type {

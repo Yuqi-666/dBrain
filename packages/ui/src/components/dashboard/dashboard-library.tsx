@@ -2,6 +2,11 @@
 
 import type { DashboardPage, NodeData } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+} from "@workspace/ui/components/ui/empty";
 import { Input } from "@workspace/ui/components/ui/input";
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/icon/node-type-icons";
 import { NODE_TYPE_LABELS } from "@workspace/ui/components/selector/node-data-type-selector";
@@ -110,11 +115,13 @@ export function DashboardLibrary({
           );
         })}
         {candidates.length === 0 && (
-          <p className="px-1 py-6 text-sm leading-relaxed text-muted-foreground">
-            {search
-              ? "没有匹配的组件"
-              : "在节点编辑页选择“添加到 Dashboard 备选”，节点就会出现在这里。"}
-          </p>
+          <Empty className="py-8">
+            <EmptyHeader>
+              <EmptyTitle>
+                {search ? "没有匹配的组件" : "组件库为空"}
+              </EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         )}
       </div>
     </aside>

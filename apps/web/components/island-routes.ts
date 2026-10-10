@@ -122,31 +122,3 @@ export function stepIslandRoute(
   // `+ length` first: a negative `delta` must not index from the end.
   return NAVIGATION_SEQUENCE[(index + delta + length) % length];
 }
-
-/**
- * The keys that step from the current address to `route`, as the capsule's
- * tooltip should show them.
- *
- * Since the sequence wraps, a destination is usually reachable in either
- * direction; the hint names the **shortest** step (both, when they tie — the
- * two-destination capsule is the case that matters, and hiding one of the two
- * keys the user actually has would be worse than printing both). The address
- * already on screen and a destination that is not in the order have no hint, and
- * neither does a one-destination order.
- */
-export function islandRouteShortcuts(
-  pathname: string,
-  route: IslandRoute,
-): string[] {
-  const from = sequenceIndex(pathname);
-  const to = NAVIGATION_SEQUENCE.indexOf(route);
-  const length = NAVIGATION_SEQUENCE.length;
-  if (from === -1 || to === -1 || from === to || length < 2) return [];
-
-  const right = (to - from + length) % length;
-  const left = (from - to + length) % length;
-  const keys: string[] = [];
-  if (right <= left) keys.push("Ctrl+L");
-  if (left <= right) keys.push("Ctrl+H");
-  return keys;
-}
