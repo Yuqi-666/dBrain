@@ -66,7 +66,6 @@ import {
   Pencil,
   Pin,
   Plus,
-  Search,
   Shapes,
   Sun,
   Trash2,
@@ -146,7 +145,6 @@ export function MainSidebar() {
 
       <div className="flex flex-col gap-1 px-3 py-4">
         <SpaceSelector />
-        <SearchButton />
       </div>
 
       <div className="h-px bg-sidebar-border" />
@@ -408,30 +406,6 @@ function SpaceSelector() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function SearchButton() {
-  const openQuickPanel = useUIStore((state) => state.openQuickPanel);
-  return (
-    <button
-      onClick={() => openQuickPanel("search")}
-      className={cn(
-        "flex items-center justify-between px-2.5 h-9 rounded-lg",
-        "text-[13px] text-sidebar-foreground/50",
-        "bg-sidebar-accent/50 hover:bg-sidebar-accent",
-        "border border-transparent hover:border-sidebar-border",
-        "transition-all duration-200 cursor-pointer w-full",
-      )}
-    >
-      <div className="flex items-center gap-2.5">
-        <Search className="size-4" />
-        <span>Search</span>
-      </div>
-      <kbd className="rounded-md bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-mono text-sidebar-foreground/40">
-        ⌘K
-      </kbd>
-    </button>
   );
 }
 

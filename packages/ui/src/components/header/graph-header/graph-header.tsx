@@ -1,7 +1,6 @@
 "use client";
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
-import { ToggleSearchCommandButton } from "../toggle-search-command-button";
 import { ViewSelectDropdownMenu } from "./view-select-dropdown-menu";
 import { ViewConfigPanel } from "./view-config-panel";
 import { useUIStore } from "@workspace/store";
@@ -21,7 +20,6 @@ export function GraphHeader({ className }: GraphHeaderProps) {
         className={`flex items-center gap-0 px-0.5 transition-all rounded-lg border bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
       >
         <ToggleSidebarButton />
-        <ToggleSearchCommandButton />
       </div>
 
       <ViewSelectDropdownMenu className="pointer-events-auto rounded-lg border dark:bg-background dark:border-border dark:hover:bg-background dark:aria-expanded:bg-background" />

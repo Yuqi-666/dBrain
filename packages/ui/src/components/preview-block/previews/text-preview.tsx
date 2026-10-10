@@ -1,7 +1,6 @@
 "use client";
 
 import type { TextNodeData } from "@workspace/interfaces";
-import { FileText } from "lucide-react";
 
 function extractTextContent(docs: Record<string, any>): string {
   if (!docs || !docs.content) return "";
@@ -28,10 +27,9 @@ export function TextPreview({ node }: { node: TextNodeData }) {
 
   return (
     <div className="flex items-start gap-2">
-      <FileText className="size-8 text-blue-500 shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-foreground leading-relaxed">
-          {previewText || "No content"}
+        <p className="text-sm text-foreground leading-relaxed line-clamp-5">
+          {previewText || "暂无内容"}
         </p>
       </div>
     </div>

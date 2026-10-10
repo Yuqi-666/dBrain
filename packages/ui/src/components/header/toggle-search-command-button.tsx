@@ -14,13 +14,13 @@ interface ToggleSearchCommandButtonProps {
 export function ToggleSearchCommandButton({
   className,
 }: ToggleSearchCommandButtonProps) {
-  const openQuickPanel = useUIStore((state) => state.openQuickPanel);
+  const setIslandPanel = useUIStore((state) => state.setIslandPanel);
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={() => openQuickPanel("search")}
+      onClick={() => setIslandPanel("search")}
       className={className}
       aria-label="打开搜索命令面板"
     >

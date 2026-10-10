@@ -115,6 +115,7 @@ let dragStartY = 0;
 /** Double-click detection (FIX 1.4). */
 let lastClickTime = 0;
 let lastClickNode: NodeId | null = null;
+let pressedNodeId: NodeId | null = null;
 /**
  * Double-click on empty canvas → the main thread resets the viewport
  * (center + default scale). Tracked separately from node double-clicks so
@@ -857,7 +858,7 @@ export function hitTestEdge(
 export function handleProxiedEvent(evt: ProxiedDomEvent): void {
   switch (evt.type) {
     case "pointer-down": {
-      if (evt.button === 2) return;
+      if (evt.button !== 0) return;
       const target = hitTest(evt.x, evt.y, 10);
 
       // Alt-drag: enter edge-creation mode instead of selecting / dragging.
@@ -880,6 +881,8 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         return;
       }
 
+      pressedNodeId = target && !evt.modifiers.ctrl && !evt.modifiers.shift
+        ? target.id : null;
       // Double-click detection (FIX 1.4)
       const now = Date.now();
       if (target && target.id === lastClickNode && now - lastClickTime < 300) {
@@ -888,6 +891,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         emit({ type: "node:dblclick", nodeId: target.id });
         lastClickTime = 0;
         lastClickNode = null;
+        pressedNodeId = null;
         return;
       }
       if (target) {
@@ -972,6 +976,8 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
         if (Math.sqrt(dx * dx + dy * dy) > 3) {
           if (!dragStarted) {
             dragStarted = true;
+            lastClickNode = null;
+            pressedNodeId = null;
             const primaryId = [...selectedNodeIds][0]!;
             const primary = nodeMap.get(primaryId);
             setNodeFixed(primaryId, true, primary?.x, primary?.y);
@@ -1001,7 +1007,7 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       // Right-click: the context-menu handler owns hit-test + selection.
       // If we emit canvas:click here, it would race with the deferred
       // context menu and close it immediately.
-      if (evt.button === 2) break;
+      if (evt.button !== 0) break;
 
       if (altDragAssist.active) {
         const upTarget = hitTest(evt.x, evt.y);
@@ -1036,7 +1042,18 @@ export function handleProxiedEvent(evt: ProxiedDomEvent): void {
       emit({ type: "canvas:pointer-up", x: evt.x, y: evt.y });
       if (!wasDragging) {
         const upTarget = hitTest(evt.x, evt.y);
-        if (upTarget) break;
+        if (upTarget) {
+          // Only an unmodified press/release on the same node is a click.
+          // A double-click or drag clears the press before release.
+          if (
+            upTarget.id === pressedNodeId && upTarget.id === lastClickNode &&
+            !evt.modifiers.ctrl && !evt.modifiers.shift && !evt.modifiers.alt
+          ) {
+            emit({ type: "node:click", nodeId: upTarget.id });
+          }
+          pressedNodeId = null;
+          break;
+        }
         // No node hit — check edge before treating as canvas click.
         // Without this, clicking an edge then releasing emits canvas:click,
         // which clears the edge selection we just made in pointer-down.

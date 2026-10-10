@@ -32,7 +32,7 @@ export function WebpagePreview({ node }: { node: WebpageNodeData }) {
           )
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-3">
-            <Code2 className="size-10 text-blue-500" />
+            <Code2 className="size-10 text-muted-foreground" />
             <span className="w-full truncate text-center text-xs text-muted-foreground">
               还没有源码
             </span>

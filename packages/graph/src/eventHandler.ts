@@ -21,7 +21,7 @@
  * main design L384, L402, L365-367.
  */
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { EdgeId, NodeId } from "@workspace/interfaces";
 import { useUIStore } from "@workspace/store";
 import type { WorkerEvent } from "./force/types";
@@ -132,17 +132,78 @@ export function useGraphEventHandler(): GraphEventHandler {
   const graphRef = useRef(graph);
   graphRef.current = graph;
 
+  const pendingPreview = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const cancel = () => {
+      if (pendingPreview.current !== null) clearTimeout(pendingPreview.current);
+      pendingPreview.current = null;
+    };
+    const unsubscribe = useUIStore.subscribe((state, previous) => {
+      if (
+        state.islandPanel !== previous.islandPanel ||
+        state.currentEditingNodeId !== previous.currentEditingNodeId
+      )
+        cancel();
+    });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancel();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancel();
+      unsubscribe();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   return useMemo<GraphEventHandler>(() => {
-    const set = (mutator: (s: ReturnType<typeof useUIStore.getState>) => void) =>
-      mutator(useUIStore.getState());
+    const set = (
+      mutator: (s: ReturnType<typeof useUIStore.getState>) => void,
+    ) => mutator(useUIStore.getState());
+
+    const cancelPreview = () => {
+      if (pendingPreview.current !== null) clearTimeout(pendingPreview.current);
+      pendingPreview.current = null;
+    };
+    const closePreview = () => {
+      cancelPreview();
+      set((s) => {
+        s.closePreviewBlock();
+        if (s.islandPanel !== "idle") s.collapseIsland();
+      });
+    };
+    const previewAfterClick = (nodeId: NodeId) => {
+      cancelPreview();
+      const before = useUIStore.getState();
+      before.closePreviewBlock();
+      // A worker click can arrive after double-click opened the editor.
+      // Cancelling an existing timer alone cannot prevent it re-arming.
+      if (before.currentEditingNodeId !== null) return;
+      const panelBeforeClick = before.islandPanel;
+      // Worker recognises double-clicks within 300ms of the first press.
+      // Starting this delay on release also covers a held first click.
+      pendingPreview.current = setTimeout(() => {
+        pendingPreview.current = null;
+        const state = useUIStore.getState();
+        if (
+          state.currentEditingNodeId === null &&
+          state.islandPanel === panelBeforeClick &&
+          state.selectedNodeIds.size === 1 &&
+          state.selectedNodeIds.has(nodeId) &&
+          state.selectedEdgeIds.size === 0
+        ) {
+          state.openIslandPreview(nodeId);
+        }
+      }, 320);
+    };
 
     const handleAltDragUpdate = (args: {
       sourceIds: NodeId[];
       targetId: NodeId | null;
     }): void => {
       const targetId = args.targetId;
+      closePreview();
       set((s) => {
-        s.closePreviewBlock();
         if (targetId !== null) {
           s.setSelectedNodeIds(new Set([targetId]));
         } else {
@@ -170,7 +231,11 @@ export function useGraphEventHandler(): GraphEventHandler {
     return {
       handleWorkerEvent(event) {
         switch (event.type) {
+          case "node:click":
+            previewAfterClick(event.nodeId);
+            return;
           case "node:dblclick":
+            closePreview();
             set((s) => {
               s.closePreviewBlock();
               s.handleNodeEdit(event.nodeId);
@@ -194,9 +259,10 @@ export function useGraphEventHandler(): GraphEventHandler {
             });
             return;
           case "node:drag-start":
-            set((s) => s.closePreviewBlock());
+            closePreview();
             return;
           case "edge:click":
+            closePreview();
             set((s) => {
               s.setSelectedEdgeIds(new Set([event.edgeId]));
               s.closePreviewBlock();
@@ -205,24 +271,28 @@ export function useGraphEventHandler(): GraphEventHandler {
           // Context-menu results (selection only — menu is opened
           // by ForceGraph's onWorkerEvent from the same event).
           case "context-menu:node":
+            closePreview();
             set((s) => {
               s.setSelectedNodeIds(new Set([event.nodeId]));
               s.closePreviewBlock();
             });
             return;
           case "context-menu:edge":
+            closePreview();
             set((s) => {
               s.setSelectedEdgeIds(new Set([event.edgeId]));
               s.closePreviewBlock();
             });
             return;
           case "context-menu:canvas":
+            closePreview();
             set((s) => {
               s.setSelectedNodeIds(new Set());
               s.setSelectedEdgeIds(new Set());
             });
             return;
           case "canvas:click":
+            closePreview();
             set((s) => {
               s.setSelectedNodeIds(new Set());
               s.setSelectedEdgeIds(new Set());
@@ -233,43 +303,29 @@ export function useGraphEventHandler(): GraphEventHandler {
             set((s) => {
               s.setSelectedNodeIds(new Set(event.selectedNodeIds));
               s.setSelectedEdgeIds(new Set(event.selectedEdgeIds));
-              // Single node selected → focus preview on that node.
-              // Selection cleared → unfocus preview (but keep visible if
-              // mouse still hovers — hover will re-set it via pointer-enter).
+              // Selection stays immediate; only a confirmed click opens preview.
+              cancelPreview();
               if (
-                event.selectedNodeIds.length === 1 &&
-                event.selectedEdgeIds.length === 0
+                event.selectedNodeIds.length !== 1 ||
+                event.selectedEdgeIds.length !== 0
               ) {
-                s.setPreviewBlock({
-                  nodeId: event.selectedNodeIds[0] ?? null,
-                  visible: true,
-                  isFocus: true,
-                });
-              } else if (
-                event.selectedNodeIds.length === 0 &&
-                event.selectedEdgeIds.length === 0
-              ) {
-                // Close focused preview outright — unfocusing would
-                // cause it to jump to the mouse position before the
-                // subsequent canvas:click closes it.
-                // If the mouse is still hovering a node, the next
-                // pointer-move will re-open it via node:pointer-enter.
-                if (s.previewBlock.visible && s.previewBlock.isFocus) {
-                  s.closePreviewBlock();
-                }
+                closePreview();
               }
             });
+            return;
+          // The graph owns outside dismissal until the worker hit-test resolves.
+          case "canvas:pointer-down":
+          case "canvas:dblclick":
+            closePreview();
             return;
           // Pure noise / informational events — nothing to do.
           case "frame":
           case "tick":
           case "status":
           case "simulation:stopped":
-          case "canvas:pointer-down":
           case "canvas:pointer-move":
           case "canvas:pointer-up":
           case "canvas:wheel":
-          case "canvas:dblclick":
           case "node:drag":
           case "node:drag-end":
             return;
@@ -287,9 +343,11 @@ export function useGraphEventHandler(): GraphEventHandler {
 
       onSelectNode(nodeId) {
         set((s) => s.setSelectedNodeIds(new Set([nodeId])));
+        previewAfterClick(nodeId);
       },
 
       onSelectEdge(edgeId) {
+        closePreview();
         set((s) => {
           s.setSelectedEdgeIds(new Set([edgeId]));
           s.closePreviewBlock();
@@ -297,6 +355,7 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onSelectMany({ nodes, edges }) {
+        closePreview();
         set((s) => {
           s.setSelectedNodeIds(new Set(nodes));
           s.setSelectedEdgeIds(new Set(edges));
@@ -304,6 +363,7 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onClearSelection() {
+        closePreview();
         set((s) => {
           s.setSelectedNodeIds(new Set());
           s.setSelectedEdgeIds(new Set());
@@ -311,6 +371,7 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onNodeDoubleClick(nodeId) {
+        closePreview();
         set((s) => {
           s.closePreviewBlock();
           s.handleNodeEdit(nodeId);
@@ -337,10 +398,11 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onNodeDragStart() {
-        set((s) => s.closePreviewBlock());
+        closePreview();
       },
 
       onCanvasClick() {
+        closePreview();
         set((s) => {
           s.setSelectedNodeIds(new Set());
           s.setSelectedEdgeIds(new Set());
@@ -349,6 +411,7 @@ export function useGraphEventHandler(): GraphEventHandler {
       },
 
       onPaneClick() {
+        closePreview();
         // ReactFlow's onPaneClick and our own onCanvasClick do the
         // same thing: clear all transient UI.
         set((s) => {

@@ -31,6 +31,8 @@ export interface DynamicIslandProps {
   /** One body per expanded form. A form without one draws its own placeholder,
    * and a form the host supplies is responsible for its own chrome. */
   content?: Partial<Record<IslandExpandedPanel, ReactNode>>;
+  /** Preferred content width; the viewport gutter remains the upper bound. */
+  contentWidths?: Partial<Record<IslandExpandedPanel, number>>;
 
   /** Pinned under an expanded body (a preview's 「打开节点」, say). */
   actions?: ReactNode;

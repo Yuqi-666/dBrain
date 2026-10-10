@@ -23,7 +23,7 @@ export function PdfPreview({ node }: { node: PdfNodeData }) {
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2">
-            <FileType className="size-10 text-red-500" />
+            <FileType className="size-10 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">PDF Document</span>
           </div>
         )}

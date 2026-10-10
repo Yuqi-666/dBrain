@@ -6,7 +6,6 @@ import type {
   DatabaseNodeData,
 } from "@workspace/interfaces";
 import { useDataStore } from "@workspace/store";
-import { Table } from "lucide-react";
 
 /** How many records the compact hover preview shows. */
 const PREVIEW_ROW_LIMIT = 5;
@@ -56,17 +55,9 @@ export function DatabasePreview({ node }: { node: DatabaseNodeData }) {
 
   if (fields.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Table className="size-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">Database</p>
-          <p className="text-xs text-muted-foreground">
-            {rows.length} records · no fields yet
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {rows.length} 条记录 · 暂无字段
+      </p>
     );
   }
 
@@ -90,17 +81,17 @@ export function DatabasePreview({ node }: { node: DatabaseNodeData }) {
             {visibleRows.map((row) => (
               <tr key={row.id} className="border-b last:border-b-0">
                 {fields.map((field) => {
-                  const text = cellText(row.cells[field.id], field, (nodeId) =>
-                    nodes.get(nodeId)?.title,
+                  const text = cellText(
+                    row.cells[field.id],
+                    field,
+                    (nodeId) => nodes.get(nodeId)?.title,
                   );
                   return (
                     <td
                       key={field.id}
                       className="max-w-[140px] truncate px-2 py-1"
                     >
-                      {text || (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      {text || <span className="text-muted-foreground">—</span>}
                     </td>
                   );
                 })}

@@ -227,6 +227,7 @@ export interface ForceDiffPayload {
  * is not a default Comlink Transferable.
  */
 export type WorkerEvent =
+  | { type: "node:click"; nodeId: NodeId }
   | { type: "node:dblclick"; nodeId: NodeId }
   | { type: "node:pointer-enter"; nodeId: NodeId }
   | { type: "node:pointer-leave"; nodeId: NodeId }

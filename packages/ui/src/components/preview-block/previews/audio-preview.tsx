@@ -1,12 +1,15 @@
 "use client";
 
 import type { AudioNodeData } from "@workspace/interfaces";
-import { Volume, Play } from "lucide-react";
 
 function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = (total % 60).toString().padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${mins.toString().padStart(2, "0")}:${secs}`
+    : `${mins}:${secs}`;
 }
 
 function formatSize(bytes: number) {
@@ -16,23 +19,19 @@ function formatSize(bytes: number) {
 }
 
 export function AudioPreview({ node }: { node: AudioNodeData }) {
+  const hasDuration = Number.isFinite(node.duration) && node.duration > 0;
+  const hasSize = Number.isFinite(node.fileSize) && node.fileSize > 0;
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-          <Play className="size-4 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{node.title}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {node.duration && node.duration > 0 && (
-              <span>{formatDuration(node.duration)}</span>
-            )}
-            {node.fileSize && <span>{formatSize(node.fileSize)}</span>}
-          </div>
-        </div>
-        <Volume className="size-5 text-muted-foreground shrink-0" />
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pl-6 text-xs text-muted-foreground">
+      <div className="flex items-baseline gap-2">
+        <span>时长</span>
+        <span className="font-medium tabular-nums text-foreground/80">
+          {hasDuration ? formatDuration(node.duration) : "未知"}
+        </span>
       </div>
+      {hasSize && (
+        <span className="tabular-nums">{formatSize(node.fileSize)}</span>
+      )}
     </div>
   );
 }

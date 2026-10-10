@@ -13,7 +13,6 @@ import { NodeEditor } from "@workspace/ui/components/dialog/editor";
 import { NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/dialog/semantic-dialog"
 import { CreateWorkspaceDialog } from "@workspace/ui/components/dialog/workspace-dialog"
 import { ViewDialog } from "@workspace/ui/components/dialog/view-dialog"
-import { QuickPanel } from "@workspace/ui/components/dialog/quick-panel/quick-panel";
 
 export default function GraphPage(): ReactNode {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -82,7 +81,6 @@ export default function GraphPage(): ReactNode {
         <EdgeSemanticDialog />
         <CreateWorkspaceDialog />
         <ViewDialog />
-        <QuickPanel />
       </div>
     </MainLayout>
   );

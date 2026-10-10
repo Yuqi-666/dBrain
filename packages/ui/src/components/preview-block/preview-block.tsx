@@ -136,14 +136,14 @@ export function PreviewBlock({
         position: "fixed",
         left: pos.left,
         top: pos.top,
-        width: previewSize.width || PREVIEW_WIDTH,
-        maxHeight: previewSize.height || PREVIEW_MAX_HEIGHT,
+        width: `min(${PREVIEW_WIDTH}px, calc(100vw - 32px))`,
+        maxHeight: `min(${PREVIEW_MAX_HEIGHT}px, calc(100vh - 32px))`,
         zIndex: 9999,
       }}
       data-preview-block
-      className="overflow-hidden rounded-xl border bg-background shadow-xl "
+      className="pointer-events-none overflow-y-auto rounded-2xl bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10"
     >
-      {onClose && (
+      {isFocus && onClose && (
         <button
           onClick={handleClose}
           aria-label="关闭预览"

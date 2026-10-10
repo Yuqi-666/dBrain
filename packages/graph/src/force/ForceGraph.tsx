@@ -842,6 +842,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         }}
       >
         <canvas
+          data-island-defer-dismiss
           ref={canvasRef}
           style={{
             display: "block",

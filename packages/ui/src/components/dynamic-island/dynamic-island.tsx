@@ -48,6 +48,7 @@ export function DynamicIsland({
   onPanelChange,
   nav,
   content,
+  contentWidths,
   actions,
   backdrop = "auto",
   className,
@@ -84,9 +85,29 @@ export function DynamicIsland({
   const previous = swapping ? layers.at(-2)?.panel : undefined;
   const handover = handoverFor(previous, panel, feel.timing);
 
+  const [bodyHeights, setBodyHeights] = React.useState<
+    Partial<Record<IslandPanel, number>>
+  >({});
+  const measureBody = React.useCallback((form: IslandPanel, height: number) => {
+    setBodyHeights((current) =>
+      current[form] === height ? current : { ...current, [form]: height },
+    );
+  }, []);
+
   const geometryFor = React.useCallback(
-    (form: IslandPanel) => resolveGeometry(ISLAND_FORMS[form], viewport, pill),
-    [viewport, pill],
+    (form: IslandPanel) =>
+      resolveGeometry(
+        form === "idle"
+          ? ISLAND_FORMS[form]
+          : {
+              ...ISLAND_FORMS[form],
+              width: contentWidths?.[form] ?? ISLAND_FORMS[form].width,
+              height: bodyHeights[form] ?? ISLAND_FORMS[form].height,
+            },
+        viewport,
+        pill,
+      ),
+    [viewport, pill, bodyHeights, contentWidths],
   );
   const geometry = geometryFor(panel);
 
@@ -137,19 +158,12 @@ export function DynamicIsland({
       }
 
       return (
-        <div className="flex h-full w-full flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {content?.[form] ?? <IslandPlaceholder form={form} nav={nav} />}
-          </div>
-          {actions ? (
-            <div className="shrink-0 border-t border-border/60 px-3 py-2">
-              {actions}
-            </div>
-          ) : null}
-        </div>
+        <MeasuredBody form={form} onMeasure={measureBody} actions={actions}>
+          {content?.[form] ?? <IslandPlaceholder form={form} nav={nav} />}
+        </MeasuredBody>
       );
     },
-    [actions, content, nav],
+    [actions, content, nav, measureBody],
   );
 
   const capsule = React.useRef<HTMLDivElement | null>(null);
@@ -167,7 +181,8 @@ export function DynamicIsland({
    * dialog or popover that is also listening keeps receiving the key.
    */
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Escape" || panel === "idle") return;
+    if (event.defaultPrevented || event.key !== "Escape" || panel === "idle")
+      return;
     onPanelChange("idle");
   };
 
@@ -187,6 +202,16 @@ export function DynamicIsland({
       if (node && event.target instanceof Node && node.contains(event.target)) {
         return;
       }
+      // Feature content may open a Radix portal outside the capsule.
+      // A graph canvas defers dismissal until its worker resolves whether the
+      // pointer hit a node (switch directly to preview) or empty space (close).
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          '[role="dialog"], [role="menu"], [role="listbox"], [data-slot="popover-content"], [data-island-defer-dismiss]',
+        )
+      )
+        return;
       onPanelChange("idle");
     };
 
@@ -219,7 +244,7 @@ export function DynamicIsland({
         className={cn(
           // `overflow-hidden` is what makes the capsule the island's silhouette:
           // every visual layer is painted here.
-          "pointer-events-auto relative overflow-hidden",
+          "pointer-events-auto relative overflow-hidden text-popover-foreground",
           // A blur over a backdrop that repaints every frame is re-sampled every
           // frame; the user's own reduced-transparency request wins outright.
           islandSurfaceClass(backdrop === "auto" && !reducedTransparency),
@@ -238,6 +263,66 @@ export function DynamicIsland({
           onExited={remove}
         />
       </motion.div>
+    </div>
+  );
+}
+
+/** Measure the natural body, never the animated capsule or its capped viewport. */
+function MeasuredBody({
+  form,
+  onMeasure,
+  children,
+  actions,
+}: {
+  form: IslandPanel;
+  onMeasure: (form: IslandPanel, height: number) => void;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  const footer = React.useRef<HTMLDivElement>(null);
+  const body = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const node = body.current;
+    if (!node) return;
+    // offsetHeight rounds fractional line heights down; that can leave the
+    // viewport a fraction shorter than its body and create a needless scrollbar.
+    let bodyHeight = node.offsetHeight;
+    let footerHeight = footer.current?.offsetHeight ?? 0;
+    const measure = () => onMeasure(form, Math.ceil(bodyHeight + footerHeight));
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.borderBoxSize[0]?.blockSize;
+        if (entry.target === node) bodyHeight = height ?? node.offsetHeight;
+        else footerHeight = height ?? footer.current?.offsetHeight ?? 0;
+      }
+      measure();
+    });
+    // Leave a pixel for rounding until the observer reports precise box sizes.
+    onMeasure(form, bodyHeight + footerHeight + 1);
+    observer.observe(node);
+    if (footer.current) observer.observe(footer.current);
+    return () => observer.disconnect();
+  }, [form, onMeasure, actions]);
+  return (
+    <div className="flex h-full w-full flex-col">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          form === "preview" && "scrollbar-hide",
+        )}
+      >
+        <div ref={body} className="flow-root">
+          {children}
+        </div>
+      </div>
+      {actions ? (
+        <div
+          ref={footer}
+          className="shrink-0 border-t border-border/60 px-3 py-2"
+        >
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

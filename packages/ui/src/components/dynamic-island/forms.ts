@@ -33,21 +33,21 @@ export const ISLAND_FORMS: Record<IslandPanel, IslandForm> = {
     height: 340,
     maxHeightRatio: 0.44,
     radius: 28,
-    placeholder: "节点预览将在 M8 接入",
+    placeholder: "选择节点以预览",
   },
   search: {
     width: 560,
     height: 440,
     maxHeightRatio: 0.52,
     radius: 28,
-    placeholder: "搜索面板将在 M9 接入",
+    placeholder: "搜索",
   },
   agent: {
-    width: 560,
+    width: 400,
     height: 440,
     maxHeightRatio: 0.52,
     radius: 28,
-    placeholder: "agent 面板将在 M9 接入",
+    placeholder: "Agent",
   },
 };
 

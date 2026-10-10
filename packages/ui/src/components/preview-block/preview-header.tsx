@@ -12,37 +12,26 @@ export function PreviewHeader({ node }: { node: NodeData }) {
   const Icon = NODE_TYPE_ICONS[node.nodeType] ?? FileText;
 
   return (
-    <div className="border-b px-3 py-2">
-      <div className="flex items-center gap-2">
+    <div className="px-4 pt-4 pb-2 pr-12">
+      <div className="flex items-start gap-2">
         <NodeIconView
           icon={node.icon ?? undefined}
-          fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />}
-          className="size-4 shrink-0 text-muted-foreground"
+          fallback={<Icon className="size-4 text-muted-foreground" />}
+          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
         />
-        <span className="font-medium truncate text-sm">{node.title}</span>
-      </div>
-      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-        {semantic && (
-          <>
-            <span
-              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-              style={{
-                backgroundColor: semantic.color
-                  ? `${semantic.color}20`
-                  : undefined,
-                color: semantic.color || undefined,
-              }}
-            >
+        <div className="min-w-0 flex-1">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug">
+            {node.title || "未命名节点"}
+          </h3>
+          {semantic && (
+            <p className="mt-1 truncate text-xs text-muted-foreground">
               {semantic.name}
-            </span>
-            <span className="truncate max-w-[150px]">
-              {semantic.description}
-            </span>
-          </>
-        )}
+            </p>
+          )}
+        </div>
       </div>
       {node.abstract && (
-        <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {node.abstract}
         </p>
       )}

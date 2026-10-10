@@ -23,9 +23,10 @@ import type { ArgCommand } from "../../command/command";
 
 export interface SearchModeProps {
   className?: string;
+  onClose?: () => void;
 }
 
-export function SearchMode({ className }: SearchModeProps) {
+export function SearchMode({ className, onClose }: SearchModeProps) {
   const nodes = useDataStore((state) => state.nodes);
   const edges = useDataStore((state) => state.edges);
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
@@ -70,7 +71,8 @@ export function SearchMode({ className }: SearchModeProps) {
   const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
-  const closeQuickPanel = useUIStore((state) => state.closeQuickPanel);
+  const closeLegacyPanel = useUIStore((state) => state.closeQuickPanel);
+  const closeQuickPanel = onClose ?? closeLegacyPanel;
 
   const results = useMemo<QuickSearchMatch[]>(() => {
     const term = normalizeKeyword(stripSlashPrefix(query));

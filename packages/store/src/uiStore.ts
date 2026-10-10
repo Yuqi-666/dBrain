@@ -223,6 +223,8 @@ export interface UIStore {
    * 既不读 store 也不做业务判断（设计 §5.2 的三条边界）。
    */
   islandPanel: IslandPanel;
+  islandPreviewNodeId: NodeId | null;
+  openIslandPreview: (nodeId: NodeId) => void;
   /**
    * 「最近一次打开的功能面板」，`⌘K` 在未展开时复用它 —— 对齐 `quickPanel.mode`
    * 「关闭后仍保留」的既有语义。收起（`idle`）**不**写这里。
@@ -451,6 +453,13 @@ export const useUIStore = create<UIStore>()(
 
       // ==================== Dynamic Island ====================
       islandPanel: "idle",
+      islandPreviewNodeId: null,
+      openIslandPreview: (nodeId) => set({
+        islandPreviewNodeId: nodeId,
+        islandPanel: "preview",
+        lastIslandPanel: "preview",
+        previewBlock: { nodeId: null, visible: false, isFocus: false },
+      }),
       lastIslandPanel: "search",
       // 打开时记下「最近一次功能面板」，收起时不覆盖它（与 design §6.1 的
       // `...(panel === "idle" ? {} : { lastIslandPanel: panel })` 等价，

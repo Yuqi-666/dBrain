@@ -1,7 +1,6 @@
 "use client";
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
-import { ToggleSearchCommandButton } from "../toggle-search-command-button";
 import { FullscreenButton } from "./fullscreen-button";
 import { NodeCoverButton } from "./node-cover-button";
 import { NodeIconButton } from "./node-icon-button";
@@ -57,7 +56,6 @@ export function EditorHeader({ className }: EditorHeaderProps) {
             className={`flex items-center gap-0 p-0.5 transition-all  bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
           >
             <ToggleSidebarButton />
-            <ToggleSearchCommandButton />
           </div>
         )}
       </div>

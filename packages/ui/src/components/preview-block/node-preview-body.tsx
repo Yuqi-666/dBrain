@@ -66,7 +66,7 @@ export function NodePreviewBody({
   return (
     <>
       <PreviewHeader node={node} />
-      <div className={cn("p-3 pt-2 overflow-y-auto", className)}>
+      <div className={cn("px-4 pb-4 pt-2", className)}>
         {renderNodePreview(node)}
       </div>
     </>
