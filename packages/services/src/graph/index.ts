@@ -9,3 +9,5 @@ export {
   syncViewEnumerationOnCreate,
   syncViewEnumerationOnDelete,
 } from "./view-enum-sync";
+
+export { DashboardService } from "./dashboard.service";

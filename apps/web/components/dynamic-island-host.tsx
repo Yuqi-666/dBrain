@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, Bot } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
@@ -13,7 +13,12 @@ import { SearchMode } from "@workspace/ui/components/dialog/quick-panel/search-m
 import { AgentMode } from "@workspace/ui/components/dialog/quick-panel/agent-mode";
 import { IslandNodePreview } from "@workspace/ui/components/preview-block/island-node-preview";
 
-import { ISLAND_ROUTES } from "@/components/island-routes";
+import {
+  ISLAND_ROUTES,
+  islandRouteShortcuts,
+  stepIslandRoute,
+  type IslandRoute,
+} from "@/components/island-routes";
 
 /** App adapter: routes, feature panels, global shortcuts and live island height. */
 export function DynamicIslandHost() {
@@ -21,12 +26,34 @@ export function DynamicIslandHost() {
   const router = useRouter();
   const islandPanel = useUIStore((s) => s.islandPanel);
   const setIslandPanel = useUIStore((s) => s.setIslandPanel);
+  const mainViewType = useUIStore((s) => s.mainViewType);
+  const editorReturnViewType = useUIStore((s) => s.editorReturnViewType);
+
+  // Which surface is on screen, with the fullscreen editor counting as the one it
+  // was opened from — the same resolution `WorkspaceShell` performs, so the
+  // capsule lights up the surface the user is actually looking at.
+  const activeView =
+    mainViewType === "editor" ? editorReturnViewType : mainViewType;
 
   const previewNodeId = useUIStore((s) => s.islandPreviewNodeId);
   const previewType = useDataStore((s) =>
     previewNodeId ? s.nodes.get(previewNodeId)?.nodeType : undefined,
   );
   const close = () => setIslandPanel("idle");
+
+  /**
+   * The one navigation path — the island's click and the sequence shortcuts both
+   * go through it. The store flips first so the surface swaps in the same frame;
+   * `router.push` then keeps the URL the honest address of what is on screen
+   * (both routes share one persistent shell, so nothing reloads).
+   */
+  const navigate = useCallback(
+    (route: IslandRoute) => {
+      if (route.view) useUIStore.getState().setMainViewType(route.view);
+      router.push(route.href, { scroll: false });
+    },
+    [router],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -38,6 +65,21 @@ export function DynamicIslandHost() {
         !event.shiftKey
       ) {
         const key = event.key.toLowerCase();
+        // Ctrl+H / Ctrl+L move one step along the app's navigation order (the
+        // island's own route table), so the capsule and the keyboard agree on
+        // what "left" and "right" mean.
+        //
+        // The browser's own bindings for these two keys are **claimed
+        // unconditionally**, even from an address the table does not know: the
+        // chord belongs to the app while it is on screen, and only suppressing
+        // it when a step happens to exist would make the two keys fire the
+        // browser's history / location bar intermittently.
+        if (key === "h" || key === "l") {
+          event.preventDefault();
+          const next = stepIslandRoute(pathname, key === "l" ? 1 : -1);
+          if (next) navigate(next);
+          return;
+        }
         if (key !== "k" && key !== "j") return;
         event.preventDefault();
         const target = key === "k" ? "search" : "agent";
@@ -49,7 +91,7 @@ export function DynamicIslandHost() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [navigate, pathname]);
 
   useEffect(() => {
     setIslandPanel("idle");
@@ -65,33 +107,43 @@ export function DynamicIslandHost() {
           key: route.key,
           label: route.label,
           icon: <Icon className="size-4" />,
-          active: pathname === route.href,
+          // The store answers first (it flips on click, in the same frame) and
+          // the committed pathname second (a deep link or the back button moves
+          // the URL before the shell re-derives the surface from it).
+          active: activeView === route.key || pathname === route.href,
           enabled: route.enabled,
           disabledReason: route.disabledReason,
-          onSelect: () => router.push(route.href),
+          // The keys that *reach* this destination from where the user is now —
+          // the tooltip is the only place a collapsed capsule can teach them.
+          shortcuts: islandRouteShortcuts(pathname, route),
+          onSelect: () => navigate(route),
         };
       }),
       {
-        key: "search",
-        label: "搜索 · Ctrl+K",
-        icon: <Search className="size-4" />,
-        active: islandPanel === "search",
-        enabled: true,
-        separator: true,
-        onSelect: () =>
-          setIslandPanel(islandPanel === "search" ? "idle" : "search"),
-      },
-      {
         key: "agent",
-        label: "Agent · Ctrl+J",
+        label: "Agent",
         icon: <Bot className="size-4" />,
         active: islandPanel === "agent",
         enabled: true,
+        separator: true,
+        // The shortcut lives in the tooltip as a key cap, not in the label: one
+        // convention for every item in the row.
+        shortcuts: ["Ctrl+J"],
         onSelect: () =>
           setIslandPanel(islandPanel === "agent" ? "idle" : "agent"),
       },
+      {
+        key: "search",
+        label: "搜索",
+        icon: <Search className="size-4" />,
+        active: islandPanel === "search",
+        enabled: true,
+        shortcuts: ["Ctrl+K"],
+        onSelect: () =>
+          setIslandPanel(islandPanel === "search" ? "idle" : "search"),
+      },
     ],
-    [pathname, islandPanel, router, setIslandPanel],
+    [activeView, pathname, islandPanel, navigate, setIslandPanel],
   );
 
   useEffect(() => {

@@ -22,7 +22,7 @@ export type ContextMenuContext =
   | { nodeIds: string[]; edgeIds: string[] }
   | { sourceIds: string[]; targetId: string | null };
 
-export type MainViewType = "graph" | "editor";
+export type MainViewType = "graph" | "editor" | "dashboard";
 
 /** Quick Panel 模式：search（搜索）+ agent（智能体，占位） */
 export type QuickPanelMode = "search" | "agent";
@@ -184,6 +184,7 @@ export interface UIStore {
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
   mainViewType: MainViewType;
+  editorReturnViewType: "graph" | "dashboard";
   /** 设置主视图类型 */
   setMainViewType: (type: MainViewType) => void;
 
@@ -418,7 +419,13 @@ export const useUIStore = create<UIStore>()(
 
       // ==================== Main View ====================
       mainViewType: "graph",
-      setMainViewType: (type) => set({ mainViewType: type }),
+      editorReturnViewType: "graph",
+      setMainViewType: (type) => set((state) => ({
+        mainViewType: type,
+        editorReturnViewType: type === "editor" && state.mainViewType !== "editor"
+          ? state.mainViewType
+          : state.editorReturnViewType,
+      })),
 
       // ==================== View ====================
       currentViewId: null,

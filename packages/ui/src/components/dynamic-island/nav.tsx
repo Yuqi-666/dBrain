@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Kbd } from "@workspace/ui/components/ui/kbd";
 import {
   Tooltip,
   TooltipContent,
@@ -42,8 +43,8 @@ export interface IslandNavProps {
  * package cannot know about.
  *
  * **The `TooltipProvider` here is not optional.** Radix's tooltip context has no
- * default value: without a provider, a disabled item's `<Tooltip>` throws, the
- * error leaves the render, and the island renders nothing at all. Nothing in this
+ * default value: without a provider, an item's `<Tooltip>` throws, the error
+ * leaves the render, and the island renders nothing at all. Nothing in this
  * repository mounts a provider (the app shell has no root one), so it is scoped
  * here — one per rendered row, and the island renders one row at a time. It
  * renders no DOM, so every anchor below is unaffected.
@@ -137,13 +138,25 @@ function IslandNavButton({
     </button>
   );
 
-  // No reason text ⇒ nothing to explain, so no tooltip is mounted at all.
-  if (!disabled || !item.disabledReason) return button;
-
+  // Every item explains itself on hover — always, not only when disabled: the
+  // collapsed pill is glyphs alone, so the tooltip is where a destination is
+  // *named*, where a disabled one says why, and where the host's keyboard hints
+  // (the keys that walk the navigation order) are drawn.
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="top">{item.disabledReason}</TooltipContent>
+      <TooltipContent side="top">
+        {disabled && item.disabledReason ? (
+          item.disabledReason
+        ) : (
+          <>
+            <span>{item.label}</span>
+            {item.shortcuts?.map((shortcut) => (
+              <Kbd key={shortcut}>{shortcut}</Kbd>
+            ))}
+          </>
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 }

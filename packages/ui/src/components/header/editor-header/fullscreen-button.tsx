@@ -14,7 +14,7 @@ export function FullscreenButton({ className }: FullscreenButtonProps) {
 
   const toggleFullscreen = () => {
     if (mainViewType === "editor") {
-      setMainViewType("graph");
+      setMainViewType(useUIStore.getState().editorReturnViewType);
     } else {
       setMainViewType("editor");
     }

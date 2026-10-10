@@ -39,3 +39,6 @@ export * from "./repositories/pocketbase-node-tag.repository";
 export * from "./repositories/pocketbase-user.repository";
 export * from "./repositories/pocketbase-workspace.repository";
 export * from "./repositories/pocketbase-workspace-member.repository";
+
+export * from "./repositories/pocketbase-dashboard.repository";
+export * from "./database/mappers/dashboard.mapper";

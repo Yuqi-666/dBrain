@@ -20,8 +20,15 @@ src/
 │   ├── semantic/       # NodeSemantic, EdgeSemantic, NodeTag entities + events
 │   ├── filter/         # FilterConfig value object
 │   └── index.ts        # Re-exports all models
-├── repositories/
-│   └── index.ts        # Repository interfaces (INodeRepository, IEdgeRepository, etc.)
+├── repositories/       # One <aggregate>.repository.ts per aggregate + index.ts barrel
+│   ├── index.ts        # Re-exports every repository port
+│   ├── node.repository.ts       # NodeQuery, INodeRepository
+│   ├── edge.repository.ts       # EdgeQuery, IEdgeRepository
+│   ├── view.repository.ts       # ViewQuery, IViewRepository
+│   ├── semantic.repository.ts   # *Query + INodeSemantic/EdgeSemantic/NodeTagRepository
+│   ├── user.repository.ts       # IUserRepository
+│   ├── workspace.repository.ts  # IWorkspaceRepository, IWorkspaceMemberRepository
+│   └── dashboard.repository.ts  # IDashboardRepository
 ├── ports/              # Non-repository ports
 │   ├── document-analysis.ts  # IDocumentAnalyzer, IFileStore (+ their DTOs)
 │   └── video-transcode.ts    # IVideoTranscoder (HLS packaging, + its DTOs)
@@ -35,7 +42,7 @@ src/
 | Domain events         | models/\*/events.ts        | NodeCreated, NodeDeleted, EdgeCreated... |
 | Entity definitions    | models/\*/entities.ts      | Business logic encapsulated              |
 | Value objects         | models/\*/value-objects.ts | Immutable types (NodeId, Permission...)  |
-| Repository interfaces | repositories/index.ts      | Ports only — impls in infrastructure/    |
+| Repository interfaces | repositories/\*.repository.ts | Ports only — impls in infrastructure/; `index.ts` is a barrel |
 | Non-repository ports  | ports/                     | IDocumentAnalyzer, IFileStore, IVideoTranscoder |
 | Event bus interfaces  | event-bus/index.ts         | IDomainEvent, IEventBus                  |
 | Public API            | src/index.ts               | Barrel export                            |

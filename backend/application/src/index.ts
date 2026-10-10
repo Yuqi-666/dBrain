@@ -22,3 +22,5 @@ export * from "./commands/workspace/workspace-command.service";
 export * from "./queries/workspace/query";
 export * from "./queries/workspace/workspace-query.service";
 export * from "./dto/workspace.dto";
+export * from "./commands/dashboard/dashboard-command.service";
+export * from "./queries/dashboard/dashboard-query.service";

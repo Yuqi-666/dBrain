@@ -5,3 +5,5 @@ export * from "./filter";
 export * from "./semantic";
 export * from "./user";
 export * from "./workspace";
+
+export * from "./dashboard";

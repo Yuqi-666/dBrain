@@ -1,5 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import { LayoutDashboard, Network } from "lucide-react";
+import type { MainViewType } from "@workspace/store";
+
+/** A route destination that names a workspace surface (`/graph`, `/dashboard`). */
+export type RouteViewType = Exclude<MainViewType, "editor">;
 
 /**
  * One page destination of the island's navigation row (design
@@ -16,6 +20,14 @@ export interface IslandRoute {
   icon: LucideIcon;
   enabled: boolean;
   disabledReason?: string;
+  /**
+   * The `mainViewType` this destination names. Both consumers read it rather
+   * than re-deriving it: the island writes it optimistically on click (so the
+   * surface swaps in the same frame instead of after the route commits), and
+   * `WorkspaceShell` reads it off the pathname for a deep link / refresh / back.
+   * Absent for a destination that is not a surface.
+   */
+  view?: RouteViewType;
 }
 
 /**
@@ -28,16 +40,18 @@ export interface IslandRoute {
  *    renders on every page, and the shared package has no way to know which
  *    pages this app ships — the first navigation would be a 404 (design
  *    §0.3-5). The host owns `/graph` vs `/dashboard`, so the host owns this
- *    table.
- * 2. **`/dashboard` is `enabled: false`.** Today it exists only as a protected
- *    path in `apps/web/middleware.ts` — there is no
- *    `apps/web/app/(main)/dashboard/page.tsx` — so the capsule renders it
- *    disabled with `disabledReason` instead of letting a click land on a 404
- *    (plan §M4.2-6).
+ *    table. It is also the app's route ↔ surface mapping, not just the island's
+ *    nav list: `WorkspaceShell` resolves the visible surface through it.
+ * 2. **`/dashboard` is enabled.** It renders a workspace-scoped dashboard
+ *    without the graph sidebar.
  * 3. **`/settings` is deliberately absent.** It is the other middleware-only
  *    path. P0's capsule has exactly three slots — graph / dashboard / 搜索 — and
  *    only the first two are destinations; `搜索` is not a route at all, it opens
  *    the `search` panel (see `dynamic-island-host.tsx`).
+ *
+ * Both routes share one persistent shell (`(main)/layout.tsx`), so following one
+ * switches the visible surface rather than reloading; the URL stays the honest
+ * address of the surface either way.
  *
  * **Array order is the capsule's order**: the page items come first, then search.
  * The 1px separator that splits navigation from search is not inferred by the
@@ -51,13 +65,88 @@ export const ISLAND_ROUTES: IslandRoute[] = [
     href: "/graph",
     icon: Network,
     enabled: true,
+    view: "graph",
   },
   {
     key: "dashboard",
     label: "仪表盘",
     href: "/dashboard",
     icon: LayoutDashboard,
-    enabled: false,
-    disabledReason: "页面尚未实现",
+    enabled: true,
+    view: "dashboard",
   },
 ];
+
+/**
+ * The route whose `href` owns `pathname` — the exact address, or any nested path
+ * under it. Both consumers resolve through this rather than pattern-matching the
+ * pathname themselves: `WorkspaceShell` derives the visible surface from it (a
+ * deep link / refresh / back), and `DynamicIslandHost` walks it to find where the
+ * current URL sits in the navigation sequence.
+ */
+export function matchIslandRoute(pathname: string): IslandRoute | undefined {
+  return ISLAND_ROUTES.find(
+    (route) => pathname === route.href || pathname.startsWith(`${route.href}/`),
+  );
+}
+
+/**
+ * The app's navigation order — the capsule's destinations, enabled ones only,
+ * which is the order Ctrl+H / Ctrl+L walk and the order the tooltips key off.
+ */
+const NAVIGATION_SEQUENCE = ISLAND_ROUTES.filter((route) => route.enabled);
+
+/** Where `pathname` sits in that order, or `-1` when it is not a destination. */
+function sequenceIndex(pathname: string): number {
+  const current = matchIslandRoute(pathname);
+  return current ? NAVIGATION_SEQUENCE.indexOf(current) : -1;
+}
+
+/**
+ * The neighbour of `pathname` in the app's own navigation order — the capsule's
+ * order, enabled destinations only — `delta` steps away (`-1` left, `+1` right).
+ *
+ * Ctrl+H / Ctrl+L walk this sequence, so the order is the one the user sees in
+ * the island. It **wraps**, like a carousel: the sequence has no ends to fall off,
+ * so from the last destination the right step lands on the first and vice versa.
+ * An address outside the table (or a disabled destination) has no neighbour, so
+ * the shortcut does nothing.
+ */
+export function stepIslandRoute(
+  pathname: string,
+  delta: number,
+): IslandRoute | undefined {
+  const index = sequenceIndex(pathname);
+  if (index === -1 || NAVIGATION_SEQUENCE.length < 2) return undefined;
+  const length = NAVIGATION_SEQUENCE.length;
+  // `+ length` first: a negative `delta` must not index from the end.
+  return NAVIGATION_SEQUENCE[(index + delta + length) % length];
+}
+
+/**
+ * The keys that step from the current address to `route`, as the capsule's
+ * tooltip should show them.
+ *
+ * Since the sequence wraps, a destination is usually reachable in either
+ * direction; the hint names the **shortest** step (both, when they tie — the
+ * two-destination capsule is the case that matters, and hiding one of the two
+ * keys the user actually has would be worse than printing both). The address
+ * already on screen and a destination that is not in the order have no hint, and
+ * neither does a one-destination order.
+ */
+export function islandRouteShortcuts(
+  pathname: string,
+  route: IslandRoute,
+): string[] {
+  const from = sequenceIndex(pathname);
+  const to = NAVIGATION_SEQUENCE.indexOf(route);
+  const length = NAVIGATION_SEQUENCE.length;
+  if (from === -1 || to === -1 || from === to || length < 2) return [];
+
+  const right = (to - from + length) % length;
+  const left = (from - to + length) % length;
+  const keys: string[] = [];
+  if (right <= left) keys.push("Ctrl+L");
+  if (left <= right) keys.push("Ctrl+H");
+  return keys;
+}

@@ -21,3 +21,5 @@ export type { WorkspaceStore } from "./workspaceStore";
 
 export { useSourceIdStore } from "./sourceIdStore";
 export type { SourceIdStore } from "./sourceIdStore";
+
+export { useDashboardStore } from "./dashboardStore";

@@ -8,6 +8,7 @@ import { nodeTagRouter } from "./node-tag";
 import { eventRouter } from "./event";
 import { authRouter } from "./auth";
 import { workspaceRouter } from "./workspace";
+import { dashboardRouter } from "./dashboard";
 import { fileRouter } from "./file";
 
 export const appRouter = router({
@@ -21,6 +22,7 @@ export const appRouter = router({
   event: eventRouter,
   workspace: workspaceRouter,
   file: fileRouter,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;

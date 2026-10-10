@@ -14,7 +14,7 @@ interface NodeEditorProps {
 
 /**
  * NodeEditor Container
- * - Window mode (mainViewType === "graph"): Dialog弹窗, 显示QuickBar
+ * - Window mode (graph / dashboard): Dialog弹窗, 显示QuickBar
  * - Fullscreen mode (mainViewType === "editor"): 全屏独占, 隐藏QuickBar
  */
 export function NodeEditor({ className }: NodeEditorProps) {
@@ -41,7 +41,7 @@ export function NodeEditor({ className }: NodeEditorProps) {
   return (
     <>
       {/* Window Mode: Dialog */}
-      {mainViewType === "graph" && (
+      {mainViewType !== "editor" && (
         <Dialog
           open={true}
           onOpenChange={(open) => {
@@ -89,10 +89,7 @@ interface NodeEditorContentProps {
   className?: string;
 }
 
-function NodeEditorContent({
-  node,
-  className,
-}: NodeEditorContentProps) {
+function NodeEditorContent({ node, className }: NodeEditorContentProps) {
   const attributesSidebarOpen = useUIStore(
     (state) => state.attributesSidebarOpen,
   );
@@ -109,7 +106,6 @@ function NodeEditorContent({
           <AttributesSidebar className="w-80 flex-shrink-0" />
         )}
       </div>
-
     </div>
   );
 }

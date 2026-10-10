@@ -1,0 +1,20 @@
+.dashboard-grid .react-grid-placeholder {
+  background: var(--primary);
+  opacity: 0.12;
+  border-radius: var(--radius);
+}
+.dashboard-grid-editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+}
+.dashboard-grid .react-resizable-handle::after {
+  border-color: var(--muted-foreground);
+}
+.dashboard-grid .react-grid-item.react-draggable-dragging,
+.dashboard-grid .react-grid-item.resizing {
+  box-shadow: 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-grid .react-grid-item {
+    transition: none;
+  }
+}

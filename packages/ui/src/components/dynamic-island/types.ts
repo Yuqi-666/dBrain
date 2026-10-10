@@ -16,6 +16,12 @@ export interface IslandNavItem {
   enabled: boolean;
   onSelect: () => void;
   disabledReason?: string;
+  /**
+   * Keyboard hints for this destination, drawn as `Kbd` chips after the label in
+   * the item's tooltip. The host owns the strings: this package knows neither the
+   * app's routes nor its shortcuts. Empty/absent renders the label alone.
+   */
+  shortcuts?: readonly string[];
   /** Draw the 1px hairline *before* this item. Decided by the host, which owns
    * the list — never inferred from a `key`. */
   separator?: boolean;

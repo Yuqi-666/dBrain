@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { NodeService } from "@workspace/services";
+import { NodeService, DashboardService } from "@workspace/services";
 import {
   CopyIcon,
   TrashIcon,
@@ -18,7 +18,10 @@ import {
   ShareIcon,
   ExternalLinkIcon,
   MoreHorizontalIcon,
+  LayoutDashboard,
 } from "lucide-react";
+
+import { useDashboard } from "@workspace/ui/hooks/use-dashboard";
 
 interface OptionsMenuProps {
   nodeId?: string | null;
@@ -36,6 +39,8 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
   const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
+
+  const { scope, workspace, ready, syncState } = useDashboard();
 
   const targetNodeId = nodeId || currentEditingNodeId;
   const currentNode = targetNodeId ? nodes.get(targetNodeId) : null;
@@ -59,14 +64,30 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
         <Button
           variant="ghost"
           size="icon"
+          className={className}
           aria-label="更多选项"
         >
           <MoreHorizontalIcon />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>操作</DropdownMenuLabel>
         <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          disabled={!ready || syncState?.loading || !targetNodeId}
+          onSelect={() => {
+            if (scope && targetNodeId)
+              DashboardService.toggleCandidate(scope, targetNodeId);
+          }}
+        >
+          <LayoutDashboard className="size-4 mr-2" />
+          <span>
+            {targetNodeId && workspace?.candidates.includes(targetNodeId)
+              ? "从 Dashboard 备选移除"
+              : "添加到 Dashboard 备选"}
+          </span>
+        </DropdownMenuItem>
 
         <DropdownMenuItem onClick={handleCopy}>
           <CopyIcon className="size-4 mr-2" />

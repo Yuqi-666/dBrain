@@ -18,7 +18,11 @@
  * ```
  */
 
-import { createPocketBaseClient, getPocketBaseClient, InMemoryEventBus } from "@workspace/infrastructure";
+import {
+  createPocketBaseClient,
+  getPocketBaseClient,
+  InMemoryEventBus,
+} from "@workspace/infrastructure";
 import {
   createNodeDao,
   createEdgeDao,
@@ -31,6 +35,7 @@ import {
   createFileStore,
   createVideoTranscoder,
   createWorkspaceRepository,
+  createDashboardRepository,
   createWorkspaceMemberRepository,
 } from "@workspace/adapter-back/factory";
 import {
@@ -43,6 +48,8 @@ import {
   SemanticCommandService,
   SemanticQueryService,
   WorkspaceCommandService,
+  DashboardCommandService,
+  DashboardQueryService,
   WorkspaceQueryService,
   FileCommandService,
 } from "@workspace/application";
@@ -139,6 +146,22 @@ export class AppContainer {
     this.workspaceMemberRepository = createWorkspaceMemberRepository();
   }
 
+  dashboardServices(token: string) {
+    const repository = createDashboardRepository(token);
+    const workspaces = createWorkspaceRepository();
+    const members = createWorkspaceMemberRepository();
+    return {
+      command: new DashboardCommandService(
+        repository,
+        workspaces,
+        members,
+        this.nodeDao,
+        this.eventBus,
+      ),
+      query: new DashboardQueryService(repository, workspaces, members),
+    };
+  }
+
   /**
    * Get the singleton instance
    * @throws Error if not initialized
@@ -161,7 +184,9 @@ export class AppContainer {
    */
   static async initialize(pbUrl: string): Promise<AppContainer> {
     if (AppContainer._instance) {
-      console.warn("AppContainer already initialized. Returning existing instance.");
+      console.warn(
+        "AppContainer already initialized. Returning existing instance.",
+      );
       return AppContainer._instance;
     }
 

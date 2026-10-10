@@ -6,6 +6,13 @@ import { useEffect, useRef } from "react";
 
 interface CognitiveGraphLayoutProps {
   children: React.ReactNode;
+  /**
+   * Sidebar content — or `null` for a surface that has no sidebar at all (the
+   * dashboard). A `null` sidebar also removes the left hover edge: leaving it
+   * armed would let a pointer brushing the rim open an empty floating panel on
+   * top of the page. `sidebarMode` itself is left untouched, so a `fixed`
+   * sidebar comes back on its own when the graph does.
+   */
   sidebar: React.ReactNode;
 }
 
@@ -17,10 +24,7 @@ const MENU_SELECTOR = [
   "[data-slot='dropdown-menu-sub-content']",
 ].join(",");
 
-export function MainLayout({
-  children,
-  sidebar,
-}: CognitiveGraphLayoutProps) {
+export function MainLayout({ children, sidebar }: CognitiveGraphLayoutProps) {
   const sidebarMode = useUIStore((state) => state.sidebarMode);
   const closeSidebar = useUIStore((state) => state.closeSidebar);
   const showTempSidebar = useUIStore((state) => state.showTempSidebar);
@@ -79,27 +83,30 @@ export function MainLayout({
 
   const isFixedMode = sidebarMode === "fixed";
   const isTempMode = sidebarMode === "temp";
+  const hasSidebar = Boolean(sidebar);
 
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden">
-      {!isFixedMode && (
+      {hasSidebar && !isFixedMode && (
         <div
           className="absolute left-0 top-0 z-30 h-full w-3 "
           onMouseEnter={handleMouseEnterEdge}
         />
       )}
 
-      <div
-        ref={sidebarRef}
-        className={cn(
-          "h-full shrink-0 transition-all duration-200 ease-in-out",
-          isFixedMode && "w-64 relative z-30",
-          isTempMode && "fixed left-0 top-0 z-40 w-64 shadow-lg",
-          sidebarMode === "closed" && "hidden",
-        )}
-      >
-        {sidebar}
-      </div>
+      {hasSidebar && (
+        <div
+          ref={sidebarRef}
+          className={cn(
+            "h-full shrink-0 transition-all duration-200 ease-in-out",
+            isFixedMode && "w-64 relative z-30",
+            isTempMode && "fixed left-0 top-0 z-40 w-64 shadow-lg",
+            sidebarMode === "closed" && "hidden",
+          )}
+        >
+          {sidebar}
+        </div>
+      )}
 
       <main className="relative flex-1">{children}</main>
     </div>

@@ -3,14 +3,30 @@ import { container } from "./container";
 import { eventEmitter } from "../trpc/server";
 
 const ALL_EVENTS = [
-  "NodeCreated", "NodeUpdated", "NodeDeleted",
-  "EdgeCreated", "EdgeUpdated", "EdgeDeleted",
-  "ViewCreated", "ViewUpdated", "ViewDeleted",
-  "NodeSemanticCreated", "NodeSemanticUpdated", "NodeSemanticDeleted",
-  "EdgeSemanticCreated", "EdgeSemanticUpdated", "EdgeSemanticDeleted",
-  "NodeTagCreated", "NodeTagUpdated", "NodeTagDeleted",
-  "WorkspaceCreated", "WorkspaceUpdated", "WorkspaceDeleted",
-  "WorkspaceMemberAdded", "WorkspaceMemberRemoved",
+  "NodeCreated",
+  "NodeUpdated",
+  "NodeDeleted",
+  "EdgeCreated",
+  "EdgeUpdated",
+  "EdgeDeleted",
+  "ViewCreated",
+  "ViewUpdated",
+  "ViewDeleted",
+  "NodeSemanticCreated",
+  "NodeSemanticUpdated",
+  "NodeSemanticDeleted",
+  "EdgeSemanticCreated",
+  "EdgeSemanticUpdated",
+  "EdgeSemanticDeleted",
+  "NodeTagCreated",
+  "NodeTagUpdated",
+  "NodeTagDeleted",
+  "WorkspaceCreated",
+  "WorkspaceUpdated",
+  "WorkspaceDeleted",
+  "WorkspaceMemberAdded",
+  "WorkspaceMemberRemoved",
+  "DashboardUpdated",
 ] as const;
 
 const unsubscribers: Array<() => void> = [];

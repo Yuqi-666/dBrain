@@ -14,6 +14,7 @@ import {
   PocketBaseNodeTagRepository,
   PocketBaseUserRepository,
   PocketBaseWorkspaceRepository,
+  PocketBaseDashboardRepository,
   PocketBaseWorkspaceMemberRepository,
   PdfDocumentAnalyzer,
   PocketBaseFileStore,
@@ -29,6 +30,7 @@ import type {
   INodeTagRepository,
   IUserRepository,
   IWorkspaceRepository,
+  IDashboardRepository,
   IWorkspaceMemberRepository,
   IDocumentAnalyzer,
   IFileStore,
@@ -189,3 +191,6 @@ export const createAll = () => ({
 });
 
 export { createPocketBaseClient, getPocketBaseClient } from "@workspace/infrastructure";
+
+/** Dashboard persistence uses the verified request identity rather than global auth. */
+export const createDashboardRepository = (token: string): IDashboardRepository => new PocketBaseDashboardRepository(getPocketBaseClient(), token);
