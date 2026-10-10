@@ -430,7 +430,6 @@ export function NoteCards({
           <MediaSidebarEmpty
             icon={NotebookPen}
             title="无笔记"
-            description="播放时按 ⌘/Ctrl + Enter，或点上面的「加笔记」，记下此刻的一句。"
           />
         ) : null}
 

@@ -41,8 +41,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { DataTypeList } from "@workspace/ui/components/menu/node/dataType-list";
-import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
+import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-data-type-selector";
+import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import {
   Tabs,
@@ -176,10 +176,10 @@ export function MainSidebar() {
                     <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
                       <span className="text-[13px]">Add Node</span>
                     </DropdownMenuSubTrigger>
-                    <DataTypeList>
+                    <NodeDataTypeSelector>
                       {(nodeType) => (
                         <DropdownMenuSubContent>
-                          <SemanticList
+                          <NodeSemanticSelector
                             onSelect={(semanticId) => {
                               onAddNode?.(nodeType, semanticId);
                             }}
@@ -192,7 +192,7 @@ export function MainSidebar() {
                           />
                         </DropdownMenuSubContent>
                       )}
-                    </DataTypeList>
+                    </NodeDataTypeSelector>
                   </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -36,9 +36,10 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Popover, PopoverTrigger } from "@workspace/ui/components/ui/popover";
-import { TagList, TagPill } from "@workspace/ui/components/menu/node/tag-list";
-import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
-import { useNodeContentWriter } from "@workspace/ui/components/dialog/editor/content/use-node-content-writer";
+import { NodeTagSelector } from "@workspace/ui/components/selector/node-tag-selector";
+import { TagPill } from "@workspace/ui/components/tag/tag-pill";
+import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
+import { useNodeContentWriter } from "@workspace/ui/components/node-content/use-node-content-writer";
 
 interface AttributesSidebarProps {
   className?: string;
@@ -322,7 +323,7 @@ function MetadataTabContent({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <SemanticList onSelect={handleSemanticIdChange} />
+            <NodeSemanticSelector onSelect={handleSemanticIdChange} />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -358,7 +359,7 @@ function MetadataTabContent({
               添加标签
             </Button>
           </PopoverTrigger>
-          <TagList
+          <NodeTagSelector
             appliedTagIds={node.tags || []}
             onToggleTag={handleToggleTag}
             onDeleteTag={onDeleteTag}

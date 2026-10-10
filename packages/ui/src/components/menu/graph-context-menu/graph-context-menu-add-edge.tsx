@@ -5,7 +5,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Plus } from "lucide-react";
-import { NodeList } from "@workspace/ui/components/menu/node/node-list";
+import { NodeSelector } from "@workspace/ui/components/selector/node-selector";
 
 export interface GraphContextMenuAddEdgeProps {
   sourceIds: string[];
@@ -44,7 +44,7 @@ export function GraphContextMenuAddEdge({
         <Plus className="size-4" />
         <span>Add Edge</span>
       </DropdownMenuSubTrigger>
-      <NodeList onSelect={handleNodeSelect} onClose={onClose} />
+      <NodeSelector onSelect={handleNodeSelect} onClose={onClose} />
     </DropdownMenuSub>
   );
 }

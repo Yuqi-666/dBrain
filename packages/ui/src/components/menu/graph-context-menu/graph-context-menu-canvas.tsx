@@ -8,8 +8,8 @@ import {
 import { Plus } from "lucide-react";
 import type { NodeDataType } from "@workspace/interfaces";
 import { useUIStore } from "@workspace/store";
-import { DataTypeList } from "@workspace/ui/components/menu/node/dataType-list";
-import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
+import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-data-type-selector";
+import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
 
 export interface GraphContextMenuCanvasProps {
   onAddNode?: (nodeType: NodeDataType, semanticId: string, simX?: number, simY?: number, viewId?: string) => void;
@@ -36,10 +36,10 @@ export function GraphContextMenuCanvas({
         <Plus className="size-4" />
         <span>Add Node</span>
       </DropdownMenuSubTrigger>
-      <DataTypeList>
+      <NodeDataTypeSelector>
         {(nodeType) => (
           <DropdownMenuSubContent>
-            <SemanticList
+            <NodeSemanticSelector
               onSelect={(semanticId) => {
                 onAddNode?.(nodeType, semanticId, simX, simY, viewId);
                 onClose();
@@ -56,7 +56,7 @@ export function GraphContextMenuCanvas({
             />
           </DropdownMenuSubContent>
         )}
-      </DataTypeList>
+      </NodeDataTypeSelector>
     </DropdownMenuSub>
   );
 }

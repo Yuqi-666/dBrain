@@ -3,8 +3,8 @@
 import { useDataStore } from "@workspace/store";
 import type { NodeData } from "@workspace/interfaces";
 import { FileText } from "lucide-react";
-import { NodeIconView } from "@workspace/ui/components/node-media/node-icon-view";
-import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
+import { IconView } from "@workspace/ui/components/icon/icon-view";
+import { NODE_TYPE_ICONS } from "@workspace/ui/components/icon/node-type-icons";
 
 export function PreviewHeader({ node }: { node: NodeData }) {
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
@@ -14,7 +14,7 @@ export function PreviewHeader({ node }: { node: NodeData }) {
   return (
     <div className="px-4 pt-4 pb-2 pr-12">
       <div className="flex items-start gap-2">
-        <NodeIconView
+        <IconView
           icon={node.icon ?? undefined}
           fallback={<Icon className="size-4 text-muted-foreground" />}
           className="mt-0.5 size-4 shrink-0 text-muted-foreground"

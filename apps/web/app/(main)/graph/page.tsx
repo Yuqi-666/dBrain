@@ -9,7 +9,7 @@ import type { ViewId } from "@workspace/interfaces";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
 import { MainLayout } from "@workspace/ui/components/layout/main-layout";
 import { MainSidebar } from "@workspace/ui/components/sidebar/main-sidebar";
-import { NodeEditor } from "@workspace/ui/components/dialog/editor";
+import { NodeEditor } from "@workspace/ui/components/editor";
 import { NodeSemanticDialog, EdgeSemanticDialog } from "@workspace/ui/components/dialog/semantic-dialog"
 import { CreateWorkspaceDialog } from "@workspace/ui/components/dialog/workspace-dialog"
 import { ViewDialog } from "@workspace/ui/components/dialog/view-dialog"

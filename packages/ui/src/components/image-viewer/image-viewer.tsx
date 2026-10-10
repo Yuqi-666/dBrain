@@ -15,7 +15,7 @@ import type { Annotation } from "@workspace/interfaces";
 import { AnnotationLayer } from "@workspace/ui/components/annotation/annotation-layer";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useNavigationKey } from "@workspace/ui/components/pan-zoom/use-navigation-key";
-import { LoadingPlaceholder } from "@workspace/ui/components/dialog/editor/loading-placeholder";
+import { LoadingPlaceholder } from "@workspace/ui/components/editor/loading-placeholder";
 import { cn } from "@workspace/ui/lib/utils";
 
 interface ImageViewerProps {
@@ -77,9 +77,9 @@ export function ImageViewer({
   const fit =
     natural && size.width > 0 && size.height > 0
       ? Math.min(
-          Math.max(1, size.width - 32) / natural.width,
-          Math.max(1, size.height - 32) / natural.height,
-        )
+        Math.max(1, size.width - 32) / natural.width,
+        Math.max(1, size.height - 32) / natural.height,
+      )
       : 0;
   const width = (natural?.width ?? 0) * fit;
   const height = (natural?.height ?? 0) * fit;
@@ -218,13 +218,13 @@ export function ImageViewer({
         const box = root.current!.getBoundingClientRect();
         handle.setTransform(
           factor * state.positionX +
-            (1 - factor) * (old.x - box.left) +
-            next.x -
-            old.x,
+          (1 - factor) * (old.x - box.left) +
+          next.x -
+          old.x,
           factor * state.positionY +
-            (1 - factor) * (old.y - box.top) +
-            next.y -
-            old.y,
+          (1 - factor) * (old.y - box.top) +
+          next.y -
+          old.y,
           target,
           0,
         );

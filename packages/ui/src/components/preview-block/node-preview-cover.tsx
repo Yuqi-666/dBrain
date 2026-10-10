@@ -21,7 +21,7 @@ import { FileText } from "lucide-react";
 import type { NodeData } from "@workspace/interfaces";
 import { resolveFileUrl } from "@workspace/api-client";
 import { cn } from "@workspace/ui/lib/utils";
-import { NODE_TYPE_ICONS } from "@workspace/ui/components/node-media/node-type-icons";
+import { NODE_TYPE_ICONS } from "@workspace/ui/components/icon/node-type-icons";
 
 /** How much extracted text a text-like cover shows. */
 const COVER_TEXT_LIMIT = 180;

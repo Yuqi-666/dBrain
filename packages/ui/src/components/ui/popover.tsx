@@ -33,7 +33,7 @@ function PopoverContent({
    * `shards: [contentRef]` and that library `preventDefault()`s every `wheel` /
    * `touchmove` whose target is outside every shard — a panel portalled to
    * `document.body` inside a modal dialog therefore cannot be scrolled at all,
-   * whatever its own overflow says (G2-r2 实测; plan §M2.2-8). `MediaPopoverShell`
+   * whatever its own overflow says (G2-r2 实测; plan §M2.2-8). `SelectorPopoverShell`
    * is the consumer that opts in today. It stays opt-in instead of being read
    * from the dialog context here because some dialogs **are** scroll containers
    * (`max-h-[85vh] overflow-y-auto` on the filter / view dialogs,

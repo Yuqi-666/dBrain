@@ -21,5 +21,5 @@ export {
   type IslandNavItem,
   type IslandPanel,
 } from "./dynamic-island/dynamic-island";
-export * from "./dialog/editor/loading-placeholder";
+export * from "./editor/loading-placeholder";
 export * from "./menu/upload-menu";

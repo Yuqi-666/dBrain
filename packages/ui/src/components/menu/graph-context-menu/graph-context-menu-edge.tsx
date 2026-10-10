@@ -10,7 +10,7 @@ import {
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import type { EdgeId, EdgeDirection } from "@workspace/interfaces";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { EdgeSemanticList } from "@workspace/ui/components/menu/edge/semantic-list";
+import { EdgeSemanticSelector } from "@workspace/ui/components/selector/edge-semantic-selector";
 
 function directionToFlags(direction: EdgeDirection): [boolean, boolean] {
   switch (direction) {
@@ -96,7 +96,7 @@ export function GraphContextMenuEdge({
             )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <EdgeSemanticList
+            <EdgeSemanticSelector
               onSelect={handleSemanticSelect}
               onCreateRequest={() => openEdgeSemanticDialog(null, edgeId)}
             />

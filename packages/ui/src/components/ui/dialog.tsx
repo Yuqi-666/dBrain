@@ -61,7 +61,7 @@ function DialogOverlay({
  * `transform` stay consistent.
  *
  * **Opt-in**: a consumer that needs this passes the value to `PopoverContent`'s
- * `container` (`MediaPopoverShell` is the one that does today). It is not read
+ * `container` (`SelectorPopoverShell` is the one that does today). It is not read
  * centrally in `ui/popover.tsx` because some dialogs are scroll containers
  * themselves (`max-h-[85vh] overflow-y-auto`, `quick-panel`'s `overflow-hidden`),
  * where a portalled panel would be clipped rather than merely unscrollable.

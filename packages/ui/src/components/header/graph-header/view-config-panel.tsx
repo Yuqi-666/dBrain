@@ -13,9 +13,11 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { ViewConfigButton } from "./view-config-button";
 import { CheckIcon, PaletteIcon, Grid3X3Icon, LayoutIcon } from "lucide-react";
 import type { VisualConfig, ViewType } from "@workspace/interfaces";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { SettingsIcon } from "lucide-react";
+import { Button } from "@workspace/ui/components/ui/button";
 
 const BACKGROUND_COLORS = [
   { label: "默认白", value: "#ffffff" },
@@ -69,7 +71,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ViewConfigButton />
+        <ViewConfigButton className={className} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>视图配置</DropdownMenuLabel>
@@ -149,3 +151,30 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
     </DropdownMenu>
   );
 }
+
+interface ViewConfigButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  className?: string;
+}
+
+/**
+ * 视图配置按钮 - 触发视图配置面板
+ */
+export const ViewConfigButton = forwardRef<
+  HTMLButtonElement,
+  ViewConfigButtonProps
+>(({ className, ...props }, ref) => {
+  return (
+    <Button
+      variant="outline"
+      size="icon-lg"
+      ref={ref}
+      className={className}
+      aria-label="视图配置"
+      {...props}
+    >
+      <SettingsIcon />
+    </Button>
+  );
+});
+
+ViewConfigButton.displayName = "ViewConfigButton";

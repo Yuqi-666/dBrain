@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Edit, Trash2, Link2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
+import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
 
 export interface GraphContextMenuNodeProps {
   nodeId: string;
@@ -66,7 +66,7 @@ export function GraphContextMenuNode({
             )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <SemanticList
+            <NodeSemanticSelector
               onSelect={handleSemanticSelect}
               onCreateRequest={() =>
                 openNodeSemanticDialog(null, { kind: "assign", nodeId })

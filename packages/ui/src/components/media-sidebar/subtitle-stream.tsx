@@ -150,8 +150,7 @@ export function SubtitleStream({
         {sorted.length === 0 ? (
           <MediaSidebarEmpty
             icon={Captions}
-            title="这个节点还没有字幕"
-            description="生成字幕后，每一句会按时间戳排成一张卡片，点一句就能跳到那一句。"
+            title="无字幕"
             action={
               <Button type="button" variant="outline" size="sm" onClick={handleGenerate}>
                 <Sparkles aria-hidden />

@@ -16,17 +16,13 @@ export function GraphHeader({ className }: GraphHeaderProps) {
     <header
       className={`absolute top-0 left-0 right-0 border-none z-10 flex items-center justify-between py-4 px-6 pointer-events-none bg-transparent ${className || ""}`}
     >
-      <div
-        className={`flex items-center gap-0 px-0.5 transition-all rounded-lg border bg-background text-foreground z-10 pointer-events-auto ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
-      >
-        <ToggleSidebarButton />
-      </div>
+      <ToggleSidebarButton
+        className={`pointer-events-auto rounded-lg border bg-background text-foreground dark:bg-background dark:border-border dark:hover:bg-background dark:aria-expanded:bg-background z-10 ${sidebarMode === "fixed" ? "opacity-0" : ""}`}
+      />
 
       <ViewSelectDropdownMenu className="pointer-events-auto rounded-lg border dark:bg-background dark:border-border dark:hover:bg-background dark:aria-expanded:bg-background" />
 
-      <div className="flex items-center gap-1 pointer-events-auto rounded-lg border bg-background px-0.5">
-        <ViewConfigPanel />
-      </div>
+      <ViewConfigPanel className="pointer-events-auto rounded-lg border bg-background dark:bg-background dark:border-border dark:hover:bg-background dark:aria-expanded:bg-background" />
     </header>
   );
 }

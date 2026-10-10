@@ -2,8 +2,6 @@
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
 import { FullscreenButton } from "./fullscreen-button";
-import { NodeCoverButton } from "./node-cover-button";
-import { NodeIconButton } from "./node-icon-button";
 import { PinButton } from "./pin-button";
 import { NodeTitle } from "./node-title";
 import { OptionsMenu } from "./options-menu";
@@ -22,9 +20,6 @@ import type { NodeDataType } from "@workspace/interfaces";
  * 方案 A — G3 第 6 条 judges it). Only `rich-text` is in the set today; `text`
  * keeps its entries, because it has no content header.
  */
-const CONTENT_OWNED_HEADER_TYPES: ReadonlySet<NodeDataType> = new Set([
-  "rich-text",
-]);
 
 interface EditorHeaderProps {
   className?: string;
@@ -42,9 +37,6 @@ export function EditorHeader({ className }: EditorHeaderProps) {
   const currentNode = useDataStore((state) =>
     currentEditingNodeId ? state.getNode(currentEditingNodeId) : undefined,
   );
-  const contentOwnsHeader = currentNode
-    ? CONTENT_OWNED_HEADER_TYPES.has(currentNode.nodeType)
-    : false;
   return (
     <header
       className={` z-10 flex flex-shrink-0 items-center justify-between pt-4 pb-2 px-6 ${className || ""}`}
@@ -61,14 +53,12 @@ export function EditorHeader({ className }: EditorHeaderProps) {
       </div>
 
       <div className="flex items-center gap-4 pointer-events-auto">
-        {!contentOwnsHeader && <NodeIconButton />}
         <NodeTitle className="text-center border-none" />
       </div>
 
       <div
         className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none z-10 pointer-events-auto text-foreground `}
       >
-        {!contentOwnsHeader && <NodeCoverButton />}
         <PinButton />
         <Button
           variant="ghost"

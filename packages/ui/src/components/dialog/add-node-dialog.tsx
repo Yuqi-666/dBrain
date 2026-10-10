@@ -14,8 +14,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { SemanticList } from "@workspace/ui/components/menu/node/semantic-list";
-import { NODE_TYPE_LABELS } from "@workspace/ui/components/menu/node/dataType-list";
+import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
+import { NODE_TYPE_LABELS } from "@workspace/ui/components/selector/node-data-type-selector";
 import {
   NodeSemanticDialogContent,
   createNodeSemantic,
@@ -124,7 +124,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="p-0">
-                  <SemanticList
+                  <NodeSemanticSelector
                     onSelect={(id) => {
                       setSemanticId(id);
                     }}

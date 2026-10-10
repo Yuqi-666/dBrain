@@ -27,7 +27,7 @@ export function ToggleSidebarButton({ className }: ToggleSidebarButtonProps) {
 
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="icon"
       onClick={handleClick}
       className={cn(className)}
