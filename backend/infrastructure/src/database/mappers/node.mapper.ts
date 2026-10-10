@@ -59,7 +59,7 @@ export interface BaseNodeRecord extends RecordModel {
    * Display icon (`NodeIcon` JSON). Top-level, not part of `content`, so every
    * one of the 10 node types carries it.
    *
-   * JSON column, optional, created by `1700000001_node_extras.js`. A record
+   * JSON column, optional, created by `1700000000_initial_schema.js`. A record
    * written before the column (or explicitly cleared) reads back as `null` or
    * is simply absent — `toDomain` maps both to `undefined` (see `baseProps`),
    * the same way `record.views` is handled.

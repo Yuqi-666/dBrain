@@ -62,7 +62,7 @@ migrate((app) => {
   });
   app.save(nodeTags);
 
-  // 5. 创建 workspaces 表（数据隔离的工作区容器）
+  // 5. 创建 workspaces 表
   const workspaces = new Collection({
     name: "workspaces",
     type: "base",
@@ -78,7 +78,7 @@ migrate((app) => {
   });
   app.save(workspaces);
 
-  // 6. 创建 workspace_members 表（user↔workspace 多对多协作）
+  // 6. 创建 workspace_members 表
   const workspaceMembers = new Collection({
     name: "workspace_members",
     type: "base",
@@ -115,7 +115,7 @@ migrate((app) => {
   });
   app.save(views);
 
-  // 6. 创建 nodes 表
+  // 8. 创建 nodes 表
   const nodes = new Collection({
     name: "nodes",
     type: "base",
@@ -142,44 +142,29 @@ migrate((app) => {
       { name: "coverUrl", type: "text" },
       { name: "pageCount", type: "number" },
       { name: "duration", type: "number" },
-      // 视频节点上传后由服务端打包成 HLS，这里保存播放列表地址。
-      //
-      // 上传进来的是录制设备写出的编码——手机通常是 HEVC/H.265，桌面浏览器解不了，
-      // 于是节点只出声音不出画面。打包后的 HLS 是 H.264/AAC。content.url 仍指向原始
-      // 文件，没有播放列表时播放器回退到它。
       { name: "hlsUrl", type: "text" },
       { name: "source", type: "select", values: ["local", "online"] },
       { name: "sourceUrl", type: "url" },
       { name: "url", type: "url" },
       { name: "screenshotUrl", type: "text" },
-      // 网页节点只保存源码这一种表现形式：content 列存放源码（HTML 或任意
-      // 代码），codeLanguage 是它高亮所用的语言。节点不再有初始化模式，地址
-      // 归 website 节点，截图归 image 节点，所以没有 webpageMode 列。
       { name: "codeLanguage", type: "text" },
       { name: "faviconUrl", type: "text" },
       { name: "filterConfig", type: "json" },
       { name: "referencedNodes", type: "json" },
       { name: "docs", type: "json" },
-      // database 节点（Notion 式结构化表格）的两列：fields 是列定义（有序），
-      // rows 是记录行（有序）。与 rich-text 用 referencedNodes + docs 两列同构：
-      // 复杂节点类型各自占用专用列，单一类型节点（text/image/pdf/...）才共用 content。
-      //
-      // views 列存放该节点下的数据视图（DataView[]），database 与 collection 共用，
-      // 落库形态对应 content.views —— 与 filterConfig 一样是「复杂类型专用列」。
-      //
-      // 这几列随 0 号脚本建表时一起创建，因此不需要额外的附加迁移。
-      // 注意：PocketBase 只按**文件名**去重迁移（见 _migrations 表），不比对文件内容，
-      // 所以改动 0 号脚本前必须先删掉已有 pb_data 让它重建；对已执行过 0 号脚本的库，
-      // 这些列不会补上，写 database 节点会直接报「unknown field」。
       { name: "fields", type: "json" },
       { name: "rows", type: "json" },
       { name: "views", type: "json" },
       { name: "workspaceId", type: "text" },
+      { name: "annotations", type: "json" },
+      { name: "icon", type: "json" },
+      { name: "cover", type: "json" },
+      { name: "timestamps", type: "json" },
     ],
   });
   app.save(nodes);
 
-  // 7. 创建 edges 表
+  // 9. 创建 edges 表
   const edges = new Collection({
     name: "edges",
     type: "base",
@@ -199,15 +184,7 @@ migrate((app) => {
   });
   app.save(edges);
 
-  // 8. 创建 files 表（所有上传二进制的存储：节点媒体、编辑器图片、excalidraw 场景）
-  //
-  // 前端一直往 /api/collections/files/records 上传（见 packages/api-client/src/upload.ts），
-  // 但集合本身从未创建，导致每次上传都 404。
-  // 规则与其余集合一致（nodes/edges/views 都用 "" 即公开），因为应用没有客户端
-  // PocketBase 登录，鉴权由服务端 tRPC 层负责。
-  //
-  // 注意：Collection 构造函数只认「普通字段描述对象」。这里若写成
-  // `new FileField({...})` 会被静默丢弃（集合只保存下系统 id 字段），必须保持普通对象。
+  // 10. 创建 files 表
   const files = new Collection({
     name: "files",
     type: "base",
@@ -222,7 +199,6 @@ migrate((app) => {
         type: "file",
         required: true,
         maxSelect: 1,
-        // 100MB — 与 FileDropZone 的 maxSize 保持一致
         maxSize: 104857600,
       },
       { name: "created", type: "autodate", onCreate: true },
@@ -230,8 +206,54 @@ migrate((app) => {
     ],
   });
   app.save(files);
+
+  // 11. 创建 dashboard_configs 表
+  const users = app.findCollectionByNameOrId("users");
+  const workspace = app.findCollectionByNameOrId("workspaces");
+  const access =
+    '@request.auth.id != "" && ownerId = @request.auth.id && (workspaceId.ownerId = @request.auth.id || (@collection.workspace_members:dashboard.workspaceId ?= workspaceId && @collection.workspace_members:dashboard.userId ?= @request.auth.id))';
+  app.save(
+    new Collection({
+      name: "dashboard_configs",
+      type: "base",
+      listRule: access,
+      viewRule: access,
+      createRule: access,
+      updateRule: null,
+      deleteRule: null,
+      fields: [
+        {
+          name: "ownerId",
+          type: "relation",
+          required: true,
+          maxSelect: 1,
+          collectionId: users.id,
+          cascadeDelete: true,
+        },
+        {
+          name: "workspaceId",
+          type: "relation",
+          required: true,
+          maxSelect: 1,
+          collectionId: workspace.id,
+          cascadeDelete: true,
+        },
+        {
+          name: "revision",
+          type: "number",
+          required: true,
+          min: 1,
+          onlyInt: true,
+        },
+        { name: "config", type: "json", required: true, maxSize: 5000000 },
+      ],
+      indexes: [
+        "CREATE UNIQUE INDEX idx_dashboard_revision ON dashboard_configs (ownerId, workspaceId, revision)",
+      ],
+    }),
+  );
 }, (app) => {
-  // 回滚逻辑：先删子表，再删父表，最后删除 users 字段
+  app.delete(app.findCollectionByNameOrId("dashboard_configs"));
   app.delete(app.findCollectionByNameOrId("files"));
   app.delete(app.findCollectionByNameOrId("edges"));
   app.delete(app.findCollectionByNameOrId("nodes"));
@@ -243,9 +265,6 @@ migrate((app) => {
   app.delete(app.findCollectionByNameOrId("node_semantics"));
 
   // 移除 users 表的 nickname 字段
-  // 注意：PB 0.40 的 FieldsList 只有 removeById/removeByName，没有 remove()。
-  // 早先的 `fields.remove(field)` 会抛 "Object has no member 'remove'"，导致整条
-  // 回滚（含上面的集合删除）一起失败。removeByName 在字段不存在时是 no-op。
   const usersCollection = app.findCollectionByNameOrId("users");
   usersCollection.fields.removeByName("nickname");
   app.save(usersCollection);

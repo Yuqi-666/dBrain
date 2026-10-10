@@ -324,7 +324,8 @@ test("normalizeTimestamps: a pre-unification note's `doc` becomes `content`", ()
 });
 
 test("normalizeTimestamps: a string `content` (the migration's M6 lift) upgrades", () => {
-  // `1700000003_node_timestamps.js` moves an M6 body into `content` verbatim, so
+  // The timestamps fold (now `1700000000_initial_schema.js`) moves an M6 body
+  // into `content` verbatim, so
   // the reader has to accept a string there and turn it into the document.
   const items = normalizeTimestamps([
     { id: "n1", type: "note", timeMs: 5, content: "迁移过来的旧正文" },

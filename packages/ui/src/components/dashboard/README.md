@@ -27,8 +27,8 @@ chain is `useDashboard` → `DashboardService` → tRPC `dashboard.get/save/onUp
 → application command/query → `Dashboard` aggregate → request-authenticated
 PocketBase repository → `dashboard_configs`.
 
-Apply `pb/pb_migrations/1700000004_dashboard.js` through the normal PocketBase
-migration/startup workflow before using the feature. The collection stores pages,
+Apply `pb/pb_migrations/1700000000_initial_schema.js` through the normal
+PocketBase migration/startup workflow before using the feature. The collection stores pages,
 candidates, active page and widget positions/sizes together. Saves append an
 immutable revision; the unique `(ownerId, workspaceId, revision)` index prevents
 concurrent saves from silently overwriting each other. Revision history is
