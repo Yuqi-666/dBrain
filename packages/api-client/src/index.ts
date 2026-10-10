@@ -23,3 +23,6 @@ export {
 export { resolveBackendUrls } from "./backend-urls";
 export type { BackendUrls } from "./backend-urls";
 export * from "./auth";
+
+export { initializeDesktopBackend, getDesktopBackend, refreshDesktopSession } from "./desktop-backend";
+export type { DesktopBackend } from "./desktop-backend";

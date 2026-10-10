@@ -55,7 +55,8 @@
         "../../backend/adapter-tauri/src/*"
       ]
     },
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src"

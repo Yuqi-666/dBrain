@@ -1,58 +1,85 @@
 # dBrain Desktop
 
-Tauri 2 + Next.js 静态导出，本地优先运行。图谱、Dashboard、编辑器、主题和快捷键复用 Web 界面。
+Tauri 2 + Next.js 静态导出。界面复用 Web，Desktop 在设备上运行现有完整 backend：应用服务、领域模型、tRPC 路由和实时事件均与 Web 共用。
+
+## 本地运行结构
+
+```text
+Tauri → Node.js 本地后端 → PocketBase（SQLite 数据库和附件）
+界面 → 本地 tRPC WebSocket / 文件网关
+PDF → pdfjs-dist + 原生 canvas
+视频 → FFmpeg / FFprobe
+```
+
+首次启动自动创建本地身份，无需云端账号或网络。数据库、文件、本地身份凭据和后端日志存放在 Tauri `app_local_data_dir()` 返回的应用目录，实际路径由 Tauri 平台接口决定。Linux 通常为 `$XDG_DATA_HOME/cn.dbrain.desktop`（未配置时 `~/.local/share/cn.dbrain.desktop`），Windows/macOS 使用对应的系统应用数据目录。程序升级不替换该目录。
+
+Tauri 启动打包的 Node 运行时，等待 PocketBase 完成数据库迁移和身份初始化，再开放界面。退出时关闭 Node/PocketBase；异常退出导致 stdin 关闭时也清理 PocketBase。会话每 30 分钟刷新；后端连接断开时显示错误与重试入口。一个数据目录只允许一个运行实例。
+
+仅绑定 `127.0.0.1`，端口动态分配。界面通过原生 command 取得每次启动生成的会话地址；文件网关与 WebSocket 握手均检查会话密钥和浏览器 Origin，tRPC 仍使用真实 PocketBase 用户令牌。文件网关只开放上传和文件读取，不开放 PocketBase 管理接口。内部 PocketBase 同样只绑定回环地址，并通过 Desktop 专用中间件要求内部密钥，防止绕过网关直接调用数据库。
+
+附件保存到本地磁盘，节点保存相对 `/api/files/...` 路径，重启更换端口与会话密钥后仍可访问。HLS 播放列表经过网关补全当前会话路径，支持视频分段播放和 Range 请求。
+
+开发阶段按要求不迁移旧版 IndexedDB；Desktop 不再调用旧的 `localLink` / `local-engine`。旧适配器保留在仓库但不参与当前 Desktop 运行。完整本地后端不包含云端同步；账号关联、增量同步、离线冲突处理仍是后续工作。
 
 ## 开发与打包
 
-在仓库根目录执行：
+构建机需要 Node 22+（建议 24）、pnpm、目标平台 PocketBase、FFmpeg/FFprobe、Rust 和 Tauri 系统依赖。Linux AppImage 媒体框架打包另需 `patchelf`、`gstreamer1.0-tools` 和上述 GStreamer 插件。先安装依赖：
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
+# 可执行文件必须与构建机的平台/架构一致
+export DBRAIN_POCKETBASE_PATH=/path/to/pocketbase
+export FFMPEG_PATH=/path/to/ffmpeg
+export FFPROBE_PATH=/path/to/ffprobe
 pnpm dev:desktop
 pnpm build:desktop
 ```
 
-仅预览前端：`pnpm --filter desktop dev`，地址 `http://localhost:3002`。
-仅构建前端：`pnpm --filter desktop build`，输出 `apps/desktop/out`。
-Tauri 打包需要 Rust 和当前平台的系统依赖；Linux 还需要 GTK 3 / WebKitGTK 4.1。
+不指定路径时，PocketBase 取仓库 `pb/pocketbase`（Windows 为 `.exe`），FFmpeg/FFprobe 从 PATH 查找。准备脚本先验证可执行文件，避免把其他架构的二进制装入安装包。后端资源在 `apps/desktop/src-tauri/runtime` 生成且不入库，随安装包分发；用户无需自行安装 Node、PocketBase 或 FFmpeg。
 
-## 本地数据
+`pnpm --filter desktop runtime:prepare` 将 backend 打成独立 ESM 文件，并携带 PDF 字体/CMap 和 canvas 原生依赖。Linux 仅携带当前 libc 对应的 canvas 原生包，并收集 Node、FFmpeg、FFprobe、canvas 的共享库到 `runtime/lib`，运行时设置 `LD_LIBRARY_PATH`；glibc 与动态加载器使用目标系统版本。Linux 产物的最低 glibc 要求取决于构建机，跨发行版发布应在最低支持系统构建或采用适当的静态 FFmpeg，并在目标系统实测。RPM 使用 Zstd level 3 压缩。
 
-Desktop 构建固定使用本地 tRPC transport，不创建云端 WebSocket，不启动 PocketBase，也不需要云端登录。首次打开自动创建本地用户、工作空间和全局视图。
-
-本轮存储采用 WebView 的 IndexedDB（`dbrain-desktop-v1`），工作空间、节点、边、视图、语义、标签与 Dashboard 在事务提交后才确认保存。共享服务层保持乐观更新与失败回滚。开发预览与安装后的应用属于不同 origin，数据相互独立；当前仅支持单窗口。
-
-每次写入与同步 outbox 在同一事务中提交，带单调递增序号与删除墓碑。`@workspace/adapter-tauri` 导出 `readPendingChanges`、`acknowledgeChanges` 和 `exportLocalSnapshot`，供后续同步与备份适配器使用。云端账号关联、拉取合并、冲突解决和实际同步网络传输尚未实现，不能把 outbox 当作已经完成云端同步。
-
-本地附件暂存为 Data URL，随节点内容一起持久化，重启不会丢失临时 blob URL。大文件会增加数据库与 outbox 体积；原生文件存储、PDF 解析、视频转码仍需后续适配，失败时共享上传流程保留原始文件。IndexedDB 不是独立的 SQLite 文件，清除应用数据会清除本地工作空间。
+`pnpm --filter desktop build` 只构建前端；浏览器直接打开前端会提示需要 Tauri 环境。实际本地后端由 Desktop 启动，不能将静态浏览器预览当作原生验证。
 
 ## 验证
 
+在服务器或目标构建机运行：
+
 ```sh
 pnpm --filter desktop typecheck
+pnpm --filter server typecheck
 pnpm --filter desktop lint
-pnpm --filter @workspace/adapter-tauri test
+node --experimental-strip-types --test apps/server/src/desktop/security.test.ts
+pnpm --filter desktop runtime:prepare
+node apps/desktop/scripts/backend-smoke.mjs
+# 在后端资源和前端 out 都已生成后验证原生管理器
+(cd apps/desktop/src-tauri && cargo test --release --lib)
+pnpm build:desktop
 ```
 
-本地适配器测试使用 Node 24，覆盖默认工作空间、重启快照、隔离、级联删除、Dashboard 版本冲突和 outbox。
+集成验证将已打包后端复制到仓库外，使用临时数据库，覆盖本地身份、会话/Origin 拒绝、工作空间、视图、语义、标签、全部十种节点、关系、实时事件、Dashboard 冲突、磁盘附件、PDF 封面、FFmpeg 重编码、HLS、退出清理和重启持久化。测试数据在验证结束后删除。
 
-静态导出与 `out` 配置参考 [Tauri 官方 Next.js 指南](https://v2.tauri.app/start/frontend/nextjs/)。
+当前设备不执行编译；在 `ssh yuqi` 的 `~/workspace/projects/dBrain/.scratch/desktop-backend-build-20261010` 验证。Next.js 使用 Webpack、4 GB 堆上限和两个预渲染 worker；Rust 编译使用 `CARGO_BUILD_JOBS=2`。
 
-## 全平台构建前提
+## 全平台前提
 
-| 目标 | 原生构建环境 | 额外前提 |
-| --- | --- | --- |
-| Linux x86_64 | 当前 `yuqi` Ubuntu x86_64 服务器 | Rust/Cargo、WebKitGTK 4.1、GTK 3、OpenSSL、librsvg、C/C++ 工具链；产物为当前服务器架构 |
-| Linux ARM64 | ARM64 Linux 构建机/CI，或配置完整 ARM64 交叉工具链的 Linux 主机 | ARM64 sysroot 和对应 WebKitGTK/GTK 开发库；仅添加 Rust target 不够；需在目标发行版实测 |
-| Windows x86_64 / ARM64 | Windows 构建机/CI | Rust MSVC target、Visual Studio C++ Build Tools、Windows SDK、WebView2；正式发布另需代码签名证书 |
-| macOS Intel / Apple Silicon | macOS 构建机/CI | Xcode Command Line Tools、对应 Rust targets；通用包需两种架构；正式分发另需 Apple Developer 签名与公证 |
+| 平台 | 构建环境与额外条件 |
+| --- | --- |
+| Linux x86_64 | 当前 yuqi Ubuntu x86_64；WebKitGTK 4.1、GTK 3、OpenSSL、librsvg、C/C++ 工具链；WebKit 媒体播放另需 GStreamer base/good/libav 组件，匹配平台的 PocketBase/FFmpeg/canvas；需要目标发行版安装实测 |
+| Linux ARM64 | ARM64 构建机/CI及同架构运行依赖；交叉构建须完整 ARM64 sysroot、WebKitGTK/GTK 库，仅添加 Rust target 不够 |
+| Windows x86_64 / ARM64 | Windows runner、Rust MSVC、Visual Studio C++ Build Tools、Windows SDK、WebView2；PocketBase、Node、FFmpeg和 canvas 必须有匹配架构版本；正式分发需签名 |
+| macOS Intel / Apple Silicon | 对应架构 macOS runner、Xcode Command Line Tools；建议静态 FFmpeg，动态版须打包 dylib 并调整加载路径；所有运行时与原生插件需签名/公证；通用包需合并两套运行时，当前脚本不生成 universal 包 |
 
-所有平台复用相同的 Next.js `out` 资源，原生程序和安装包需分别构建。此处尚未配置跨平台 CI、更新分发或签名凭据；不会把 Linux x86_64 产物标记为 ARM64/Windows/macOS 可执行文件。依赖详情见 [Tauri 官方前提条件](https://v2.tauri.app/start/prerequisites/)。
+打包脚本按当前平台生成资源，不把 Linux 资源用于 Windows/macOS。尚未配置跨平台 CI、签名、公证和自动更新；各平台必须完成原生窗口、安装和卸载验证。
 
-本设备不执行完整编译，当前验证在 `ssh yuqi` 下的 `~/workspace/projects/dBrain/.scratch/desktop-build-20261010` 进行。隔离目录使用本机代码快照，避免覆盖远端不同版本的工作目录。构建使用 Webpack，Node 堆上限 4 GB，Next.js 预渲染并发限制为 2；原生编译建议 `CARGO_BUILD_JOBS=2`。
+Linux 媒体播放使用 WebKit/GStreamer（后端转码仍使用内置 FFmpeg）。Ubuntu 可安装 `gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav`；其他发行版需对应的 H.264/AAC 解码组件。DEB/RPM 使用系统 WebView 媒体组件；AppImage 已开启 `bundleMediaFramework` 携带媒体框架。签名和各目标系统的媒体播放实测仍需在正式发布前完成。
 
-## 当前构建结果（2026-10-10）
+Tauri 原生桥接与资源路径参考 [调用 Rust](https://v2.tauri.app/develop/calling-rust/) 和 [应用资源](https://v2.tauri.app/develop/resources/)。
 
-服务器已成功完成前端生产构建和 Linux x86_64 原生打包，生成 `.deb`、`.rpm`、`.AppImage` 三种安装包；本机副本在 `.scratch/desktop-artifacts`。Desktop 与本地适配器类型检查、Desktop lint、6 项离线逻辑测试通过。静态预览验证了工作空间、语义、文本节点创建，节点重载后可搜索，以及 Dashboard 本地保存。
+## 当前验证结果（2026-10-10）
 
-服务器无桌面会话，原生窗口运行与各目标系统安装测试尚未执行；当前安装包只针对 Linux x86_64。Windows/macOS/ARM64 构建与运行验证需要上表环境。
+在 yuqi Ubuntu x86_64 完成最终前端导出、Desktop lint、Desktop/server 类型检查、3 项网关测试、原生管理器生命周期测试和打包后端集成验证。集成验证覆盖十种节点、实时事件、Dashboard 冲突、附件/PDF/视频及重启。
+
+已生成 DEB、RPM、AppImage。三种包均在独立应用数据目录和 Xvfb 虚拟桌面中启动，验证前端通过原生桥接初始化本地身份/工作空间、后端事件实时显示新节点、父进程退出后后台清理。RPM 摘要检查通过。服务器已安装上述 GStreamer 播放前提，AppImage 携带媒体插件；Xvfb/WebKit 下仍出现外部插件扫描器告警，实际音视频播放暂未验收。音视频在各发行版/平台的实际播放、真实安装/卸载、签名和公证仍需目标环境验证。
+
+本机产物与服务器 SHA256 一致，保存在 `.scratch/desktop-full-backend-artifacts`，其中包含安装包、校验值、验证报告和原生窗口截图。Windows/macOS/ARM64 尚未构建，前提见上表。云端同步仍未实现。

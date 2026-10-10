@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "cn.dbrain.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm runtime:prepare && pnpm dev",
+    "beforeBuildCommand": "pnpm runtime:prepare && pnpm build",
     "devUrl": "http://localhost:3002",
     "frontendDist": "../out"
   },
@@ -23,7 +23,8 @@
     ],
     "security": {
       "csp": null
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
@@ -34,6 +35,20 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "runtime/": "runtime/"
+    },
+    "linux": {
+      "rpm": {
+        "compression": {
+          "type": "zstd",
+          "level": 3
+        }
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    }
   }
 }

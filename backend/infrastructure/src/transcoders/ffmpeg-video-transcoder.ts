@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
@@ -85,17 +85,23 @@ interface ProbeResult {
  * cannot become part of a command line) and surfaces the tail of stderr, which
  * is where ffmpeg explains why it refused a file.
  */
+const activeProcesses = new Set<ChildProcess>();
+process.once("exit", () => {
+  for (const child of activeProcesses) child.kill("SIGKILL");
+});
+
 function runProcess(
   file: string,
   args: string[],
   label: string,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    execFile(
+    const child = execFile(
       file,
       args,
       { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
       (error, stdout, stderr) => {
+        activeProcesses.delete(child);
         if (!error) {
           resolve(stdout);
           return;
@@ -119,6 +125,7 @@ function runProcess(
         reject(new Error(`${label} failed: ${detail}`));
       },
     );
+    activeProcesses.add(child);
   });
 }
 

@@ -1,3 +1,4 @@
+import { resolveFileUrl } from "@workspace/api-client";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import type { ImageOptions } from "@tiptap/extension-image";
 import { Image as TiptapImage } from "@tiptap/extension-image";
@@ -25,7 +26,7 @@ const parseImageAttributes = (img: Element): Partial<ImageAttributes> => ({
 function buildImageHTMLAttributes(
   attrs: ImageAttributes,
 ): Record<string, string> {
-  const result: Record<string, string> = { src: attrs.src || "" };
+  const result: Record<string, string> = { src: resolveFileUrl(attrs.src) };
 
   if (attrs.alt) result.alt = attrs.alt;
   if (attrs.title) result.title = attrs.title;

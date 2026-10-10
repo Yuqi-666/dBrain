@@ -1,3 +1,4 @@
+import { resolveFileUrl } from "@workspace/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor, NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
@@ -36,7 +37,7 @@ export function ImageNodeView(props: NodeViewProps) {
 
   return (
     <ResizableImage
-      src={node.attrs.src}
+      src={resolveFileUrl(node.attrs.src)}
       alt={node.attrs.alt || ""}
       editor={editor}
       align={node.attrs["data-align"]}

@@ -915,6 +915,7 @@ function SidebarUserMenu() {
           <DropdownMenuLabel className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground">
             {user.nickname}
           </DropdownMenuLabel>
+          {process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop" && <>
           <DropdownMenuSeparator className="my-1.5 bg-sidebar-border" />
           <DropdownMenuItem
             onSelect={handleLogout}
@@ -923,6 +924,7 @@ function SidebarUserMenu() {
             <LogOut className="mr-2 size-4" />
             Sign out
           </DropdownMenuItem>
+          </>}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

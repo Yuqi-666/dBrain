@@ -12,9 +12,10 @@ export function createWSServer(
   port: number,
   router: AppRouter,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createContext: (ctx: any) => Promise<Context> | Context
+  createContext: (ctx: any) => Promise<Context> | Context,
+  options: { host?: string; noServer?: boolean } = {},
 ): WSServer {
-  const wss = new WebSocketServer({ port });
+  const wss = new WebSocketServer(options.noServer ? { noServer: true } : { port, host: options.host });
 
   const handler = applyWSSHandler({
     wss,

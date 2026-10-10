@@ -9,7 +9,8 @@
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "runtime:prepare": "node scripts/prepare-runtime.mjs"
   },
   "dependencies": {
     "@workspace/ui": "workspace:*",
@@ -38,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "esbuild": "0.27.7"
   }
 }

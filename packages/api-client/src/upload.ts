@@ -162,6 +162,9 @@ function buildUploadUrl(
   storedName: string,
 ): string {
   const pb = getPocketbaseClient();
+  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop") {
+    return `/api/files/${record.collectionId || FILES_COLLECTION}/${record.id}/${storedName}`;
+  }
   try {
     return pb.files.getUrl(record, storedName);
   } catch {
@@ -187,9 +190,6 @@ export const uploadAttachment = (
   onProgress: (event: { progress: number }) => void = () => {},
   signal?: AbortSignal,
 ): Promise<IAttachment> => {
-  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop") {
-    return storeLocalAttachment(file, onProgress, signal);
-  }
   const pb = getPocketbaseClient();
 
   return new Promise<IAttachment>((resolve, reject) => {
@@ -438,48 +438,4 @@ export function useFileUpload(options: UploadOptions) {
     removeFileItem,
     clearAllFiles,
   };
-}
-
-/** Data URLs survive restart and are persisted with the owning node in the local transaction. */
-function storeLocalAttachment(
-  file: File,
-  onProgress: (event: { progress: number }) => void,
-  signal?: AbortSignal,
-): Promise<IAttachment> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error("Upload aborted"));
-      return;
-    }
-    const reader = new FileReader();
-    const abort = () => reader.abort();
-    const cleanup = () => signal?.removeEventListener("abort", abort);
-    signal?.addEventListener("abort", abort, { once: true });
-    reader.onprogress = (event) => {
-      if (event.lengthComputable)
-        onProgress({
-          progress: Math.round((event.loaded / event.total) * 100),
-        });
-    };
-    reader.onerror = () => {
-      cleanup();
-      reject(reader.error ?? new Error("File read failed"));
-    };
-    reader.onabort = () => {
-      cleanup();
-      reject(new Error("Upload aborted"));
-    };
-    reader.onload = () => {
-      cleanup();
-      onProgress({ progress: 100 });
-      resolve({
-        id: crypto.randomUUID(),
-        fileName: file.name,
-        fileSize: file.size,
-        updatedAt: new Date().toISOString(),
-        url: String(reader.result),
-      });
-    };
-    reader.readAsDataURL(file);
-  });
 }

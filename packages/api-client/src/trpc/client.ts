@@ -14,11 +14,9 @@ import {
   decodeJwtPayload,
 } from "../auth/session";
 import { resolveBackendUrls } from "../backend-urls";
-import { localLink } from "./local-link";
+import { getDesktopBackend } from "../desktop-backend";
 
 const isDesktop = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop";
-
-const TOKEN_COOKIE = "pb_token";
 
 function readToken(): string | undefined {
   if (typeof document === "undefined") {
@@ -33,7 +31,7 @@ function readToken(): string | undefined {
 
 function getConnectionParams() {
   const sourceId = useSourceIdStore.getState().getSourceId();
-  const token = readToken();
+  const token = isDesktop ? getDesktopBackend().token : readToken();
   const params: { token?: string; sourceId: string } = { sourceId };
   if (token) {
     params.token = token;
@@ -41,25 +39,15 @@ function getConnectionParams() {
   return params;
 }
 
-const wsClient: TRPCWebSocketClient | undefined = isDesktop
-  ? undefined
-  : createWSClient({
-      // Loopback → ws://localhost:3001; proxied origin → wss://<host>/trpc.
-      // See ../backend-urls.ts.
-      url: resolveBackendUrls().trpc,
-      connectionParams: getConnectionParams,
-    });
+const wsClient: TRPCWebSocketClient = createWSClient({
+  lazy: { enabled: true, closeMs: 30_000 },
+  url: () => isDesktop ? getDesktopBackend().trpc : resolveBackendUrls().trpc,
+  connectionParams: getConnectionParams,
+});
 
 export function createClient() {
   return createTRPCClient<AppRouter>({
-    links: isDesktop
-      ? [localLink]
-      : [
-          wsLink({
-            client: wsClient!,
-            transformer: superjson,
-          }),
-        ],
+    links: [wsLink({ client: wsClient, transformer: superjson })],
   });
 }
 

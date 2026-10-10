@@ -1,3 +1,5 @@
+import { getDesktopBackend } from "./desktop-backend";
+
 /**
  * Browser-side backend URLs.
  *
@@ -57,6 +59,10 @@ function isLoopbackHostname(hostname: string): boolean {
 export function resolveBackendUrls(): BackendUrls {
   if (typeof window === "undefined") {
     return LOOPBACK_URLS;
+  }
+
+  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop") {
+    return getDesktopBackend();
   }
 
   const { hostname, host, origin, protocol } = window.location;

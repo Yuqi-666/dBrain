@@ -73,6 +73,7 @@ export class PocketBaseFileStore implements IFileStore {
       );
     }
 
-    return this.pb.client.files.getURL(record, storedName);
+    const url = this.pb.client.files.getURL(record, storedName);
+    return process.env.DBRAIN_DESKTOP === "1" ? new URL(url).pathname : url;
   }
 }

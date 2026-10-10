@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveFileUrl as resolveAttachmentUrl } from "@workspace/api-client";
+
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { type Editor } from "@tiptap/react";
@@ -205,7 +207,7 @@ export async function downloadSelectedImage(
   if (!imageData?.src) return false;
 
   try {
-    let resolvedUrl = imageData.src;
+    let resolvedUrl = resolveAttachmentUrl(imageData.src);
     if (resolveFileUrl) {
       resolvedUrl = await resolveFileUrl(imageData.src);
     }
