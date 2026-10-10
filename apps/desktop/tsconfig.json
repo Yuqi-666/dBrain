@@ -3,8 +3,98 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": [
+        "../web/*"
+      ],
+      "@workspace/editor/*": [
+        "../../packages/editor/*"
+      ],
+      "@workspace/dataview": [
+        "../../packages/dataview/src"
+      ],
+      "@workspace/dataview/*": [
+        "../../packages/dataview/src/*"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@workspace/store": [
+        "../../packages/store/src"
+      ],
+      "@workspace/store/*": [
+        "../../packages/store/src/*"
+      ],
+      "@workspace/graph": [
+        "../../packages/graph/src"
+      ],
+      "@workspace/graph/*": [
+        "../../packages/graph/src/*"
+      ],
+      "@workspace/interfaces": [
+        "../../packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../../packages/interfaces/src/*"
+      ],
+      "@workspace/api-client": [
+        "../../packages/api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../../packages/api-client/src/*"
+      ],
+      "@workspace/services": [
+        "../../packages/services/src"
+      ],
+      "@workspace/services/*": [
+        "../../packages/services/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
+      ],
+      "@workspace/adapter-tauri": [
+        "../../backend/adapter-tauri/src/index.ts"
+      ],
+      "@workspace/utils/*": [
+        "../../packages/utils/src/*"
+      ],
+      "@workspace/utils": [
+        "../../packages/utils/src"
+      ],
+      "@workspace/hooks/*": [
+        "../../packages/hooks/src/*"
+      ],
+      "@workspace/hooks": [
+        "../../packages/hooks/src"
+      ],
+      "@workspace/domain": [
+        "../../backend/domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../../backend/domain/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "../../backend/infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "../../backend/infrastructure/src/*"
+      ],
+      "@workspace/adapter-back": [
+        "../../backend/adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "../../backend/adapter-back/src/*"
+      ],
+      "@workspace/application": [
+        "../../backend/application/src"
+      ],
+      "@workspace/application/*": [
+        "../../backend/application/src/*"
+      ]
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "next-env.d.ts",
@@ -12,7 +102,10 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "../../packages/ui/src/img/icon/svg.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

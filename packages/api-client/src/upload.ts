@@ -116,7 +116,10 @@ export function matchesAccept(file: File, accept?: string): boolean {
   if (!type) {
     // No usable MIME type: only extension patterns can give a verdict.
     const extensions = patterns.filter((pattern) => pattern.startsWith("."));
-    return extensions.length === 0 || extensions.some((pattern) => name.endsWith(pattern));
+    return (
+      extensions.length === 0 ||
+      extensions.some((pattern) => name.endsWith(pattern))
+    );
   }
 
   return false;
@@ -126,7 +129,8 @@ export function matchesAccept(file: File, accept?: string): boolean {
 function revokeIfObjectUrl(url?: string): void {
   if (!url) return;
   if (!url.startsWith("blob:")) return;
-  if (typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+  if (typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function")
+    return;
   URL.revokeObjectURL(url);
 }
 
@@ -183,6 +187,9 @@ export const uploadAttachment = (
   onProgress: (event: { progress: number }) => void = () => {},
   signal?: AbortSignal,
 ): Promise<IAttachment> => {
+  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop") {
+    return storeLocalAttachment(file, onProgress, signal);
+  }
   const pb = getPocketbaseClient();
 
   return new Promise<IAttachment>((resolve, reject) => {
@@ -203,7 +210,9 @@ export const uploadAttachment = (
 
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
-        onProgress({ progress: Math.round((event.loaded / event.total) * 100) });
+        onProgress({
+          progress: Math.round((event.loaded / event.total) * 100),
+        });
       }
     });
 
@@ -231,7 +240,9 @@ export const uploadAttachment = (
       }
 
       const storedName =
-        typeof record[FILES_FIELD] === "string" ? (record[FILES_FIELD] as string) : "";
+        typeof record[FILES_FIELD] === "string"
+          ? (record[FILES_FIELD] as string)
+          : "";
 
       if (!storedName) {
         reject(new Error("Upload failed: server response contained no file"));
@@ -427,4 +438,48 @@ export function useFileUpload(options: UploadOptions) {
     removeFileItem,
     clearAllFiles,
   };
+}
+
+/** Data URLs survive restart and are persisted with the owning node in the local transaction. */
+function storeLocalAttachment(
+  file: File,
+  onProgress: (event: { progress: number }) => void,
+  signal?: AbortSignal,
+): Promise<IAttachment> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Upload aborted"));
+      return;
+    }
+    const reader = new FileReader();
+    const abort = () => reader.abort();
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+    signal?.addEventListener("abort", abort, { once: true });
+    reader.onprogress = (event) => {
+      if (event.lengthComputable)
+        onProgress({
+          progress: Math.round((event.loaded / event.total) * 100),
+        });
+    };
+    reader.onerror = () => {
+      cleanup();
+      reject(reader.error ?? new Error("File read failed"));
+    };
+    reader.onabort = () => {
+      cleanup();
+      reject(new Error("Upload aborted"));
+    };
+    reader.onload = () => {
+      cleanup();
+      onProgress({ progress: 100 });
+      resolve({
+        id: crypto.randomUUID(),
+        fileName: file.name,
+        fileSize: file.size,
+        updatedAt: new Date().toISOString(),
+        url: String(reader.result),
+      });
+    };
+    reader.readAsDataURL(file);
+  });
 }

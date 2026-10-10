@@ -1,21 +1,30 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { lazy, Suspense, useSyncExternalStore } from "react";
 import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
-const Excalidraw = dynamic(
-  async () => (await import("@excalidraw/excalidraw")).Excalidraw,
-  { ssr: false },
-);
+// This shared editor works in both Next.js and the desktop static bundle.
+// Excalidraw reads browser globals; load it only after client hydration.
+const Excalidraw = lazy(async () => ({
+  default: (await import("@excalidraw/excalidraw")).Excalidraw,
+}));
+const subscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 export function ExcalidrawWrapper(props: {
   excalidrawAPI: (api: ExcalidrawImperativeAPI) => void;
   initialData: any;
 }) {
+  const mounted = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
   return (
     <div style={{ width: "100%", height: "100%", display: "flex" }}>
-      <Excalidraw {...props} />
+      {mounted && (
+        <Suspense fallback={null}>
+          <Excalidraw {...props} />
+        </Suspense>
+      )}
     </div>
   );
 }

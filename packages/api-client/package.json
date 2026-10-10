@@ -19,7 +19,8 @@
     "superjson": "^2.2.0",
     "@workspace/interfaces": "workspace:*",
     "@workspace/adapter-front": "workspace:*",
-    "@workspace/services": "workspace:*"
+    "@workspace/services": "workspace:*",
+    "@workspace/adapter-tauri": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

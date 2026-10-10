@@ -67,6 +67,7 @@ export default function LatexInlineView(props: NodeViewProps) {
     if (!currentText.trim()) {
       try {
         const pos = getPos();
+        if (pos === undefined) return;
         editor
           .chain()
           .deleteRange({ from: pos, to: pos + node.nodeSize })
@@ -193,9 +194,11 @@ export default function LatexInlineView(props: NodeViewProps) {
               placeholder={"E = mc^2"}
               className="w-full min-h-[50px] resize-none border-0 bg-transparent p-1 text-sm font-mono leading-relaxed text-foreground placeholder:text-muted-foreground/50 placeholder:font-sans focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               onKeyDown={(e) => {
+                const pos = getPos();
+                if (pos === undefined) return;
                 if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
                   e.preventDefault();
-                  return editor.commands.focus(getPos() + node.nodeSize);
+                  return editor.commands.focus(pos + node.nodeSize);
                 }
 
                 const target = e.target as HTMLTextAreaElement;
@@ -206,7 +209,7 @@ export default function LatexInlineView(props: NodeViewProps) {
                   selection.start === selection.end &&
                   selection.start === 0
                 ) {
-                  editor.commands.focus(getPos());
+                  editor.commands.focus(pos);
                 }
 
                 if (
@@ -214,7 +217,7 @@ export default function LatexInlineView(props: NodeViewProps) {
                   selection.start === selection.end &&
                   selection.start === valueLength
                 ) {
-                  editor.commands.focus(getPos() + node.nodeSize);
+                  editor.commands.focus(pos + node.nodeSize);
                 }
               }}
               onSelect={(e) => {

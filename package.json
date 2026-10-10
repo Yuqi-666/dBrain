@@ -7,7 +7,9 @@
     "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"PORT=3001 pnpm --filter=server dev\"",
     "lint": "turbo run lint --continue",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run typecheck --continue"
+    "check-types": "turbo run typecheck --continue",
+    "dev:desktop": "pnpm --filter desktop desktop:dev",
+    "build:desktop": "pnpm --filter desktop desktop:build"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

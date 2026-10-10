@@ -1,22 +1,24 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "desktop",
+  "productName": "dBrain",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "cn.dbrain.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
-    "devUrl": "http://localhost:3000",
-    "frontendDist": "../dist"
+    "devUrl": "http://localhost:3002",
+    "frontendDist": "../out"
   },
   "app": {
     "windows": [
       {
         "title": "dBrain",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {

@@ -9,7 +9,8 @@
       "@workspace/interfaces/*": [
         "../../packages/interfaces/src/*"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "."

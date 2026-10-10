@@ -6,11 +6,13 @@
   "scripts": {
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noemit"
+    "typecheck": "tsc --noemit",
+    "test": "node --experimental-transform-types --test --test-isolation=none src/local-engine.test.ts"
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/node": "^25.1.0"
   },
   "exports": {
     ".": "./src"

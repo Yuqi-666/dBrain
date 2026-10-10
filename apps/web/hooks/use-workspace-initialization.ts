@@ -42,7 +42,7 @@ export function useWorkspaceInitialization() {
       await WorkspaceService.open(firstWorkspaceId);
 
       // In dev, seed demo data into the freshly-provisioned empty workspace.
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop") {
         await seedDemoIntoCurrentWorkspace();
       }
 

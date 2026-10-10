@@ -1,10 +1,22 @@
-import { createTRPCClient, wsLink, createWSClient, type TRPCWebSocketClient } from "@trpc/client";
+import {
+  createTRPCClient,
+  wsLink,
+  createWSClient,
+  type TRPCWebSocketClient,
+} from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "@workspace/adapter-front";
 import { useSourceIdStore } from "@workspace/store";
 import { isTokenExpired } from "pocketbase";
-import { setAuthSession, clearAuthSession, decodeJwtPayload } from "../auth/session";
+import {
+  setAuthSession,
+  clearAuthSession,
+  decodeJwtPayload,
+} from "../auth/session";
 import { resolveBackendUrls } from "../backend-urls";
+import { localLink } from "./local-link";
+
+const isDesktop = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop";
 
 const TOKEN_COOKIE = "pb_token";
 
@@ -29,21 +41,25 @@ function getConnectionParams() {
   return params;
 }
 
-const wsClient: TRPCWebSocketClient = createWSClient({
-  // Loopback → ws://localhost:3001; proxied origin → wss://<host>/trpc.
-  // See ../backend-urls.ts.
-  url: resolveBackendUrls().trpc,
-  connectionParams: getConnectionParams,
-});
+const wsClient: TRPCWebSocketClient | undefined = isDesktop
+  ? undefined
+  : createWSClient({
+      // Loopback → ws://localhost:3001; proxied origin → wss://<host>/trpc.
+      // See ../backend-urls.ts.
+      url: resolveBackendUrls().trpc,
+      connectionParams: getConnectionParams,
+    });
 
 export function createClient() {
   return createTRPCClient<AppRouter>({
-    links: [
-      wsLink({
-        client: wsClient,
-        transformer: superjson,
-      }),
-    ],
+    links: isDesktop
+      ? [localLink]
+      : [
+          wsLink({
+            client: wsClient!,
+            transformer: superjson,
+          }),
+        ],
   });
 }
 
@@ -54,7 +70,7 @@ export const trpcClient = createClient();
  * freshly set/cleared cookie. Call after login/register/logout.
  */
 export function reconnectTRPCClient(): void {
-  return void wsClient.close();
+  return void wsClient?.close();
 }
 
 /**

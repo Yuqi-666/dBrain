@@ -12,7 +12,7 @@ declare module "@tiptap/core" {
 
 export interface LatexBlockOptions {
   HTMLAttributes: Record<string, any>;
-  view: React.ComponentType<any>;
+  view: React.ComponentType<any> | null;
 }
 
 // 匹配 "$$ " 或者 "\[ "
@@ -86,7 +86,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
       new InputRule({
         find: inputRegex,
         handler: ({ range, chain }) => {
-          return chain().focus().deleteRange(range).setLatexBlock().run();
+          chain().focus().deleteRange(range).setLatexBlock().run();
         },
       }),
     ];
@@ -98,7 +98,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
     start: (src) => {
       // 找到 $$ 或者 \[ 的起始位置
       const match = src.match(/\$\$|\\\[/);
-      return match ? match.index : -1;
+      return match?.index ?? -1;
     },
     tokenize: (src, tokens, lexer) => {
       // 捕获 $$...$$ 或 \[...\] 内部的文本

@@ -40,7 +40,10 @@ export function NotionEditorHeader() {
         <Separator />
 
         <CollaborationUsers />
-        <Button variant="default" onClick={() => console.log(editor.getJSON())}>
+        <Button
+          variant="default"
+          onClick={() => console.log(editor?.getJSON())}
+        >
           输出编辑器内容
         </Button>
       </div>

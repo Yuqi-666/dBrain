@@ -82,6 +82,7 @@ export default function LatexBlockView(props: NodeViewProps) {
     if (!currentText.trim()) {
       try {
         const pos = getPos();
+        if (pos === undefined) return;
         editor
           .chain()
           .deleteRange({ from: pos, to: pos + node.nodeSize })
@@ -201,7 +202,7 @@ export default function LatexBlockView(props: NodeViewProps) {
             </span>
             <Button
               variant="ghost"
-              size="sm"
+              size="small"
               onClick={() => deleteNode()}
               className="h-6 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
             >
@@ -219,9 +220,11 @@ export default function LatexBlockView(props: NodeViewProps) {
               placeholder={"E = mc^2"}
               className="w-full min-h-[100px] resize-none border-0 bg-transparent p-1 text-sm font-mono leading-relaxed text-foreground placeholder:text-muted-foreground/50 placeholder:font-sans focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               onKeyDown={(e) => {
+                const pos = getPos();
+                if (pos === undefined) return;
                 if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
                   e.preventDefault();
-                  return editor.commands.focus(getPos() + node.nodeSize);
+                  return editor.commands.focus(pos + node.nodeSize);
                 }
 
                 const target = e.target as HTMLTextAreaElement;
@@ -232,7 +235,7 @@ export default function LatexBlockView(props: NodeViewProps) {
                   selection.start === selection.end &&
                   selection.start === 0
                 ) {
-                  editor.commands.focus(getPos() - 1);
+                  editor.commands.focus(pos - 1);
                 }
 
                 if (
@@ -240,7 +243,7 @@ export default function LatexBlockView(props: NodeViewProps) {
                   selection.start === selection.end &&
                   selection.start === valueLength
                 ) {
-                  editor.commands.focus(getPos() + node.nodeSize);
+                  editor.commands.focus(pos + node.nodeSize);
                 }
               }}
               onSelect={(e) => {

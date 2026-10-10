@@ -12,7 +12,7 @@ declare module "@tiptap/core" {
 
 export interface LatexInlineOption {
   HTMLAttributes: Record<string, any>;
-  view: React.ComponentType<any>;
+  view: React.ComponentType<any> | null;
 }
 
 // 匹配 "$ " 或者 "\( "
@@ -86,7 +86,7 @@ export const LatexInline = Node.create<LatexInlineOption>({
       new InputRule({
         find: inputRegex,
         handler: ({ range, chain }) => {
-          return chain()
+          chain()
             .focus()
             .deleteRange(range)
             .setLatexInline()
