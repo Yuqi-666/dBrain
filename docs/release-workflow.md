@@ -76,6 +76,8 @@ gh run watch RUN_ID
 
 统一 artifact 名称为 `candidate-RUN_ID-ATTEMPT`，默认保留 30 天，受仓库 artifact 保留策略限制。**失败后的重跑必须选择 Re-run all jobs**；只重跑失败 job 会混入不同 attempt 的产物，汇总故意拒绝。过期候选需重新构建和验收。
 
+排查桌面平台问题时，可单独运行 `desktop-build.yml`，传入 `target=linux-x64`、`win32-x64`、`darwin-x64` 或 `darwin-arm64`；默认 `all`。不同目标的诊断可并行，同一目标保持串行。统一候选的可复用调用仍始终构建四个平台，单目标诊断产物不能用于正式发布。后端 smoke 步骤有 5 分钟外层超时，媒体样本生成有 30 秒超时，macOS 超时时采集 FFmpeg 栈。
+
 Linux 构建还会提取实际 DEB/AppImage，核对资源完整性并执行完整后端 smoke（DEB 要求全部准备哈希一致；AppImage 允许原生 ELF 路径修补，JS/migrations/静态 PocketBase 保持原字节）；原生 Cargo build/test 使用 `--locked`。
 
 `runtime-manifest.json` 的 hashes 是准备阶段的资源哈希；AppImage ELF 路径修补或平台签名可能再改变原生文件。`build-report.runtimeHashScope` 标明该范围，最终安装包及发布资产用外层 SHA256SUMS 核对，不能把准备阶段哈希直接当作所有安装格式的最终资源哈希。

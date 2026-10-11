@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-${{ github.ref }}-${{ inputs.target || 'all' }}
   cancel-in-progress: false
 jobs:
   build:
