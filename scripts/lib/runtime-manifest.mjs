@@ -3,6 +3,9 @@ import { createReadStream } from "node:fs";
 import { open, readFile, readdir, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+export function pocketbaseVersion(output) {
+  return output.trim().match(/^pocketbase(?:\.exe)? version (\S+)$/)?.[1];
+}
 export async function hashFile(path) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);
@@ -58,7 +61,7 @@ export async function verifyBinaries(root, binaries) {
     );
     versions[name] = output.split(/\r?\n/)[0];
   }
-  if (versions.pocketbase !== `pocketbase version ${lock.version}`)
+  if (pocketbaseVersion(versions.pocketbase) !== lock.version)
     throw new Error(`PocketBase must match ${lock.version}`);
   const encoders = execFileSync(
     binaries.ffmpeg,
