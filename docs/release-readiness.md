@@ -1,128 +1,33 @@
-# dBrain 发布前置问题修复与验收报告
+# 发布状态
 
-日期：2026-10-11（UTC）。范围：当前工作区修复、已完成的验证和未闭合的发布门槛。
+本页记录当前内测边界，不是正式发行批准。状态基于 2026-10-11 已完成的候选和合并记录；后续变更需用新的测试证据更新。
 
-**结论：首版完整未签名候选已在真实 GitHub runner 通过。** 同一提交 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7` 的四平台桌面、双架构容器和最终汇总全部成功；下载后独立核验七个安装包、三个多架构镜像引用及全部文件校验和。按用户决定，先使用当前私有仓库进行内部测试，已创建[私有内部测试草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596)（未发布），九个资产上传后的服务器 SHA256 和大小均核对通过。正式发行仍待原生 GUI/CSP、安装卸载与升级、签名公证、第三方材料、历史数据恢复及发行批准；自动化后端 smoke 不替代这些验收。修复 [PR #16](https://github.com/Yuqi-666/dBrain/pull/16) 尚未合并。
+## 已完成
 
-早期阶段记录（后续远端执行见下节）：改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
+- 首版开发成果已合入 main，平台构建修复与 runner 范围调整也已合入。
+- [统一候选 run 38123782093](https://github.com/Yuqi-666/dBrain/actions/runs/38123782093) 成功，source commit 为 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7`。
+- 四个桌面目标生成七个安装包；自动后端检查、打包步骤和候选来源 / 哈希校验通过。
+- Linux amd64 / arm64 容器分别完成 smoke，已合并多架构镜像 digest。
+- 未签名产物已整理为私有内部测试 Release 草稿；验收模板保持 pending。
+- runner 收窄变更已合入 `d93283730f38dcb42158f1e0d040605f78f2d6da`。它不代表该 commit 已重新生成桌面包；上述候选仍绑定 c9f4b76。
 
-## 首轮统一候选与平台修复（2026-10-11）
+- 构建缓存已通过 [PR #18](https://github.com/Yuqi-666/dBrain/pull/18) 合入 main（669d047），远端 PR 质量与容器集成检查通过；新增 Next.js / Rust / Docker 缓存，未改变发布门禁。主线同提交的 CI 冷 / 热验证以及 Linux 桌面两轮诊断均通过，实际命中与耗时见构建发布手册。
 
-PR #1 已合并到 `main`（`a600b25`）。首轮 [统一候选 run 38120933333](https://github.com/Yuqi-666/dBrain/actions/runs/38120933333) 使用该提交、attempt 1、未签名模式，整体失败，**没有生成统一候选**；质量门禁、Linux 桌面全流程、双架构容器构建/smoke/GHCR 推送/多架构合并均成功。Linux 三种安装包 artifact 已上传，DEB/AppImage 提取验收及 Rust 测试通过。首轮镜像不可直接认定为整版发行已验收。证据：`docs/release-validation/first-candidate-summary.txt`、`first-candidate-containers.json`。
+## 正式发行前仍需完成
 
-实际执行暴露并修复：Windows CRLF 导致 Cargo.lock 误报、`pocketbase.exe` 版本输出差异及裸盘符动态 ESM 导入；macOS canvas 的 LC_ID_DYLIB 上游路径被误收集、SDL2 兼容层通过 dlopen 加载的 SDL3 漏带，以及未签名构建传入空身份导致 Tauri 错误签名。Intel 生命周期验收还暴露旧退出计时器误杀新实例的竞态，已改为捕获当前进程、等待实际退出并取消计时器；强杀仍不能通过正常退出断言。补充回归后 **23 项通过**。
+| 项目 | 要求 |
+| --- | --- |
+| 签名 / 公证 | Windows 可信代码签名、macOS Developer ID 与 Apple 公证，全流程实测 |
+| 原生使用验收 | 四端真实安装、卸载、窗口与 CSP、媒体播放、重启和进程退出 |
+| 升级与恢复 | 历史版本数据、附件、身份与工作空间权限迁移，完整备份恢复演练 |
+| 第三方材料 | 根据实际 bundled 组件审查许可证、声明和对应源码义务 |
+| 发布记录 | 将真实验收结果与证据关联到候选 commit / run / 安装器哈希，审查后合入 |
+| 下载与权限 | 确定测试者能访问的私有下载渠道，核对 GHCR、Environment、Secrets 与审批 |
 
-Windows [单目标 run 38122597418](https://github.com/Yuqi-666/dBrain/actions/runs/38122597418) 和 macOS ARM64 [run 38123411140](https://github.com/Yuqi-666/dBrain/actions/runs/38123411140) 已全部成功：完整离线后端 smoke、Rust 测试、原生程序/安装包构建及收集上传。证据：`windows-native-diagnostic.txt`、`macos-arm64-native-diagnostic.txt`。它们对应各自诊断源码，不能互相拼接成统一候选。随后完整候选已覆盖 Intel 生命周期修复与打包；这些结果不代表原生 GUI、实际安装卸载/升级或发行签名公证通过。
+当前尚未发布正式 v0.1.0，也没有一份真实完成的正式验收记录。内部未签名包可用于测试，不据此声明所有平台已具备正式发行条件。
 
-修复集中于 [PR #16](https://github.com/Yuqi-666/dBrain/pull/16)，尚未合并。修复分支 `c9f4b76` 的 [完整候选 run 38123782093](https://github.com/Yuqi-666/dBrain/actions/runs/38123782093)、attempt 1 已全部成功：质量门禁、四个桌面目标、amd64/arm64 容器、镜像合并与候选汇总通过。候选下载后，独立验证其来源、每个平台的清单与全部文件 SHA256；证据见 `docs/release-validation/unified-candidate-verification.txt`。候选索引 SHA256：`18e128476a7e131c21850a130fcfab588c1fa4a1834b3c199809a4976b885e78`。七个安装包均未签名，报告的 `distributionReady` 为 false，验收模板各项保留 pending。桌面诊断现在支持单目标、独立并发与明确超时，统一候选仍要求全部目标。
+## 已知功能边界
 
-[私有内部测试草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596) 的内部构建标记为 `candidate-38123782093`，不是正式版本标签 `v0.1.0`。四个平台 ZIP、容器部署 ZIP、来源索引、待验收模板、说明及 SHA256SUMS 共九个资产已上传，服务器 hash/大小全部匹配。证据：`docs/release-validation/internal-draft-verification.txt`、`unified-candidate-containers.json`。草稿尚未发布；当前仓库为私有，仅按内部授权访问。
+桌面与 Web 数据分别保存，云端同步尚未实现；应用内自动更新尚未接入。Linux / Windows ARM 桌面版及 macOS universal 包不在当前四端目标中。lint 使用增量基线门禁，仍有存量诊断，不代表全仓零警告。
 
-按用户要求，`main` 的 `62f00ef` 暂停 npm/cargo/Actions 的常规 Dependabot 更新；取消六个活跃机器人 CI，保留十四个升级 PR。安全更新不受常规版本上限影响。当前 `candidate` 环境已存在，但没有保护规则/分支限制；`release` 环境、签名 Secrets 与发行审批配置仍待落实。
-
-## 首版合并前复审（2026-10-11，基于 `5f8dd83`）
-
-已审查最近三轮提交：`e0bc35b` 移除演示数据、模拟 AI/协作并明确 AI 不可用边界；`60806cc` 修复开发路径别名和 `/trpc` 握手，补充 Origin 回归；`5f8dd83` 要求显式配置 PocketBase 运维账号，并提供开发/部署模板。用户要求重开 PR #1，为首版主线合并及随后发布准备版本基线；不在本轮执行合并或正式发行。
-
-复审补齐两处发布链路遗漏：原生容器候选任务使用临时运维账号并验证登录，满足新增 Compose 必填配置；统一候选 artifact 显式包含 allowlist 内的隐藏模板，Release 上传启用 dotglob，保证 `.env.example` 与其校验和一同交付。README 开发步骤同步补充创建 `.env`。只有空值配置模板受版本管理，真实 `.env` 不进入候选。
-
-当前源码本地验证：**19 个 workspace 类型检查通过，lint 增量门禁通过（89 条历史诊断，无新增），18 项回归通过，版本一致性检查通过；五个工作流通过官方 SHA256 核验的 actionlint 1.7.12。** 先前成功的 GitHub CI 仍对应 `4dd0ff6`，本次变更需以重开的 PR 最新 CI 为准；旧 Linux 安装包证据也不自动成为本次源码的发行验收。四平台统一候选、签名公证、原生 GUI/安装升级及第三方材料等发布前工作仍按下文执行。
-
-## GitHub 实际执行（2026-10-11）
-
-用户配置 GitHub CLI 认证后，已核验私有仓库 `Yuqi-666/dBrain`；默认分支为 `main`，当前工作分支为 `develop`。`2d2eb1b` 已由用户推送。首次真实 [CI run 38110711790](https://github.com/Yuqi-666/dBrain/actions/runs/38110711790) 的容器启动、生产 Web、数据权限及媒体鉴权检查通过，但媒体样本生成报 `spawnSync ffmpeg ENOENT`：测试客户端在 runner 生成样本，容器内的 FFmpeg 不能满足该依赖。`4dd0ff6` 在 CI containers 与原生容器候选任务显式安装 runner FFmpeg，并已提交/推送重验。
-
-统一候选手动启动实际返回 404，因 `release-candidate.yml` 尚未存在于默认分支。`develop` 比 `main` 领先 217 个提交，已创建 [草稿 PR #1](https://github.com/Yuqi-666/dBrain/pull/1) 供审查整合范围；用户随后要求取消 PR 并进行最后手动检查，PR #1 已关闭且未合并；保留验证报告，没有更改默认分支，统一候选执行暂缓。Actions 已开启，默认 token 权限为 read；工作流按 job 显式申请所需权限。当前没有已配置的 environment 或仓库 Secret 名称返回，签名和环境保护仍待配置。以下旧阶段的“未推送/未运行”描述仅反映各阶段当时状态；本节保留该阶段远端状态；最新结果见本文开头。
-
-修复后的 [develop CI run 38111650383](https://github.com/Yuqi-666/dBrain/actions/runs/38111650383) 已完成，`check` 与 `containers` 均为 **success**；工作流静态检查、20 包类型/lint 增量门禁、13 项回归、独立 server 和桌面后端 smoke、Web 生产构建及完整容器 smoke 在真实 GitHub runner 通过。证据：`docs/release-validation/github-ci.txt`。[PR CI run 38111690205](https://github.com/Yuqi-666/dBrain/actions/runs/38111690205) 也已完成，两个 job 均 success，验证与 main 的合并结果可构建。PR 已按用户要求关闭，未合并。这不代表四平台候选或正式发布验收通过。
-
-## 工作流续建（2026-10-11，基于 `8c93272`）
-
-已审查 `47307af` 至 `8c93272` 的 lint、Web 构建及容器端口修复与更新后的证据；保留已闭合的两项验收结论。本轮继续完成开发维护和发行链路，当前改动尚未提交/推送。
-
-- 增加 `release-candidate.yml`，复用 CI，并编排四平台桌面和两架构原生容器构建。每架构容器通过完整 smoke 后上传同一批镜像，发行清单使用不可变 digest。
-- 增加 `release.yml`：只接受本仓库成功的统一候选 run；核对产品版本、已存在标签、source commit、run/attempt、产物 hash 和逐平台验收记录；默认创建草稿，可明确选择正式发布。不会重建已验收二进制或覆盖现有 Release。
-- 候选汇总保留安装器、运行时清单、签名验证结果、部署配置、全文件校验和和待填写验收模板。未签名 Windows/macOS、未完成验收、缺失目标和被修改的产物被拒绝。
-- 修复 macOS 验证脚本的非可移植 find 用法，增加 Windows 安装器 Authenticode/证书指纹检查；签名临时目录在准备开始时登记，失败也能进入清理。
-- CI 使用 `lint:gate`：20 包逐文件/规则/消息的增量门禁，保留 **89 条显式存量诊断**，新增或增长即失败。并非关闭 only-warn 后的严格零错误验收。另修正条件调用 `useGraph` 的真实 Hook 顺序问题和把普通 `use` 回调误判为 Hook 的命名问题。
-- 修复开发 PocketBase 启动器：跨平台选可执行文件，使用固定 `pb/pb_data` 与仓库 migrations/hooks；去除 `dev:full` 中 Windows 不支持的 shell 环境赋值，更新 README 与完整操作手册。
-
-本轮已验证：**20 个 workspace 类型检查通过；13 项发布回归测试通过；5 个工作流通过官方 SHA256 校验的 actionlint 1.7.12；lint 增量门禁通过；开发启动器在临时数据库验证 migrations、匿名拒绝及退出清理通过。** 门禁测试覆盖未签名、未验收、混入不同 commit/attempt、产物篡改、缺失平台、失败/外部仓库/错误类型 run。
-
-Linux 最新构建源码的运行时准备、桌面静态生产构建、原生 Rust 编译通过；DEB/RPM/AppImage 三格式已生成，最终收集器和 SHA256SUMS 检查全部通过。实际 DEB 的准备资源哈希一致；实际 AppImage 允许 linuxdeploy 原生 ELF 路径修补，并核对 JS/migrations/静态 PocketBase 未改变，两者的完整后端 smoke 均通过。Rust 原生监督器回归 **1 项通过**。首次 AppImage 全量打包失败（linuxdeploy），单独详细重打包成功；首次失败的精确根因未复现，本轮没有把它写成已修复的确定缺陷，CI 已开启 Linux 详细日志。未验证图形窗口及实际安装/卸载/升级。
-
-Linux 验收使用 `/tmp/dbrain-release-check` 和 `DBRAIN_GIT_SHA=local-workflow-review`，为工作区源码验证，**不是可正式推广的 GitHub 候选**。产物保留在构建机 `release-artifacts/linux-x64`，没有上传公共发行渠道。准备阶段 runtime-manifest 的原生哈希可能被打包/签名改变；最终安装包以外层 SHA256SUMS 为准，收集报告明确记录 hash scope。证据：`docs/release-validation/linux-packages-smoke.txt`、`linux-rust-tests.txt`；本地门禁证据为 `workflow-typecheck.txt`、`workflow-lint-gate.txt`、`workflow-unit-tests.txt`、`workflow-checks.txt`。Windows/macOS、GHCR 上传与多架构合并、GitHub Release 创建、公证和原生 GUI **尚未实际执行验收**。第三方材料仍需实际生成和审查；验收记录只声明材料 URL/hash，不替代材料内容核验。真实验收 JSON 尚不存在，因此现状仍会被正式发布门禁拒绝。
-
-操作步骤和首次仓库配置见 [开发维护与发布手册](release-workflow.md)。本轮没有设置远端 Secrets/审批，也没有创建 Release 或部署正式服务。
-
-## 1. 本轮（2026-10-11）修复
-
-| 问题                                                                    | 本轮处理                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@workspace/editor` 是全仓唯一 lint 失败的包（67 errors / 39 warnings） | 该包是唯一仍使用 `eslint-config-next`（未声明该依赖，经根 `node_modules` 提升解析）的包，因此也是唯一启用 `eslint-plugin-react-hooks` 7 编译器规则集（`refs`/`set-state-in-effect`/`immutability` 共 42 errors）与 Next 专用规则（`no-img-element` 4 warnings）的包。它本身是 React 组件库（无 app router、无 next.config、无 next 依赖），改用与其他 10 个同族包一致的 `@workspace/eslint-config/react-internal` 并显式声明该依赖；随后修复 58 条真实告警（32 未使用参数/导入/局部变量、19 `no-explicit-any`、6 `no-unsafe-function-type`、1 失效的 disable 指令）。唯一例外是在包内配置里注明原因的 `react/prop-types: off`：137 条命中全部是 `React.FC<Props>`/`forwardRef` 组件的误报，属性由 `tsc` 保证。 |
-| CI 的 `pnpm --filter web build` 在预渲染 `/login` 时失败                | Next 16 拒绝预渲染直接调用 `useSearchParams()` 的路由（`should be wrapped in a suspense boundary`）。把登录表单拆到 `LoginForm` 并用 `<Suspense>` 包裹（fallback 保留卡片宽度）。本地与容器内构建均已在 8/8 静态页通过。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| web 镜像构建最后一步失败：`COPY /app/apps/web/public` 不存在            | `apps/web` 没有 `public` 目录，而 Next standalone 产物不会自动携带静态目录。按仓库既有 `.gitkeep` 约定补齐 `apps/web/public/.gitkeep`：镜像可构建，且以后新增静态资源会被自动带入（否则会静默 404）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| CI 容器栈从未真正发布 PocketBase 端口                                   | Docker 对仅连接 `internal: true` 网络的容器会静默丢弃端口映射（docker 29.1.3 实测：internal-only 时 `NetworkSettings.Ports` 为 `{"8090/tcp":null}`，接入任一非 internal 网络后才绑定）。生产 `backend` 网络是 internal，故 `deploy/compose.test.yml` 里 13090 的映射从未生效，CI 的 `containers` 任务会在 `ready(${pbUrl}/api/health)` 超时失败。测试覆盖层为 pocketbase 增加仅用于探测的 bridge 网络 `probe`（web/gateway 不加入），生产拓扑与隔离性不变。                                                                                                                                                                                                                                                    |
-| 其他清理                                                                | `apps/web` 3 条告警（未使用导入/局部变量、`next.config.mjs` 的 Node 全局）；`turbo.json` 声明 editor 读取的 6 个 `NEXT_PUBLIC_TIPTAP_*` 变量；移除误入 pnpm 工作区的 npm `packages/editor/package-lock.json` 与遗留 `eslint.config.mjs`。                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-
-修复 1 的关键事实：这三个 web/容器缺陷此前从未被发现，因为 GitHub 上的工作流尚未执行；按原状，CI 的 `check` 任务（web build）与 `containers` 任务都不可能通过。
-
-## 2. 上一轮（2026-10-10）已修复
-
-| 问题                                                    | 处理                                                                                                                                               |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| server 的 build 只检查类型，没有 Dockerfile 所需的 dist | 增加独立 ESM 打包，将外部 PDF/canvas 及本平台原生绑定复制到产物。独立产物已在仓库外启动验证。                                                      |
-| Dockerfile 缺少 workspace 上下文、产物路径错误          | 重写两个 Dockerfile；使用固定 Node/pnpm，复制 monorepo 上下文，修正 Next standalone/public/static 路径；服务以非 root 运行并增加健康检查。         |
-| PocketBase 镜像浮动且不包含项目 migrations              | 自建 PocketBase 镜像，固定 0.40.4，按 amd64/arm64 下载并校验官方发布资产 SHA256，携带 migrations/hooks。                                           |
-| 浏览器无法访问容器内部服务名；附件 URL 不适合部署迁移   | 生产前端采用同源 `/trpc`、`/pb`，增加 Nginx 入口；后端提供受控文件网关、cookie 身份校验、Range 和 HLS 前缀重写。新文件地址保存为可迁移的相对路径。 |
-| 数据表允许匿名读写、工作空间之间缺乏隔离                | 增加增量权限迁移，区分 owner/editor/viewer，限制数据及成员管理；共享附件和衍生 PDF/HLS 文件保持工作空间范围。旧初始 migration 未修改。             |
-| 并发身份可能写入共享 SDK 状态                           | 后端使用 AsyncLocalStorage 隔离请求令牌；登录使用独立 SDK 实例；受保护操作再次验证令牌。                                                           |
-| 私有事件向其他用户广播                                  | 事件带工作空间范围，订阅按当前成员权限过滤；移除成员后停止转发其无权访问的事件。                                                                   |
-| 文本外键允许跨工作空间连接                              | 增加 PocketBase edge 请求校验；工作空间删除先检查所有者，并在删除父对象前清理成员。                                                                |
-| 全仓检查被依赖环和不完整 TS aliases 阻断                | 根命令改为 pnpm 调度；统一 workspace TypeScript 路径和 `.ts` 导入设置；补 backend 可用的根 ESLint 配置。没有大规模重构现有依赖环。                 |
-| 桌面升级缺少数据库备份                                  | 在持有设备锁、启动迁移前，用 SQLite backup API 创建数据库快照并复制附件及身份；备份失败则停止迁移。成功后记录版本状态。                            |
-| 桌面运行时来源/架构缺少核对                             | 检查 ELF/PE/Mach-O 架构、PocketBase 固定版本、FFmpeg 编码器；生成运行时版本、模块版本、SHA256 和数据库升级 fingerprint。                           |
-| macOS 动态库与内置运行时签名缺少处理                    | 增加 dylib 收集与相对路径修复、Node JIT entitlements、运行时签名及 CI 证书准备/清理。Windows 增加运行时签名入口。代码已编写，尚未在对应平台验收。  |
-| 桌面 CSP 被关闭                                         | 配置静态资源、原生 IPC、回环后端、媒体及 worker 所需的 CSP。**新增 CSP 尚未通过最新原生窗口验收。**                                                |
-| 产品版本不一致、没有发行元数据                          | 增加版本同步和一致性检查、固定工具链、候选安装包收集和 SHA256 清单。按用户决定设置闭源、保留全部权利的许可证。                                     |
-| 缺少自动化检查与跨平台候选构建                          | 增加 CI、四目标桌面候选构建和依赖更新配置。可选择准备签名凭据；候选报告明确标记 `distributionReady: false`，不会自动公开发布。                     |
-
-## 3. 实际完成的验证
-
-| 检查                             | 结果与范围                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 锁文件安装                       | 本轮在同一工作区执行 `pnpm install --frozen-lockfile` 成功（新增 editor 依赖后锁文件已同步）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| workspace 类型检查               | **20 个具有 typecheck 脚本的包通过，0 个 TS 错误。** 证据：`docs/release-validation/typecheck.txt`。另单独验证：删除 `apps/web/.next` 后 `apps/web` 仍可 typecheck（CI 冷检出场景）。                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 全仓 lint                        | **20 passes / 0 fails（exit 0）**，editor 由 106 problems 降为 0。仍有 89 条历史 warning 分布在 10 个包（backend/application 23、packages/ui 25、backend/domain 8、backend/infrastructure 8、apps/server 6、api-client 5、store 5、interfaces 4、graph 3、hooks 2），本轮未扩展处理。证据与说明：`docs/release-validation/lint-summary.txt`。                                                                                                                                                                                                                                                                     |
-| 发布回归测试                     | **7 项通过。** 覆盖会话/Origin、文件路径、HLS 前缀、WAL 数据库备份、并发身份、版本/标签一致性。证据：`docs/release-validation/unit-tests.txt`。                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 发布配置一致性                   | `pnpm release:check` 通过：`Release source checks passed: 0.1.0`。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Web 生产构建                     | 本地 `pnpm --filter web build` 与 web 镜像内构建均通过：8/8 静态页生成，`/`、`/login`、`/register`、`/graph`、`/dashboard` 均为 `○ (Static)`，`/login` 的 Suspense 修复生效。证据：`docs/release-validation/web-build.txt`。                                                                                                                                                                                                                                                                                                                                                                                      |
-| 完整容器栈（最终源码）           | 在构建机 `yuqi` 上对 commit `ad9368e` 执行 CI 的 containers 任务命令：`docker compose up --build --wait --wait-timeout 180` 退出码 0，gateway / pocketbase / server / web 四个容器全部 healthy 且端口映射正确（13080/13090/13081）。随后执行 `server-smoke.mjs`（DBRAIN*SMOKE*\* 指向容器栈）**退出码 0，6 组断言全部 PASS**：生产 Web 与反向代理、全新 migrations 与匿名拒绝、文件归属与 cookie 鉴权媒体（Range、管理路径与 Origin 拒绝）、PDF/native canvas 与 FFmpeg 同源 HLS、跨用户节点与事件隔离（含 viewer 权限与成员移除）、并发登录隔离与授权删除。证据：`docs/release-validation/container-smoke.txt`。 |
-| 独立 server 打包及运行（上一轮） | 在 `yuqi` 的 `/tmp/dbrain-release-check` 构建；将 dist 复制到仓库外、使用临时数据库运行成功。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 桌面打包后端（上一轮）           | Linux x64 运行时准备及完整后端 smoke 通过：十种节点、关系、事件、Dashboard 冲突、附件/PDF/视频/HLS、退出清理和重启持久化。该检查验证后端，**不代表最新原生窗口或安装包通过**。                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-
-本轮验收后已用 `docker compose -p dbrain-ci ... down -v` 清理测试容器、网络与数据卷；原始日志保留在构建机 `/tmp/dbrain-container-up.log`、`/tmp/dbrain-container-smoke.log`。测试数据库为临时数据，未触碰用户实际数据库。
-
-## 4. 尚未闭合的发布门槛
-
-1. **Linux 原生窗口与安装验收。** 本次已重新生成 DEB/RPM/AppImage，并验证实际 DEB/AppImage 的离线后端；新 CSP 仍需原生窗口、实际安装/卸载、音视频播放和版本升级验收。RPM 本轮只验证生成与校验和，未运行其安装后环境；不能沿用此前 `.scratch` 旧包的 GUI 结论。
-2. **Windows/macOS。** Windows、macOS Intel 与 ARM64 的未签名完整候选构建及后端 smoke 已通过；签名代码未实际使用发行证书验收。仍需有效 Windows 签名凭据、Apple Developer ID 和公证凭据；必须完成原生窗口、安装卸载与升级验收。Windows/Linux ARM64 当前不在首版桌面矩阵内。
-3. **发行用第三方材料。** 运行时版本/哈希清单已经生成，但尚未完成全部 npm/Rust/Node/PocketBase/FFmpeg 及附带库的许可文本与对应源码材料打包。当前 macOS/Linux FFmpeg 供应还会随包管理器补丁变化；其来源与发布材料需要固定并验收。闭源 LICENSE 不替代这些组件的许可证。
-4. **已有多用户数据库的历史附件。** 初始匿名附件没有 owner；迁移只在单用户数据库中自动分配所有者。多用户库的未归属附件会被拒绝访问，需要发布前审核归属并制定迁移方案，不能猜测所有者或重新公开全部文件。历史无 workspaceId 数据同样需检查。
-5. **GitHub 启用与正式发布。** 工作流已合入主线，真实 CI、Linux 桌面与双架构 GHCR 链路已执行成功；首轮失败后的修复分支完整候选已成功且通过下载核验；私有内部测试草稿已上传并核验，尚未发布。环境保护、签名 Secrets、安装验收记录和发布批准仍需落实。应用内自动更新插件及 stable/beta 更新渠道本轮未实现。
-6. **门禁强度与遗留告警（新增记录）。** `@workspace/eslint-config` 中的 `eslint-plugin-only-warn` 会把规则降级为 warning，原始 `pnpm lint` 仍不能代表严格零错误。本次续建已让 CI 使用新增 `lint:gate` 阻止新增/增长的诊断，存量仍需逐步清理。此外全仓仍有 89 条历史 warning，`apps/web` 使用 Next 16 已弃用的 `middleware` 约定（应改为 `proxy`），生成的 `next-env.d.ts` 会在 dev/build 之间来回抖动造成 diff 噪音。这些不影响本次门禁结论，但应在发布前决定是否收紧。
-
-## 5. 建议下一步顺序
-
-审查合并 PR #16 → 使用已核验候选进行四平台原生 GUI/安装/升级内部测试 → 补齐第三方材料及历史数据迁移验收 → 配置发行签名、公证与环境审批 → 生成并验收同一提交的签名候选 → 批准正式发布。
-
-已推送平台修复并完成真实四平台构建与容器候选验证。未执行的签名、公证和 GUI/CSP 验收均未标为通过；没有生产部署或公开发行。本文其余早期阶段记录按各自当时状态保留。
-
-## 6. 参考
-
-- [Tauri GitHub 构建流水线](https://tauri.app/distribute/pipelines/github/)
-- [Tauri Windows 签名](https://tauri.app/distribute/sign/windows/)、[macOS 签名与公证](https://v2.tauri.app/distribute/sign/macos/)
-- [PocketBase API rules 与别名](https://pocketbase.io/docs/api-rules-and-filters/)、[JavaScript 事件 hooks](https://pocketbase.io/docs/js-event-hooks/)
-- [Docker 多架构构建](https://docs.docker.com/build/ci/github-actions/multi-platform/)
-- [Next.js：useSearchParams 需要 Suspense 边界](https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout)
-- [Compose networks 的 internal 选项](https://docs.docker.com/reference/compose-file/networks/#internal)
+旧验证日志已从当前 docs 树移除，历史证据可从本次文档重建之前的 Git 提交读取。新的验收资料应保留明确来源、平台与版本，不把不同 commit 或 attempt 的检查结果合并声明为同一候选通过。

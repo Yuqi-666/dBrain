@@ -1,37 +1,55 @@
 # dBrain
 
-dBrain 是包含 Web 与离线桌面端的知识工作空间。服务端使用 Node/PocketBase；桌面端使用 Tauri，并携带本地数据库、后端及媒体处理运行时。软件目前按闭源、保留全部权利发布；第三方组件遵循各自许可证。
+dBrain 是一个知识工作空间：用节点记录内容，用关系连接知识，用图谱和 Dashboard 组织工作。Web 端连接自托管服务，桌面端在设备上运行完整本地后端，支持离线使用。
 
-- [开发维护、自动构建与发布手册](docs/release-workflow.md)
-- [实际验收结果与剩余发布门槛](docs/release-readiness.md)
-- [桌面开发与运行时说明](apps/desktop/README.md)
+当前产品版本为 **0.1.0**，处于内部测试阶段。Linux x64、Windows x64、macOS Intel 和 Apple Silicon 已完成统一候选构建；签名、公证及各平台人工验收仍需完成。Linux 容器支持 amd64 / arm64。源码仓库与内测下载渠道目前均为私有。
 
-## 开发
+## 能做什么
 
-安装 `.node-version` 指定的 Node、pnpm 9.0.0；桌面开发还需要 `rust-toolchain.toml` 指定的 Rust，以及 desktop README 中的系统依赖和 FFmpeg。
+- 在工作空间中管理文本、富文本、图片、PDF、音视频、网页、网站、集合和数据库节点。
+- 用关系、语义和标签组织知识，在图谱中浏览和编辑。
+- 在 Dashboard 和数据视图中整理内容。
+- 桌面版携带 Node、PocketBase 和媒体处理运行时，用户无需安装开发工具。
 
-```sh
+桌面本地数据与 Web 服务端数据分别保存，当前没有云端同步和应用内自动更新。
+
+## 文档
+
+| 我想做什么 | 阅读入口 |
+| --- | --- |
+| 安装、开始使用、备份个人数据 | [使用手册](docs/usage.md) |
+| 配置开发环境、理解目录、修改和检查代码 | [开发手册](docs/development.md) |
+| 部署容器、监控、升级、备份和恢复 | [运维手册](docs/operations.md) |
+| 了解 CI、四端构建、签名和发布门禁 | [构建与发布](docs/release-workflow.md) |
+| 确认哪些已验证、哪些仍待验收 | [发布状态](docs/release-readiness.md) |
+
+完整索引见 [docs](docs/README.md)。CI 按改动范围运行，并缓存 pnpm、Next.js、Rust 依赖及 Docker 构建层；四端安装包与完整候选仍手动触发。
+
+## 开发快速开始
+
+准备 `.node-version` 指定的 Node 与 pnpm 9.0.0，并确保开发机有 FFmpeg / FFprobe。
+
+```bash
 pnpm install --frozen-lockfile
 node scripts/release/download-pocketbase.mjs
 cp .env.example .env
-# 在 .env 填写 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD
+# 编辑 .env，填写 DBRAIN_ADMIN_EMAIL 和 DBRAIN_ADMIN_PASSWORD
 pnpm dev:full
 ```
 
-默认 Web 地址为 `http://localhost:3000`，服务端端口为 3001，PocketBase 为 8090。开发数据库位于 `pb/pb_data`，启动器显式加载仓库 migrations/hooks；不会按当前 shell 目录另建数据库。`DBRAIN_PB_DATA_DIR`、`DBRAIN_PB_HTTP` 可覆盖开发数据库和监听地址；后端 `PB_URL` 需与自定义端口一致。
+打开 `http://localhost:3000`。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
 
-桌面开发入口为 `pnpm dev:desktop`，原生安装包入口为 `pnpm build:desktop`；必须在目标 OS/架构准备运行时。
+桌面开发还需要 Rust 和对应平台原生依赖，然后运行 `pnpm dev:desktop`。详细前提见开发手册。
 
-## 检查与构建
+## 技术结构
 
-```sh
-pnpm release:check
-pnpm check-types
-pnpm lint:gate
-pnpm test:release
-pnpm build
+Web 使用 Next.js / React，桌面使用 Tauri 2；两端共享界面、领域模型和应用服务。后端使用 Node 与 PocketBase，附件和数据库存放于服务端数据卷或桌面应用数据目录。
+
+```text
+apps/web、apps/desktop → packages（界面、状态、客户端）
+                      → apps/server → backend → PocketBase
 ```
 
-`lint:gate` 阻止新增 lint 诊断，存量诊断明确保留在基线；它不表示全仓严格 ESLint 零错误。独立后端与媒体集成验证使用 `pnpm smoke:server`，仅对隔离测试数据运行。
+## 授权
 
-CI 自动检查发往 main/develop 的非草稿 PR 与 main 提交，并按变更路径选择任务；文档改动只运行轻量分类。`Release candidate` 手动编排四平台桌面、两架构容器候选；`Publish accepted release` 依据逐平台验收记录和不可变 digest 发布。首次启用、签名 Secrets、审批、部署备份及恢复步骤见工作流手册。当前仍有原生平台和第三方材料等验收门槛，不能把工作流配置完成视为正式发行验收通过。
+本软件闭源，保留全部权利。使用与分发须依据权利人的单独书面授权，详见 [LICENSE](LICENSE)。第三方组件遵循各自许可证，其声明及所需源码材料应随发行提供。
