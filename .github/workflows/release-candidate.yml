@@ -47,7 +47,7 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
           node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate
           echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: candidate-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-artifacts/candidate/
