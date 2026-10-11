@@ -2,14 +2,19 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    # 首版发布期间暂停常规升级；恢复时调回上限并按生态分组。
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
   - package-ecosystem: cargo
     directory: /apps/desktop/src-tauri
+    # 首版发布期间暂停常规升级；恢复时调回上限并按生态分组。
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: github-actions
     directory: /
+    # 首版发布期间暂停常规升级；恢复时调回上限并按生态分组。
+    open-pull-requests-limit: 0
     schedule:
       interval: monthly
