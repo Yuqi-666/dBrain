@@ -17,6 +17,12 @@ export HTTPS_PROXY=${GIT_PROXY:-}
 export HTTP_PROXY=${GIT_PROXY:-}
 git_command() { timeout 120 git -c credential.helper=store "$@"; }
 docker_command() { sudo -n docker "$@"; }
+public_health() {
+  if curl --fail --silent --show-error --max-time 20 "$PUBLIC_ORIGIN/health" >/dev/null; then return 0; fi
+  # Optional operator-configured TLS-preserving fallback for local DNS outages.
+  [[ -n "${PUBLIC_RESOLVE:-}" ]] || return 1
+  curl --noproxy '*' --resolve "$PUBLIC_RESOLVE" --fail --silent --show-error --max-time 20 "$PUBLIC_ORIGIN/health" >/dev/null
+}
 mirror="$STATE_ROOT/repository.git"
 if [[ ! -d "$mirror" ]]; then
   git init --bare "$mirror"
@@ -30,8 +36,9 @@ if [[ "$commit" == "$old" ]]; then
     (cd "$DEPLOY_ROOT" && docker_command compose -p dbrain -f docker-compose.yml -f compose.host.yml up -d --no-build --wait --wait-timeout 180 gateway)
     docker_command exec dbrain-gateway-1 nginx -t
     docker_command exec dbrain-gateway-1 nginx -s reload
-    curl --fail --silent --show-error --max-time 20 "$PUBLIC_ORIGIN/health" >/dev/null
+    public_health
     rm -f "$STATE_ROOT/needs-ingress"
+    printf '%s\n' "$commit" > "$STATE_ROOT/last-success"
     echo "INGRESS_RECOVERED $commit"
   fi
   echo "UNCHANGED main=$commit"
@@ -57,7 +64,7 @@ done
 tag="auto-$commit"
 source_dir="$STATE_ROOT/build-$commit"
 mkdir -p "$source_dir"
-git --git-dir="$mirror" archive "$commit" | tar -xf - -C "$source_dir"
+(umask 022; git --git-dir="$mirror" archive "$commit" | tar -xf - -C "$source_dir")
 echo "BUILD old=$old candidate=$commit"
 for service in pocketbase server web; do
   case "$service" in
@@ -68,6 +75,30 @@ for service in pocketbase server web; do
   timeout --kill-after=30 1800 sudo -n docker build \
     -f "$source_dir/$dockerfile" -t "dbrain-local-$service:$tag" "$source_dir"
 done
+# Exercise the real PB entrypoint as its configured non-root user before any
+# production stop. A private tmpfs database cannot touch live data or ingress.
+probe="dbrain-preflight-${commit:0:12}"
+uid=$(docker_command run --rm --network none --entrypoint id "dbrain-local-pocketbase:$tag" -u)
+gid=$(docker_command run --rm --network none --entrypoint id "dbrain-local-pocketbase:$tag" -g)
+docker_command run -d --name "$probe" --network none \
+  --tmpfs "/pb_data:uid=$uid,gid=$gid,mode=0750" \
+  -e DBRAIN_ADMIN_EMAIL=preflight@example.test \
+  -e "DBRAIN_ADMIN_PASSWORD=preflight-$commit" "dbrain-local-pocketbase:$tag" >/dev/null
+probe_ready=0
+for attempt in {1..30}; do
+  if docker_command exec "$probe" curl -fsS http://127.0.0.1:8090/api/health >/dev/null 2>&1; then
+    probe_ready=1
+    break
+  fi
+  sleep 1
+done
+if (( ! probe_ready )); then
+  docker_command logs --tail 30 "$probe" || true
+  docker_command rm -f "$probe" >/dev/null
+  echo "PocketBase preflight failed before production stop" >&2
+  exit 1
+fi
+docker_command rm -f "$probe" >/dev/null
 git_command --git-dir="$mirror" fetch --quiet origin +refs/heads/main:refs/heads/main
 if [[ "$(git --git-dir="$mirror" rev-parse refs/heads/main)" != "$commit" ]]; then
   rm -rf -- "$source_dir"
@@ -94,7 +125,7 @@ apply_source() {
   while IFS= read -r -d '' path; do
     rm -f -- "$DEPLOY_ROOT/$path"
   done < <(git --git-dir="$mirror" diff --name-only --diff-filter=D -z "$1" "$2")
-  git --git-dir="$mirror" archive "$2" | tar -xf - -C "$DEPLOY_ROOT"
+  (umask 022; git --git-dir="$mirror" archive "$2" | tar -xf - -C "$DEPLOY_ROOT")
 }
 rollback() {
   echo "ROLLBACK candidate=$commit restoring=$old"
@@ -102,8 +133,8 @@ rollback() {
   # The old image is available locally and is only used to mount the stopped volume.
   rollback_image=$(head -1 "$backup/old-images.txt")
   docker_command run --rm --network none --user 0 --entrypoint sh \
-    -v "$volume:/pb_data" -v "$backup/data:/restore:ro" "$rollback_image" \
-    -c 'set -e; find /pb_data -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; cp -a /restore/. /pb_data/' || return 1
+    -v "$volume:/pb_data" -v "$backup:/restore:ro" "$rollback_image" \
+    -c 'set -e; tar -tf /restore/data.tar >/dev/null; find /pb_data -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; tar --numeric-owner -xpf /restore/data.tar -C /pb_data' || return 1
   apply_source "$commit" "$old" || return 1
   cp "$backup/compose.host.yml" "$backup/docker-compose.yml" "$backup/DEPLOYED_COMMIT" "$backup/DEPLOYMENT_IMAGES.txt" "$DEPLOY_ROOT/" || return 1
   compose up -d --no-build --wait --wait-timeout 180 || return 1
@@ -134,7 +165,10 @@ trap 'exit 130' INT
 stopped=1
 compose stop
 # If backup fails, restart the old services; no source or database was changed.
-if ! docker_command cp dbrain-pocketbase-1:/pb_data/. "$backup/data"; then
+backup_image=$(head -1 "$backup/old-images.txt")
+if ! docker_command run --rm --network none --user 0 --entrypoint sh \
+  -v "$volume:/snapshot:ro" -v "$backup:/backup" "$backup_image" \
+  -c 'set -e; umask 077; tar --numeric-owner -cpf /backup/data.tar -C /snapshot .; tar -tf /backup/data.tar >/dev/null'; then
   compose up -d --no-build --wait --wait-timeout 180
   stopped=0
   exit 1
@@ -172,13 +206,15 @@ mv DEPLOYED_COMMIT.tmp DEPLOYED_COMMIT
 docker_command inspect dbrain-pocketbase-1 dbrain-server-1 dbrain-web-1 dbrain-gateway-1 \
   --format '{{.Name}} {{.Config.Image}} {{.Image}} {{if .State.Health}}{{.State.Health.Status}}{{end}} {{.HostConfig.RestartPolicy.Name}}' > DEPLOYMENT_IMAGES.txt
 printf '\nAuto-deployed %s UTC: %s; backup: %s\n' "$(date -u +%FT%TZ)" "$commit" "$backup" >> OPERATIONS.local.md
-printf '%s\n' "$commit" > "$STATE_ROOT/last-success"
 rm -f "$STATE_ROOT/failed-commit"
 compose up -d --no-build --wait --wait-timeout 180 gateway
 docker_command exec dbrain-gateway-1 nginx -t
 docker_command exec dbrain-gateway-1 nginx -s reload
 # An external TLS failure is reported for investigation, without discarding new user writes.
-curl --fail --silent --show-error --max-time 20 "$PUBLIC_ORIGIN/health" >/dev/null
+public_health
 rm -f "$STATE_ROOT/needs-ingress"
+printf '%s\n' "$commit" > "$STATE_ROOT/last-success"
+docker_command inspect dbrain-pocketbase-1 dbrain-server-1 dbrain-web-1 dbrain-gateway-1 \
+  --format '{{.Name}} {{.Config.Image}} {{.Image}} {{if .State.Health}}{{.State.Health.Status}}{{end}} {{.HostConfig.RestartPolicy.Name}}' > DEPLOYMENT_IMAGES.txt
 rm -rf -- "$source_dir"
 echo "DEPLOYED $commit backup=$backup"

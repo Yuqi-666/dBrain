@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,statSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {execFileSync,spawnSync} from 'node:child_process';
@@ -19,13 +19,15 @@ function fixture() {
  writeFileSync(join(repo,'marker'),'new');git('add','.');git('commit','-qm','new');const latest=git('rev-parse','HEAD');
  writeFileSync(join(bin,'sudo'),'#!/bin/bash\nshift\nexec "$@"\n',{mode:0o755});
  writeFileSync(join(bin,'curl'),'#!/bin/bash\nexit 0\n',{mode:0o755});
+ writeFileSync(join(bin,'sleep'),'#!/bin/bash\nexit 0\n',{mode:0o755});
  writeFileSync(join(bin,'docker'),`#!/bin/bash
 printf '%s\\n' "$*" >> "$DOCKER_LOG"
 case "$1" in
  build) [[ "$FAIL_PHASE" != build ]] ;;
  inspect) case "$*" in *Mounts*) echo test_volume ;; *'.Image}}'*) echo old_image ;; *) echo healthy ;; esac ;;
- cp) mkdir -p "$3"; echo snapshot > "$3/data.db" ;;
+ cp) [[ "$2" == -a ]] && shift; mkdir -p "$3"; echo snapshot > "$3/data.db" ;;
  compose) if [[ "$FAIL_PHASE" == switch && "$*" == *'up -d'*'pocketbase server web'* ]]; then exit 1; fi ;;
+ exec) if [[ "$FAIL_PHASE" == preflight && "$2" == dbrain-preflight-* ]]; then exit 1; fi ;;
  run) if [[ "$*" == *'/restore'* ]]; then echo restored >> "$DOCKER_LOG"; fi ;;
  esac
 `,{mode:0o755});
@@ -35,11 +37,14 @@ case "$1" in
 }
 
 test('auto deployment updates source and metadata, then skips unchanged main',()=>{
- const f=fixture();try {const r=f.run();assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(readFileSync(join(f.deploy,'marker'),'utf8'),'new');assert.equal(readFileSync(join(f.deploy,'DEPLOYED_COMMIT'),'utf8').trim(),f.latest);const before=readFileSync(f.log,'utf8');const unchanged=f.run();assert.equal(unchanged.status,0,unchanged.stderr);assert.match(unchanged.stdout,/UNCHANGED/);assert.equal(readFileSync(f.log,'utf8'),before);}finally{f.close();}
+ const f=fixture();try {const r=f.run();assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(readFileSync(join(f.deploy,'marker'),'utf8'),'new');assert.equal(statSync(join(f.deploy,'marker')).mode & 0o777,0o644);assert.equal(readFileSync(join(f.deploy,'DEPLOYED_COMMIT'),'utf8').trim(),f.latest);const before=readFileSync(f.log,'utf8');assert.match(before,/tar --numeric-owner -cpf/);const unchanged=f.run();assert.equal(unchanged.status,0,unchanged.stderr);assert.match(unchanged.stdout,/UNCHANGED/);assert.equal(readFileSync(f.log,'utf8'),before);}finally{f.close();}
 });
 test('failed build never stops production services or retries the same broken commit',()=>{
  const f=fixture();try {const r=f.run('build');assert.notEqual(r.status,0);assert.equal(readFileSync(join(f.deploy,'DEPLOYED_COMMIT'),'utf8').trim(),f.old);const before=readFileSync(f.log,'utf8');assert.doesNotMatch(before,/compose .* stop/);const retry=f.run();assert.equal(retry.status,0,retry.stderr);assert.match(retry.stdout,/BLOCKED/);assert.equal(readFileSync(f.log,'utf8'),before);}finally{f.close();}
 });
 test('failed service switch restores the snapshot, source and old configuration',()=>{
  const f=fixture();try {const r=f.run('switch');assert.notEqual(r.status,0);assert.match(r.stdout,/ROLLBACK_COMPLETE/);assert.equal(readFileSync(join(f.deploy,'marker'),'utf8'),'old');assert.equal(readFileSync(join(f.deploy,'compose.host.yml'),'utf8'),'old host config\n');assert.equal(readFileSync(join(f.deploy,'DEPLOYED_COMMIT'),'utf8').trim(),f.old);assert.match(readFileSync(f.log,'utf8'),/restored/);}finally{f.close();}
+});
+test('failed real-entrypoint preflight never stops production services',()=>{
+ const f=fixture();try {const r=f.run('preflight');assert.notEqual(r.status,0);assert.match(r.stderr,/preflight failed before production stop/);assert.equal(readFileSync(join(f.deploy,'DEPLOYED_COMMIT'),'utf8').trim(),f.old);assert.doesNotMatch(readFileSync(f.log,'utf8'),/compose .* stop/);}finally{f.close();}
 });
