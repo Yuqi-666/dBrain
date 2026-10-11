@@ -67,6 +67,9 @@ jobs:
           DBRAIN_IMAGE_PREFIX: dbrain-ci
           DBRAIN_VERSION: test
           DBRAIN_PORT: "13080"
+      - name: Install media fixture dependency
+        # The smoke client creates media fixtures outside the containers.
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Verify container runtime and browser endpoints
         run: node scripts/release/server-smoke.mjs
         env:
