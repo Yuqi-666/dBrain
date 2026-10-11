@@ -1,5 +1,6 @@
 /** Exercise the packaged backend outside the checkout, with a fresh device database. */
 import { pdfFixture } from "../../../scripts/lib/smoke-fixtures.mjs";
+import { stopRuntimeChild } from "../../../scripts/lib/stop-runtime-child.mjs";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -7,7 +8,6 @@ import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { once } from "node:events";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const requireClient = createRequire(join(root, "packages/api-client/package.json"));
@@ -32,7 +32,7 @@ async function start() {
   child.stderr.on("data", chunk => { logs += chunk; });
   child.on("error", error => { logs += error.message; });
   for (let attempt = 0; attempt < 450; attempt++) {
-    if (child.exitCode !== null) throw new Error(`Backend stopped: ${logs}`);
+    if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Backend stopped (${child.exitCode ?? child.signalCode}): ${logs}`);
     try { descriptor = JSON.parse(await readFile(readyFile, "utf8")); break; } catch { await pause(100); }
   }
   assert.ok(descriptor, "runtime ready");
@@ -41,11 +41,9 @@ async function start() {
 }
 async function stop() {
   ws?.close();
-  if (child && child.exitCode === null) {
-    const exit = once(child, "exit");
-    child.stdin.end("shutdown\n");
-    await Promise.race([exit, pause(5000).then(() => { if (child.exitCode === null) child.kill("SIGKILL"); })]);
-    assert.equal(child.exitCode, 0, logs);
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const [code, signal] = await stopRuntimeChild(child);
+    assert.equal(code, 0, `Backend shutdown ${signal ?? code}: ${logs}`);
   }
   descriptor = undefined;
 }
