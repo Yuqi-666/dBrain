@@ -47,6 +47,7 @@ const MenuItemButton = ({
   children: React.ReactNode;
 }) => (
   <button
+    type="button"
     onClick={onClick}
     className={cn(
       "group/menu-item relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none",
@@ -102,10 +103,10 @@ export function UploadMenu({
   }, [onClose]);
 
   const handleLocalUpload = () => {
+    // Open while the click still has browser user activation and the input is
+    // mounted. Closing first can unmount it before a deferred click runs.
+    fileInputRef.current?.click();
     closeMenu();
-    setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 0);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,6 +222,7 @@ export function UploadMenu({
         type="file"
         accept={accept}
         onChange={handleFileChange}
+        onClick={(event) => event.stopPropagation()}
         className="hidden"
       />
 

@@ -10,6 +10,18 @@
 const TOKEN_COOKIE = "pb_token";
 const MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
+/** Read the current web session, including renewals and logout in another tab. */
+export function readAuthSessionToken(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(/(?:^|;\s*)pb_token=([^;]*)/);
+  if (!match?.[1]) return undefined;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return undefined;
+  }
+}
+
 function secureAttribute(): string {
   // Only add `Secure` on HTTPS/CORS origins. Local dev runs over http://localhost.
   return typeof window !== "undefined" && window.location.protocol === "https:"

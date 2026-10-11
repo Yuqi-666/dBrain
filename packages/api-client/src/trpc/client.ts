@@ -12,26 +12,16 @@ import {
   setAuthSession,
   clearAuthSession,
   decodeJwtPayload,
+  readAuthSessionToken,
 } from "../auth/session";
 import { resolveBackendUrls } from "../backend-urls";
 import { getDesktopBackend } from "../desktop-backend";
 
 const isDesktop = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop";
 
-function readToken(): string | undefined {
-  if (typeof document === "undefined") {
-    return undefined;
-  }
-  const match = document.cookie.match(/pb_token=([^;]+)/);
-  if (!match?.[1]) {
-    return undefined;
-  }
-  return decodeURIComponent(match[1]);
-}
-
 function getConnectionParams() {
   const sourceId = useSourceIdStore.getState().getSourceId();
-  const token = isDesktop ? getDesktopBackend().token : readToken();
+  const token = isDesktop ? getDesktopBackend().token : readAuthSessionToken();
   const params: { token?: string; sourceId: string } = { sourceId };
   if (token) {
     params.token = token;

@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import type { IAttachment } from "@workspace/interfaces";
 import { getPocketbaseClient } from "./pocketbase-client";
+import { readAuthSessionToken } from "./auth/session";
 
 /**
  * PocketBase collection that every uploaded blob lands in.
@@ -155,7 +156,11 @@ export function resolveFileUrl(src?: string | null): string {
   }
   if (!base) return src;
 
-  return `${base.replace(/\/+$/, "")}${src.startsWith("/") ? "" : "/"}${src}`;
+  // Stored gateway paths must not duplicate /pb or retain an old desktop
+  // session prefix when resolved against the active backend.
+  const path = src.replace(/^\/pb(?=\/api\/files\/)/, "")
+    .replace(/^\/session\/[a-f0-9]+(?=\/api\/files\/)/, "");
+  return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 function buildUploadUrl(
@@ -281,9 +286,12 @@ export const uploadAttachment = (
       pb.buildUrl(`/api/collections/${FILES_COLLECTION}/records`).toString(),
     );
 
-    // PocketBase accepts the raw token in the `Authorization` header. The
-    // The files collection requires authentication and records ownership.
-    const token = pb.authStore?.token;
+    // Web login uses the session cookie; desktop initializes the PB auth store.
+    // Read the web cookie for every upload so renewal/logout cannot leave a
+    // stale SDK token in use. PB requires Authorization for record creation.
+    const token = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop"
+      ? pb.authStore?.token
+      : readAuthSessionToken();
     if (token) xhr.setRequestHeader("Authorization", token);
 
     xhr.send(formData);

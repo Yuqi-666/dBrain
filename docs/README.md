@@ -9,6 +9,7 @@
 | [使用手册](usage.md) | 安装、账号与数据、工作空间、图谱、Dashboard、升级 |
 | [构建与发布](release-workflow.md) | CI 触发范围、单平台诊断、统一候选、签名、公证与发行 |
 | [发布状态](release-readiness.md) | 已验证边界与正式发行前仍需完成的项目 |
+| [PocketBase 连接审查](pocketbase-connections.md) | 各端连接入口、身份与文件链路、修复及验证边界 |
 
 ## 文档维护
 
