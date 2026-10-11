@@ -2,9 +2,23 @@
 
 日期：2026-10-11（UTC）。范围：当前工作区修复、已完成的验证和未闭合的发布门槛。
 
-**结论：全仓 lint 与完整容器验收的既有门槛已闭合；本次续建已补齐开发维护、统一候选构建、来源/校验核验及验收驱动发布流程。Linux 原生程序和 DEB/RPM/AppImage 已生成，实际 DEB/AppImage 的完整离线后端验收通过。软件仍未满足全部正式发布条件**：原生 GUI/CSP 与安装升级验收、Windows/macOS 与签名公证、第三方发行材料、历史数据迁移、真实 GitHub 候选与发行验收仍未完成。
+**结论：首版完整未签名候选已在真实 GitHub runner 通过。** 同一提交 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7` 的四平台桌面、双架构容器和最终汇总全部成功；下载后独立核验七个安装包、三个多架构镜像引用及全部文件校验和。按用户决定，先使用当前私有仓库进行内部测试，已创建[私有内部测试草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596)（未发布），九个资产上传后的服务器 SHA256 和大小均核对通过。正式发行仍待原生 GUI/CSP、安装卸载与升级、签名公证、第三方材料、历史数据恢复及发行批准；自动化后端 smoke 不替代这些验收。修复 [PR #16](https://github.com/Yuqi-666/dBrain/pull/16) 尚未合并。
 
-上一阶段改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
+早期阶段记录（后续远端执行见下节）：改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
+
+## 首轮统一候选与平台修复（2026-10-11）
+
+PR #1 已合并到 `main`（`a600b25`）。首轮 [统一候选 run 38120933333](https://github.com/Yuqi-666/dBrain/actions/runs/38120933333) 使用该提交、attempt 1、未签名模式，整体失败，**没有生成统一候选**；质量门禁、Linux 桌面全流程、双架构容器构建/smoke/GHCR 推送/多架构合并均成功。Linux 三种安装包 artifact 已上传，DEB/AppImage 提取验收及 Rust 测试通过。首轮镜像不可直接认定为整版发行已验收。证据：`docs/release-validation/first-candidate-summary.txt`、`first-candidate-containers.json`。
+
+实际执行暴露并修复：Windows CRLF 导致 Cargo.lock 误报、`pocketbase.exe` 版本输出差异及裸盘符动态 ESM 导入；macOS canvas 的 LC_ID_DYLIB 上游路径被误收集、SDL2 兼容层通过 dlopen 加载的 SDL3 漏带，以及未签名构建传入空身份导致 Tauri 错误签名。Intel 生命周期验收还暴露旧退出计时器误杀新实例的竞态，已改为捕获当前进程、等待实际退出并取消计时器；强杀仍不能通过正常退出断言。补充回归后 **23 项通过**。
+
+Windows [单目标 run 38122597418](https://github.com/Yuqi-666/dBrain/actions/runs/38122597418) 和 macOS ARM64 [run 38123411140](https://github.com/Yuqi-666/dBrain/actions/runs/38123411140) 已全部成功：完整离线后端 smoke、Rust 测试、原生程序/安装包构建及收集上传。证据：`windows-native-diagnostic.txt`、`macos-arm64-native-diagnostic.txt`。它们对应各自诊断源码，不能互相拼接成统一候选。随后完整候选已覆盖 Intel 生命周期修复与打包；这些结果不代表原生 GUI、实际安装卸载/升级或发行签名公证通过。
+
+修复集中于 [PR #16](https://github.com/Yuqi-666/dBrain/pull/16)，尚未合并。修复分支 `c9f4b76` 的 [完整候选 run 38123782093](https://github.com/Yuqi-666/dBrain/actions/runs/38123782093)、attempt 1 已全部成功：质量门禁、四个桌面目标、amd64/arm64 容器、镜像合并与候选汇总通过。候选下载后，独立验证其来源、每个平台的清单与全部文件 SHA256；证据见 `docs/release-validation/unified-candidate-verification.txt`。候选索引 SHA256：`18e128476a7e131c21850a130fcfab588c1fa4a1834b3c199809a4976b885e78`。七个安装包均未签名，报告的 `distributionReady` 为 false，验收模板各项保留 pending。桌面诊断现在支持单目标、独立并发与明确超时，统一候选仍要求全部目标。
+
+[私有内部测试草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596) 的内部构建标记为 `candidate-38123782093`，不是正式版本标签 `v0.1.0`。四个平台 ZIP、容器部署 ZIP、来源索引、待验收模板、说明及 SHA256SUMS 共九个资产已上传，服务器 hash/大小全部匹配。证据：`docs/release-validation/internal-draft-verification.txt`、`unified-candidate-containers.json`。草稿尚未发布；当前仓库为私有，仅按内部授权访问。
+
+按用户要求，`main` 的 `62f00ef` 暂停 npm/cargo/Actions 的常规 Dependabot 更新；取消六个活跃机器人 CI，保留十四个升级 PR。安全更新不受常规版本上限影响。当前 `candidate` 环境已存在，但没有保护规则/分支限制；`release` 环境、签名 Secrets 与发行审批配置仍待落实。
 
 ## 首版合并前复审（2026-10-11，基于 `5f8dd83`）
 
@@ -18,7 +32,7 @@
 
 用户配置 GitHub CLI 认证后，已核验私有仓库 `Yuqi-666/dBrain`；默认分支为 `main`，当前工作分支为 `develop`。`2d2eb1b` 已由用户推送。首次真实 [CI run 38110711790](https://github.com/Yuqi-666/dBrain/actions/runs/38110711790) 的容器启动、生产 Web、数据权限及媒体鉴权检查通过，但媒体样本生成报 `spawnSync ffmpeg ENOENT`：测试客户端在 runner 生成样本，容器内的 FFmpeg 不能满足该依赖。`4dd0ff6` 在 CI containers 与原生容器候选任务显式安装 runner FFmpeg，并已提交/推送重验。
 
-统一候选手动启动实际返回 404，因 `release-candidate.yml` 尚未存在于默认分支。`develop` 比 `main` 领先 217 个提交，已创建 [草稿 PR #1](https://github.com/Yuqi-666/dBrain/pull/1) 供审查整合范围；用户随后要求取消 PR 并进行最后手动检查，PR #1 已关闭且未合并；保留验证报告，没有更改默认分支，统一候选执行暂缓。Actions 已开启，默认 token 权限为 read；工作流按 job 显式申请所需权限。当前没有已配置的 environment 或仓库 Secret 名称返回，签名和环境保护仍待配置。以下旧阶段的“未推送/未运行”描述仅反映各阶段当时状态；本节为最新远端状态。
+统一候选手动启动实际返回 404，因 `release-candidate.yml` 尚未存在于默认分支。`develop` 比 `main` 领先 217 个提交，已创建 [草稿 PR #1](https://github.com/Yuqi-666/dBrain/pull/1) 供审查整合范围；用户随后要求取消 PR 并进行最后手动检查，PR #1 已关闭且未合并；保留验证报告，没有更改默认分支，统一候选执行暂缓。Actions 已开启，默认 token 权限为 read；工作流按 job 显式申请所需权限。当前没有已配置的 environment 或仓库 Secret 名称返回，签名和环境保护仍待配置。以下旧阶段的“未推送/未运行”描述仅反映各阶段当时状态；本节保留该阶段远端状态；最新结果见本文开头。
 
 修复后的 [develop CI run 38111650383](https://github.com/Yuqi-666/dBrain/actions/runs/38111650383) 已完成，`check` 与 `containers` 均为 **success**；工作流静态检查、20 包类型/lint 增量门禁、13 项回归、独立 server 和桌面后端 smoke、Web 生产构建及完整容器 smoke 在真实 GitHub runner 通过。证据：`docs/release-validation/github-ci.txt`。[PR CI run 38111690205](https://github.com/Yuqi-666/dBrain/actions/runs/38111690205) 也已完成，两个 job 均 success，验证与 main 的合并结果可构建。PR 已按用户要求关闭，未合并。这不代表四平台候选或正式发布验收通过。
 
@@ -92,17 +106,17 @@ Linux 验收使用 `/tmp/dbrain-release-check` 和 `DBRAIN_GIT_SHA=local-workflo
 ## 4. 尚未闭合的发布门槛
 
 1. **Linux 原生窗口与安装验收。** 本次已重新生成 DEB/RPM/AppImage，并验证实际 DEB/AppImage 的离线后端；新 CSP 仍需原生窗口、实际安装/卸载、音视频播放和版本升级验收。RPM 本轮只验证生成与校验和，未运行其安装后环境；不能沿用此前 `.scratch` 旧包的 GUI 结论。
-2. **Windows/macOS。** 候选 workflow、动态库和签名代码尚未在对应平台执行。需要对应 runner、有效 Windows 签名凭据、Apple Developer ID 和公证凭据；必须验证安装、媒体播放、进程退出及升级。Windows/Linux ARM64 当前不在首版桌面矩阵内。
+2. **Windows/macOS。** Windows、macOS Intel 与 ARM64 的未签名完整候选构建及后端 smoke 已通过；签名代码未实际使用发行证书验收。仍需有效 Windows 签名凭据、Apple Developer ID 和公证凭据；必须完成原生窗口、安装卸载与升级验收。Windows/Linux ARM64 当前不在首版桌面矩阵内。
 3. **发行用第三方材料。** 运行时版本/哈希清单已经生成，但尚未完成全部 npm/Rust/Node/PocketBase/FFmpeg 及附带库的许可文本与对应源码材料打包。当前 macOS/Linux FFmpeg 供应还会随包管理器补丁变化；其来源与发布材料需要固定并验收。闭源 LICENSE 不替代这些组件的许可证。
 4. **已有多用户数据库的历史附件。** 初始匿名附件没有 owner；迁移只在单用户数据库中自动分配所有者。多用户库的未归属附件会被拒绝访问，需要发布前审核归属并制定迁移方案，不能猜测所有者或重新公开全部文件。历史无 workspaceId 数据同样需检查。
-5. **GitHub 启用与正式发布。** 工作流还没有推送/运行；环境保护、签名 Secrets、正式发布说明、安装验收记录和发布批准仍需落实。应用内自动更新插件及 stable/beta 更新渠道本轮未实现。
+5. **GitHub 启用与正式发布。** 工作流已合入主线，真实 CI、Linux 桌面与双架构 GHCR 链路已执行成功；首轮失败后的修复分支完整候选已成功且通过下载核验；私有内部测试草稿已上传并核验，尚未发布。环境保护、签名 Secrets、安装验收记录和发布批准仍需落实。应用内自动更新插件及 stable/beta 更新渠道本轮未实现。
 6. **门禁强度与遗留告警（新增记录）。** `@workspace/eslint-config` 中的 `eslint-plugin-only-warn` 会把规则降级为 warning，原始 `pnpm lint` 仍不能代表严格零错误。本次续建已让 CI 使用新增 `lint:gate` 阻止新增/增长的诊断，存量仍需逐步清理。此外全仓仍有 89 条历史 warning，`apps/web` 使用 Next 16 已弃用的 `middleware` 约定（应改为 `proxy`），生成的 `next-env.d.ts` 会在 dev/build 之间来回抖动造成 diff 噪音。这些不影响本次门禁结论，但应在发布前决定是否收紧。
 
 ## 5. 建议下一步顺序
 
-真实 GitHub 统一候选执行 → Linux CSP/安装/升级原生验收 → Windows/macOS 候选构建与签名、公证验收 → 补齐第三方发行材料及历史数据迁移 → 生成同一 commit 的候选产物 → 批准正式发布。
+审查合并 PR #16 → 使用已核验候选进行四平台原生 GUI/安装/升级内部测试 → 补齐第三方材料及历史数据迁移验收 → 配置发行签名、公证与环境审批 → 生成并验收同一提交的签名候选 → 批准正式发布。
 
-为保持边界清楚，未执行的签名流程、CSP 或平台构建均未被标为“已验证”；也未进行推送、生产部署或公开发行。
+已推送平台修复并完成真实四平台构建与容器候选验证。未执行的签名、公证和 GUI/CSP 验收均未标为通过；没有生产部署或公开发行。本文其余早期阶段记录按各自当时状态保留。
 
 ## 6. 参考
 

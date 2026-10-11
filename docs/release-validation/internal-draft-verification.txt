@@ -1,0 +1,16 @@
+Private internal test draft; published=false
+URL: https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596
+Release ID: 409547589
+Tag: candidate-38123782093
+Source: c9f4b7646e73a4255e1e85b1724535297ccdf3f7
+PASS nine uploaded assets: server SHA256 and sizes match verified local files
+4594e0b408883aa7dfb64c07dde3d34d0eca43e9267e3fb3cb529c742a1d887a  INTERNAL-TESTING.md  1004 bytes
+3586c191b5d31ad2f4d9dc44e94934e00b756beec793e3e9a482598f9a974c18  SHA256SUMS  669 bytes
+dabffa1b9799ed2d63a9b01b706818fa8e1e4b048b6c47712d0e2091a9e66f09  acceptance-template.json  2715 bytes
+18e128476a7e131c21850a130fcfab588c1fa4a1834b3c199809a4976b885e78  candidate-index.json  3283 bytes
+250c09f3465c21b43bda3230e0c066a4da386a4999736b25b0a85463b042dfdc  darwin-arm64.zip  117318720 bytes
+363a6b52633173734e8a8d1b22940530853ba9507e551301db214f50e1aa6ec4  darwin-x64.zip  125039476 bytes
+1d837ef1bcbb0a47f610923ab3239ff7baf9e4b537a1b6a4cd5c58e407ac4569  deployment.zip  5892 bytes
+36b2aad0b5248545c01e757035da561c87ce26f7b8c71e19979532b09f3ea8b8  linux-x64.zip  574311922 bytes
+ae32fbf11b8b6c68966ff94976484e2aeaf472cd754bebba2ca83237405ba847  win32-x64.zip  245489992 bytes
+Unsigned; pending acceptance unchanged. Repair PR #16 not merged. No formal release approval.
