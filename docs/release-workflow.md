@@ -50,6 +50,20 @@ gh cache list --repo Yuqi-666/dBrain --limit 100
 
 需要整体失效时，审查修改 next-v1、dbrain-rust-v1 或 dbrain-v1 前缀，不将通过状态写成缓存。参考 [Next.js 缓存](https://nextjs.org/docs/app/guides/ci-build-caching)、[Docker GHA 缓存](https://docs.docker.com/build/cache/backends/gha/)、[Rust cache](https://github.com/Swatinem/rust-cache)。
 
+### 本轮实测记录
+
+2026-10-11，在同一主线提交 `669d047` 比较首次建立缓存和后续恢复缓存的运行：CI [首次 38137170910](https://github.com/Yuqi-666/dBrain/actions/runs/38137170910) / [后续 38137377705](https://github.com/Yuqi-666/dBrain/actions/runs/38137377705)，Linux 桌面 [首次 38137179585](https://github.com/Yuqi-666/dBrain/actions/runs/38137179585) / [后续 38138614904](https://github.com/Yuqi-666/dBrain/actions/runs/38138614904)。
+
+| 步骤 | 首次 | 后续 |
+| --- | --- | --- |
+| Web 构建 | 205 秒 | 111 秒 |
+| 三个 Docker 构建步骤合计 | 583 秒 | 38 秒 |
+| Linux Cargo 测试编译 | 271 秒 | 5 秒 |
+
+Web 日志确认同键缓存命中；PocketBase / Server / Web 分别出现 8 / 10 / 10 层 CACHED。数字是对应步骤耗时，首次 Docker 步骤含缓存导出，不是总 CI 时间或未来性能承诺。两次 CI 的全部质量与容器集成检查均通过；两次 Linux 桌面诊断均成功生成安装包并通过包内运行时检查，后续日志确认 Next.js 与 Rust 缓存恢复。
+
+本轮缓存实测范围为 amd64 常规 CI 和未签名 Linux x64 桌面；Windows、macOS、arm64 容器及签名模式已配置隔离策略，但本轮未分别重新运行缓存验证。
+
 ## 本地检查记录与远端结果复用
 
 当前没有“本地检查完成后 GitHub 自动跳过”的机制。可将本地日志保存为忽略的构建产物供排查，但提交一个 ci-passed 文件不能代替远端 CI：标记可修改，也无法证明工作树、依赖、OS 和工具版本与待审查提交一致。

@@ -11,7 +11,7 @@
 - 未签名产物已整理为私有内部测试 Release 草稿；验收模板保持 pending。
 - runner 收窄变更已合入 `d93283730f38dcb42158f1e0d040605f78f2d6da`。它不代表该 commit 已重新生成桌面包；上述候选仍绑定 c9f4b76。
 
-- 构建缓存已通过 [PR #18](https://github.com/Yuqi-666/dBrain/pull/18) 合入 main（669d047），远端 PR 质量与容器集成检查通过；新增 Next.js / Rust / Docker 缓存，未改变发布门禁。
+- 构建缓存已通过 [PR #18](https://github.com/Yuqi-666/dBrain/pull/18) 合入 main（669d047），远端 PR 质量与容器集成检查通过；新增 Next.js / Rust / Docker 缓存，未改变发布门禁。主线同提交的 CI 冷 / 热验证以及 Linux 桌面两轮诊断均通过，实际命中与耗时见构建发布手册。
 
 ## 正式发行前仍需完成
 
