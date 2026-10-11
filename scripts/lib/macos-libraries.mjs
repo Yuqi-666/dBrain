@@ -26,6 +26,7 @@ export async function bundleMacLibraries(
   await mkdir(libDir, { recursive: true });
   const seen = new Map(),
     names = new Map();
+  const extraSignTargets = new Set();
   async function inspect(source, target) {
     source = await realpath(source);
     if (seen.has(source)) return seen.get(source);
@@ -97,9 +98,28 @@ export async function bundleMacLibraries(
     ...nativeFiles.map((path) => [path, path]),
   ])
     await inspect(source, target);
+  // Homebrew's SDL2 compatibility layer dlopens SDL3, so otool -L cannot
+  // discover it. SDL2 searches @loader_path/libSDL3.dylib before host paths:
+  // ship that exact name beside SDL2 and collect/sign SDL3's real dependencies.
+  // https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c
+  if ([...seen.keys()].some(path => path.includes("/sdl2-compat/") && basename(path).startsWith("libSDL2"))) {
+    const prefix = execFileSync("brew", ["--prefix", "sdl3"], { encoding: "utf8", timeout: 30_000 }).trim();
+    const source = await realpath(join(prefix, "lib/libSDL3.dylib"));
+    const target = join(libDir, "libSDL3.dylib");
+    if (seen.has(source) && seen.get(source) !== target) {
+      // Preserve the loader-facing name even if a future linked dependency
+      // already collected SDL3 under its versioned filename.
+      await copyFile(seen.get(source), target);
+      await chmod(target, 0o755);
+      extraSignTargets.add(target);
+    } else if (!seen.has(source)) {
+      await copyFile(source, target);
+      await inspect(source, target);
+    }
+  }
   // install_name_tool invalidates existing signatures. Re-sign with the release
   // identity if configured, otherwise use ad-hoc signatures for local builds.
-  for (const target of [...seen.values()].sort((a, b) => b.length - a.length)) {
+  for (const target of [...new Set([...seen.values(), ...extraSignTargets])].sort((a, b) => b.length - a.length)) {
     execFileSync("codesign", [
       "--force",
       "--sign",
