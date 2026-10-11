@@ -1,8 +1,0 @@
-Environment: yuqi, /tmp/dbrain-release-check; isolated bundled dist and temporary database.
-Final source snapshot: dbrain-final-source.tar.gz (working tree, uncommitted).
-PASS fresh migrations, independent registration, scoped workspace reads/writes and anonymous denial
-PASS file ownership, cookie-authenticated media, Range, administration denial and Origin rejection
-PASS production PDF/native canvas, FFmpeg transcoding and same-origin HLS
-PASS cross-user node denial, event isolation, viewer permissions and membership revocation
-PASS concurrent login isolation and authorized workspace deletion
-Remote release regression tests: 7 passed, 0 failed.

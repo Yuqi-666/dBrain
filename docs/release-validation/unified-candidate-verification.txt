@@ -1,7 +1,0 @@
-PASS trusted candidate run 38123782093, attempt 1
-Source: c9f4b7646e73a4255e1e85b1724535297ccdf3f7
-Version: 0.1.0
-PASS four desktop targets, seven installers and three multiarch image references
-PASS every payload SHA256 matches candidate index and per-target checksums
-Candidate index SHA256: 18e128476a7e131c21850a130fcfab588c1fa4a1834b3c199809a4976b885e78
-Unsigned internal candidate; all formal acceptance remains pending.
