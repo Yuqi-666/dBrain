@@ -38,8 +38,17 @@ export interface BackendUrls {
   pocketbase: string;
 }
 
+// The `/trpc` path is part of the contract, not decoration: the server owns the
+// HTTP listener and performs the WebSocket upgrade itself, admitting only
+// `req.url === "/trpc"` (and rejecting anything else with a 403 handshake).
+// Every other shape already spells it out — `deploy/nginx.conf`'s
+// `location = /trpc`, the desktop runtime's `${base}/trpc`, and
+// `scripts/release/server-smoke.mjs`. A URL without it fails the handshake, and
+// because tRPC's ws client silently retries a rejected socket, the caller's
+// promise never settles: the app sits on its loading gate forever instead of
+// erroring.
 const LOOPBACK_URLS: BackendUrls = {
-  trpc: "ws://localhost:3001",
+  trpc: "ws://localhost:3001/trpc",
   pocketbase: "http://localhost:8090",
 };
 

@@ -4,6 +4,12 @@
     "../../tsconfig.workspace.json"
   ],
   "compilerOptions": {
+    // Restated from the root `tsconfig.workspace.json`: every `paths` value below
+    // is written relative to the repo root. Inheriting `baseUrl` through
+    // `extends` is enough for `tsc`, but Turbopack resolves the aliases inside
+    // `apps/web` unless this config declares it itself — which made `next dev`
+    // fail with "Module not found" on every aliased import.
+    "baseUrl": "../..",
     "plugins": [
       {
         "name": "next"
@@ -57,12 +63,6 @@
       ],
       "@workspace/dataview/*": [
         "packages/dataview/src/*"
-      ],
-      "@workspace/dev": [
-        "packages/dev/src/index.ts"
-      ],
-      "@workspace/dev/*": [
-        "packages/dev/src/*"
       ],
       "@workspace/editor": [
         "packages/editor/src"

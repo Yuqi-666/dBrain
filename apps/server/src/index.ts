@@ -7,22 +7,11 @@ import {
 } from "@workspace/adapter-front";
 import { verifyToken } from "@workspace/infrastructure";
 import { allowedFileRequest } from "./desktop/security";
+import { TRPC_PATH, sameOrigin } from "./origin";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
 const publicOrigin = process.env.DBRAIN_PUBLIC_ORIGIN;
-function sameOrigin(
-  origin: string | undefined,
-  host: string | undefined,
-): boolean {
-  if (!origin) return true; // CLI clients still need a valid token for protected operations.
-  if (publicOrigin) return origin === publicOrigin;
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
-}
 function cookieToken(cookie = ""): string {
   try {
     return decodeURIComponent(
@@ -63,7 +52,7 @@ async function main() {
       res.writeHead(404).end();
       return;
     }
-    if (!sameOrigin(req.headers.origin, req.headers.host)) {
+    if (!sameOrigin(req.headers.origin, req.headers.host, publicOrigin)) {
       res.writeHead(403).end();
       return;
     }
@@ -141,8 +130,8 @@ async function main() {
   });
   server.on("upgrade", (req, socket, head) => {
     if (
-      req.url?.split("?")[0] !== "/trpc" ||
-      !sameOrigin(req.headers.origin, req.headers.host)
+      req.url?.split("?")[0] !== TRPC_PATH ||
+      !sameOrigin(req.headers.origin, req.headers.host, publicOrigin)
     ) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
       return;

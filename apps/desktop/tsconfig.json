@@ -5,6 +5,10 @@
   ],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
+    // Declared here rather than inherited: Turbopack needs the app's own
+    // tsconfig to carry the repo-root `baseUrl` the `paths` values are written
+    // against, or `next dev` cannot resolve any alias. See `apps/web/tsconfig.json`.
+    "baseUrl": "../..",
     "paths": {
       "@workspace/adapter-back": [
         "backend/adapter-back/src"
@@ -53,12 +57,6 @@
       ],
       "@workspace/dataview/*": [
         "packages/dataview/src/*"
-      ],
-      "@workspace/dev": [
-        "packages/dev/src/index.ts"
-      ],
-      "@workspace/dev/*": [
-        "packages/dev/src/*"
       ],
       "@workspace/editor": [
         "packages/editor/src"
