@@ -25,7 +25,7 @@
     "@types/node": "^25.1.0",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
-    "concurrently": "^9.0.0",
+    "concurrently": "^10.0.5",
     "eslint": "^9.39.2",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
