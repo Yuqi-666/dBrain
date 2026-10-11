@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "tauri": "tauri"
+    "dev": "next dev -p 3002",
+    "build": "next build --webpack",
+    "lint": "eslint",
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build -- --locked",
+    "runtime:prepare": "node scripts/prepare-runtime.mjs"
   },
   "dependencies": {
     "@workspace/ui": "workspace:*",
@@ -15,19 +18,27 @@
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "@workspace/api-client": "workspace:*",
+    "@workspace/dataview": "workspace:*",
+    "@workspace/graph": "workspace:*",
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/store": "workspace:*",
+    "@workspace/editor": "workspace:*",
+    "@workspace/services": "workspace:*"
   },
   "devDependencies": {
-    "@workspace/eslint-config": "workspace:^",
-    "@workspace/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4",
     "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@workspace/eslint-config": "workspace:^",
+    "@workspace/typescript-config": "workspace:*",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "esbuild": "0.27.7"
   }
 }

@@ -1,0 +1,126 @@
+name: Container candidate build
+on:
+  workflow_call:
+permissions:
+  contents: read
+  packages: write
+  actions: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    environment: candidate
+    env:
+      # Disposable operator account for this isolated candidate smoke stack.
+      DBRAIN_ADMIN_EMAIL: ci@dbrain.invalid
+      DBRAIN_ADMIN_PASSWORD: ci-operator-password
+      DBRAIN_CONTAINER_ARCH: ${{ matrix.arch }}
+      DBRAIN_VERSION: candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+      DBRAIN_PORT: "13080"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.0.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Configure candidate image names and builder
+        shell: bash
+        run: |
+          echo "DBRAIN_IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          docker buildx create --name dbrain --use
+          docker buildx inspect --bootstrap
+      - name: Build native images
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in pocketbase server web; do
+            case "$service" in
+              pocketbase) dockerfile=deploy/pocketbase/Dockerfile ;;
+              server) dockerfile=apps/server/Dockerfile ;;
+              web) dockerfile=apps/web/Dockerfile ;;
+            esac
+            docker buildx build --load --platform "linux/$DBRAIN_CONTAINER_ARCH" \
+              --provenance=false --file "$dockerfile" \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --tag "$DBRAIN_IMAGE_PREFIX-$service:$DBRAIN_VERSION" .
+          done
+      - name: Install media fixture dependency
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Accept the built images before pushing
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -p dbrain-candidate -f docker-compose.yml -f deploy/compose.test.yml up --no-build --wait --wait-timeout 180
+          node scripts/release/server-smoke.mjs
+        env:
+          DBRAIN_SMOKE_SERVER_URL: http://127.0.0.1:13081
+          DBRAIN_SMOKE_PB_URL: http://127.0.0.1:13090
+          DBRAIN_SMOKE_WEB_URL: http://127.0.0.1:13080
+          DBRAIN_SMOKE_ADMIN_EMAIL: ci@dbrain.invalid
+          DBRAIN_SMOKE_ADMIN_PASSWORD: ci-operator-password
+      - name: Push tested candidate images
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          node scripts/release/container-images.mjs push
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: container-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-artifacts/containers/${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+      - if: failure()
+        run: docker compose -p dbrain-candidate -f docker-compose.yml -f deploy/compose.test.yml logs --tail=60
+      - if: always()
+        run: docker compose -p dbrain-candidate -f docker-compose.yml -f deploy/compose.test.yml down -v
+      - if: always()
+        run: docker logout ghcr.io
+  merge:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    environment: candidate
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Merge tested platform digests
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          export DBRAIN_IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY,,}"
+          for arch in amd64 arm64; do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "container-$arch-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming
+          done
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          node scripts/release/container-images.mjs merge incoming
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: containers-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-artifacts/containers/container-report.json
+          if-no-files-found: error
+          retention-days: 30
+      - if: always()
+        run: docker logout ghcr.io

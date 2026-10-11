@@ -1,0 +1,305 @@
+"use client";
+
+/**
+ * 填色 — conditional colours (`docs/propmt/dataview-table-1.md` §填色).
+ *
+ * Each rule is `颜色 + 范围 + 字段 + 运算符 + 值`, where 范围 is 单元格 / 行 / 列.
+ * The shell turns the rules into the per-cell background lookup the canvas
+ * `style` callbacks consult (`buildColorLookup`).
+ */
+import { Palette, Plus, X } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
+import { Badge } from "@workspace/ui/components/ui/badge";
+import { Button } from "@workspace/ui/components/ui/button";
+import { GripVertical } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/ui/popover";
+import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
+import type {
+  DatabaseField,
+  TableColorRule,
+  TableColorTarget,
+} from "@workspace/interfaces";
+
+import { ConditionValueInput } from "./condition-controls";
+import { FieldPickerButton } from "../../../shared/field-picker";
+import { DEFAULT_FILL_COLOR, FILL_COLORS } from "../../../shared/field-meta";
+import {
+  TABLE_FILTER_OPERATOR_LABELS,
+  filterOperatorsForField,
+  type TableFilterOperator,
+} from "../core/filter";
+
+const TARGET_LABELS: Record<TableColorTarget, string> = {
+  cell: "单元格",
+  row: "行",
+  column: "列",
+};
+
+function createRuleId(): string {
+  const globalCrypto = globalThis.crypto;
+  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+    return `col_${globalCrypto.randomUUID()}`;
+  }
+  return `col_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export interface TableColorMenuProps {
+  fields: DatabaseField[];
+  rules: TableColorRule[];
+  disabled?: boolean;
+  onChange: (next: TableColorRule[]) => void;
+  className?: string;
+}
+
+export function TableColorMenu({
+  fields,
+  rules,
+  disabled,
+  onChange,
+  className,
+}: TableColorMenuProps) {
+  const fieldById = new Map(fields.map((field) => [field.id, field]));
+
+  const patch = (id: string, next: Partial<TableColorRule>) =>
+    onChange(
+      rules.map((rule) => (rule.id === id ? { ...rule, ...next } : rule)),
+    );
+
+  /**
+   * 添加条件 appends a rule whose field is still unset: the picker reads
+   * 选择字段 and the rule stays inert (`buildColorLookup` skips unknown fields)
+   * until the user chooses one.
+   */
+  const addRule = () => {
+    if (fields.length === 0) return;
+    onChange([
+      ...rules,
+      {
+        id: createRuleId(),
+        target: "cell",
+        fieldId: "",
+        operator: "equals",
+        value: "",
+        color: DEFAULT_FILL_COLOR,
+      },
+    ]);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          className={cn(
+            "h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground",
+            rules.length > 0 &&
+              "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+            className,
+          )}
+        >
+          <Palette className="size-3.5" />
+          填色
+          {rules.length > 0 && (
+            <Badge className="h-4 min-w-4 justify-center rounded-sm px-1 text-[10px] leading-none">
+              {rules.length}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      {/* `gap-0`: the shadcn panel ships `gap-4`, which doubled every
+          explicit margin below and left a hole above 添加条件. */}
+      <PopoverContent align="start" className="w-[26rem] gap-0 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-medium">设置填色条件</span>
+          {rules.length > 0 && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
+              onClick={() => onChange([])}
+            >
+              清除全部
+            </Button>
+          )}
+        </div>
+
+        {/* No rules → no empty list: 添加条件 sits right under the title. */}
+        {rules.length > 0 && (
+          <ScrollArea className="max-h-72">
+            <div className="flex flex-col gap-1.5 pr-1">
+              {rules.map((rule) => {
+                const field = fieldById.get(rule.fieldId);
+                const operators = field
+                  ? filterOperatorsForField(field)
+                  : (Object.keys(
+                      TABLE_FILTER_OPERATOR_LABELS,
+                    ) as TableFilterOperator[]);
+                return (
+                  <div key={rule.id} className="flex items-center gap-1.5">
+                    <GripVertical className="size-3.5 shrink-0 text-muted-foreground/60" />
+
+                    {/* —— 颜色 —— */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="填色颜色"
+                          className="size-6 shrink-0 rounded-md border border-border"
+                          style={{ background: rule.color }}
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto p-2">
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {FILL_COLORS.map((swatch) => (
+                            <button
+                              key={swatch}
+                              type="button"
+                              aria-label={swatch}
+                              aria-pressed={swatch === rule.color}
+                              className={cn(
+                                "size-5 rounded-md border",
+                                swatch === rule.color
+                                  ? "border-primary"
+                                  : "border-transparent",
+                              )}
+                              style={{ background: swatch }}
+                              onClick={() => patch(rule.id, { color: swatch })}
+                            />
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* —— 范围 —— */}
+                    <Select
+                      value={rule.target}
+                      onValueChange={(value) =>
+                        patch(rule.id, { target: value as TableColorTarget })
+                      }
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        aria-label="填色范围"
+                        className="h-7 w-[4.5rem] shrink-0 py-1 pl-2 text-[11px]"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(TARGET_LABELS) as TableColorTarget[]).map(
+                          (target) => (
+                            <SelectItem
+                              key={target}
+                              value={target}
+                              className="text-[11px]"
+                            >
+                              {TARGET_LABELS[target]}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+
+                    <FieldPickerButton
+                      fields={fields}
+                      value={rule.fieldId || undefined}
+                      triggerClassName="w-24 shrink-0"
+                      onValueChange={(fieldId) => {
+                        const nextField = fieldById.get(fieldId);
+                        patch(rule.id, {
+                          fieldId,
+                          operator: nextField
+                            ? (filterOperatorsForField(nextField)[0] ??
+                              rule.operator)
+                            : rule.operator,
+                          value: "",
+                        });
+                      }}
+                    />
+
+                    <Select
+                      value={rule.operator}
+                      onValueChange={(value) =>
+                        patch(rule.id, {
+                          operator: value as TableFilterOperator,
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        aria-label="填色运算符"
+                        className="h-7 w-20 shrink-0 py-1 pl-2 text-[11px]"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((operator) => (
+                          <SelectItem
+                            key={operator}
+                            value={operator}
+                            className="text-[11px]"
+                          >
+                            {TABLE_FILTER_OPERATOR_LABELS[operator]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <ConditionValueInput
+                      field={field}
+                      operator={rule.operator}
+                      value={rule.value}
+                      onChange={(value) => patch(rule.id, { value })}
+                    />
+
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label="删除填色条件"
+                      className="shrink-0 text-muted-foreground"
+                      onClick={() =>
+                        onChange(rules.filter((entry) => entry.id !== rule.id))
+                      }
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
+
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={fields.length === 0}
+          className={cn(
+            "h-7 justify-start gap-1.5 px-1.5 text-xs font-normal text-muted-foreground",
+            rules.length > 0 && "mt-2",
+          )}
+          onClick={addRule}
+        >
+          <Plus className="size-3.5" />
+          添加条件
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}

@@ -1,0 +1,58 @@
+name: Release candidate
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Verify Windows/macOS signatures and macOS notarization
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  packages: write
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+  desktop:
+    needs: quality
+    uses: ./.github/workflows/desktop-build.yml
+    with:
+      signed: ${{ inputs.signed }}
+  containers:
+    needs: quality
+    uses: ./.github/workflows/container-build.yml
+  assemble:
+    needs: [desktop, containers]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Assemble the same run and commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for target in $(node -p "require('./scripts/release/release.json').desktopTargets.join(' ')"); do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
+          done
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
+          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate
+          echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-artifacts/candidate/
+          # The assembler copies only allowlisted assets, including the empty
+          # deployment/.env.example template; no local .env is copied.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

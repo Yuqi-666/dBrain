@@ -1,135 +1,37 @@
-# Turborepo starter
+# dBrain
 
-This Turborepo starter is maintained by the Turborepo core team.
+dBrain 是包含 Web 与离线桌面端的知识工作空间。服务端使用 Node/PocketBase；桌面端使用 Tauri，并携带本地数据库、后端及媒体处理运行时。软件目前按闭源、保留全部权利发布；第三方组件遵循各自许可证。
 
-## Using this example
+- [开发维护、自动构建与发布手册](docs/release-workflow.md)
+- [实际验收结果与剩余发布门槛](docs/release-readiness.md)
+- [桌面开发与运行时说明](apps/desktop/README.md)
 
-Run the following command:
+## 开发
+
+安装 `.node-version` 指定的 Node、pnpm 9.0.0；桌面开发还需要 `rust-toolchain.toml` 指定的 Rust，以及 desktop README 中的系统依赖和 FFmpeg。
 
 ```sh
-npx create-turbo@latest
+pnpm install --frozen-lockfile
+node scripts/release/download-pocketbase.mjs
+cp .env.example .env
+# 在 .env 填写 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD
+pnpm dev:full
 ```
 
-## What's inside?
+默认 Web 地址为 `http://localhost:3000`，服务端端口为 3001，PocketBase 为 8090。开发数据库位于 `pb/pb_data`，启动器显式加载仓库 migrations/hooks；不会按当前 shell 目录另建数据库。`DBRAIN_PB_DATA_DIR`、`DBRAIN_PB_HTTP` 可覆盖开发数据库和监听地址；后端 `PB_URL` 需与自定义端口一致。
 
-This Turborepo includes the following packages/apps:
+桌面开发入口为 `pnpm dev:desktop`，原生安装包入口为 `pnpm build:desktop`；必须在目标 OS/架构准备运行时。
 
-### Apps and Packages
+## 检查与构建
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```sh
+pnpm release:check
+pnpm check-types
+pnpm lint:gate
+pnpm test:release
+pnpm build
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+`lint:gate` 阻止新增 lint 诊断，存量诊断明确保留在基线；它不表示全仓严格 ESLint 零错误。独立后端与媒体集成验证使用 `pnpm smoke:server`，仅对隔离测试数据运行。
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+CI 自动检查 PR 与 main/develop 提交。`Release candidate` 手动编排四平台桌面、两架构容器候选；`Publish accepted release` 依据逐平台验收记录和不可变 digest 发布。首次启用、签名 Secrets、审批、部署备份及恢复步骤见工作流手册。当前仍有原生平台和第三方材料等验收门槛，不能把工作流配置完成视为正式发行验收通过。

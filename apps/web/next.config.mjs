@@ -1,6 +1,11 @@
-/** @type {import('next').NextConfig} */
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 const nextConfig = {
-  transpilePackages: ["@workspace/ui"],
-}
-
-export default nextConfig
+  reactStrictMode: false,
+  transpilePackages: ["@workspace/ui", "@workspace/editor", "@workspace/dataview"],
+  output: "standalone",
+  outputFileTracingRoot: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
+  experimental: { cpus: 2 },
+  env: { NEXT_PUBLIC_DBRAIN_BACKEND_MODE: process.env.NODE_ENV === "production" ? "same-origin" : "direct" },
+};
+export default nextConfig;

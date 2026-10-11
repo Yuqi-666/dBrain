@@ -1,0 +1,5 @@
+{
+  "version": "0.1.0",
+  "desktopTargets": ["linux-x64", "win32-x64", "darwin-x64", "darwin-arm64"],
+  "containerPlatforms": ["linux/amd64", "linux/arm64"]
+}

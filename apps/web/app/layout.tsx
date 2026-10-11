@@ -1,42 +1,48 @@
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist_Mono, Manrope, Noto_Serif } from "next/font/google";
 
-import "@workspace/ui/globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import "@workspace/ui/globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@workspace/ui/lib/utils";
-import { SidebarProvider, SidebarTrigger } from "@workspace/ui/components/ui/sidebar"
-import { AppSidebar } from "@workspace/ui/components/app-sidebar"
-const fontSans = Geist({
+import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
+import type { ReactNode } from "react";
+import { Providers } from "./providers";
+const notoSerifHeading = Noto_Serif({
   subsets: ["latin"],
-  variable: "--font-sans",
-})
+  variable: "--font-heading",
+});
+
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans" });
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-})
+});
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
-}>) {
+  children: React.ReactNode;
+}>): ReactNode {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", fontSans.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        manrope.variable,
+        notoSerifHeading.variable,
+      )}
     >
       <body>
+        <ContextMenuInterceptor />
         <ThemeProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main>
-              <SidebarTrigger />
-              {children}
-            </main>
-          </SidebarProvider>
+          <Providers>
+            <main>{children}</main>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

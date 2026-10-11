@@ -1,0 +1,73 @@
+name: dbrain
+services:
+  pocketbase:
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.1.0}
+    build:
+      context: .
+      dockerfile: deploy/pocketbase/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Required configuration: the operator account is upserted by
+      # `deploy/pocketbase/entrypoint.sh` on every start, so the password always
+      # matches this value. Compose itself refuses to render without the email,
+      # and the entrypoint refuses to serve without a password — a deployment must
+      # never quietly end up on PocketBase's unusable placeholder account.
+      DBRAIN_ADMIN_EMAIL: ${DBRAIN_ADMIN_EMAIL:?Set DBRAIN_ADMIN_EMAIL in .env (copy .env.example)}
+      DBRAIN_ADMIN_PASSWORD: ${DBRAIN_ADMIN_PASSWORD:-}
+      DBRAIN_ADMIN_PASSWORD_FILE: ${DBRAIN_ADMIN_PASSWORD_FILE:-}
+    volumes:
+      - pb_data:/pb_data
+    networks: [backend]
+    security_opt: [no-new-privileges:true]
+  server:
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.1.0}
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    environment:
+      PB_URL: http://pocketbase:8090
+      PORT: "3001"
+      DBRAIN_PUBLIC_ORIGIN: ${DBRAIN_PUBLIC_ORIGIN:-}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    networks: [backend, frontend]
+    security_opt: [no-new-privileges:true]
+  web:
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.1.0}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    networks: [frontend]
+    security_opt: [no-new-privileges:true]
+  gateway:
+    image: nginx:1.28.0-alpine
+    restart: unless-stopped
+    ports:
+      - "${DBRAIN_BIND_HOST:-127.0.0.1}:${DBRAIN_PORT:-3000}:8080"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    networks: [frontend]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+networks:
+  backend:
+    internal: true
+  frontend:
+volumes:
+  pb_data:

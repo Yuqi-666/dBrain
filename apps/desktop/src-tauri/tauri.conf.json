@@ -1,27 +1,30 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "desktop",
+  "productName": "dBrain",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "cn.dbrain.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
-    "devUrl": "http://localhost:3000",
-    "frontendDist": "../dist"
+    "beforeDevCommand": "pnpm runtime:prepare && pnpm dev",
+    "beforeBuildCommand": "pnpm runtime:prepare && pnpm build",
+    "devUrl": "http://localhost:3002",
+    "frontendDist": "../out"
   },
   "app": {
     "windows": [
       {
         "title": "dBrain",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {
-      "csp": null
-    }
+      "csp": "default-src 'self' asset: http://asset.localhost; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data: blob: http: https:; font-src 'self' data:; media-src 'self' blob: data: http: https:; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self' blob: http: https:; object-src 'none'; base-uri 'self'"
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
@@ -32,6 +35,22 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "runtime/": "runtime/"
+    },
+    "linux": {
+      "rpm": {
+        "compression": {
+          "type": "zstd",
+          "level": 3
+        }
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
+    "shortDescription": "dBrain local knowledge workspace",
+    "copyright": "Copyright (c) 2026 dBrain contributors. All rights reserved."
   }
 }

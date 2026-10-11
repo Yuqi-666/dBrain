@@ -1,0 +1,20 @@
+/**
+ * Every AI entry (the floating `Improve` menu, the AI panel) has no backend in
+ * this release, so each one states that instead of drawing a generation surface.
+ * The mock surface these replaced — progress spinner, prompt box, action list —
+ * was removed with them.
+ */
+.tiptap-ai-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: normal;
+  color: var(--tt-gray-light-a-600);
+}
+
+.dark .tiptap-ai-unavailable {
+  color: var(--tt-gray-dark-a-600);
+}

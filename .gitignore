@@ -11,12 +11,17 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+# Password file referenced by DBRAIN_ADMIN_PASSWORD_FILE (see .env.example)
+.pb-admin-password
 
 # Testing
 coverage
 
 # Turbo
 .turbo
+
+# docs/plan/baseline.sh 的原始输出（归一化快照已入库：docs/plan/baseline/）
+.baseline-raw/
 
 # Vercel
 .vercel
@@ -26,6 +31,7 @@ coverage
 out/
 build
 dist
+*.tsbuildinfo
 
 
 # Debug
@@ -36,3 +42,16 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+pb/pb_data/
+pb/pocketbase
+pb/pocketbase.exe
+.agents/
+.omo/
+.codegraph/
+.sisyphus/
+.vscode/
+
+# Release candidates and prepared dependency staging
+release-artifacts/
+**/.runtime-staging/

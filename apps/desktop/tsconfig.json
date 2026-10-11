@@ -1,25 +1,114 @@
 {
+  "extends": [
+    "@workspace/typescript-config/nextjs.json",
+    "../../tsconfig.workspace.json"
+  ],
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "allowImportingTsExtensions": true,
+    // Declared here rather than inherited: Turbopack needs the app's own
+    // tsconfig to carry the repo-root `baseUrl` the `paths` values are written
+    // against, or `next dev` cannot resolve any alias. See `apps/web/tsconfig.json`.
+    "baseUrl": "../..",
     "paths": {
-      "@/*": ["./*"]
+      "@workspace/adapter-back": [
+        "backend/adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "backend/adapter-back/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "backend/adapter-front/src/*"
+      ],
+      "@workspace/adapter-tauri": [
+        "backend/adapter-tauri/src"
+      ],
+      "@workspace/adapter-tauri/*": [
+        "backend/adapter-tauri/src/*"
+      ],
+      "@workspace/application": [
+        "backend/application/src"
+      ],
+      "@workspace/application/*": [
+        "backend/application/src/*"
+      ],
+      "@workspace/domain": [
+        "backend/domain/src"
+      ],
+      "@workspace/domain/*": [
+        "backend/domain/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "backend/infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "backend/infrastructure/src/*"
+      ],
+      "@workspace/api-client": [
+        "packages/api-client/src/index.ts"
+      ],
+      "@workspace/api-client/*": [
+        "packages/api-client/src/*"
+      ],
+      "@workspace/dataview": [
+        "packages/dataview/src/index.ts"
+      ],
+      "@workspace/dataview/*": [
+        "packages/dataview/src/*"
+      ],
+      "@workspace/editor": [
+        "packages/editor/src"
+      ],
+      "@workspace/editor/*": [
+        "packages/editor/*"
+      ],
+      "@workspace/graph": [
+        "packages/graph/src/index.ts"
+      ],
+      "@workspace/graph/*": [
+        "packages/graph/src/*"
+      ],
+      "@workspace/hooks": [
+        "packages/hooks/src"
+      ],
+      "@workspace/hooks/*": [
+        "packages/hooks/src/*"
+      ],
+      "@workspace/interfaces": [
+        "packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "packages/interfaces/src/*"
+      ],
+      "@workspace/services": [
+        "packages/services/src/index.ts"
+      ],
+      "@workspace/services/*": [
+        "packages/services/src/*"
+      ],
+      "@workspace/store": [
+        "packages/store/src/index.ts"
+      ],
+      "@workspace/store/*": [
+        "packages/store/src/*"
+      ],
+      "@workspace/ui": [
+        "packages/ui/src"
+      ],
+      "@workspace/ui/*": [
+        "packages/ui/src/*"
+      ],
+      "@workspace/utils": [
+        "packages/utils/src/index.ts"
+      ],
+      "@workspace/utils/*": [
+        "packages/utils/src/*"
+      ],
+      "@/*": [
+        "apps/web/*"
+      ]
     }
   },
   "include": [
@@ -28,7 +117,10 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "../../packages/ui/src/img/icon/svg.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

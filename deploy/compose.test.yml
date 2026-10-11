@@ -1,0 +1,16 @@
+# Only for isolated CI projects. Production does not expose these ports.
+#
+# Docker silently refuses to publish a port when the container is attached only
+# to networks marked `internal: true` (the production `backend` network is), so
+# the `probe` network below gives PocketBase one non-internal attachment to
+# publish 13090 on. It is test-only: `web` and `gateway` never join it, so the
+# gateway still cannot reach PocketBase directly.
+services:
+  pocketbase:
+    ports: ["127.0.0.1:13090:8090"]
+    networks: [backend, probe]
+  server:
+    ports: ["127.0.0.1:13081:3001"]
+networks:
+  probe:
+    driver: bridge

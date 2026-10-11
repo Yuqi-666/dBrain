@@ -1,0 +1,25 @@
+
+> dBrain@ test:release /home/lyq/workspace/projects/dBrain
+> node --experimental-strip-types --test --test-isolation=none scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts
+
+✔ gateway requires the exact session secret and rejects arbitrary browser origins (0.699288ms)
+✔ file gateway permits only file reads and upload creates (0.185578ms)
+✔ HLS playback retains the active session prefix without changing comments (0.111982ms)
+✔ upgrade snapshots a WAL database, attachments and identity; repeat launch does not back up again (184.073666ms)
+✔ concurrent requests never share identity (10.024883ms)
+✔ deployment and desktop gateway addresses resolve only to stored files (0.87398ms)
+✔ complete signed candidate and explicit acceptance pass; templates cannot publish (124.169319ms)
+✔ modified installers, missing targets, different commits and run attempts fail closed (103.675844ms)
+✔ unsigned candidates may be inspected but cannot be approved for release (51.001938ms)
+✔ published assets preserve hashes and deploy the accepted digests without stale files (77.563532ms)
+✔ release metadata is consistent and mismatched tags fail (4.941945ms)
+✔ lint gate rejects new or growing diagnostics and accepts reduced debt (0.621995ms)
+✔ publication accepts only successful unified runs from the same repository (5.057365ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 624.165796

@@ -1,10 +1,10 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "dBrain local knowledge workspace"
+authors = ["dBrain contributors"]
+license-file = "../../../LICENSE"
+repository = "https://github.com/Yuqi-666/dBrain"
 edition = "2021"
 rust-version = "1.77.2"
 

@@ -1,0 +1,91 @@
+import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
+import type { AnnotationTool } from "./types";
+import { shouldSimulatePressure } from "./draw.ts";
+
+export type BrushTool = Exclude<AnnotationTool, "eraser" | "pointer">;
+
+export const BRUSHES = [
+  {
+    tool: "pen",
+    label: "圆珠笔",
+    shortcut: "P",
+    width: 1,
+    opacity: 1,
+    thinning: 0.5,
+    smoothing: 0.5,
+    streamline: 0.5,
+  },
+  {
+    tool: "pencil",
+    label: "铅笔",
+    shortcut: "B",
+    width: 0.55,
+    opacity: 0.65,
+    thinning: 0.65,
+    smoothing: 0.25,
+    streamline: 0.2,
+  },
+  {
+    tool: "fountain",
+    label: "钢笔",
+    shortcut: "F",
+    width: 1.2,
+    opacity: 1,
+    thinning: 0.85,
+    smoothing: 0.65,
+    streamline: 0.6,
+  },
+  {
+    tool: "marker",
+    label: "马克笔",
+    shortcut: "M",
+    width: 1.8,
+    opacity: 0.9,
+    thinning: 0,
+    smoothing: 0.5,
+    streamline: 0.4,
+  },
+  {
+    tool: "highlighter",
+    label: "荧光笔",
+    shortcut: "H",
+    width: 3,
+    opacity: 0.35,
+    thinning: 0,
+    smoothing: 0.5,
+    streamline: 0.5,
+  },
+] as const;
+
+/** Live ink and persisted ink use exactly the same brush recipe. */
+export function createBrushAnnotation(
+  tool: BrushTool,
+  points: AnnotationPoint[],
+  size: number,
+  color: string,
+  dark: boolean,
+): Annotation {
+  const brush = BRUSHES.find((entry) => entry.tool === tool) ?? BRUSHES[0];
+  const base = {
+    id: "",
+    z: 0,
+    bbox: [0, 0, 0, 0] as [number, number, number, number],
+    createdAt: 0,
+    points,
+    color,
+    size: size * brush.width,
+    opacity: brush.opacity,
+  };
+  if (tool === "highlighter") {
+    return { ...base, kind: "highlight", blend: dark ? "screen" : "multiply" };
+  }
+  return {
+    ...base,
+    kind: "stroke",
+    brush: tool,
+    thinning: brush.thinning,
+    smoothing: brush.smoothing,
+    streamline: brush.streamline,
+    simulatePressure: brush.thinning !== 0 && shouldSimulatePressure(points),
+  };
+}

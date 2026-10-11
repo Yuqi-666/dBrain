@@ -1,16 +1,121 @@
 {
-  "extends": "@workspace/typescript-config/nextjs.json",
+  "extends": [
+    "@workspace/typescript-config/nextjs.json",
+    "../../tsconfig.workspace.json"
+  ],
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"],
-      "@workspace/ui/*": ["../../packages/ui/src/*"]
-    },
+    // Restated from the root `tsconfig.workspace.json`: every `paths` value below
+    // is written relative to the repo root. Inheriting `baseUrl` through
+    // `extends` is enough for `tsc`, but Turbopack resolves the aliases inside
+    // `apps/web` unless this config declares it itself — which made `next dev`
+    // fail with "Module not found" on every aliased import.
+    "baseUrl": "../..",
     "plugins": [
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@workspace/adapter-back": [
+        "backend/adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "backend/adapter-back/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "backend/adapter-front/src/*"
+      ],
+      "@workspace/adapter-tauri": [
+        "backend/adapter-tauri/src"
+      ],
+      "@workspace/adapter-tauri/*": [
+        "backend/adapter-tauri/src/*"
+      ],
+      "@workspace/application": [
+        "backend/application/src"
+      ],
+      "@workspace/application/*": [
+        "backend/application/src/*"
+      ],
+      "@workspace/domain": [
+        "backend/domain/src"
+      ],
+      "@workspace/domain/*": [
+        "backend/domain/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "backend/infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "backend/infrastructure/src/*"
+      ],
+      "@workspace/api-client": [
+        "packages/api-client/src/index.ts"
+      ],
+      "@workspace/api-client/*": [
+        "packages/api-client/src/*"
+      ],
+      "@workspace/dataview": [
+        "packages/dataview/src/index.ts"
+      ],
+      "@workspace/dataview/*": [
+        "packages/dataview/src/*"
+      ],
+      "@workspace/editor": [
+        "packages/editor/src"
+      ],
+      "@workspace/editor/*": [
+        "packages/editor/*"
+      ],
+      "@workspace/graph": [
+        "packages/graph/src/index.ts"
+      ],
+      "@workspace/graph/*": [
+        "packages/graph/src/*"
+      ],
+      "@workspace/hooks": [
+        "packages/hooks/src"
+      ],
+      "@workspace/hooks/*": [
+        "packages/hooks/src/*"
+      ],
+      "@workspace/interfaces": [
+        "packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "packages/interfaces/src/*"
+      ],
+      "@workspace/services": [
+        "packages/services/src/index.ts"
+      ],
+      "@workspace/services/*": [
+        "packages/services/src/*"
+      ],
+      "@workspace/store": [
+        "packages/store/src/index.ts"
+      ],
+      "@workspace/store/*": [
+        "packages/store/src/*"
+      ],
+      "@workspace/ui": [
+        "packages/ui/src"
+      ],
+      "@workspace/ui/*": [
+        "packages/ui/src/*"
+      ],
+      "@workspace/utils": [
+        "packages/utils/src/index.ts"
+      ],
+      "@workspace/utils/*": [
+        "packages/utils/src/*"
+      ],
+      "@/*": [
+        "apps/web/*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -19,5 +124,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

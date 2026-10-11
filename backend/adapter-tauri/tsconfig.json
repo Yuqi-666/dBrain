@@ -1,0 +1,16 @@
+{
+  "extends": [
+    "@workspace/typescript-config/react-library.json",
+    "../../tsconfig.workspace.json"
+  ],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
