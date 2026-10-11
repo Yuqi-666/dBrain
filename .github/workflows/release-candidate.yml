@@ -51,5 +51,8 @@ jobs:
         with:
           name: candidate-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-artifacts/candidate/
+          # The assembler copies only allowlisted assets, including the empty
+          # deployment/.env.example template; no local .env is copied.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

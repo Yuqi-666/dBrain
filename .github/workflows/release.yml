@@ -82,6 +82,8 @@ jobs:
           fi
           flags=()
           [[ "$RELEASE_TAG" = *-* ]] && flags+=(--prerelease)
+          # Ship .env.example as well as the visible, checksummed assets.
+          shopt -s dotglob
           gh release create "$RELEASE_TAG" assets/* --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "dBrain $RELEASE_TAG" --notes-file assets/RELEASE-NOTES.md "${flags[@]}"
       - name: Publish explicitly accepted release
         if: inputs.publish

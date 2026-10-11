@@ -19,6 +19,9 @@ jobs:
     timeout-minutes: 60
     environment: candidate
     env:
+      # Disposable operator account for this isolated candidate smoke stack.
+      DBRAIN_ADMIN_EMAIL: ci@dbrain.invalid
+      DBRAIN_ADMIN_PASSWORD: ci-operator-password
       DBRAIN_CONTAINER_ARCH: ${{ matrix.arch }}
       DBRAIN_VERSION: candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
       DBRAIN_PORT: "13080"
@@ -68,6 +71,8 @@ jobs:
           DBRAIN_SMOKE_SERVER_URL: http://127.0.0.1:13081
           DBRAIN_SMOKE_PB_URL: http://127.0.0.1:13090
           DBRAIN_SMOKE_WEB_URL: http://127.0.0.1:13080
+          DBRAIN_SMOKE_ADMIN_EMAIL: ci@dbrain.invalid
+          DBRAIN_SMOKE_ADMIN_PASSWORD: ci-operator-password
       - name: Push tested candidate images
         shell: bash
         env:

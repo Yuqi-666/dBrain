@@ -13,6 +13,8 @@ dBrain 是包含 Web 与离线桌面端的知识工作空间。服务端使用 N
 ```sh
 pnpm install --frozen-lockfile
 node scripts/release/download-pocketbase.mjs
+cp .env.example .env
+# 在 .env 填写 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD
 pnpm dev:full
 ```
 

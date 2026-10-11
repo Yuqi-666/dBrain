@@ -6,6 +6,14 @@
 
 上一阶段改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
 
+## 首版合并前复审（2026-10-11，基于 `5f8dd83`）
+
+已审查最近三轮提交：`e0bc35b` 移除演示数据、模拟 AI/协作并明确 AI 不可用边界；`60806cc` 修复开发路径别名和 `/trpc` 握手，补充 Origin 回归；`5f8dd83` 要求显式配置 PocketBase 运维账号，并提供开发/部署模板。用户要求重开 PR #1，为首版主线合并及随后发布准备版本基线；不在本轮执行合并或正式发行。
+
+复审补齐两处发布链路遗漏：原生容器候选任务使用临时运维账号并验证登录，满足新增 Compose 必填配置；统一候选 artifact 显式包含 allowlist 内的隐藏模板，Release 上传启用 dotglob，保证 `.env.example` 与其校验和一同交付。README 开发步骤同步补充创建 `.env`。只有空值配置模板受版本管理，真实 `.env` 不进入候选。
+
+当前源码本地验证：**19 个 workspace 类型检查通过，lint 增量门禁通过（89 条历史诊断，无新增），18 项回归通过，版本一致性检查通过；五个工作流通过官方 SHA256 核验的 actionlint 1.7.12。** 先前成功的 GitHub CI 仍对应 `4dd0ff6`，本次变更需以重开的 PR 最新 CI 为准；旧 Linux 安装包证据也不自动成为本次源码的发行验收。四平台统一候选、签名公证、原生 GUI/安装升级及第三方材料等发布前工作仍按下文执行。
+
 ## GitHub 实际执行（2026-10-11）
 
 用户配置 GitHub CLI 认证后，已核验私有仓库 `Yuqi-666/dBrain`；默认分支为 `main`，当前工作分支为 `develop`。`2d2eb1b` 已由用户推送。首次真实 [CI run 38110711790](https://github.com/Yuqi-666/dBrain/actions/runs/38110711790) 的容器启动、生产 Web、数据权限及媒体鉴权检查通过，但媒体样本生成报 `spawnSync ffmpeg ENOENT`：测试客户端在 runner 生成样本，容器内的 FFmpeg 不能满足该依赖。`4dd0ff6` 在 CI containers 与原生容器候选任务显式安装 runner FFmpeg，并已提交/推送重验。
