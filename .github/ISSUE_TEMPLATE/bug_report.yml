@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible application or installation failure
+title: "[Bug] "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Product version / source commit
+      description: Include release version and candidate run if available.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS, architecture and installation format
+      placeholder: Windows x64 MSI, macOS arm64 DMG, Linux x64 DEB, container arm64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Error messages and relevant logs
+      description: Include upgrade-from version if this started after an upgrade.

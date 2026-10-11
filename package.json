@@ -4,7 +4,7 @@
   "scripts": {
     "build": "pnpm --filter server build && pnpm --filter web build",
     "dev": "pnpm -r --parallel --if-present run dev",
-    "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"PORT=3001 pnpm --filter=server dev\"",
+    "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"pnpm --filter=server dev\"",
     "lint": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run typecheck",
@@ -13,7 +13,8 @@
     "release:check": "node scripts/release/check.mjs",
     "release:version": "node scripts/release/version.mjs",
     "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
-    "smoke:server": "node scripts/release/server-smoke.mjs"
+    "smoke:server": "node scripts/release/server-smoke.mjs",
+    "lint:gate": "node scripts/release/lint-gate.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

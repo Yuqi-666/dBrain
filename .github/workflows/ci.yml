@@ -4,10 +4,11 @@ on:
   push:
     branches: [main, develop]
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   check:
@@ -26,9 +27,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm release:check
+      - run: bash scripts/release/check-workflows.sh
       - run: pnpm check-types
-      - run: pnpm lint
+      - run: pnpm lint:gate
       - run: pnpm test:release
+      - name: Check build and release script syntax
+        run: |
+          for script in scripts/lib/*.mjs scripts/release/*.mjs scripts/dev-pocketbase.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do
+            node --check "$script"
+          done
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: node scripts/release/download-pocketbase.mjs
       - run: pnpm --filter server build

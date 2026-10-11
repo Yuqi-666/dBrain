@@ -2,9 +2,28 @@
 
 日期：2026-10-11（UTC）。范围：当前工作区修复、已完成的验证和未闭合的发布门槛。
 
-**结论：本轮闭合了两个发布门槛——全仓 lint 通过（20/20）；最终源码的 Docker Compose 全套服务在构建机上实际构建、启动并通过完整验收。软件仍未满足全部正式发布条件**：Linux 最新安装包与 CSP 原生验收、Windows/macOS 构建与签名公证、第三方发行材料、历史附件与工作空间归属迁移、GitHub 工作流启用与正式发布仍未完成。
+**结论：全仓 lint 与完整容器验收的既有门槛已闭合；本次续建已补齐开发维护、统一候选构建、来源/校验核验及验收驱动发布流程。Linux 原生程序和 DEB/RPM/AppImage 已生成，实际 DEB/AppImage 的完整离线后端验收通过。软件仍未满足全部正式发布条件**：原生 GUI/CSP 与安装升级验收、Windows/macOS 与签名公证、第三方发行材料、历史数据迁移、真实 GitHub 候选与发行验收仍未完成。
 
-本轮改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
+上一阶段改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
+
+## 工作流续建（2026-10-11，基于 `8c93272`）
+
+已审查 `47307af` 至 `8c93272` 的 lint、Web 构建及容器端口修复与更新后的证据；保留已闭合的两项验收结论。本轮继续完成开发维护和发行链路，当前改动尚未提交/推送。
+
+- 增加 `release-candidate.yml`，复用 CI，并编排四平台桌面和两架构原生容器构建。每架构容器通过完整 smoke 后上传同一批镜像，发行清单使用不可变 digest。
+- 增加 `release.yml`：只接受本仓库成功的统一候选 run；核对产品版本、已存在标签、source commit、run/attempt、产物 hash 和逐平台验收记录；默认创建草稿，可明确选择正式发布。不会重建已验收二进制或覆盖现有 Release。
+- 候选汇总保留安装器、运行时清单、签名验证结果、部署配置、全文件校验和和待填写验收模板。未签名 Windows/macOS、未完成验收、缺失目标和被修改的产物被拒绝。
+- 修复 macOS 验证脚本的非可移植 find 用法，增加 Windows 安装器 Authenticode/证书指纹检查；签名临时目录在准备开始时登记，失败也能进入清理。
+- CI 使用 `lint:gate`：20 包逐文件/规则/消息的增量门禁，保留 **89 条显式存量诊断**，新增或增长即失败。并非关闭 only-warn 后的严格零错误验收。另修正条件调用 `useGraph` 的真实 Hook 顺序问题和把普通 `use` 回调误判为 Hook 的命名问题。
+- 修复开发 PocketBase 启动器：跨平台选可执行文件，使用固定 `pb/pb_data` 与仓库 migrations/hooks；去除 `dev:full` 中 Windows 不支持的 shell 环境赋值，更新 README 与完整操作手册。
+
+本轮已验证：**20 个 workspace 类型检查通过；13 项发布回归测试通过；5 个工作流通过官方 SHA256 校验的 actionlint 1.7.12；lint 增量门禁通过；开发启动器在临时数据库验证 migrations、匿名拒绝及退出清理通过。** 门禁测试覆盖未签名、未验收、混入不同 commit/attempt、产物篡改、缺失平台、失败/外部仓库/错误类型 run。
+
+Linux 最新构建源码的运行时准备、桌面静态生产构建、原生 Rust 编译通过；DEB/RPM/AppImage 三格式已生成，最终收集器和 SHA256SUMS 检查全部通过。实际 DEB 的准备资源哈希一致；实际 AppImage 允许 linuxdeploy 原生 ELF 路径修补，并核对 JS/migrations/静态 PocketBase 未改变，两者的完整后端 smoke 均通过。Rust 原生监督器回归 **1 项通过**。首次 AppImage 全量打包失败（linuxdeploy），单独详细重打包成功；首次失败的精确根因未复现，本轮没有把它写成已修复的确定缺陷，CI 已开启 Linux 详细日志。未验证图形窗口及实际安装/卸载/升级。
+
+Linux 验收使用 `/tmp/dbrain-release-check` 和 `DBRAIN_GIT_SHA=local-workflow-review`，为工作区源码验证，**不是可正式推广的 GitHub 候选**。产物保留在构建机 `release-artifacts/linux-x64`，没有上传公共发行渠道。准备阶段 runtime-manifest 的原生哈希可能被打包/签名改变；最终安装包以外层 SHA256SUMS 为准，收集报告明确记录 hash scope。证据：`docs/release-validation/linux-packages-smoke.txt`、`linux-rust-tests.txt`；本地门禁证据为 `workflow-typecheck.txt`、`workflow-lint-gate.txt`、`workflow-unit-tests.txt`、`workflow-checks.txt`。Windows/macOS、GHCR 上传与多架构合并、GitHub Release 创建、公证和原生 GUI **尚未实际执行验收**。第三方材料仍需实际生成和审查；验收记录只声明材料 URL/hash，不替代材料内容核验。真实验收 JSON 尚不存在，因此现状仍会被正式发布门禁拒绝。
+
+操作步骤和首次仓库配置见 [开发维护与发布手册](release-workflow.md)。本轮没有设置远端 Secrets/审批，也没有创建 Release 或部署正式服务。
 
 ## 1. 本轮（2026-10-11）修复
 
@@ -56,16 +75,16 @@
 
 ## 4. 尚未闭合的发布门槛
 
-1. **最新 Linux 原生安装包。** 新 CSP、runtime 资源和权限迁移需重新构建 DEB/RPM/AppImage，完成原生窗口、实际安装/卸载、音视频播放和版本升级验收；不能沿用此前 `.scratch` 旧包的验证结论。
-2. **Windows/macOS。** 候选 workflow、动态库和签名代码尚未执行。需要对应 runner、有效 Windows 签名凭据、Apple Developer ID 和公证凭据；必须验证安装、媒体播放、进程退出及升级。Windows/Linux ARM64 当前不在首版桌面矩阵内。
+1. **Linux 原生窗口与安装验收。** 本次已重新生成 DEB/RPM/AppImage，并验证实际 DEB/AppImage 的离线后端；新 CSP 仍需原生窗口、实际安装/卸载、音视频播放和版本升级验收。RPM 本轮只验证生成与校验和，未运行其安装后环境；不能沿用此前 `.scratch` 旧包的 GUI 结论。
+2. **Windows/macOS。** 候选 workflow、动态库和签名代码尚未在对应平台执行。需要对应 runner、有效 Windows 签名凭据、Apple Developer ID 和公证凭据；必须验证安装、媒体播放、进程退出及升级。Windows/Linux ARM64 当前不在首版桌面矩阵内。
 3. **发行用第三方材料。** 运行时版本/哈希清单已经生成，但尚未完成全部 npm/Rust/Node/PocketBase/FFmpeg 及附带库的许可文本与对应源码材料打包。当前 macOS/Linux FFmpeg 供应还会随包管理器补丁变化；其来源与发布材料需要固定并验收。闭源 LICENSE 不替代这些组件的许可证。
 4. **已有多用户数据库的历史附件。** 初始匿名附件没有 owner；迁移只在单用户数据库中自动分配所有者。多用户库的未归属附件会被拒绝访问，需要发布前审核归属并制定迁移方案，不能猜测所有者或重新公开全部文件。历史无 workspaceId 数据同样需检查。
 5. **GitHub 启用与正式发布。** 工作流还没有推送/运行；环境保护、签名 Secrets、正式发布说明、安装验收记录和发布批准仍需落实。应用内自动更新插件及 stable/beta 更新渠道本轮未实现。
-6. **门禁强度与遗留告警（新增记录）。** `@workspace/eslint-config` 中的 `eslint-plugin-only-warn` 会把所有规则降级为 warning，因此 `pnpm lint` 目前只对绕过该配置的包才会失败（editor 此前正是这种包）；CI 的 lint 步骤实质是告警报告而非硬门禁。此外全仓仍有 89 条历史 warning，`apps/web` 使用 Next 16 已弃用的 `middleware` 约定（应改为 `proxy`），生成的 `next-env.d.ts` 会在 dev/build 之间来回抖动造成 diff 噪音。这些不影响本次门禁结论，但应在发布前决定是否收紧。
+6. **门禁强度与遗留告警（新增记录）。** `@workspace/eslint-config` 中的 `eslint-plugin-only-warn` 会把规则降级为 warning，原始 `pnpm lint` 仍不能代表严格零错误。本次续建已让 CI 使用新增 `lint:gate` 阻止新增/增长的诊断，存量仍需逐步清理。此外全仓仍有 89 条历史 warning，`apps/web` 使用 Next 16 已弃用的 `middleware` 约定（应改为 `proxy`），生成的 `next-env.d.ts` 会在 dev/build 之间来回抖动造成 diff 噪音。这些不影响本次门禁结论，但应在发布前决定是否收紧。
 
 ## 5. 建议下一步顺序
 
-Linux 最新安装包及 CSP 原生验收 → Windows/macOS 候选构建与签名、公证验收 → 补齐第三方发行材料及历史数据迁移 → 生成同一 commit 的候选产物 → 批准正式发布。
+真实 GitHub 统一候选执行 → Linux CSP/安装/升级原生验收 → Windows/macOS 候选构建与签名、公证验收 → 补齐第三方发行材料及历史数据迁移 → 生成同一 commit 的候选产物 → 批准正式发布。
 
 为保持边界清楚，未执行的签名流程、CSP 或平台构建均未被标为“已验证”；也未进行推送、生产部署或公开发行。
 

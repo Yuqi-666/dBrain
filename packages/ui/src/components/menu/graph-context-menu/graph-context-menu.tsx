@@ -51,8 +51,6 @@ const GraphContextMenu = React.forwardRef<
 >((props, ref) => {
   const { x, y, visible, type, context, onClose, setContextMenu } = props;
 
-  if (!visible) return null;
-
   const {
     onEditNode,
     onDeleteNode,
@@ -64,6 +62,8 @@ const GraphContextMenu = React.forwardRef<
     onChangeNodeSemantic,
     onCreateEdge,
   } = useGraph();
+
+  if (!visible) return null;
 
   return (
     <DropdownMenu open={visible} onOpenChange={(open) => !open && onClose()}>

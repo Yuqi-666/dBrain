@@ -6,11 +6,16 @@ on:
         description: Build signed candidates using release environment secrets
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      signed:
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: desktop-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build:
     strategy:
@@ -31,6 +36,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       CARGO_BUILD_JOBS: "2"
+      DBRAIN_BUILD_SIGNED: ${{ inputs.signed }}
       DBRAIN_GIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -80,31 +86,50 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
       - run: node apps/desktop/scripts/backend-smoke.mjs
-      - run: pnpm --filter desktop build
       - run: cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
       - name: Build installer
         shell: bash
         run: |
+          verbosity=()
+          if [ "$RUNNER_OS" = "Linux" ]; then verbosity=(--verbose); fi
           if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then
-            pnpm --filter desktop tauri build --config "$DBRAIN_TAURI_SIGNING_CONFIG"
+            pnpm --filter desktop tauri build --ci "${verbosity[@]}" --config "$DBRAIN_TAURI_SIGNING_CONFIG" -- --locked
           else
-            pnpm build:desktop
+            pnpm --filter desktop tauri build --ci "${verbosity[@]}" -- --locked
           fi
         env:
           APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
           APPLE_API_KEY: ${{ inputs.signed && secrets.APPLE_API_KEY || '' }}
           APPLE_API_ISSUER: ${{ inputs.signed && secrets.APPLE_API_ISSUER || '' }}
+      - if: runner.os == 'Linux'
+        run: node scripts/release/verify-linux-package.mjs
       - if: inputs.signed && runner.os == 'macOS'
         shell: bash
         run: |
-          find apps/desktop/src-tauri/target/release/bundle/macos -name '*.app' -maxdepth 1 -exec codesign --verify --deep --strict {} \;
-          find apps/desktop/src-tauri/target/release/bundle/macos -name '*.app' -maxdepth 1 -exec spctl --assess --type execute {} \;
+          shopt -s nullglob
+          apps=(apps/desktop/src-tauri/target/release/bundle/macos/*.app)
+          [ "${#apps[@]}" -gt 0 ] || { echo "No macOS app produced"; exit 1; }
+          for app in "${apps[@]}"; do
+            codesign --verify --deep --strict "$app"
+            spctl --assess --type execute "$app"
+          done
+          echo "DBRAIN_SIGNING_VERIFIED=true" >> "$GITHUB_ENV"
+      - if: inputs.signed && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem apps/desktop/src-tauri/target/release/bundle -Recurse -File | Where-Object { $_.Extension -in '.exe', '.msi' })
+          if ($installers.Count -eq 0) { throw 'No Windows installer produced' }
+          foreach ($file in $installers) {
+            $signature = Get-AuthenticodeSignature $file.FullName
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:DBRAIN_WINDOWS_THUMBPRINT) { throw "Invalid signature: $($file.Name)" }
+          }
+          "DBRAIN_SIGNING_VERIFIED=true" >> $env:GITHUB_ENV
       - run: node scripts/release/collect-desktop.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: desktop-${{ matrix.target }}-${{ github.sha }}
+          name: desktop-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-artifacts/${{ matrix.target }}/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
       - if: always() && inputs.signed
         run: node scripts/release/cleanup-signing.mjs

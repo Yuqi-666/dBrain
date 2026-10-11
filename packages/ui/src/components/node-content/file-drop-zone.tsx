@@ -128,14 +128,14 @@ interface FilePreview {
   height?: number;
 }
 
-/** Creates an object URL for `file`, runs `use`, and always revokes it again. */
+/** Creates an object URL for `file`, runs `consume`, and always revokes it again. */
 async function withObjectUrl<T>(
   file: File,
-  use: (url: string) => Promise<T>,
+  consume: (url: string) => Promise<T>,
 ): Promise<T> {
   const url = URL.createObjectURL(file);
   try {
-    return await use(url);
+    return await consume(url);
   } finally {
     URL.revokeObjectURL(url);
   }

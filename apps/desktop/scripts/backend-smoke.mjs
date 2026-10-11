@@ -15,7 +15,10 @@ const { createTRPCClient, createWSClient, wsLink } = await import(requireClient.
 const { default: superjson } = await import(requireClient.resolve("superjson"));
 const scratch = await mkdtemp(join(tmpdir(), "dbrain-backend-smoke-"));
 const runtime = join(scratch, "runtime");
-await cp(join(root, "apps/desktop/src-tauri/runtime"), runtime, { recursive: true, dereference: true });
+const runtimeSource = process.env.DBRAIN_SMOKE_RUNTIME_DIR
+  ? resolve(process.env.DBRAIN_SMOKE_RUNTIME_DIR)
+  : join(root, "apps/desktop/src-tauri/runtime");
+await cp(runtimeSource, runtime, { recursive: true, dereference: true });
 const data = join(scratch, "data");
 const readyFile = join(scratch, "ready.json");
 const exe = name => join(runtime, process.platform === "win32" ? `${name}.exe` : name);

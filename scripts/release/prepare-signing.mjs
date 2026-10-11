@@ -27,6 +27,7 @@ async function environment(name, value) {
   await appendFile(process.env.GITHUB_ENV, `${name}=${value}\n`);
 }
 const temp = await mkdtemp(join(tmpdir(), "dbrain-signing-"));
+await environment("DBRAIN_SIGNING_TEMP", temp);
 if (process.platform === "darwin") {
   const identity = required("APPLE_SIGNING_IDENTITY");
   const pfx = join(temp, "certificate.p12");
@@ -39,6 +40,7 @@ if (process.platform === "darwin") {
   const existing = [...original.matchAll(/"([^"]+)"/g)].map(
     (match) => match[1],
   );
+  await environment("DBRAIN_SIGNING_KEYCHAIN", keychain);
   run("security", ["create-keychain", "-p", password, keychain]);
   run("security", ["set-keychain-settings", "-lut", "21600", keychain]);
   run("security", ["unlock-keychain", "-p", password, keychain]);

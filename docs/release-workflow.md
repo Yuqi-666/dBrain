@@ -1,0 +1,118 @@
+# dBrain 开发、维护与发布流程
+
+本流程适用于 Linux amd64/arm64 容器，以及 Linux x64、Windows x64、macOS Intel/Apple Silicon 桌面端。应用内自动更新尚未接入；首版通过安装包升级。实际验收状态见 [发布验收报告](release-readiness.md)。
+
+```mermaid
+flowchart LR
+  PR[开发分支 / PR] --> CI[类型 / lint 增量门禁 / 回归 / 容器测试]
+  CI --> MAIN[合入默认分支并同步版本]
+  MAIN --> C[手动 Release candidate]
+  C --> D[四平台桌面构建与后端 smoke]
+  C --> I[两架构容器构建与完整 smoke]
+  D --> A[统一候选包：commit + run + 校验和]
+  I --> A
+  A --> R[安装 / CSP / 媒体 / 升级 / 许可验收]
+  R --> E[验收记录 PR + 已存在的版本标签]
+  E --> G[release 环境审批 + 自动门禁]
+  G --> RELEASE[GitHub 草稿或正式 Release + digest 部署清单]
+```
+
+## 日常开发与维护
+
+使用 `.node-version` 的 Node、`packageManager` 的 pnpm 和 `rust-toolchain.toml` 的 Rust；运行 `pnpm install --frozen-lockfile`。新增依赖时显式修改对应 workspace，提交 pnpm-lock.yaml；Rust 依赖同步 Cargo.lock。`pnpm dev:full` 启动服务开发环境，`pnpm dev:desktop` 启动桌面环境。PocketBase、FFmpeg 和系统 GTK/WebKit 依赖按 desktop README 安装。
+
+提交前运行：
+
+```sh
+pnpm release:check
+pnpm check-types
+pnpm lint:gate
+pnpm test:release
+```
+
+`pnpm lint` 仍是原始报告入口。共享 ESLint 配置中的 only-warn 会降级错误，因此 CI 使用 `lint:gate`：扫描全部 20 个包，与 `scripts/release/lint-baseline.json` 的文件、规则、消息和次数比较；新增诊断、次数增长、配置/解析失败均会失败。当前保留 89 条诊断，不意味着严格 ESLint 零错误。修复存量问题后可运行 `node scripts/release/lint-gate.mjs --update-baseline` **缩减**基线；任何基线扩张需在 PR 解释。CI 不更新基线。新增 workspace 或自定义 lint 命令需同步门禁覆盖范围。
+
+从短期开发分支发起 PR，默认分支保留可构建状态。配置分支保护，要求 CI 的 `check`、`containers` 通过，并要求代码审查。依赖更新由 Dependabot 发 PR，走同一门禁。PR 模板记录实际验证及发行影响；Bug 模板要求产品版本、OS/架构、安装格式与复现步骤。每周处理构建/依赖问题，每个版本处理发布验收记录中的已知问题；Node/PocketBase/FFmpeg/Tauri 升级必须重新验收四平台及数据库备份恢复。不要在主线已验收版本上直接改 migration，使用新增 migration。
+
+工作流修改也由 CI 使用固定版本、官方 SHA256 校验过的 actionlint 检查。脚本下载限 Linux amd64 检查 job；关闭 actionlint 的可选 shellcheck 子工具，工作流结构/表达式/复用关系仍检查。
+
+## 首次启用 GitHub
+
+将工作流提交并推送到仓库默认分支后，在 Settings 开启 Actions；配置：
+
+| 配置 | 要求 |
+| --- | --- |
+| `candidate` environment | 只允许受信开发/发布分支；容器任务需要 packages:write，以上传已测试候选镜像。确认 GHCR 包的访问范围与闭源发行策略一致。 |
+| `release` environment | 限默认分支/正式构建分支，配置 required reviewers，并禁止自行批准。签名构建和正式发布均使用此环境。环境审批能力取决于 GitHub 账户套餐及仓库类型，应在 Settings 实际核对。 |
+| Windows Secrets | `WINDOWS_CERTIFICATE`（PFX 的 base64）、`WINDOWS_CERTIFICATE_PASSWORD`。证书必须可用于代码签名；工作流验证安装器 Authenticode 状态和证书指纹。 |
+| macOS Secrets | `APPLE_CERTIFICATE`（P12 base64）、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_API_PRIVATE_KEY`、`APPLE_API_KEY`、`APPLE_API_ISSUER`。使用 Developer ID 和公证凭据。 |
+| Packages | 给仓库的 GITHUB_TOKEN 授权候选包上传/读取；消费者能访问发行清单指定的 GHCR digest。 |
+| 标签 | 保护 `v*` 标签，禁止移动已发布标签。正式发布只接受已存在且指向候选 commit 的标签。 |
+
+这些是仓库管理配置，本轮仅编写工作流，未替你设置远端权限、Secrets 或审批。未签名候选可构建和检查，但正式发布门禁拒绝未签名的 Windows/macOS 候选。
+
+## 构建统一候选
+
+1. 在版本 PR 中运行 `pnpm release:version 0.1.0`（后续替换实际版本），检查变更并合入默认分支。
+2. 在该提交运行 `Release candidate`。首次排查可用 `signed=false`；准备发行时使用 `signed=true`。
+
+```sh
+gh workflow run release-candidate.yml --ref main -f signed=true
+# main 替换为仓库实际默认分支；记录返回/查询得到的 run ID。
+gh run list --workflow release-candidate.yml
+gh run watch RUN_ID
+```
+
+候选流程先复用完整 CI，再构建四个桌面目标和两个原生 Linux 容器架构。容器每个架构先 `up --no-build` 并运行完整 server-smoke，之后推送同一批本地镜像；合并为 multiarch index，并验证平台列表。标签为 `candidate-RUN_ID-ATTEMPT`，发行依据为不可变 digest，不依赖标签后续指向。桌面 workflow 单独触发时也会构建产物，但不能代替统一候选流程。
+
+统一 artifact 名称为 `candidate-RUN_ID-ATTEMPT`，默认保留 30 天，受仓库 artifact 保留策略限制。**失败后的重跑必须选择 Re-run all jobs**；只重跑失败 job 会混入不同 attempt 的产物，汇总故意拒绝。过期候选需重新构建和验收。
+
+Linux 构建还会提取实际 DEB/AppImage，核对资源完整性并执行完整后端 smoke（DEB 要求全部准备哈希一致；AppImage 允许原生 ELF 路径修补，JS/migrations/静态 PocketBase 保持原字节）；原生 Cargo build/test 使用 `--locked`。
+
+`runtime-manifest.json` 的 hashes 是准备阶段的资源哈希；AppImage ELF 路径修补或平台签名可能再改变原生文件。`build-report.runtimeHashScope` 标明该范围，最终安装包及发布资产用外层 SHA256SUMS 核对，不能把准备阶段哈希直接当作所有安装格式的最终资源哈希。
+
+候选包含每平台安装器、LICENSE、runtime-manifest、build-report、SHA256SUMS，容器报告、源提交的部署配置、candidate-index 及待填写的 acceptance-template。构建 job 只验证后端和打包/签名，不自动认定原生 GUI 安装、CSP、播放和升级通过。
+
+## 验收与发布
+
+下载统一候选，校验后在对应系统完成安装、卸载、CSP、音视频、升级以及进程退出验收；补齐第三方许可/对应源码材料、历史附件/工作空间迁移方案和备份恢复验证。每一项保留日志/截图/测试记录，关联候选 commit 和安装器 SHA256。
+
+```sh
+gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
+```
+
+复制 `candidate/acceptance-template.json` 到 `docs/release-acceptance/v0.1.0.json`，填写 reviewer、UTC review 时间、每个 check 的 `passed` 与 evidence。`thirdPartyMaterials` 必须填实际发行材料的 HTTPS 地址与 SHA256；材料应覆盖候选中实际 npm/Rust/native/Node/PocketBase/FFmpeg 组件的许可和相应源码义务。**URL 与 hash 是审查人声明，门禁不下载材料或代替人工许可审查。** 确保发行受众实际可获取材料，并把第三方审查证据写入对应 check。模板 pending 值、空证据均拒绝。
+
+通过 PR 审查并合入验收记录；它是控制分支上的新增文档提交，候选二进制仍绑定此前 source commit。创建 `v0.1.0` 标签指向已验收 source commit，推送标签。运行 `Publish accepted release` 必须从当前默认分支启动，且候选 source commit 必须是它的祖先；控制分支中的产品版本需仍与该标签一致。发布后再推进下一版本。
+
+```sh
+git tag -a v0.1.0 SOURCE_COMMIT -m 'dBrain 0.1.0'
+git push origin v0.1.0
+gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.0 -f publish=false
+```
+
+`publish=false` 创建草稿。`publish=true` 在同一次运行通过环境审批、验收和 registry digest 核对后创建草稿，再转为正式 Release。带预发布后缀的版本标记为 prerelease。流程只搬运已验收安装包，不重建；不改变候选镜像 digest。现存 Release 会拒绝覆盖。草稿创建后需公开时，在 GitHub UI 审查并发布该草稿；不要用工作流覆盖已有草稿。上传失败可能留下部分草稿资产，应逐项核对 SHA256SUMS 后补齐，或删除未发布草稿并重试。正式发行后不要覆盖资产，应发新版本。
+
+自动检查只能验证来源、一致性与填写完整性；平台测试、证书有效性、第三方材料内容和历史数据归属仍须实际验证。当前没有一份真实完成的验收记录，因此本流程不会把现状认定为可正式发布。
+
+## 容器部署、升级与恢复
+
+下载 Release 的 `docker-compose.yml`、`compose.release.yml`、`nginx.conf` 到同一目录。发行 Compose 已调整 nginx 配置相对路径；覆盖层通过 digest 指向已验收镜像。先检查配置：
+
+```sh
+docker compose -f docker-compose.yml -f compose.release.yml config
+docker compose -f docker-compose.yml -f compose.release.yml pull
+docker compose -f docker-compose.yml -f compose.release.yml up --no-build --wait
+```
+
+保留同一目录/Compose project 名和 `pb_data` 数据卷；默认监听回环 3000，由外部 HTTPS 入口转发。设置 `DBRAIN_PUBLIC_ORIGIN` 为实际 HTTPS origin，并配置访问控制与备份保存策略。覆盖层必须用于 pull/up，避免误用默认版本标签构建源码。
+
+升级前停止写入并停止栈，在停止状态备份整个 `pb_data` 卷以及当前发行配置、镜像 digest 和网关配置，再切换新版本发行覆盖层。先在隔离副本上执行迁移和用户/共享附件/媒体验证，再恢复生产流量。不要对生产卷运行测试 smoke；该脚本用于临时测试库，会创建并删除测试记录。不要在升级时运行 `down -v`。
+
+桌面端在迁移前自动创建一致 SQLite 快照及附件/身份备份；仍需在每平台测试从上一正式版本升级。容器卷需自行备份。恢复时停止新服务，恢复完整旧数据/附件和旧发行 digest；不能仅换回旧镜像并继续使用已迁移数据库。备份需要加密存储、限制访问并定期恢复演练；具体存量多用户附件归属必须审核后迁移。
+
+## 后续优先级
+
+首次 GitHub 四平台候选执行 → Linux/Windows/macOS 安装、CSP 与媒体验收 → 生成并审查完整第三方材料 → 存量数据迁移/恢复演练 → 同一候选的验收 PR → 正式发布。自动更新渠道、增量更新签名和更多 ARM 桌面目标作为后续独立工作。
+
+参考：[GitHub 可复用工作流](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)、[原生 ARM runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、[Docker 多架构构建](https://docs.docker.com/build/ci/github-actions/multi-platform/)、[digest 检查](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/)、[GitHub Release CLI](https://cli.github.com/manual/gh_release_create)、[Tauri CLI](https://v2.tauri.app/reference/cli/)、[actionlint 官方发布](https://github.com/rhysd/actionlint/releases/tag/v1.7.12)。

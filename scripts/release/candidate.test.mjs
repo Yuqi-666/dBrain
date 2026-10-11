@@ -1,0 +1,209 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import {
+  prepareReleaseAssets,
+  acceptanceChecks,
+  approveCandidate,
+  assembleCandidate,
+  services,
+} from "./candidate.mjs";
+import { hashFile } from "../lib/runtime-manifest.mjs";
+const expected = {
+  version: "0.1.0",
+  commit: "a".repeat(40),
+  runId: "123",
+  runAttempt: "1",
+  repository: "Yuqi-666/dBrain",
+  imagePrefix: "ghcr.io/yuqi-666/dbrain",
+  desktopTargets: ["linux-x64", "win32-x64", "darwin-x64", "darwin-arm64"],
+  containerPlatforms: ["linux/amd64", "linux/arm64"],
+};
+async function fixture(signed = true) {
+  const dir = await mkdtemp(join(tmpdir(), "dbrain-candidate-test-"));
+  const incoming = join(dir, "incoming"),
+    output = join(dir, "candidate");
+  await mkdir(incoming);
+  for (const target of expected.desktopTargets) {
+    const path = join(incoming, target);
+    await mkdir(path);
+    const [platform, arch] = target.split("-");
+    const extensions =
+      platform === "linux"
+        ? ["deb", "rpm", "AppImage"]
+        : platform === "win32"
+          ? ["exe", "msi"]
+          : ["dmg"];
+    const installers = extensions.map((ext) => `${target}-dBrain.${ext}`);
+    const files = Object.fromEntries(
+      installers.map((name) => [name, "installer bytes"]),
+    );
+    files["runtime-manifest.json"] = JSON.stringify({
+      platform,
+      arch,
+      version: expected.version,
+      commit: expected.commit,
+    });
+    files["build-report.json"] = JSON.stringify({
+      ...expected,
+      target,
+      signed,
+      signingVerified: signed,
+      distributionReady: false,
+      installers,
+    });
+    files.LICENSE = "All rights reserved.";
+    const sums = [];
+    for (const [name, data] of Object.entries(files)) {
+      await writeFile(join(path, name), data);
+      sums.push(`${await hashFile(join(path, name))}  ${name}`);
+    }
+    await writeFile(join(path, "SHA256SUMS"), sums.join("\n") + "\n");
+  }
+  await mkdir(join(incoming, "containers"));
+  await writeFile(
+    join(incoming, "containers/container-report.json"),
+    JSON.stringify({
+      ...expected,
+      images: Object.fromEntries(
+        services.map((service) => [
+          service,
+          {
+            reference: `${expected.imagePrefix}-${service}@sha256:${"b".repeat(64)}`,
+            platforms: expected.containerPlatforms,
+            smokePassed: true,
+          },
+        ]),
+      ),
+    }),
+  );
+  return { dir, incoming, output };
+}
+async function accepted(output) {
+  const acceptance = JSON.parse(
+    await readFile(join(output, "acceptance-template.json")),
+  );
+  acceptance.reviewer = "release-reviewer";
+  acceptance.reviewedAt = "2026-10-11T00:00:00Z";
+  for (const key of acceptanceChecks(expected.desktopTargets))
+    acceptance.checks[key] = {
+      status: "passed",
+      evidence: "Recorded platform acceptance with screenshots and logs",
+    };
+  acceptance.thirdPartyMaterials = {
+    url: "https://example.com/release-materials.tar.gz",
+    sha256: "c".repeat(64),
+  };
+  return acceptance;
+}
+test("complete signed candidate and explicit acceptance pass; templates cannot publish", async () => {
+  const f = await fixture();
+  try {
+    await assembleCandidate(f.incoming, f.output, expected);
+    const pending = JSON.parse(
+      await readFile(join(f.output, "acceptance-template.json")),
+    );
+    await assert.rejects(
+      approveCandidate(f.output, pending, expected),
+      /Missing reviewer/,
+    );
+    const acceptance = await accepted(f.output);
+    assert.equal(
+      (await approveCandidate(f.output, acceptance, expected)).commit,
+      expected.commit,
+    );
+    acceptance.checks["linux-x64.csp"].status = "pending";
+    await assert.rejects(
+      approveCandidate(f.output, acceptance, expected),
+      /Acceptance pending/,
+    );
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});
+test("modified installers, missing targets, different commits and run attempts fail closed", async () => {
+  const f = await fixture();
+  try {
+    await assert.rejects(
+      assembleCandidate(f.incoming, f.output, {
+        ...expected,
+        commit: "d".repeat(40),
+      }),
+      /commit mismatch/,
+    );
+    await assert.rejects(
+      assembleCandidate(f.incoming, f.output, { ...expected, runAttempt: "2" }),
+      /runAttempt mismatch/,
+    );
+    await assembleCandidate(f.incoming, f.output, expected);
+    const acceptance = await accepted(f.output);
+    acceptance.candidateIndexSha256 = "0".repeat(64);
+    await assert.rejects(
+      approveCandidate(f.output, acceptance, expected),
+      /different candidate/,
+    );
+    await writeFile(
+      join(f.output, "linux-x64/linux-x64-dBrain.deb"),
+      "modified",
+    );
+    await assert.rejects(
+      approveCandidate(f.output, await accepted(f.output), expected),
+      /files modified/,
+    );
+    await rm(join(f.incoming, "darwin-arm64"), { recursive: true });
+    await assert.rejects(
+      assembleCandidate(f.incoming, f.output, expected),
+      /missing desktop target/,
+    );
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});
+test("unsigned candidates may be inspected but cannot be approved for release", async () => {
+  const f = await fixture(false);
+  try {
+    await assembleCandidate(f.incoming, f.output, expected);
+    await assert.rejects(
+      approveCandidate(f.output, await accepted(f.output), expected),
+      /unsigned/,
+    );
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("published assets preserve hashes and deploy the accepted digests without stale files", async () => {
+  const f = await fixture();
+  try {
+    await assembleCandidate(f.incoming, f.output, expected);
+    const acceptancePath = join(f.dir, "acceptance.json");
+    await writeFile(acceptancePath, JSON.stringify(await accepted(f.output)));
+    const assets = join(f.dir, "assets");
+    await prepareReleaseAssets(f.output, acceptancePath, assets, expected);
+    const sums = (await readFile(join(assets, "SHA256SUMS"), "utf8"))
+      .trim()
+      .split("\n");
+    assert.ok(sums.some((line) => line.endsWith("  candidate-index.json")));
+    for (const line of sums) {
+      const [hash, name] = line.split("  ");
+      assert.equal(await hashFile(join(assets, name)), hash);
+    }
+    assert.match(
+      await readFile(join(assets, "compose.release.yml"), "utf8"),
+      /pocketbase@sha256:[b]+/,
+    );
+    assert.ok(
+      !(await readFile(join(assets, "docker-compose.yml"), "utf8")).includes(
+        "./deploy/nginx.conf",
+      ),
+    );
+    await assert.rejects(
+      prepareReleaseAssets(f.output, acceptancePath, assets, expected),
+      /EEXIST/,
+    );
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});

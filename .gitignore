@@ -43,6 +43,7 @@ yarn-error.log*
 
 pb/pb_data/
 pb/pocketbase
+pb/pocketbase.exe
 .agents/
 .omo/
 .codegraph/

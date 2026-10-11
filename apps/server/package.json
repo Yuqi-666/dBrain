@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "dev:pb": "../../pb/pocketbase serve",
+    "dev:pb": "node ../../scripts/dev-pocketbase.mjs",
     "build": "node scripts/build.mjs",
     "start": "node dist/index.mjs",
     "lint": "eslint",
