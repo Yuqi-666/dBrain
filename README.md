@@ -23,7 +23,7 @@ dBrain 是一个知识工作空间：用节点记录内容，用关系连接知�
 | 了解 CI、四端构建、签名和发布门禁 | [构建与发布](docs/release-workflow.md) |
 | 确认哪些已验证、哪些仍待验收 | [发布状态](docs/release-readiness.md) |
 
-完整索引见 [docs](docs/README.md)。
+完整索引见 [docs](docs/README.md)。CI 按改动范围运行，并缓存 pnpm、Next.js、Rust 依赖及 Docker 构建层；四端安装包与完整候选仍手动触发。
 
 ## 开发快速开始
 

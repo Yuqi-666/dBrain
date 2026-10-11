@@ -197,4 +197,4 @@ Cargo 检查前需准备 Tauri 配置要求的运行时及前端资源。Server 
 
 新增 JS 依赖时更新对应 workspace 和 pnpm-lock.yaml；新增 Rust 依赖同步 Cargo.lock。已发行迁移不直接修改，新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台的运行时、安装包和备份恢复。
 
-版本使用 `pnpm release:version VERSION` 同步，再运行 `pnpm release:check`。构建和发布入口见 [构建与发布](release-workflow.md)。
+版本使用 `pnpm release:version VERSION` 同步，再运行 `pnpm release:check`。构建和发布入口见 [构建与发布](release-workflow.md)。远端 CI 已配置 Next.js、Rust 依赖与 Docker 层缓存；只缓存中间产物，不跳过检查。冷构建或缓存被淘汰时仍完整执行，命中和维护方法见该手册的构建缓存章节。

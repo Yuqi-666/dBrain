@@ -19,7 +19,7 @@ docker compose -p dbrain up --build --wait
 docker compose -p dbrain ps
 ```
 
-以上从当前源码构建，不等同于使用已验收发行镜像。访问 `http://localhost:3000`，确认页面、用户登录和文件功能。
+本机 Docker 可复用同一 builder 的已有层；GitHub Actions 的 GHA 缓存只在远端工作流接入，本地 Compose 不会自动下载这些缓存。以上从当前源码构建，不等同于使用已验收发行镜像。访问 `http://localhost:3000`，确认页面、用户登录和文件功能。
 
 ## 使用候选或发行镜像
 

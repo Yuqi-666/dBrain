@@ -26,6 +26,30 @@ check 包含版本校验、工作流检查、类型、lint 增量门禁、回归
 
 同一 PR / ref 新的自动 CI 取消旧运行。常规依赖升级当前暂停（open-pull-requests-limit 为 0、monthly 扫描），此前 14 个升级 PR 已关闭；不等于禁用安全更新。
 
+## 构建缓存
+
+当前保留 pnpm 下载缓存，并增加以下构建缓存。缓存命中只复用中间数据，检查、运行时准备、安装包生成和签名验证仍执行。
+
+| 内容 | 缓存范围与隔离 |
+| --- | --- |
+| pnpm | setup-node 管理包缓存，按 OS / 架构与锁文件区分，仍运行 frozen-lockfile 安装 |
+| Web Next.js | 仅 apps/web/.next/cache；按 OS / 架构、Node 与锁文件、相关源码区分，源码变化可回退到同工具链的旧增量缓存 |
+| Desktop Next.js | 仅 apps/desktop/.next/cache；按四个桌面 target 分开，其余与 Web 策略相同 |
+| Rust | Cargo 下载与依赖编译；按 target、签名模式、实际 rustc、Cargo 锁文件和环境区分；不保留项目自身与发行安装包 |
+| Docker | Buildx GHA v2；pocketbase / server / web 各自按 amd64 / arm64 分开，常规 amd64 CI 与候选共享对应 scope |
+
+Next.js、Rust、Docker 的可复用缓存只由默认分支构建写入，PR 和其他分支读取可访问的主线缓存。缓存不会包含 .env、签名私钥、数据库、附件或候选发行资产。Dockerfile 先依据 pnpm-lock.yaml / workspace 文件执行 pnpm fetch，再复制源码并离线安装；业务代码变动可复用依赖下载层。docs、README 和 release-artifacts 排除在 Docker 上下文外。
+
+第一次冷构建仍需完整执行；只有成功构建后保存的缓存才供后续使用。GitHub 的访问范围、容量和淘汰规则仍适用，无法保证每次命中。Docker 缓存导出失败不会把构建成功改成失败；冷缓存与失效缓存均应回退正常构建。依赖、编译器或锁文件变化可能重建相应部分。
+
+查看 Actions 日志中的 Restore / Save Next.js build cache、Restore Rust dependency build cache 及 Build cached image 步骤；Docker 的 CACHED 行表示某层复用。通过以下命令查看空间，清理时只删除已关闭 PR / 废弃分支对应缓存，不删除仍在使用的主线缓存：
+
+```bash
+gh cache list --repo Yuqi-666/dBrain --limit 100
+```
+
+需要整体失效时，审查修改 next-v1、dbrain-rust-v1 或 dbrain-v1 前缀，不将通过状态写成缓存。参考 [Next.js 缓存](https://nextjs.org/docs/app/guides/ci-build-caching)、[Docker GHA 缓存](https://docs.docker.com/build/cache/backends/gha/)、[Rust cache](https://github.com/Swatinem/rust-cache)。
+
 ## 本地检查记录与远端结果复用
 
 当前没有“本地检查完成后 GitHub 自动跳过”的机制。可将本地日志保存为忽略的构建产物供排查，但提交一个 ci-passed 文件不能代替远端 CI：标记可修改，也无法证明工作树、依赖、OS 和工具版本与待审查提交一致。
