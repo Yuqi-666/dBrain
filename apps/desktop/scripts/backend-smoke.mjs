@@ -1,18 +1,18 @@
 /** Exercise the packaged backend outside the checkout, with a fresh device database. */
 import { pdfFixture } from "../../../scripts/lib/smoke-fixtures.mjs";
+import { stopRuntimeChild } from "../../../scripts/lib/stop-runtime-child.mjs";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { once } from "node:events";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const requireClient = createRequire(join(root, "packages/api-client/package.json"));
-const { createTRPCClient, createWSClient, wsLink } = await import(requireClient.resolve("@trpc/client"));
-const { default: superjson } = await import(requireClient.resolve("superjson"));
+const { createTRPCClient, createWSClient, wsLink } = await import(pathToFileURL(requireClient.resolve("@trpc/client")).href);
+const { default: superjson } = await import(pathToFileURL(requireClient.resolve("superjson")).href);
 const scratch = await mkdtemp(join(tmpdir(), "dbrain-backend-smoke-"));
 const runtime = join(scratch, "runtime");
 const runtimeSource = process.env.DBRAIN_SMOKE_RUNTIME_DIR
@@ -32,7 +32,7 @@ async function start() {
   child.stderr.on("data", chunk => { logs += chunk; });
   child.on("error", error => { logs += error.message; });
   for (let attempt = 0; attempt < 450; attempt++) {
-    if (child.exitCode !== null) throw new Error(`Backend stopped: ${logs}`);
+    if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Backend stopped (${child.exitCode ?? child.signalCode}): ${logs}`);
     try { descriptor = JSON.parse(await readFile(readyFile, "utf8")); break; } catch { await pause(100); }
   }
   assert.ok(descriptor, "runtime ready");
@@ -41,11 +41,9 @@ async function start() {
 }
 async function stop() {
   ws?.close();
-  if (child && child.exitCode === null) {
-    const exit = once(child, "exit");
-    child.stdin.end("shutdown\n");
-    await Promise.race([exit, pause(5000).then(() => { if (child.exitCode === null) child.kill("SIGKILL"); })]);
-    assert.equal(child.exitCode, 0, logs);
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const [code, signal] = await stopRuntimeChild(child);
+    assert.equal(code, 0, `Backend shutdown ${signal ?? code}: ${logs}`);
   }
   descriptor = undefined;
 }
@@ -62,6 +60,29 @@ const deadline = setTimeout(() => {
   setTimeout(() => process.exit(1), 1000);
 }, 90_000);
 const tmpId = () => `tmp_${crypto.randomUUID()}`;
+async function createVideoFixture(path) {
+  console.log("STEP packaged FFmpeg media fixture");
+  await new Promise((resolve, reject) => {
+    const fixtureProcess = spawn(exe("ffmpeg"), ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x64:d=1", "-c:v", "mpeg4", path], { env, stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "", timedOut = false;
+    fixtureProcess.stderr.on("data", chunk => { stderr += chunk; });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (process.platform === "darwin" && fixtureProcess.pid) {
+        try {
+          console.error(execFileSync("/usr/bin/sample", [String(fixtureProcess.pid), "1", "1"], { encoding: "utf8", timeout: 5000 }));
+        } catch (error) { console.error("FFmpeg stack capture failed:", error.message); }
+      }
+      fixtureProcess.kill("SIGKILL");
+    }, 30_000);
+    fixtureProcess.once("error", error => { clearTimeout(timer); reject(error); });
+    fixtureProcess.once("close", (code, signal) => {
+      clearTimeout(timer);
+      if (code === 0) resolve();
+      else reject(new Error(`Packaged FFmpeg fixture ${timedOut ? "timed out" : "failed"} (${code ?? signal}): ${stderr}`));
+    });
+  });
+}
 try {
   await start();
   const originalGateway = descriptor.pocketbase;
@@ -140,12 +161,13 @@ try {
   assert.equal(await (await fetch(`${descriptor.pocketbase}${file}`)).text(), "local attachment");
   assert.equal((await fetch(`${descriptor.pocketbase}${file}`, { headers: { Range: "bytes=0-4" } })).status, 206);
   const pdf = await upload(pdfFixture(), "offline.pdf", "application/pdf");
+  console.log("STEP packaged PDF/native canvas");
   const analysis = await client.file.analyzePdf.mutate({ fileUrl: pdf });
   assert.equal(analysis.pageCount, 1);
   assert.ok(analysis.coverUrl.startsWith("/api/files/"), "PDF cover rendered by packaged native canvas");
   assert.equal((await fetch(`${descriptor.pocketbase}${analysis.coverUrl}`)).status, 200);
   const videoPath = join(scratch, "offline.mp4");
-  execFileSync(exe("ffmpeg"), ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x64:d=1", "-c:v", "mpeg4", videoPath], { env });
+  await createVideoFixture(videoPath);
   const video = await upload(await readFile(videoPath), "offline.mp4", "video/mp4");
   const transcode = await client.file.transcodeVideo.mutate({ fileUrl: video });
   assert.equal(transcode.reencoded, true);

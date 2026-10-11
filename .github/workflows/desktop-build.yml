@@ -2,6 +2,11 @@ name: Desktop candidate build
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: Single target for diagnostics; unified candidates always build all
+        type: choice
+        default: all
+        options: [all, linux-x64, win32-x64, darwin-x64, darwin-arm64]
       signed:
         description: Build signed candidates using release environment secrets
         type: boolean
@@ -14,22 +19,21 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-${{ github.ref }}-${{ inputs.target || 'all' }}
   cancel-in-progress: false
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            target: linux-x64
-          - os: windows-2022
-            target: win32-x64
-          - os: macos-15-intel
-            target: darwin-x64
-          - os: macos-15
-            target: darwin-arm64
+        include: >-
+          ${{ fromJSON(
+            inputs.target == 'linux-x64' && '[{"os":"ubuntu-22.04","target":"linux-x64"}]' ||
+            inputs.target == 'win32-x64' && '[{"os":"windows-2022","target":"win32-x64"}]' ||
+            inputs.target == 'darwin-x64' && '[{"os":"macos-15-intel","target":"darwin-x64"}]' ||
+            inputs.target == 'darwin-arm64' && '[{"os":"macos-15","target":"darwin-arm64"}]' ||
+            '[{"os":"ubuntu-22.04","target":"linux-x64"},{"os":"windows-2022","target":"win32-x64"},{"os":"macos-15-intel","target":"darwin-x64"},{"os":"macos-15","target":"darwin-arm64"}]'
+          ) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     environment: ${{ inputs.signed && 'release' || 'candidate' }}
@@ -86,10 +90,16 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
       - run: node apps/desktop/scripts/backend-smoke.mjs
+        timeout-minutes: 5
       - run: cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
       - name: Build installer
         shell: bash
         run: |
+          # Tauri treats a present-but-empty identity as a request to sign.
+          # Unsigned diagnostics must omit signing variables entirely.
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$DBRAIN_BUILD_SIGNED" != "true" ]; then
+            unset APPLE_SIGNING_IDENTITY APPLE_API_KEY APPLE_API_ISSUER
+          fi
           verbosity=()
           if [ "$RUNNER_OS" = "Linux" ]; then verbosity=(--verbose); fi
           if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then

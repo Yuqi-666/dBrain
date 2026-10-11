@@ -76,11 +76,19 @@ gh run watch RUN_ID
 
 统一 artifact 名称为 `candidate-RUN_ID-ATTEMPT`，默认保留 30 天，受仓库 artifact 保留策略限制。**失败后的重跑必须选择 Re-run all jobs**；只重跑失败 job 会混入不同 attempt 的产物，汇总故意拒绝。过期候选需重新构建和验收。
 
+排查桌面平台问题时，可单独运行 `desktop-build.yml`，传入 `target=linux-x64`、`win32-x64`、`darwin-x64` 或 `darwin-arm64`；默认 `all`。不同目标的诊断可并行，同一目标保持串行。统一候选的可复用调用仍始终构建四个平台，单目标诊断产物不能用于正式发布。后端 smoke 步骤有 5 分钟外层超时，媒体样本生成有 30 秒超时，macOS 超时时采集 FFmpeg 栈。
+
 Linux 构建还会提取实际 DEB/AppImage，核对资源完整性并执行完整后端 smoke（DEB 要求全部准备哈希一致；AppImage 允许原生 ELF 路径修补，JS/migrations/静态 PocketBase 保持原字节）；原生 Cargo build/test 使用 `--locked`。
 
 `runtime-manifest.json` 的 hashes 是准备阶段的资源哈希；AppImage ELF 路径修补或平台签名可能再改变原生文件。`build-report.runtimeHashScope` 标明该范围，最终安装包及发布资产用外层 SHA256SUMS 核对，不能把准备阶段哈希直接当作所有安装格式的最终资源哈希。
 
 候选包含每平台安装器、LICENSE、runtime-manifest、build-report、SHA256SUMS，容器报告、源提交的部署配置、candidate-index 及待填写的 acceptance-template。构建 job 只验证后端和打包/签名，不自动认定原生 GUI 安装、CSP、播放和升级通过。
+
+## 私有内部测试（首版安排）
+
+用户决定首版先内部测试，继续使用当前私有仓库。[build 38123782093 的草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596) 绑定 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7`，完整候选和独立下载校验均通过；修复仍在 PR #16，尚未合并。草稿包含四平台 ZIP、容器部署 ZIP、来源索引、待验收模板、内测说明及外层 SHA256SUMS。按系统选择 ZIP，解压后再核对平台目录内的校验清单；容器配置在 deployment.zip 的 deployment/ 目录，digest 在 containers/container-report.json 中。
+
+这份草稿是未签名内部候选，不能使用正式发行门禁当作已验收版本。验收模板保持 pending，逐项完成原生窗口、安装卸载、媒体与升级测试后记录证据。草稿未发布，供有草稿访问权限的仓库维护者审查；如向更多内部测试者分发，应先安排私有仓库访问权限并审查草稿。正式发行仍按下节完成签名与验收，不使用本次内部构建标记替代 `v0.1.0` 标签。
 
 ## 验收与发布
 
@@ -144,6 +152,6 @@ docker compose -f docker-compose.yml -f compose.release.yml up --no-build --wait
 
 ## 后续优先级
 
-首次 GitHub 四平台候选执行 → Linux/Windows/macOS 安装、CSP 与媒体验收 → 生成并审查完整第三方材料 → 存量数据迁移/恢复演练 → 同一候选的验收 PR → 正式发布。自动更新渠道、增量更新签名和更多 ARM 桌面目标作为后续独立工作。
+审查合并平台修复 PR → 使用已核验候选完成 Linux/Windows/macOS 安装、CSP 与媒体验收 → 生成并审查完整第三方材料 → 存量数据迁移/恢复演练 → 同一候选的验收 PR → 正式发布。自动更新渠道、增量更新签名和更多 ARM 桌面目标作为后续独立工作。
 
 参考：[GitHub 可复用工作流](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)、[原生 ARM runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、[Docker 多架构构建](https://docs.docker.com/build/ci/github-actions/multi-platform/)、[digest 检查](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/)、[GitHub Release CLI](https://cli.github.com/manual/gh_release_create)、[Tauri CLI](https://v2.tauri.app/reference/cli/)、[actionlint 官方发布](https://github.com/rhysd/actionlint/releases/tag/v1.7.12)。

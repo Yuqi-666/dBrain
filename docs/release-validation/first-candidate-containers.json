@@ -1,0 +1,32 @@
+{
+  "version": "0.1.0",
+  "commit": "a600b250f46bd30be2da8eb800bc7280a8518002",
+  "runId": "38120933333",
+  "runAttempt": "1",
+  "images": {
+    "pocketbase": {
+      "reference": "ghcr.io/yuqi-666/dbrain-pocketbase@sha256:20a0bb2ebbf763e9ae1861a3fda92dceb645c0760c7043d89690e939df4c2e92",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "smokePassed": true
+    },
+    "server": {
+      "reference": "ghcr.io/yuqi-666/dbrain-server@sha256:daf2131555ad560ee25301515c6a42e2912b7e905f5778ee019e732994f287c0",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "smokePassed": true
+    },
+    "web": {
+      "reference": "ghcr.io/yuqi-666/dbrain-web@sha256:69e729a436c5d5a6b533906a342f0b8e0bea7aa2c7af5aec10b492d12f9f686d",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "smokePassed": true
+    }
+  }
+}

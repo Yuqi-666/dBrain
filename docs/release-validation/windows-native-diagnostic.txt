@@ -1,0 +1,14 @@
+Unsigned diagnostic build: https://github.com/Yuqi-666/dBrain/actions/runs/38122597418
+Final conclusion: success. No native GUI/install/upgrade/signing acceptance.
+Selected evidence:
+build (windows-2022, win32-x64)	Run node apps/desktop/scripts/backend-smoke.mjs	2026-10-11T07:50:33.7517349Z PASS session gate, origin checks, private database gate and authentication
+build (windows-2022, win32-x64)	Run node apps/desktop/scripts/backend-smoke.mjs	2026-10-11T07:50:34.4242590Z PASS workspace, view, semantics, tags, all 10 node types, edges and live events
+build (windows-2022, win32-x64)	Run node apps/desktop/scripts/backend-smoke.mjs	2026-10-11T07:50:34.4749548Z PASS Dashboard persistence and optimistic conflicts
+build (windows-2022, win32-x64)	Run node apps/desktop/scripts/backend-smoke.mjs	2026-10-11T07:50:35.8304780Z PASS disk attachments, range requests, PDF parsing/covers and FFmpeg video transcoding/HLS
+build (windows-2022, win32-x64)	Run node apps/desktop/scripts/backend-smoke.mjs	2026-10-11T07:50:36.5467582Z PASS clean shutdown, same local identity, restart persistence and portable file/HLS paths
+build (windows-2022, win32-x64)	Run cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml	2026-10-11T07:56:25.9524849Z     Finished `release` profile [optimized] target(s) in 5m 43s
+build (windows-2022, win32-x64)	Run cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml	2026-10-11T07:56:28.1827507Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+build (windows-2022, win32-x64)	Build installer	2026-10-11T08:02:26.2561072Z     Finished `release` profile [optimized] target(s) in 2m 13s
+build (windows-2022, win32-x64)	Build installer	2026-10-11T08:06:23.6149837Z     Finished 2 bundles at:
+build (windows-2022, win32-x64)	Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02	2026-10-11T08:06:35.8751028Z Artifact desktop-win32-x64-38122597418-1.zip successfully finalized. Artifact ID 11695364568
+build (windows-2022, win32-x64)	Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02	2026-10-11T08:06:35.8766302Z Artifact desktop-win32-x64-38122597418-1 has been successfully uploaded! Final size is 244754497 bytes. Artifact ID is 11695364568
