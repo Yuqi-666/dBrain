@@ -5,8 +5,8 @@ on:
       target:
         description: Single target for diagnostics; unified candidates always build all
         type: choice
-        default: all
-        options: [all, linux-x64, win32-x64, darwin-x64, darwin-arm64]
+        default: linux-x64
+        options: [linux-x64, win32-x64, darwin-x64, darwin-arm64, all]
       signed:
         description: Build signed candidates using release environment secrets
         type: boolean
@@ -19,8 +19,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.ref }}-${{ inputs.target || 'all' }}
-  cancel-in-progress: false
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.target || 'all' }}
+  cancel-in-progress: ${{ github.workflow == 'Desktop candidate build' }}
 jobs:
   build:
     strategy:
