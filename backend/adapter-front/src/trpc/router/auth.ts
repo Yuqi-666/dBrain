@@ -43,14 +43,6 @@ export const authRouter = router({
     try {
       const emailVO = new Email(email);
 
-      const existing = await container().userDao.findByEmail(emailVO);
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Email already registered",
-        });
-      }
-
       const user = await container().userDao.createUser(emailVO, password, nickname);
 
       // Verify the fresh credentials to obtain a PocketBase-issued JWT for the new user.

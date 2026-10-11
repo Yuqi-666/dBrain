@@ -1,40 +1,9 @@
 {
-  "extends": "@workspace/typescript-config/react-library.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/interfaces": [
-        "../../packages/interfaces/src"
-      ],
-      "@workspace/interfaces/*": [
-        "../../packages/interfaces/src/*"
-      ],
-      "@workspace/infrastructure": [
-        "../infrastructure/src"
-      ],
-      "@workspace/infrastructure/*": [
-        "../infrastructure/src/*"
-      ],
-      "@workspace/domain": [
-        "../domain/src"
-      ],
-      "@workspace/domain/*": [
-        "../domain/src/*"
-      ],
-      "@workspace/adapter-back": [
-        "../adapter-back/src"
-      ],
-      "@workspace/adapter-back/*": [
-        "../adapter-back/src/*"
-      ],
-      "@workspace/application": [
-        "../application/src"
-      ],
-      "@workspace/application/*": [
-        "../application/src/*"
-      ]
-    }
-  },
+  "extends": [
+    "@workspace/typescript-config/react-library.json",
+    "../../tsconfig.workspace.json"
+  ],
+  "compilerOptions": {},
   "include": [
     "."
   ],

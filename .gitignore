@@ -48,3 +48,7 @@ pb/pocketbase
 .codegraph/
 .sisyphus/
 .vscode/
+
+# Release candidates and prepared dependency staging
+release-artifacts/
+**/.runtime-staging/

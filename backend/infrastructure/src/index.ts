@@ -42,3 +42,5 @@ export * from "./repositories/pocketbase-workspace-member.repository";
 
 export * from "./repositories/pocketbase-dashboard.repository";
 export * from "./database/mappers/dashboard.mapper";
+
+export { runWithToken, requestToken, runWithFileWorkspace, fileWorkspace } from "./database/request-scope";

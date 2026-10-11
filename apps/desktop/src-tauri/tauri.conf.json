@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' asset: http://asset.localhost; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data: blob: http: https:; font-src 'self' data:; media-src 'self' blob: data: http: https:; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self' blob: http: https:; object-src 'none'; base-uri 'self'"
     },
     "withGlobalTauri": true
   },
@@ -49,6 +49,8 @@
       "appimage": {
         "bundleMediaFramework": true
       }
-    }
+    },
+    "shortDescription": "dBrain local knowledge workspace",
+    "copyright": "Copyright (c) 2026 dBrain contributors. All rights reserved."
   }
 }

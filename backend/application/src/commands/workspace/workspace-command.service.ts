@@ -100,7 +100,7 @@ export class WorkspaceCommandService {
       isPinned: true,
       workspaceId: saved.id.value,
     });
-    await this.viewRepository.save(view);
+    const savedView = await this.viewRepository.save(view);
 
     const createdEvent: WorkspaceCreated = {
       eventType: "WorkspaceCreated",
@@ -118,14 +118,15 @@ export class WorkspaceCommandService {
 
     const viewCreatedEvent: ViewCreated = {
       eventType: "ViewCreated",
-      aggregateId: viewId,
+      aggregateId: savedView.id.value,
       metadata: {
+        workspaceId: saved.id.value,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId,
       },
       data: {
-        id: viewId,
+        id: savedView.id.value,
       },
     };
     this.eventBus.publish(viewCreatedEvent);
@@ -170,19 +171,20 @@ export class WorkspaceCommandService {
       isPinned: true,
       workspaceId: saved.id.value,
     });
-    await this.viewRepository.save(view);
+    const savedView = await this.viewRepository.save(view);
 
     const viewCreatedEvent: ViewCreated = {
       eventType: "ViewCreated",
-      aggregateId: viewId,
+      aggregateId: savedView.id.value,
       metadata: {
+        workspaceId: saved.id.value,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
         sourceId: cmd.sourceId,
       },
       data: {
-        id: viewId,
+        id: savedView.id.value,
       },
     };
     this.eventBus.publish(viewCreatedEvent);
@@ -227,6 +229,8 @@ export class WorkspaceCommandService {
   async deleteWorkspace(cmd: DeleteWorkspaceCommand): Promise<void> {
     const id = WorkspaceId.create(cmd.id);
 
+    const workspace = await this.workspaceRepository.findById(id);
+    if (!workspace || workspace.ownerId !== cmd.userId) throw new Error("Only the workspace owner can delete it");
     // Cascade-delete all workspace-scoped data so no orphaned nodes/edges/views
     // linger after the workspace is gone.
     const nodes = await this.nodeRepository.findAll({ workspaceId: id.value });
@@ -242,13 +246,13 @@ export class WorkspaceCommandService {
       await this.viewRepository.deleteMany(views.map((v) => v.id));
     }
 
-    await this.workspaceRepository.delete(id);
-
     // Delete all members of the workspace.
     const members = await this.workspaceMemberRepository.findByWorkspaceId(id);
     for (const member of members) {
       await this.workspaceMemberRepository.delete(member.id);
     }
+
+    await this.workspaceRepository.delete(id);
 
     const event: WorkspaceDeleted = {
       eventType: "WorkspaceDeleted",

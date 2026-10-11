@@ -1,3 +1,4 @@
+import { requestToken } from "./request-scope";
 import PocketBase, { ClientResponseError } from 'pocketbase';
 
 export interface PocketBaseClientConfig {
@@ -23,6 +24,13 @@ export class PocketBaseClient {
      * ...)` and loses the first one. `cancelAllRequests()` still works.
      */
     this.pb.autoCancellation(false);
+    this.pb.beforeSend = (url, options) => {
+      const headers = new Headers(options.headers);
+      // Never inherit another login's token from the singleton authStore.
+      headers.set("Authorization", requestToken() || headers.get("Authorization") || "");
+      options.headers = Object.fromEntries(headers.entries());
+      return { url, options };
+    };
   }
 
   get baseUrl(): string {

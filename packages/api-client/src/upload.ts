@@ -1,3 +1,4 @@
+import { useWorkspaceStore } from "@workspace/store";
 import { useState } from "react";
 
 import type { IAttachment } from "@workspace/interfaces";
@@ -162,7 +163,7 @@ function buildUploadUrl(
   storedName: string,
 ): string {
   const pb = getPocketbaseClient();
-  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop") {
+  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop" || process.env.NEXT_PUBLIC_DBRAIN_BACKEND_MODE === "same-origin") {
     return `/api/files/${record.collectionId || FILES_COLLECTION}/${record.id}/${storedName}`;
   }
   try {
@@ -272,6 +273,8 @@ export const uploadAttachment = (
 
     const formData = new FormData();
     formData.append(FILES_FIELD, file);
+    const workspaceId = useWorkspaceStore.getState().currentWorkspaceId;
+    if (workspaceId) formData.append("workspaceId", workspaceId);
 
     xhr.open(
       "POST",
@@ -279,8 +282,7 @@ export const uploadAttachment = (
     );
 
     // PocketBase accepts the raw token in the `Authorization` header. The
-    // `files` collection is public, so this is only future-proofing for the
-    // moment the rules get tightened.
+    // The files collection requires authentication and records ownership.
     const token = pb.authStore?.token;
     if (token) xhr.setRequestHeader("Authorization", token);
 

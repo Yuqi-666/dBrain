@@ -1,4 +1,5 @@
 /** Desktop composition root: the SAME container/router as apps/server, with a local lifecycle. */
+import { prepareUpgradeBackup, commitReleaseState } from "./upgrade-backup";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer, request as httpRequest } from "node:http";
@@ -76,6 +77,10 @@ process.stdin.resume();
 
 async function main() {
   await acquireLock();
+  const manifest = JSON.parse(await readFile(join(runtimeDir, "runtime-manifest.json"), "utf8")) as { fingerprint: string };
+  if (!manifest.fingerprint) throw new Error("Packaged runtime manifest is missing its release fingerprint");
+  const backup = await prepareUpgradeBackup(dataDir!, manifest.fingerprint);
+  if (backup) console.log("[desktop] pre-upgrade backup created", backup);
   const pbPort = await freePort();
   const pbUrl = `http://127.0.0.1:${pbPort}`;
   const databaseSecret = randomBytes(32).toString("hex");
@@ -139,7 +144,7 @@ async function main() {
       return;
     }
     if (!allowedFileRequest(path, req.method)) { res.writeHead(404).end(); return; }
-    const headers = { ...req.headers, host: `127.0.0.1:${pbPort}`, "x-dbrain-internal": databaseSecret };
+    const headers = { ...req.headers, host: `127.0.0.1:${pbPort}`, authorization: pb.authStore.token, "x-dbrain-internal": databaseSecret };
     delete headers.origin;
     const upstream = httpRequest(new URL(path, pbUrl), { method: req.method, headers }, response => {
       // Root-relative segment URLs otherwise escape /session/<secret> on playback.
@@ -178,6 +183,7 @@ async function main() {
   if (!address || typeof address === "string") throw new Error("No backend address");
   const base = `http://127.0.0.1:${address.port}/session/${secret}`;
   const descriptor = { trpc: `${base.replace("http:", "ws:")}/trpc`, pocketbase: base, token: session.token, dataDir };
+  await commitReleaseState(dataDir!, manifest.fingerprint);
   await writeFile(`${readyFile}.tmp`, JSON.stringify(descriptor), { mode: 0o600 });
   await rename(`${readyFile}.tmp`, readyFile!);
   console.log("[desktop] local backend ready");

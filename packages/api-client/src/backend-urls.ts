@@ -66,7 +66,7 @@ export function resolveBackendUrls(): BackendUrls {
   }
 
   const { hostname, host, origin, protocol } = window.location;
-  if (isLoopbackHostname(hostname)) {
+  if (isLoopbackHostname(hostname) && process.env.NEXT_PUBLIC_DBRAIN_BACKEND_MODE !== "same-origin") {
     return LOOPBACK_URLS;
   }
 

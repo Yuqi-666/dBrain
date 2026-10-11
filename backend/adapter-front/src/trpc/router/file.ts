@@ -1,3 +1,8 @@
+import {
+  getPocketBaseClient,
+  runWithFileWorkspace,
+  toFileEndpointPath,
+} from "@workspace/infrastructure";
 import { z } from "zod";
 import { router, protectedProcedure } from "../server";
 import { container } from "../../di/container";
@@ -10,6 +15,17 @@ import { container } from "../../di/container";
  * freshly uploaded blob so it can process it server-side. No bytes travel over
  * tRPC.
  */
+async function withFileScope<T>(
+  url: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const path = toFileEndpointPath(url);
+  const [, , , collection, id] = path.split("/");
+  const file = await getPocketBaseClient().collection("files").getOne(id!);
+  if (collection !== "files" && collection !== file.collectionId)
+    throw new Error("Invalid file collection");
+  return runWithFileWorkspace(String(file.workspaceId ?? ""), work);
+}
 export const fileRouter = router({
   /**
    * Parses an uploaded PDF and stores a first-page cover.
@@ -20,9 +36,11 @@ export const fileRouter = router({
   analyzePdf: protectedProcedure
     .input(z.object({ fileUrl: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      return container().fileCommandService.analyzePdf({
-        fileUrl: input.fileUrl,
-      });
+      return withFileScope(input.fileUrl, () =>
+        container().fileCommandService.analyzePdf({
+          fileUrl: input.fileUrl,
+        }),
+      );
     }),
 
   /**
@@ -37,8 +55,10 @@ export const fileRouter = router({
   transcodeVideo: protectedProcedure
     .input(z.object({ fileUrl: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      return container().fileCommandService.transcodeVideo({
-        fileUrl: input.fileUrl,
-      });
+      return withFileScope(input.fileUrl, () =>
+        container().fileCommandService.transcodeVideo({
+          fileUrl: input.fileUrl,
+        }),
+      );
     }),
 });

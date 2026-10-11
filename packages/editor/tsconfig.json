@@ -1,19 +1,9 @@
 {
-  "extends": "@workspace/typescript-config/react-library.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/editor/*": [
-        "./*"
-      ],
-      "@workspace/interfaces": [
-        "../interfaces/src"
-      ],
-      "@workspace/interfaces/*": [
-        "../interfaces/src/*"
-      ]
-    }
-  },
+  "extends": [
+    "@workspace/typescript-config/react-library.json",
+    "../../tsconfig.workspace.json"
+  ],
+  "compilerOptions": {},
   "include": [
     "next-env.d.ts",
     "**/*.ts",

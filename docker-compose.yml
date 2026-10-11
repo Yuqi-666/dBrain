@@ -1,37 +1,64 @@
+name: dbrain
 services:
   pocketbase:
-    image: spectonic/pocketbase:latest
-    container_name: dbrain-pb
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.1.0}
+    build:
+      context: .
+      dockerfile: deploy/pocketbase/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./pb/pb_data:/pb_data
-    ports:
-      - "8090:8090"
-    command: serve --http=0.0.0.0:8090
-
+      - pb_data:/pb_data
+    networks: [backend]
+    security_opt: [no-new-privileges:true]
   server:
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.1.0}
     build:
       context: .
       dockerfile: apps/server/Dockerfile
-    container_name: dbrain-server
     restart: unless-stopped
     environment:
       PB_URL: http://pocketbase:8090
       PORT: "3001"
-    ports:
-      - "3001:3001"
+      DBRAIN_PUBLIC_ORIGIN: ${DBRAIN_PUBLIC_ORIGIN:-}
     depends_on:
-      - pocketbase
-
+      pocketbase:
+        condition: service_healthy
+    networks: [backend, frontend]
+    security_opt: [no-new-privileges:true]
   web:
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.1.0}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: dbrain-web
     restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_TRPC_SERVER: http://server:3001
-    ports:
-      - "3000:3000"
     depends_on:
-      - server
+      server:
+        condition: service_healthy
+    networks: [frontend]
+    security_opt: [no-new-privileges:true]
+  gateway:
+    image: nginx:1.28.0-alpine
+    restart: unless-stopped
+    ports:
+      - "${DBRAIN_BIND_HOST:-127.0.0.1}:${DBRAIN_PORT:-3000}:8080"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    networks: [frontend]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+networks:
+  backend:
+    internal: true
+  frontend:
+volumes:
+  pb_data:

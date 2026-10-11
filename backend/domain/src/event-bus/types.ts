@@ -3,4 +3,5 @@ export interface EventMetadata {
   eventVersion: 1;
   userId: string;
   sourceId?: string;
+  workspaceId?: string;
 }

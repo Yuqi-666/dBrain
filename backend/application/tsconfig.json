@@ -1,22 +1,9 @@
 {
-  "extends": "@workspace/typescript-config/react-library.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/interfaces": [
-        "../../packages/interfaces/src"
-      ],
-      "@workspace/interfaces/*": [
-        "../../packages/interfaces/src/*"
-      ],
-      "@workspace/domain": [
-        "../domain/src"
-      ],
-      "@workspace/domain/*": [
-        "../domain/src/*"
-      ]
-    }
-  },
+  "extends": [
+    "@workspace/typescript-config/react-library.json",
+    "../../tsconfig.workspace.json"
+  ],
+  "compilerOptions": {},
   "include": [
     "."
   ],

@@ -1,0 +1,6 @@
+Full workspace lint: 19 passes, 1 failure.
+Failed package: @workspace/editor
+Detailed editor lint: 106 problems (67 errors, 39 warnings).
+Categories include @typescript-eslint/no-explicit-any, no-unsafe-function-type,
+React hooks effect/ref rules and unused variables.
+These issues remain open; no rule suppression was added to make the check pass.

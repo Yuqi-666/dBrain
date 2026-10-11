@@ -1,3 +1,7 @@
+# dBrain
+
+发布修复、实际验证结果和剩余发布门槛见 [发布验收报告](docs/release-readiness.md)。当前仍有未闭合的发布门槛，详见报告。
+
 # Turborepo starter
 
 This Turborepo starter is maintained by the Turborepo core team.

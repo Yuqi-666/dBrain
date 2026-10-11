@@ -93,13 +93,14 @@ export class PocketBaseUserRepository implements IUserRepository {
     password: string,
   ): Promise<{ valid: boolean; user: User | null; token?: string }> {
     try {
-      const authData = await this.pb.client.collection("users").authWithPassword(
+      const client = new PocketBaseClient({ url: this.pb.baseUrl });
+      const authData = await client.client.collection("users").authWithPassword(
         email.value,
         password,
       );
       const record = authData.record as unknown as UserRecord;
       // PocketBase SDK auto-saves token to authStore after authWithPassword
-      const token = this.pb.authStore.token as string | null;
+      const token = authData.token;
       return { valid: true, user: this.mapper.toDomain(record), token: token ?? undefined };
     } catch (error) {
       if (this.pb.isClientResponseError(error) && error.status === 400) {

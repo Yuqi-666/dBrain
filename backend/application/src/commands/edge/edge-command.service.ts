@@ -62,6 +62,7 @@ export class EdgeCommandService {
         eventType: "EdgeCreated",
         aggregateId: saved.id.getValue(),
         metadata: {
+        workspaceId: saved.workspaceId,
           occurredAt: new Date().toISOString(),
           eventVersion: 1,
           userId: cmd.userId,
@@ -110,6 +111,7 @@ export class EdgeCommandService {
       eventType: "EdgeUpdated",
       aggregateId: saved.id.getValue(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -126,12 +128,15 @@ export class EdgeCommandService {
 
   async deleteEdge(cmd: DeleteEdgeCommand): Promise<void> {
     const id = EdgeId.create(cmd.id);
+    const existing = await this.edgeRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
     await this.edgeRepository.delete(id);
 
     const event: EdgeDeleted = {
       eventType: "EdgeDeleted",
       aggregateId: cmd.id,
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,

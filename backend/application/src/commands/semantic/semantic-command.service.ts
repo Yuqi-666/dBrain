@@ -96,6 +96,7 @@ export class SemanticCommandService {
       eventType: "NodeSemanticCreated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -133,6 +134,7 @@ export class SemanticCommandService {
       eventType: "NodeSemanticUpdated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -149,11 +151,14 @@ export class SemanticCommandService {
 
   async deleteNodeSemantic(cmd: DeleteNodeSemanticCommand): Promise<void> {
     const id = SemanticId.create(cmd.id);
+    const existing = await this.nodeSemanticRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
 
     const event: NodeSemanticDeleted = {
       eventType: "NodeSemanticDeleted",
       aggregateId: id.toString(),
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -186,6 +191,7 @@ export class SemanticCommandService {
       eventType: "EdgeSemanticCreated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -223,6 +229,7 @@ export class SemanticCommandService {
       eventType: "EdgeSemanticUpdated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -239,11 +246,14 @@ export class SemanticCommandService {
 
   async deleteEdgeSemantic(cmd: DeleteEdgeSemanticCommand): Promise<void> {
     const id = SemanticId.create(cmd.id);
+    const existing = await this.edgeSemanticRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
 
     const event: EdgeSemanticDeleted = {
       eventType: "EdgeSemanticDeleted",
       aggregateId: id.toString(),
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -272,6 +282,7 @@ export class SemanticCommandService {
       eventType: "NodeTagCreated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -305,6 +316,7 @@ export class SemanticCommandService {
       eventType: "NodeTagUpdated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -321,11 +333,14 @@ export class SemanticCommandService {
 
   async deleteNodeTag(cmd: DeleteNodeTagCommand): Promise<void> {
     const id = TagId.create(cmd.id);
+    const existing = await this.nodeTagRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
 
     const event: NodeTagDeleted = {
       eventType: "NodeTagDeleted",
       aggregateId: id.toString(),
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,

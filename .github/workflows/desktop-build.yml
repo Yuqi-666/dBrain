@@ -1,0 +1,110 @@
+name: Desktop candidate build
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Build signed candidates using release environment secrets
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x64
+          - os: windows-2022
+            target: win32-x64
+          - os: macos-15-intel
+            target: darwin-x64
+          - os: macos-15
+            target: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    environment: ${{ inputs.signed && 'release' || 'candidate' }}
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      CARGO_BUILD_JOBS: "2"
+      DBRAIN_GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.0.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm release:check
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libssl-dev librsvg2-dev build-essential patchelf ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+      - if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg@7
+          echo "FFMPEG_PATH=$(brew --prefix ffmpeg@7)/bin/ffmpeg" >> "$GITHUB_ENV"
+          echo "FFPROBE_PATH=$(brew --prefix ffmpeg@7)/bin/ffprobe" >> "$GITHUB_ENV"
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ffmpeg --version=7.1.1 --allow-downgrade -y --no-progress
+          $ffmpeg = Get-ChildItem C:\ProgramData\chocolatey\lib\ffmpeg -Filter ffmpeg.exe -Recurse | Select-Object -First 1
+          $ffprobe = Get-ChildItem C:\ProgramData\chocolatey\lib\ffmpeg -Filter ffprobe.exe -Recurse | Select-Object -First 1
+          if (!$ffmpeg -or !$ffprobe) { throw 'FFmpeg binaries missing' }
+          "FFMPEG_PATH=$($ffmpeg.FullName)" >> $env:GITHUB_ENV
+          "FFPROBE_PATH=$($ffprobe.FullName)" >> $env:GITHUB_ENV
+      - run: rustup show active-toolchain
+      - run: node scripts/release/download-pocketbase.mjs
+      - if: inputs.signed && runner.os != 'Linux'
+        run: node scripts/release/prepare-signing.mjs
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      - run: pnpm --filter desktop runtime:prepare
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
+      - run: node apps/desktop/scripts/backend-smoke.mjs
+      - run: pnpm --filter desktop build
+      - run: cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Build installer
+        shell: bash
+        run: |
+          if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then
+            pnpm --filter desktop tauri build --config "$DBRAIN_TAURI_SIGNING_CONFIG"
+          else
+            pnpm build:desktop
+          fi
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_KEY: ${{ inputs.signed && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ inputs.signed && secrets.APPLE_API_ISSUER || '' }}
+      - if: inputs.signed && runner.os == 'macOS'
+        shell: bash
+        run: |
+          find apps/desktop/src-tauri/target/release/bundle/macos -name '*.app' -maxdepth 1 -exec codesign --verify --deep --strict {} \;
+          find apps/desktop/src-tauri/target/release/bundle/macos -name '*.app' -maxdepth 1 -exec spctl --assess --type execute {} \;
+      - run: node scripts/release/collect-desktop.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-${{ matrix.target }}-${{ github.sha }}
+          path: release-artifacts/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
+      - if: always() && inputs.signed
+        run: node scripts/release/cleanup-signing.mjs

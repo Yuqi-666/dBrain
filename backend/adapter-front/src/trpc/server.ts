@@ -1,3 +1,4 @@
+import { runWithToken } from "@workspace/infrastructure";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { IDomainEvent } from "@workspace/domain/event-bus";
@@ -72,14 +73,17 @@ const t = initTRPC.context<Context>().create({
 /**
  * Enforce user authentication middleware
  */
-const enforceUserId = t.middleware(({ ctx, next }) => {
-  if (!ctx.userId) {
+const enforceUserId = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.token) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Authentication required",
     });
   }
-  return next({ ctx: { userId: ctx.userId, token: ctx.token } });
+  try { ctx.userId = await verifyToken(ctx.token); } catch {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Session expired" });
+  }
+  return runWithToken(ctx.token, () => next({ ctx: { userId: ctx.userId, token: ctx.token } }));
 });
 
 /**

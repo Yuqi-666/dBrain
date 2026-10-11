@@ -1,3 +1,4 @@
+import { requestToken, fileWorkspace } from "../database/request-scope";
 import type { IFileStore, StoredBlob } from "@workspace/domain";
 import type { PocketBaseClient } from "../database/pocketbase-client";
 
@@ -12,22 +13,8 @@ import type { PocketBaseClient } from "../database/pocketbase-client";
  * proxy for arbitrary addresses.
  */
 
-/** `/api/files/<collection>/<record>/<filename>` — nothing else is allowed. */
-const FILE_PATH_PATTERN = /^\/api\/files\/[A-Za-z0-9_]+\/[A-Za-z0-9]+\/[^/]+$/;
-
-export function toFileEndpointPath(fileUrl: string): string {
-  let pathname: string;
-  try {
-    pathname = new URL(fileUrl, "http://pocketbase.invalid").pathname;
-  } catch {
-    throw new Error(`Not a usable file address: ${fileUrl}`);
-  }
-
-  if (!FILE_PATH_PATTERN.test(pathname)) {
-    throw new Error(`Refusing to fetch a non file-store address: ${fileUrl}`);
-  }
-  return pathname;
-}
+import { toFileEndpointPath } from "./file-address";
+export { toFileEndpointPath } from "./file-address";
 
 /**
  * Copies the bytes into a plain `ArrayBuffer` before wrapping them in a `Blob`:
@@ -50,7 +37,7 @@ export class PocketBaseFileStore implements IFileStore {
 
   async download(fileUrl: string): Promise<Uint8Array> {
     const target = new URL(toFileEndpointPath(fileUrl), this.pb.baseUrl);
-    const response = await fetch(target);
+    const response = await fetch(target, { headers: { Authorization: requestToken() } });
 
     if (!response.ok) {
       throw new Error(
@@ -64,6 +51,7 @@ export class PocketBaseFileStore implements IFileStore {
   async upload(blob: StoredBlob): Promise<string> {
     const form = new FormData();
     form.append(this.field, toBlob(blob), blob.fileName);
+    if (fileWorkspace()) form.append("workspaceId", fileWorkspace());
 
     const record = await this.pb.collection(this.collection).create(form);
     const storedName = record[this.field];
@@ -74,6 +62,6 @@ export class PocketBaseFileStore implements IFileStore {
     }
 
     const url = this.pb.client.files.getURL(record, storedName);
-    return process.env.DBRAIN_DESKTOP === "1" ? new URL(url).pathname : url;
+    return new URL(url).pathname;
   }
 }

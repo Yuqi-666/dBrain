@@ -2,14 +2,18 @@
   "name": "dBrain",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
+    "build": "pnpm --filter server build && pnpm --filter web build",
+    "dev": "pnpm -r --parallel --if-present run dev",
     "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"PORT=3001 pnpm --filter=server dev\"",
-    "lint": "turbo run lint --continue",
+    "lint": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run typecheck --continue",
+    "check-types": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run typecheck",
     "dev:desktop": "pnpm --filter desktop desktop:dev",
-    "build:desktop": "pnpm --filter desktop desktop:build"
+    "build:desktop": "pnpm --filter desktop desktop:build",
+    "release:check": "node scripts/release/check.mjs",
+    "release:version": "node scripts/release/version.mjs",
+    "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
+    "smoke:server": "node scripts/release/server-smoke.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
@@ -21,6 +25,7 @@
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
 }

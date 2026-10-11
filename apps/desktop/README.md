@@ -21,6 +21,10 @@ Tauri 启动打包的 Node 运行时，等待 PocketBase 完成数据库迁移�
 
 开发阶段按要求不迁移旧版 IndexedDB；Desktop 不再调用旧的 `localLink` / `local-engine`。旧适配器保留在仓库但不参与当前 Desktop 运行。完整本地后端不包含云端同步；账号关联、增量同步、离线冲突处理仍是后续工作。
 
+## 发布验收状态
+
+最新修复与验证边界见 [发布验收报告](../../docs/release-readiness.md)。本文件底部的旧安装包验证记录不代表新增 CSP、权限迁移和运行时配置已经完成原生平台验收。
+
 ## 开发与打包
 
 构建机需要 Node 22+（建议 24）、pnpm、目标平台 PocketBase、FFmpeg/FFprobe、Rust 和 Tauri 系统依赖。Linux AppImage 媒体框架打包另需 `patchelf`、`gstreamer1.0-tools` 和上述 GStreamer 插件。先安装依赖：

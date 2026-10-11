@@ -1,67 +1,9 @@
 {
-  "extends": "@workspace/typescript-config/react-library.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/hooks/*": [
-        "./src/*"
-      ],
-      "@workspace/store": [
-        "../store/src"
-      ],
-      "@workspace/store/*": [
-        "../store/src/*"
-      ],
-      "@workspace/api-client": [
-        "../api-client/src"
-      ],
-      "@workspace/api-client/*": [
-        "../api-client/src/*"
-      ],
-      "@workspace/services": [
-        "../services/src"
-      ],
-      "@workspace/services/*": [
-        "../services/src/*"
-      ],
-      "@workspace/interfaces": [
-        "../interfaces/src"
-      ],
-      "@workspace/interfaces/*": [
-        "../interfaces/src/*"
-      ],
-      "@workspace/adapter-front": [
-        "../../backend/adapter-front/src"
-      ],
-      "@workspace/adapter-front/*": [
-        "../../backend/adapter-front/src/*"
-      ],
-      "@workspace/domain": [
-        "../../backend/domain/src"
-      ],
-      "@workspace/domain/*": [
-        "../../backend/domain/src/*"
-      ],
-      "@workspace/infrastructure": [
-        "../../backend/infrastructure/src"
-      ],
-      "@workspace/infrastructure/*": [
-        "../../backend/infrastructure/src/*"
-      ],
-      "@workspace/adapter-back": [
-        "../../backend/adapter-back/src"
-      ],
-      "@workspace/adapter-back/*": [
-        "../../backend/adapter-back/src/*"
-      ],
-      "@workspace/application": [
-        "../../backend/application/src"
-      ],
-      "@workspace/application/*": [
-        "../../backend/application/src/*"
-      ]
-    }
-  },
+  "extends": [
+    "@workspace/typescript-config/react-library.json",
+    "../../tsconfig.workspace.json"
+  ],
+  "compilerOptions": {},
   "include": [
     "."
   ],

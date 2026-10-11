@@ -63,6 +63,7 @@ export class ViewCommandService {
       eventType: "ViewCreated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -126,6 +127,7 @@ export class ViewCommandService {
       eventType: "ViewUpdated",
       aggregateId: saved.id.toString(),
       metadata: {
+        workspaceId: saved.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -142,12 +144,15 @@ export class ViewCommandService {
 
   async deleteView(cmd: DeleteViewCommand): Promise<void> {
     const id = ViewId.create(cmd.id);
+    const existing = await this.viewRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
     await this.viewRepository.delete(id);
 
     const event: ViewDeleted = {
       eventType: "ViewDeleted",
       aggregateId: cmd.id,
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,

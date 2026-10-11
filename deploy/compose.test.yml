@@ -1,0 +1,6 @@
+# Only for isolated CI projects. Production does not expose these ports.
+services:
+  pocketbase:
+    ports: ["127.0.0.1:13090:8090"]
+  server:
+    ports: ["127.0.0.1:13081:3001"]

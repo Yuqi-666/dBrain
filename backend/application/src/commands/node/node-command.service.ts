@@ -271,6 +271,7 @@ export class NodeCommandService {
       eventType: "NodeCreated",
       aggregateId: savedNode.id.value,
       metadata: {
+        workspaceId: savedNode.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -345,6 +346,7 @@ export class NodeCommandService {
       eventType: "NodeUpdated",
       aggregateId: savedNode.id.value,
       metadata: {
+        workspaceId: savedNode.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,
@@ -510,6 +512,8 @@ export class NodeCommandService {
 
   async deleteNode(cmd: DeleteNodeCommand): Promise<void> {
     const id = new NodeId(cmd.id);
+    const existing = await this.nodeRepository.findById(id);
+    if (!existing) throw new Error("Record not found");
 
     const associatedEdges = await this.edgeRepository.findByNodeId(id);
     if (associatedEdges.length > 0) {
@@ -519,6 +523,7 @@ export class NodeCommandService {
           eventType: "EdgeDeleted",
           aggregateId: edge.id.getValue(),
           metadata: {
+        workspaceId: existing.workspaceId,
             occurredAt: new Date().toISOString(),
             eventVersion: 1,
             userId: cmd.userId,
@@ -536,6 +541,7 @@ export class NodeCommandService {
       eventType: "NodeDeleted",
       aggregateId: cmd.id,
       metadata: {
+        workspaceId: existing.workspaceId,
         occurredAt: new Date().toISOString(),
         eventVersion: 1,
         userId: cmd.userId,

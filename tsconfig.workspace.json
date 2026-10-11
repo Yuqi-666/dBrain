@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/adapter-back": ["backend/adapter-back/src"],
+      "@workspace/adapter-back/*": ["backend/adapter-back/src/*"],
+      "@workspace/adapter-front": ["backend/adapter-front/src"],
+      "@workspace/adapter-front/*": ["backend/adapter-front/src/*"],
+      "@workspace/adapter-tauri": ["backend/adapter-tauri/src"],
+      "@workspace/adapter-tauri/*": ["backend/adapter-tauri/src/*"],
+      "@workspace/application": ["backend/application/src"],
+      "@workspace/application/*": ["backend/application/src/*"],
+      "@workspace/domain": ["backend/domain/src"],
+      "@workspace/domain/*": ["backend/domain/src/*"],
+      "@workspace/infrastructure": ["backend/infrastructure/src"],
+      "@workspace/infrastructure/*": ["backend/infrastructure/src/*"],
+      "@workspace/api-client": ["packages/api-client/src/index.ts"],
+      "@workspace/api-client/*": ["packages/api-client/src/*"],
+      "@workspace/dataview": ["packages/dataview/src/index.ts"],
+      "@workspace/dataview/*": ["packages/dataview/src/*"],
+      "@workspace/dev": ["packages/dev/src/index.ts"],
+      "@workspace/dev/*": ["packages/dev/src/*"],
+      "@workspace/editor": ["packages/editor/src"],
+      "@workspace/editor/*": ["packages/editor/*"],
+      "@workspace/graph": ["packages/graph/src/index.ts"],
+      "@workspace/graph/*": ["packages/graph/src/*"],
+      "@workspace/hooks": ["packages/hooks/src"],
+      "@workspace/hooks/*": ["packages/hooks/src/*"],
+      "@workspace/interfaces": ["packages/interfaces/src"],
+      "@workspace/interfaces/*": ["packages/interfaces/src/*"],
+      "@workspace/services": ["packages/services/src/index.ts"],
+      "@workspace/services/*": ["packages/services/src/*"],
+      "@workspace/store": ["packages/store/src/index.ts"],
+      "@workspace/store/*": ["packages/store/src/*"],
+      "@workspace/ui": ["packages/ui/src"],
+      "@workspace/ui/*": ["packages/ui/src/*"],
+      "@workspace/utils": ["packages/utils/src/index.ts"],
+      "@workspace/utils/*": ["packages/utils/src/*"]
+    },
+    "allowImportingTsExtensions": true
+  }
+}

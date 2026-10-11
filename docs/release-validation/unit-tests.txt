@@ -1,0 +1,19 @@
+
+> dBrain@ test:release /home/lyq/workspace/projects/dBrain
+> node --experimental-strip-types --test --test-isolation=none scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts
+
+✔ gateway requires the exact session secret and rejects arbitrary browser origins (0.44734ms)
+✔ file gateway permits only file reads and upload creates (0.165728ms)
+✔ HLS playback retains the active session prefix without changing comments (0.129062ms)
+✔ upgrade snapshots a WAL database, attachments and identity; repeat launch does not back up again (112.405236ms)
+✔ concurrent requests never share identity (10.879979ms)
+✔ deployment and desktop gateway addresses resolve only to stored files (0.861036ms)
+✔ release metadata is consistent and mismatched tags fail (16.730148ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 181.955238
