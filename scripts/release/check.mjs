@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const read = (path) => readFile(resolve(root, path), "utf8");
 const json = async (path) => JSON.parse(await read(path));
+export function lockedAppVersion(text) {
+  return text.match(
+    /\[\[package\]\]\r?\nname = "app"\r?\nversion = "(.+)"/,
+  )?.[1];
+}
 export async function checkRelease(tag) {
   const release = await json("scripts/release/release.json");
   assert.match(
@@ -28,9 +33,7 @@ export async function checkRelease(tag) {
     "Cargo version drift",
   );
   assert.equal(
-    (await read("apps/desktop/src-tauri/Cargo.lock")).match(
-      /\[\[package\]\]\nname = "app"\nversion = "(.+)"/,
-    )?.[1],
+    lockedAppVersion(await read("apps/desktop/src-tauri/Cargo.lock")),
     release.version,
     "Cargo.lock version drift",
   );

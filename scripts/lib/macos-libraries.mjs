@@ -2,6 +2,18 @@ import { execFileSync } from "node:child_process";
 import { chmod, copyFile, mkdir, realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, relative, resolve } from "node:path";
+// otool -L lists LC_ID_DYLIB as well as dependencies. Prebuilt .node files may
+// retain their original build machine's ID, which need not exist on this host.
+export function macLibraryMetadata(libraries, commands) {
+  const id = commands.match(/cmd LC_ID_DYLIB\r?\n[\s\S]*?name (.+) \(offset/)?.[1];
+  return {
+    dependencies: libraries.split(/\r?\n/).slice(1)
+      .map((line) => line.trim().split(" (compatibility")[0])
+      .filter((dependency) => dependency && dependency !== id),
+    rpaths: [...commands.matchAll(/cmd LC_RPATH[\s\S]*?path (.+) \(offset/g)]
+      .map((match) => match[1]),
+  };
+}
 /** Package Homebrew dylibs transitively and make every reference relative to its
  * loader. Fail on ambiguous/unresolvable libraries instead of shipping a host path. */
 export async function bundleMacLibraries(
@@ -20,17 +32,10 @@ export async function bundleMacLibraries(
     seen.set(source, target);
     await chmod(target, 0o755);
     const output = execFileSync("otool", ["-L", source], { encoding: "utf8" });
-    const dependencies = output
-      .split("\n")
-      .slice(1)
-      .map((line) => line.trim().split(" (compatibility")[0])
-      .filter(Boolean);
     const commands = execFileSync("otool", ["-l", source], {
       encoding: "utf8",
     });
-    const rpaths = [
-      ...commands.matchAll(/cmd LC_RPATH[\s\S]*?path (.+) \(offset/g),
-    ].map((match) => match[1]);
+    const { dependencies, rpaths } = macLibraryMetadata(output, commands);
     for (const dependency of dependencies) {
       if (
         dependency.startsWith("/usr/lib/") ||
