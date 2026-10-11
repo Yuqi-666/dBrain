@@ -1,0 +1,49 @@
+Next.js production build inside the web image build (docker build stage
+"web builder"), from source commit ad9368e on the yuqi build host.
+Command: pnpm --filter web build  (Dockerfile: apps/web/Dockerfile, RUN step 6/6)
+Raw log: /tmp/dbrain-container-up.log on yuqi.
+
+@24 [web builder 6/6] RUN pnpm --filter web build
+> web@0.0.1 build /app/apps/web
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Experiments (use with caution):
+  · cpus: 2
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.2min
+  Running TypeScript ...
+  Collecting page data using 2 workers ...
+  Generating static pages using 2 workers (0/8) ...
+  Generating static pages using 2 workers (2/8)
+  Generating static pages using 2 workers (4/8)
+  Generating static pages using 2 workers (6/8)
+✓ Generating static pages using 2 workers (8/8) in 786.5ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /dashboard
+├ ○ /graph
+├ ○ /login
+└ ○ /register
+
+ƒ Proxy (Middleware)
+
+○  (Static)  prerendered as static content
+
+Notes
+-----
+- This step failed before dc8a78c with
+  `useSearchParams() should be wrapped in a suspense boundary at page "/login"`.
+- The Google Fonts download (next/font/google: Manrope, Geist_Mono, Noto_Serif)
+  succeeded inside the container; the font fetch is a build-time network
+  dependency but is not the cause of any current failure.
+- Next 16 deprecation warning: `middleware.ts` should become `proxy.ts`. Not
+  changed in this round (auth routing at the edge is covered by the container
+  smoke, and the convention still works).
