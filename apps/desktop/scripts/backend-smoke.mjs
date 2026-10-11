@@ -62,6 +62,29 @@ const deadline = setTimeout(() => {
   setTimeout(() => process.exit(1), 1000);
 }, 90_000);
 const tmpId = () => `tmp_${crypto.randomUUID()}`;
+async function createVideoFixture(path) {
+  console.log("STEP packaged FFmpeg media fixture");
+  await new Promise((resolve, reject) => {
+    const fixtureProcess = spawn(exe("ffmpeg"), ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x64:d=1", "-c:v", "mpeg4", path], { env, stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "", timedOut = false;
+    fixtureProcess.stderr.on("data", chunk => { stderr += chunk; });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (process.platform === "darwin" && fixtureProcess.pid) {
+        try {
+          console.error(execFileSync("/usr/bin/sample", [String(fixtureProcess.pid), "1", "1"], { encoding: "utf8", timeout: 5000 }));
+        } catch (error) { console.error("FFmpeg stack capture failed:", error.message); }
+      }
+      fixtureProcess.kill("SIGKILL");
+    }, 30_000);
+    fixtureProcess.once("error", error => { clearTimeout(timer); reject(error); });
+    fixtureProcess.once("close", (code, signal) => {
+      clearTimeout(timer);
+      if (code === 0) resolve();
+      else reject(new Error(`Packaged FFmpeg fixture ${timedOut ? "timed out" : "failed"} (${code ?? signal}): ${stderr}`));
+    });
+  });
+}
 try {
   await start();
   const originalGateway = descriptor.pocketbase;
@@ -140,12 +163,13 @@ try {
   assert.equal(await (await fetch(`${descriptor.pocketbase}${file}`)).text(), "local attachment");
   assert.equal((await fetch(`${descriptor.pocketbase}${file}`, { headers: { Range: "bytes=0-4" } })).status, 206);
   const pdf = await upload(pdfFixture(), "offline.pdf", "application/pdf");
+  console.log("STEP packaged PDF/native canvas");
   const analysis = await client.file.analyzePdf.mutate({ fileUrl: pdf });
   assert.equal(analysis.pageCount, 1);
   assert.ok(analysis.coverUrl.startsWith("/api/files/"), "PDF cover rendered by packaged native canvas");
   assert.equal((await fetch(`${descriptor.pocketbase}${analysis.coverUrl}`)).status, 200);
   const videoPath = join(scratch, "offline.mp4");
-  execFileSync(exe("ffmpeg"), ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x64:d=1", "-c:v", "mpeg4", videoPath], { env });
+  await createVideoFixture(videoPath);
   const video = await upload(await readFile(videoPath), "offline.mp4", "video/mp4");
   const transcode = await client.file.transcodeVideo.mutate({ fileUrl: video });
   assert.equal(transcode.reencoded, true);
