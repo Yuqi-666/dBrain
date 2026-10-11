@@ -2,7 +2,10 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect } from "react";
 import { uploadAttachment } from "@workspace/api-client";
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type {
+  ExcalidrawImperativeAPI,
+  ExcalidrawInitialDataState,
+} from "@excalidraw/excalidraw/types";
 import type { IAttachment } from "@workspace/interfaces";
 import clsx from "clsx";
 import { Pencil } from "lucide-react";
@@ -17,7 +20,8 @@ export default function ExcalidrawView(props: NodeViewProps) {
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
-  const [excalidrawData, setExcalidrawData] = useState<any>(null);
+  const [excalidrawData, setExcalidrawData] =
+    useState<ExcalidrawInitialDataState | null>(null);
   const [opened, setOpened] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 

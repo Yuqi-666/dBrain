@@ -135,7 +135,7 @@ export const MockAi = Extension.create<AiOptions>({
   addCommands() {
     return {
       aiComplete:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -186,7 +186,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiFixSpellingAndGrammar:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -201,7 +201,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiExtend:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -216,7 +216,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiShorten:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -231,7 +231,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiSimplify:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -246,7 +246,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiEmojify:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -261,7 +261,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiSummarize:
-        (options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -276,7 +276,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiAdjustTone:
-        (tone, options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -291,7 +291,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiTranslate:
-        (language, options) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -333,7 +333,7 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiRegenerate:
-        (options?) =>
+        () =>
         ({ editor, chain }) => {
           editor.commands.aiGenerationSetIsLoading(true);
           editor.commands.aiGenerationHasMessage(true);
@@ -352,8 +352,8 @@ export const MockAi = Extension.create<AiOptions>({
         },
 
       aiRephrase:
-        (options?) =>
-        ({ editor, chain }) => {
+        () =>
+        ({ chain }) => {
           setTimeout(() => {
             chain().focus().insertContent(MOCK_AI_TEXT).run();
           }, 100);
@@ -362,7 +362,7 @@ export const MockAi = Extension.create<AiOptions>({
 
       aiTextPrompt:
         (options?) =>
-        ({ editor, chain }) => {
+        ({ chain }) => {
           setTimeout(() => {
             if (options?.insert) {
               chain().focus().insertContent(MOCK_AI_TEXT).run();

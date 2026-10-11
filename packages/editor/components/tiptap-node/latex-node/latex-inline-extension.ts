@@ -1,4 +1,5 @@
 import { InputRule, Node } from "@tiptap/core";
+import type { NodeViewProps } from "@tiptap/react";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import LatexInlineView from "./latex-inline";
 
@@ -11,8 +12,8 @@ declare module "@tiptap/core" {
 }
 
 export interface LatexInlineOption {
-  HTMLAttributes: Record<string, any>;
-  view: React.ComponentType<any> | null;
+  HTMLAttributes: Record<string, unknown>;
+  view: React.ComponentType<NodeViewProps> | null;
 }
 
 // 匹配 "$ " 或者 "\( "
@@ -122,7 +123,7 @@ export const LatexInline = Node.create<LatexInlineOption>({
       // 返回两者中较靠前的位置
       return Math.min(validDollarIndex, parenIndex);
     },
-    tokenize: (src, tokens, lexer) => {
+    tokenize: (src) => {
       if (src.startsWith("$$")) {
         return undefined; // 遇到 $$ 退出，让 block 去处理
       }
@@ -139,7 +140,7 @@ export const LatexInline = Node.create<LatexInlineOption>({
     },
   },
 
-  parseMarkdown: (token, helpers) => {
+  parseMarkdown: (token) => {
     return {
       type: "latexInline",
       attrs: {
@@ -148,7 +149,7 @@ export const LatexInline = Node.create<LatexInlineOption>({
     };
   },
 
-  renderMarkdown: (node, helpers) => {
+  renderMarkdown: (node) => {
     const text = node.attrs?.text || "";
     return `$${text}$`; // 序列化时统一还原为单 $ 格式
   },

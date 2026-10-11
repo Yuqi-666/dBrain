@@ -29,11 +29,9 @@ export default function MainLayout({
   // Always verify the session against the server. `me` is protected → its
   // context is server-verified from the WS token, so this is the source of
   // truth even when zustand was rehydrated from localStorage.
-  const {
-    data: currentUser,
-    isError,
-    isLoading,
-  } = trpc.auth.me.useQuery(undefined, { retry: false });
+  const { data: currentUser, isError } = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+  });
 
   useEffect(() => {
     if (currentUser) {

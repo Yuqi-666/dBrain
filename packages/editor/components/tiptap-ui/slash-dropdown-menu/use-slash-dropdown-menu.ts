@@ -22,7 +22,7 @@ import { SmilePlusIcon } from "@workspace/editor/components/tiptap-icons/smile-p
 import { TableIcon } from "@workspace/editor/components/tiptap-icons/table-icon";
 import { ListIndentedIcon } from "@workspace/editor/components/tiptap-icons/list-indented-icon";
 import IconExcalidraw from "../../tiptap-icons/excalidraw";
-import { FunctionSquare, Sigma } from "lucide-react";
+import { Sigma } from "lucide-react";
 
 // --- Lib ---
 import {
@@ -207,6 +207,15 @@ const texts = {
 };
 
 export type SlashMenuItemType = keyof typeof texts;
+
+/**
+ * Every slash item exposes the same shape. Implementations that do not need the
+ * suggestion `range` simply accept the subset of props they use.
+ */
+type SlashItemImplementation = {
+  check: (editor: Editor) => boolean;
+  action: (props: { editor: Editor; range: Range }) => void;
+};
 
 const getItemImplementations = () => {
   return {
@@ -452,14 +461,14 @@ export function useSlashDropdownMenu(config?: SlashMenuConfig) {
       const itemImplementations = getItemImplementations();
 
       enabledItems.forEach((itemType) => {
-        const itemImpl = itemImplementations[itemType];
+        const itemImpl: SlashItemImplementation | undefined =
+          itemImplementations[itemType];
         const itemText = texts[itemType];
 
         if (itemImpl && itemText && itemImpl.check(editor)) {
           const item: SuggestionItem = {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSelect: ({ editor, range }: { editor: Editor; range: Range }) =>
-              itemImpl.action({ editor, range } as any),
+              itemImpl.action({ editor, range }),
             ...itemText,
           };
 

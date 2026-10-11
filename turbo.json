@@ -2,7 +2,13 @@
   "$schema": "https://v2-9-6.turborepo.dev/schema.json",
   "ui": "tui",
   "globalEnv": [
-    "NODE_ENV"
+    "NODE_ENV",
+    "NEXT_PUBLIC_TIPTAP_COLLAB_DOC_PREFIX",
+    "NEXT_PUBLIC_TIPTAP_COLLAB_APP_ID",
+    "NEXT_PUBLIC_TIPTAP_COLLAB_TOKEN",
+    "NEXT_PUBLIC_TIPTAP_AI_APP_ID",
+    "NEXT_PUBLIC_TIPTAP_AI_TOKEN",
+    "NEXT_PUBLIC_USE_JWT_TOKEN_API_ENDPOINT"
   ],
   "tasks": {
     "build": {

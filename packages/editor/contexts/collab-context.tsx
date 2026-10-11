@@ -7,7 +7,6 @@ import {
   fetchCollabToken,
   getUrlParam,
   TIPTAP_COLLAB_DOC_PREFIX,
-  TIPTAP_COLLAB_APP_ID,
 } from "@workspace/editor/lib/tiptap-collab-utils";
 
 export type CollabContextValue = {

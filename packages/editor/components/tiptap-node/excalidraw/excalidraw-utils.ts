@@ -1,4 +1,7 @@
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type {
+  ExcalidrawImperativeAPI,
+  ExcalidrawInitialDataState,
+} from "@excalidraw/excalidraw/types";
 import { resolveFileUrl } from "@workspace/api-client";
 
 /**
@@ -12,7 +15,10 @@ export function getFileUrl(src: string): string {
   return resolveFileUrl(src);
 }
 
-export async function loadExcalidrawData(src: string): Promise<any> {
+export async function loadExcalidrawData(src: string): Promise<{
+  elements: NonNullable<ExcalidrawInitialDataState["elements"]>;
+  files: NonNullable<ExcalidrawInitialDataState["files"]>;
+}> {
   const url = getFileUrl(src);
   const request = await fetch(url, {
     credentials: "include",
@@ -29,9 +35,10 @@ export async function loadExcalidrawData(src: string): Promise<any> {
   return loadFromBlob(await request.blob(), null, null);
 }
 
-export async function getExcalidrawInitialData(
-  src: string | null,
-): Promise<{ elements: any[]; files: any } | null> {
+export async function getExcalidrawInitialData(src: string | null): Promise<{
+  elements: NonNullable<ExcalidrawInitialDataState["elements"]>;
+  files: NonNullable<ExcalidrawInitialDataState["files"]>;
+} | null> {
   if (!src) {
     return null;
   }

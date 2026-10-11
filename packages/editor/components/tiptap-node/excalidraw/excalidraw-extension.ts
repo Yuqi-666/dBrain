@@ -1,10 +1,11 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import type { NodeViewProps } from "@tiptap/react";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import ExcalidrawView from "./excalidraw-view";
 
 export interface ExcalidrawOptions {
-  HTMLAttributes: Record<string, any>;
-  view: any;
+  HTMLAttributes: Record<string, unknown>;
+  view: React.ComponentType<NodeViewProps> | null;
 }
 export interface ExcalidrawAttributes {
   src?: string;

@@ -1,10 +1,12 @@
 import type { Doc as YDoc } from "yjs";
 
+type EventCallback = (data: unknown) => void;
+
 class MockAwareness {
   private states: Map<number, Map<string, unknown>> = new Map();
   private localClientId: number = Math.floor(Math.random() * 1000000);
   private localState: Map<string, unknown> = new Map();
-  private eventListeners: Map<string, Set<Function>> = new Map();
+  private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
   getStates(): Map<number, Map<string, unknown>> {
     return this.states;
@@ -23,14 +25,14 @@ class MockAwareness {
     return this.localClientId;
   }
 
-  on(event: string, callback: Function): void {
+  on(event: string, callback: EventCallback): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
     this.eventListeners.get(event)!.add(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: EventCallback): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.delete(callback);
@@ -48,7 +50,7 @@ class MockAwareness {
 export class MockCollabProvider {
   document: YDoc;
   awareness: MockAwareness;
-  private eventListeners: Map<string, Set<Function>> = new Map();
+  private eventListeners: Map<string, Set<EventCallback>> = new Map();
   private _connected: boolean = false;
 
   get connected(): boolean {
@@ -83,14 +85,14 @@ export class MockCollabProvider {
     this.eventListeners.clear();
   }
 
-  on(event: string, callback: Function): void {
+  on(event: string, callback: EventCallback): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
     this.eventListeners.get(event)!.add(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: EventCallback): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.delete(callback);

@@ -12,8 +12,7 @@ import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primiti
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 export default function LatexInlineView(props: NodeViewProps) {
-  const { node, updateAttributes, editor, getPos, deleteNode, selected } =
-    props;
+  const { node, updateAttributes, editor, getPos, selected } = props;
   const mathResultContainer = useRef<HTMLSpanElement>(null);
   const mathPreviewContainer = useRef<HTMLSpanElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -73,7 +72,7 @@ export default function LatexInlineView(props: NodeViewProps) {
           .deleteRange({ from: pos, to: pos + node.nodeSize })
           .focus(pos)
           .run();
-      } catch (e) {
+      } catch {
         // 忽略报错
       }
     }

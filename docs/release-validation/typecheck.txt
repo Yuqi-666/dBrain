@@ -13,9 +13,9 @@ backend/application typecheck: Done
 backend/infrastructure typecheck: Done
 packages/api-client typecheck$ tsc --noemit
 packages/services typecheck$ tsc --noEmit
-packages/api-client typecheck: Done
-packages/dataview typecheck$ tsc --noemit
 packages/services typecheck: Done
+packages/dataview typecheck$ tsc --noemit
+packages/api-client typecheck: Done
 packages/ui typecheck$ tsc --noEmit
 packages/dataview typecheck: Done
 packages/interfaces typecheck$ tsc --noemit
@@ -39,7 +39,7 @@ apps/server typecheck$ tsc --noEmit
 packages/graph typecheck$ tsc --noemit
 apps/server typecheck: Done
 packages/graph typecheck: Done
-apps/desktop typecheck$ tsc --noEmit
 apps/web typecheck$ tsc --noEmit
+apps/desktop typecheck$ tsc --noEmit
 apps/desktop typecheck: Done
 apps/web typecheck: Done

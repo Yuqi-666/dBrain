@@ -71,7 +71,6 @@ import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chev
 import { HighlighterIcon } from "@workspace/editor/components/tiptap-icons/highlighter-icon";
 import { LinkIcon } from "@workspace/editor/components/tiptap-icons/link-icon";
 import { MoreVerticalIcon } from "@workspace/editor/components/tiptap-icons/more-vertical-icon";
-import { Sigma } from "lucide-react";
 import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";
 import {
   Toolbar,

@@ -88,7 +88,7 @@ export default function LatexBlockView(props: NodeViewProps) {
           .deleteRange({ from: pos, to: pos + node.nodeSize })
           .focus(pos)
           .run();
-      } catch (e) {
+      } catch {
         // 忽略报错
       }
     }

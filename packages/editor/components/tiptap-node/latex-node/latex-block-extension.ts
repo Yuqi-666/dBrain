@@ -1,4 +1,5 @@
 import { InputRule, Node } from "@tiptap/core";
+import type { NodeViewProps } from "@tiptap/react";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import LatexBlockView from "./latex-block";
 
@@ -11,8 +12,8 @@ declare module "@tiptap/core" {
 }
 
 export interface LatexBlockOptions {
-  HTMLAttributes: Record<string, any>;
-  view: React.ComponentType<any> | null;
+  HTMLAttributes: Record<string, unknown>;
+  view: React.ComponentType<NodeViewProps> | null;
 }
 
 // 匹配 "$$ " 或者 "\[ "
@@ -100,7 +101,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
       const match = src.match(/\$\$|\\\[/);
       return match?.index ?? -1;
     },
-    tokenize: (src, tokens, lexer) => {
+    tokenize: (src) => {
       // 捕获 $$...$$ 或 \[...\] 内部的文本
       const match = /^(?:\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\])/.exec(src);
       if (!match) {
@@ -114,7 +115,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
     },
   },
 
-  parseMarkdown: (token, helpers) => {
+  parseMarkdown: (token) => {
     return {
       type: "latexBlock",
       attrs: {
@@ -123,7 +124,7 @@ export const LatexBlock = Node.create<LatexBlockOptions>({
     };
   },
 
-  renderMarkdown: (node, helpers) => {
+  renderMarkdown: (node) => {
     const text = node.attrs?.text || "";
     return `$$${text}$$\n\n`; // 序列化时统一还原为 $$ 格式
   },

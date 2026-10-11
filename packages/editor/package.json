@@ -2,6 +2,7 @@
   "name": "@workspace/editor",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
@@ -63,6 +64,7 @@
     "@types/node": "^20",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
+    "@workspace/eslint-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "eslint": "^9",
     "sass": "^1.99.0",

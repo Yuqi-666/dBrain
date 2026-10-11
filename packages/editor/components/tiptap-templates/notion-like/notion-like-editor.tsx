@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef } from "react";
+import { useCallback, useContext, useEffect } from "react";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
 import type { Doc as YDoc } from "yjs";
 import { MockCollabProvider } from "@workspace/editor/lib/mock-collab";
 import { createPortal } from "react-dom";
 
 // --- Tiptap Core Extensions ---
+import type { JSONContent } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { Mention } from "@tiptap/extension-mention";
@@ -89,7 +90,6 @@ import {
 import "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor.scss";
 
 // --- Content ---
-import { NotionEditorHeader } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-header";
 import { MobileToolbar } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-mobile-toolbar";
 import { NotionToolbarFloating } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-toolbar-floating";
 import { SetupErrorMessage } from "@workspace/editor/components/tiptap-templates/notion-like/setup-error-message";
@@ -101,11 +101,25 @@ import {
 import { ListNormalizationExtension } from "@workspace/editor/components/tiptap-extension/list-normalization-extension";
 import { Indent } from "@workspace/editor/components/tiptap-extension/indent-extension";
 
+/**
+ * Initial document a consumer hands to a freshly created editor. Consumers pass
+ * whole node contents, so the value is not guaranteed to carry a rich-text body:
+ * only `docs` is ever read, and everything else is ignored.
+ */
+type InitialEditorContent = { docs?: JSONContent };
+
+function extractInitialDocs(value: unknown): JSONContent | undefined {
+  if (value && typeof value === "object" && "docs" in value) {
+    return (value as InitialEditorContent).docs;
+  }
+  return undefined;
+}
+
 export interface NotionEditorProps {
   room: string;
   placeholder?: string;
-  onContentChange?: (content: any) => void;
-  getInitialContent?: () => Record<string, any>;
+  onContentChange?: (content: JSONContent) => void;
+  getInitialContent?: () => unknown;
 }
 
 export interface EditorProviderProps {
@@ -113,13 +127,13 @@ export interface EditorProviderProps {
   ydoc: YDoc;
   placeholder?: string;
   aiToken: string | null;
-  onContentChange?: (content: any) => void;
-  getInitialContent?: () => Record<string, any>;
+  onContentChange?: (content: JSONContent) => void;
+  getInitialContent?: () => unknown;
 }
 export interface EditorContentProps {
   placeholder?: string;
-  onContentChange?: (content: any) => void;
-  getInitialContent?: () => Record<string, any>;
+  onContentChange?: (content: JSONContent) => void;
+  getInitialContent?: () => unknown;
 }
 
 /**
@@ -200,14 +214,24 @@ export function EditorContentArea() {
  * Component that creates and provides the editor instance
  */
 export function EditorProvider(props: EditorProviderProps) {
-  const { provider, ydoc, placeholder = "Start writing...", aiToken, onContentChange, getInitialContent } = props;
+  const {
+    provider,
+    ydoc,
+    placeholder = "Start writing...",
+    aiToken,
+    onContentChange,
+    getInitialContent,
+  } = props;
 
   const { user } = useUser();
   const { setTocContent } = useToc();
 
-  const handleContentChange = useCallback((content: any) => {
-    onContentChange?.(content);
-  }, [onContentChange]);
+  const handleContentChange = useCallback(
+    (content: JSONContent) => {
+      onContentChange?.(content);
+    },
+    [onContentChange],
+  );
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -224,7 +248,10 @@ export function EditorProvider(props: EditorProviderProps) {
     onCreate({ editor }) {
       const initialContent = getInitialContent?.();
       if (initialContent) {
-        editor.commands.setContent(initialContent.docs);
+        // tiptap turns a missing document into an empty one; its parameter type
+        // just does not spell out `undefined`.
+        const initialDocs = extractInitialDocs(initialContent);
+        editor.commands.setContent(initialDocs as JSONContent);
       }
     },
     extensions: [
@@ -388,7 +415,11 @@ export function NotionEditor({
       <CollabProvider room={room}>
         <AiProvider>
           <TocProvider>
-            <NotionEditorContent placeholder={placeholder} onContentChange={onContentChange} getInitialContent={getInitialContent} />
+            <NotionEditorContent
+              placeholder={placeholder}
+              onContentChange={onContentChange}
+              getInitialContent={getInitialContent}
+            />
           </TocProvider>
         </AiProvider>
       </CollabProvider>
