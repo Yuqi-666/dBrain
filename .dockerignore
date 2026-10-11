@@ -18,3 +18,8 @@ pb/pb_data
 pb/pocketbase*
 **/*.pem
 **/*.key
+
+# Documentation and local release evidence do not enter runtime images.
+docs
+release-artifacts
+README.md
