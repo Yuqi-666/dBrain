@@ -1,17 +1,37 @@
 name: CI
 on:
   pull_request:
-  push:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+  push:
+    branches: [main]
   workflow_dispatch:
   workflow_call:
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 jobs:
+  changes:
+    # Drafts do not allocate a runner; ready_for_review starts validation.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      check: ${{ steps.scope.outputs.check }}
+      containers: ${{ steps.scope.outputs.containers }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        name: Select checks from the complete changed-file list
+        run: node scripts/release/ci-scope.mjs
   check:
+    needs: changes
+    if: needs.changes.outputs.check == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -47,6 +67,10 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           NEXT_TELEMETRY_DISABLED: "1"
   containers:
+    needs: [changes, check]
+    # Dependency PRs retain quality/backend checks; main and manual candidates
+    # validate the integrated container stack before deployment.
+    if: needs.changes.outputs.containers == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]')
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     env:

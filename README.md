@@ -34,4 +34,4 @@ pnpm build
 
 `lint:gate` 阻止新增 lint 诊断，存量诊断明确保留在基线；它不表示全仓严格 ESLint 零错误。独立后端与媒体集成验证使用 `pnpm smoke:server`，仅对隔离测试数据运行。
 
-CI 自动检查 PR 与 main/develop 提交。`Release candidate` 手动编排四平台桌面、两架构容器候选；`Publish accepted release` 依据逐平台验收记录和不可变 digest 发布。首次启用、签名 Secrets、审批、部署备份及恢复步骤见工作流手册。当前仍有原生平台和第三方材料等验收门槛，不能把工作流配置完成视为正式发行验收通过。
+CI 自动检查发往 main/develop 的非草稿 PR 与 main 提交，并按变更路径选择任务；文档改动只运行轻量分类。`Release candidate` 手动编排四平台桌面、两架构容器候选；`Publish accepted release` 依据逐平台验收记录和不可变 digest 发布。首次启用、签名 Secrets、审批、部署备份及恢复步骤见工作流手册。当前仍有原生平台和第三方材料等验收门槛，不能把工作流配置完成视为正式发行验收通过。

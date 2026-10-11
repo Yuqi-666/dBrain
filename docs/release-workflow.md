@@ -41,9 +41,26 @@ pnpm test:release
 
 `pnpm lint` 仍是原始报告入口。共享 ESLint 配置中的 only-warn 会降级错误，因此 CI 使用 `lint:gate`：扫描全部 19 个包，与 `scripts/release/lint-baseline.json` 的文件、规则、消息和次数比较；新增诊断、次数增长、配置/解析失败均会失败。当前保留 89 条诊断，不意味着严格 ESLint 零错误。修复存量问题后可运行 `node scripts/release/lint-gate.mjs --update-baseline` **缩减**基线；任何基线扩张需在 PR 解释。CI 不更新基线。新增 workspace 或自定义 lint 命令需同步门禁覆盖范围。
 
-从短期开发分支发起 PR，默认分支保留可构建状态。配置分支保护，要求 CI 的 `check`、`containers` 通过，并要求代码审查。依赖更新由 Dependabot 发 PR，走同一门禁。PR 模板记录实际验证及发行影响；Bug 模板要求产品版本、OS/架构、安装格式与复现步骤。每周处理构建/依赖问题，每个版本处理发布验收记录中的已知问题；Node/PocketBase/FFmpeg/Tauri 升级必须重新验收四平台及数据库备份恢复。不要在主线已验收版本上直接改 migration，使用新增 migration。
+从短期开发分支发起 PR，默认分支保留可构建状态。配置分支保护时要求 CI 的 `changes`、`check`、`containers` 完成，并要求代码审查；不适用的检查会由 job 条件跳过。依赖更新由 Dependabot 发 PR，仍执行质量与后端检查；首版期间常规升级上限为 0，三种生态的计划扫描均为 monthly，安全更新不受常规版本上限限制。PR 模板记录实际验证及发行影响；Bug 模板要求产品版本、OS/架构、安装格式与复现步骤。每周处理构建/依赖问题，每个版本处理发布验收记录中的已知问题；Node/PocketBase/FFmpeg/Tauri 升级必须重新验收四平台及数据库备份恢复。不要在主线已验收版本上直接改 migration，使用新增 migration。
 
 工作流修改也由 CI 使用固定版本、官方 SHA256 校验过的 actionlint 检查。脚本下载限 Linux amd64 检查 job；关闭 actionlint 的可选 shellcheck 子工具，工作流结构/表达式/复用关系仍检查。
+
+## Runner 使用范围
+
+| 场景 | 自动使用的 runner |
+| --- | --- |
+| 发往 main/develop 的草稿 PR | 不分配；转为 ready for review 后验证 |
+| 仅文档、许可证、Issue 模板、技能或 Dependabot 配置改动 | 一个轻量 Linux 分类 job，不安装依赖、不构建 |
+| 仅 apps/desktop/ 或 rust-toolchain.toml 改动 | 分类 + quality/backend 检查，跳过容器 job |
+| 共享源码、锁文件、部署、工作流或其他未分类路径 | 分类 + 完整质量/后端检查 + 容器验收 |
+| Dependabot PR | 分类 + 质量/后端检查，跳过额外容器栈；合入 main 后再验收容器 |
+| main 代码推送 | 按路径检查；develop 推送和普通开发分支推送不另跑一轮 |
+| 手动 CI / Release candidate | 始终完整检查，候选四桌面目标和双架构容器不按路径删减 |
+| 手动桌面诊断 | 默认 linux-x64，可显式选择其他单目标或 all |
+
+路径分类使用完整 Git diff，包含删除与重命名两侧的路径，不受 API 前 300 个文件限制；新增分支、历史不可用或未知事件退回完整检查。未知路径默认视为代码，只有明确的文档范围被排除。正常 PR 使用三点 diff，push 使用 before..after。容器 job 等待质量检查成功后才分配 runner，避免质量失败时继续消耗容器构建时间。验收记录在 docs/ 下也不会触发二进制重建，正式发行仍单独验证它们。
+
+采用 job 条件而非工作流 paths-ignore，保留检查状态，避免以后启用 required checks 时让文档 PR 卡在 Pending；见 [GitHub 对跳过检查的说明](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)。同一 PR/main 的更新取消旧 CI；同一分支和目标的新桌面诊断取消旧诊断。手动统一候选和发行维持串行、不自动取消；候选内部 CI 与单目标诊断分开并发组。发行从非默认分支启动时，不分配发布 runner。
 
 ## 首次启用 GitHub
 
@@ -76,7 +93,7 @@ gh run watch RUN_ID
 
 统一 artifact 名称为 `candidate-RUN_ID-ATTEMPT`，默认保留 30 天，受仓库 artifact 保留策略限制。**失败后的重跑必须选择 Re-run all jobs**；只重跑失败 job 会混入不同 attempt 的产物，汇总故意拒绝。过期候选需重新构建和验收。
 
-排查桌面平台问题时，可单独运行 `desktop-build.yml`，传入 `target=linux-x64`、`win32-x64`、`darwin-x64` 或 `darwin-arm64`；默认 `all`。不同目标的诊断可并行，同一目标保持串行。统一候选的可复用调用仍始终构建四个平台，单目标诊断产物不能用于正式发布。后端 smoke 步骤有 5 分钟外层超时，媒体样本生成有 30 秒超时，macOS 超时时采集 FFmpeg 栈。
+排查桌面平台问题时，可单独运行 `desktop-build.yml`，传入 `target=linux-x64`、`win32-x64`、`darwin-x64` 或 `darwin-arm64`；默认 `linux-x64`，仅显式传 `target=all` 才运行四个平台。不同目标的诊断可并行，同一分支和目标的新诊断会取消旧诊断。统一候选的可复用调用仍始终构建四个平台，单目标诊断产物不能用于正式发布。后端 smoke 步骤有 5 分钟外层超时，媒体样本生成有 30 秒超时，macOS 超时时采集 FFmpeg 栈。
 
 Linux 构建还会提取实际 DEB/AppImage，核对资源完整性并执行完整后端 smoke（DEB 要求全部准备哈希一致；AppImage 允许原生 ELF 路径修补，JS/migrations/静态 PocketBase 保持原字节）；原生 Cargo build/test 使用 `--locked`。
 
@@ -86,7 +103,7 @@ Linux 构建还会提取实际 DEB/AppImage，核对资源完整性并执行完�
 
 ## 私有内部测试（首版安排）
 
-用户决定首版先内部测试，继续使用当前私有仓库。[build 38123782093 的草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-8f8770e1374886c06596) 绑定 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7`，完整候选和独立下载校验均通过；修复仍在 PR #16，尚未合并。草稿包含四平台 ZIP、容器部署 ZIP、来源索引、待验收模板、内测说明及外层 SHA256SUMS。按系统选择 ZIP，解压后再核对平台目录内的校验清单；容器配置在 deployment.zip 的 deployment/ 目录，digest 在 containers/container-report.json 中。
+用户决定首版先内部测试，继续使用当前私有仓库。[build 38123782093 的草稿](https://github.com/Yuqi-666/dBrain/releases/tag/untagged-d1ebf75893254e4394bf) 绑定 `c9f4b7646e73a4255e1e85b1724535297ccdf3f7`，完整候选和独立下载校验均通过；修复已由 PR #16 合入 main（902569b）。草稿包含四平台 ZIP、容器部署 ZIP、来源索引、待验收模板、内测说明及外层 SHA256SUMS。按系统选择 ZIP，解压后再核对平台目录内的校验清单；容器配置在 deployment.zip 的 deployment/ 目录，digest 在 containers/container-report.json 中。
 
 这份草稿是未签名内部候选，不能使用正式发行门禁当作已验收版本。验收模板保持 pending，逐项完成原生窗口、安装卸载、媒体与升级测试后记录证据。草稿未发布，供有草稿访问权限的仓库维护者审查；如向更多内部测试者分发，应先安排私有仓库访问权限并审查草稿。正式发行仍按下节完成签名与验收，不使用本次内部构建标记替代 `v0.1.0` 标签。
 
