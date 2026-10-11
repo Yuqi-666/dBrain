@@ -95,6 +95,11 @@ jobs:
       - name: Build installer
         shell: bash
         run: |
+          # Tauri treats a present-but-empty identity as a request to sign.
+          # Unsigned diagnostics must omit signing variables entirely.
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$DBRAIN_BUILD_SIGNED" != "true" ]; then
+            unset APPLE_SIGNING_IDENTITY APPLE_API_KEY APPLE_API_ISSUER
+          fi
           verbosity=()
           if [ "$RUNNER_OS" = "Linux" ]; then verbosity=(--verbose); fi
           if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then
