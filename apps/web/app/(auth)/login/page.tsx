@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   trpc,
@@ -20,7 +20,21 @@ import {
   CardTitle,
 } from "@workspace/ui/components/ui/card";
 
+/**
+ * `useSearchParams()` reads the `?redirect=` target, which is request state. Next
+ * refuses to prerender the route unless that hook sits behind a Suspense
+ * boundary, so the form lives in its own component. The fallback keeps the
+ * card's footprint so the centred auth layout does not shift.
+ */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md" aria-hidden />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setUser = useAuthStore((s) => s.setUser);
