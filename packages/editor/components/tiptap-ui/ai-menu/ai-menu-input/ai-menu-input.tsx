@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 
 // Tiptap Core Extensions
-import type { Tone } from "@workspace/editor/lib/mock-ai";
+import type { Tone } from "@workspace/editor/lib/ai";
 
 // Icons
 import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon";
@@ -11,7 +11,7 @@ import { ArrowUpIcon } from "@workspace/editor/components/tiptap-icons/arrow-up-
 import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon";
 
 // UI Components
-import { SUPPORTED_TONES } from "@workspace/editor/components/tiptap-ui/ai-menu";
+import { SUPPORTED_TONES } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-items/ai-menu-items-constants";
 
 // UI Primitives
 import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button";

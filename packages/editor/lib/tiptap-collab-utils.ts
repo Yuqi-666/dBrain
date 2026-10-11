@@ -3,21 +3,6 @@ import { CellSelection } from "@tiptap/pm/tables";
 import type { JSONContent, Editor } from "@tiptap/react";
 import { isTextSelection, isNodeSelection, posToDOMRect } from "@tiptap/react";
 
-// TipTap Collaboration
-export const TIPTAP_COLLAB_DOC_PREFIX =
-  process.env.NEXT_PUBLIC_TIPTAP_COLLAB_DOC_PREFIX || "";
-export const TIPTAP_COLLAB_APP_ID =
-  process.env.NEXT_PUBLIC_TIPTAP_COLLAB_APP_ID || "";
-export const TIPTAP_COLLAB_TOKEN =
-  process.env.NEXT_PUBLIC_TIPTAP_COLLAB_TOKEN || "";
-
-// TipTap AI
-export const TIPTAP_AI_APP_ID = process.env.NEXT_PUBLIC_TIPTAP_AI_APP_ID || "";
-export const TIPTAP_AI_TOKEN = process.env.NEXT_PUBLIC_TIPTAP_AI_TOKEN || "";
-
-export const USE_JWT_TOKEN_API_ENDPOINT =
-  process.env.NEXT_PUBLIC_USE_JWT_TOKEN_API_ENDPOINT || "";
-
 const NODE_TYPE_LABELS: Record<string, string> = {
   paragraph: "Text",
   heading: "Heading",
@@ -28,15 +13,6 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   tocNode: "Table of contents",
 };
 export type OverflowPosition = "none" | "top" | "bottom" | "both";
-
-/**
- * Utility function to get URL parameters
- */
-export const getUrlParam = (param: string): string | null => {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  return params.get(param);
-};
 
 /**
  * Returns a display name for the current node in the editor
@@ -172,38 +148,4 @@ export const getSelectionBoundingRect = (editor: Editor): DOMRect | null => {
   }
 
   return posToDOMRect(editor.view, from, to);
-};
-
-/**
- * Generates a deterministic avatar URL from a user name
- */
-export const getAvatar = (name: string) => {
-  if (!name) {
-    return "/avatars/memoji_01.png";
-  }
-
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    hash = hash & hash;
-  }
-
-  const randomFraction = (Math.abs(hash) % 1000000) / 1000000;
-  const id = 1 + Math.floor(randomFraction * 20);
-  const idString = id.toString().padStart(2, "0");
-  return `/avatars/memoji_${idString}.png`;
-};
-
-/**
- * Fetch collaboration JWT token from the API
- */
-export const fetchCollabToken = async () => {
-  return "mock-collab-token";
-};
-
-/**
- * Fetch AI JWT token from the API
- */
-export const fetchAiToken = async () => {
-  return "mock-ai-token";
 };

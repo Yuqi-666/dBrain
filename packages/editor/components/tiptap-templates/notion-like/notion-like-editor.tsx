@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useContext, useEffect } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
-import type { Doc as YDoc } from "yjs";
-import { MockCollabProvider } from "@workspace/editor/lib/mock-collab";
+import { Doc as YDoc } from "yjs";
 import { createPortal } from "react-dom";
 
 // --- Tiptap Core Extensions ---
@@ -15,13 +14,12 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 import { Color, TextStyle } from "@tiptap/extension-text-style";
 import { Placeholder, Selection } from "@tiptap/extensions";
 import { Collaboration, isChangeOrigin } from "@tiptap/extension-collaboration";
-import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
 import { Typography } from "@tiptap/extension-typography";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Superscript } from "@tiptap/extension-superscript";
 import { Subscript } from "@tiptap/extension-subscript";
 import { TextAlign } from "@tiptap/extension-text-align";
-import { MockAi as Ai } from "@workspace/editor/lib/mock-ai";
+import { Ai } from "@workspace/editor/lib/ai";
 import { UniqueID } from "@tiptap/extension-unique-id";
 import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji";
 import {
@@ -72,14 +70,6 @@ import { SlashDropdownMenu } from "@workspace/editor/components/tiptap-ui/slash-
 import { DragContextMenu } from "@workspace/editor/components/tiptap-ui/drag-context-menu";
 import { AiMenu } from "@workspace/editor/components/tiptap-ui/ai-menu";
 
-// --- Contexts ---
-import { UserProvider, useUser } from "@workspace/editor/contexts/user-context";
-import {
-  CollabProvider,
-  useCollab,
-} from "@workspace/editor/contexts/collab-context";
-import { AiProvider, useAi } from "@workspace/editor/contexts/ai-context";
-
 // --- Lib ---
 import {
   handleImageUpload,
@@ -92,7 +82,6 @@ import "@workspace/editor/components/tiptap-templates/notion-like/notion-like-ed
 // --- Content ---
 import { MobileToolbar } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-mobile-toolbar";
 import { NotionToolbarFloating } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-toolbar-floating";
-import { SetupErrorMessage } from "@workspace/editor/components/tiptap-templates/notion-like/setup-error-message";
 import { TocSidebar } from "@workspace/editor/components/tiptap-node/toc-node";
 import {
   TocProvider,
@@ -116,30 +105,21 @@ function extractInitialDocs(value: unknown): JSONContent | undefined {
 }
 
 export interface NotionEditorProps {
-  room: string;
   placeholder?: string;
   onContentChange?: (content: JSONContent) => void;
   getInitialContent?: () => unknown;
 }
 
 export interface EditorProviderProps {
-  provider: MockCollabProvider;
-  ydoc: YDoc;
-  placeholder?: string;
-  aiToken: string | null;
-  onContentChange?: (content: JSONContent) => void;
-  getInitialContent?: () => unknown;
-}
-export interface EditorContentProps {
   placeholder?: string;
   onContentChange?: (content: JSONContent) => void;
   getInitialContent?: () => unknown;
 }
 
 /**
- * Loading spinner component shown while connecting to the notion server
+ * Loading spinner component shown while the editor instance is being created
  */
-export function LoadingSpinner({ text = "Connecting..." }: { text?: string }) {
+export function LoadingSpinner({ text = "Loading editor…" }: { text?: string }) {
   return (
     <div className="spinner-container">
       <div className="spinner-content">
@@ -158,31 +138,7 @@ export function LoadingSpinner({ text = "Connecting..." }: { text?: string }) {
  */
 export function EditorContentArea() {
   const { editor } = useContext(EditorContext)!;
-  const {
-    aiGenerationIsLoading,
-    aiGenerationIsSelection,
-    aiGenerationHasMessage,
-    isDragging,
-  } = useUiEditorState(editor);
-
-  // Selection based effect to handle AI generation acceptance
-  useEffect(() => {
-    if (!editor) return;
-
-    if (
-      !aiGenerationIsLoading &&
-      aiGenerationIsSelection &&
-      aiGenerationHasMessage
-    ) {
-      editor.chain().focus().aiAccept().run();
-      editor.commands.resetUiState();
-    }
-  }, [
-    aiGenerationHasMessage,
-    aiGenerationIsLoading,
-    aiGenerationIsSelection,
-    editor,
-  ]);
+  const { isDragging } = useUiEditorState(editor);
 
   useScrollToHash();
 
@@ -215,16 +171,19 @@ export function EditorContentArea() {
  */
 export function EditorProvider(props: EditorProviderProps) {
   const {
-    provider,
-    ydoc,
     placeholder = "Start writing...",
-    aiToken,
     onContentChange,
     getInitialContent,
   } = props;
 
-  const { user } = useUser();
   const { setTocContent } = useToc();
+
+  /**
+   * The document lives in a local Y.Doc. There is no collaboration transport in
+   * this release, so the doc never leaves the tab — it is here for the CRDT
+   * history the editor's undo/redo rides on (`StarterKit` disables its own).
+   */
+  const ydoc = useMemo(() => new YDoc(), []);
 
   const handleContentChange = useCallback(
     (content: JSONContent) => {
@@ -268,10 +227,6 @@ export function EditorProvider(props: EditorProviderProps) {
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Collaboration.configure({ document: ydoc }),
-      CollaborationCaret.configure({
-        provider,
-        user: { id: user.id, name: user.name, color: user.color },
-      }),
       Placeholder.configure({
         placeholder,
         emptyNodeClass: "is-empty with-slash",
@@ -349,24 +304,7 @@ export function EditorProvider(props: EditorProviderProps) {
       TocNode.configure({
         topOffset: 48,
       }),
-      Ai.configure({
-        token: aiToken || undefined,
-        autocompletion: false,
-        showDecorations: true,
-        hideDecorationsOnStreamEnd: false,
-        onLoading: (context) => {
-          context.editor.commands.aiGenerationSetIsLoading(true);
-          context.editor.commands.aiGenerationHasMessage(false);
-        },
-        onChunk: (context) => {
-          context.editor.commands.aiGenerationSetIsLoading(true);
-          context.editor.commands.aiGenerationHasMessage(true);
-        },
-        onSuccess: () => {
-          editor!.commands.aiGenerationSetIsLoading(false);
-          editor!.commands.aiGenerationHasMessage(false);
-        },
-      }),
+      Ai,
       Excalidraw,
       LatexInline,
       LatexBlock,
@@ -402,61 +340,20 @@ export function EditorProvider(props: EditorProviderProps) {
 }
 
 /**
- * Full editor with all necessary providers, ready to use with just a room ID
+ * Full editor with all necessary providers, ready to use with just a placeholder
  */
 export function NotionEditor({
-  room,
   placeholder = "Start writing...",
   onContentChange,
   getInitialContent,
 }: NotionEditorProps) {
   return (
-    <UserProvider>
-      <CollabProvider room={room}>
-        <AiProvider>
-          <TocProvider>
-            <NotionEditorContent
-              placeholder={placeholder}
-              onContentChange={onContentChange}
-              getInitialContent={getInitialContent}
-            />
-          </TocProvider>
-        </AiProvider>
-      </CollabProvider>
-    </UserProvider>
-  );
-}
-
-/**
- * Internal component that handles the editor loading state
- */
-export function NotionEditorContent(props: EditorContentProps) {
-  const { placeholder, onContentChange, getInitialContent } = props;
-  const { provider, ydoc, setupError: collabSetupError } = useCollab();
-  const { aiToken, setupError: aiSetupError } = useAi();
-
-  // Show setup error if either collab or AI setup failed
-  if (collabSetupError || aiSetupError) {
-    return (
-      <SetupErrorMessage
-        aiSetupError={aiSetupError}
-        collabSetupError={collabSetupError}
+    <TocProvider>
+      <EditorProvider
+        placeholder={placeholder}
+        onContentChange={onContentChange}
+        getInitialContent={getInitialContent}
       />
-    );
-  }
-
-  if (!provider || !aiToken) {
-    return <LoadingSpinner />;
-  }
-
-  return (
-    <EditorProvider
-      provider={provider}
-      ydoc={ydoc}
-      placeholder={placeholder}
-      aiToken={aiToken}
-      onContentChange={onContentChange}
-      getInitialContent={getInitialContent}
-    />
+    </TocProvider>
   );
 }

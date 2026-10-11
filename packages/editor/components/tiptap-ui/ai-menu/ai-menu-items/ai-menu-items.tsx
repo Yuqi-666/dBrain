@@ -2,16 +2,14 @@
 
 import { Fragment, useCallback, useMemo } from "react";
 import { type Editor } from "@tiptap/react";
-import type { TextOptions, Language } from "@workspace/editor/lib/mock-ai";
+import type { TextOptions, Language } from "@workspace/editor/lib/ai";
 
 // -- Hooks --
 import { useTiptapEditor } from "@workspace/editor/hooks/use-tiptap-editor";
 
 // -- Tiptap UI --
-import {
-  getContextAndInsertAt,
-  useAiMenuState,
-} from "@workspace/editor/components/tiptap-ui/ai-menu";
+import { getContextAndInsertAt } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-utils";
+import { useAiMenuState } from "@workspace/editor/components/tiptap-ui/ai-menu/ai-menu-hooks";
 
 // -- UI Primitives --
 import {

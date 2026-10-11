@@ -13,7 +13,6 @@ import { ButtonGroup } from "@workspace/editor/components/tiptap-ui-primitive/bu
 // --- Styles ---
 import "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-header.scss";
 
-import { CollaborationUsers } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-collaboration-users";
 import { Button } from "@workspace/ui/components/ui/button";
 import { EditorContext } from "@tiptap/react";
 import { useContext } from "react";
@@ -37,9 +36,6 @@ export function NotionEditorHeader() {
 
         <ThemeToggle />
 
-        <Separator />
-
-        <CollaborationUsers />
         <Button
           variant="default"
           onClick={() => console.log(editor?.getJSON())}

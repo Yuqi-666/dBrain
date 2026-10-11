@@ -15,7 +15,6 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@tiptap/core": "^3.22.4",
     "@tiptap/extension-collaboration": "^3.22.4",
-    "@tiptap/extension-collaboration-caret": "^3.22.4",
     "@tiptap/extension-color": "^3.22.4",
     "@tiptap/extension-drag-handle-react": "^3.22.4",
     "@tiptap/extension-emoji": "^3.22.4",

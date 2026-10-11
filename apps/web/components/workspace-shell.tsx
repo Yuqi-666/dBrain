@@ -28,7 +28,7 @@ import { matchIslandRoute } from "@/components/island-routes";
  * layout, which Next keeps mounted across a soft navigation, while a *page*
  * component is unmounted the moment its route stops matching. A shell owned by
  * a page therefore re-ran the whole load path (workspace sync → open → per-model
- * syncByWorkspace → demo seed) on every switch between the two, which is what
+ * syncByWorkspace) on every switch between the two, which is what
  * made the switch feel like a reload. In the layout it is initialized exactly
  * once, and a switch is a visibility toggle on an already-live surface.
  *

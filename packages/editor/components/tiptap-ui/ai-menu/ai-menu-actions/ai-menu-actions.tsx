@@ -6,7 +6,7 @@ import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
 import { RefreshAiIcon } from "@workspace/editor/components/tiptap-icons/refresh-ai-icon";
 import { XIcon } from "@workspace/editor/components/tiptap-icons/x-icon";
 import { CheckIcon } from "@workspace/editor/components/tiptap-icons/check-icon";
-import type { TextOptions } from "@workspace/editor/lib/mock-ai";
+import type { TextOptions } from "@workspace/editor/lib/ai";
 import { useUiEditorState } from "@workspace/editor/hooks/use-ui-editor-state";
 import { ButtonGroup } from "@workspace/editor/components/tiptap-ui-primitive/button-group";
 

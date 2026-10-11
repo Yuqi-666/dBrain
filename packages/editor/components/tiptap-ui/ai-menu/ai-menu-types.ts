@@ -1,4 +1,4 @@
-import type { Language, Tone } from "@workspace/editor/lib/mock-ai";
+import type { Language, Tone } from "@workspace/editor/lib/ai";
 
 export interface AiMenuPosition {
   element: HTMLElement | null;

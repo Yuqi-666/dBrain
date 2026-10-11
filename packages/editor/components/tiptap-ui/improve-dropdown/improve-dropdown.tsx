@@ -1,34 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
 import { type Editor } from "@tiptap/react";
-import type { TextOptions, Tone } from "@workspace/editor/lib/mock-ai";
 
 // --- Hooks ---
-import {
-  useImproveDropdown,
-  type AICommand,
-} from "@workspace/editor/components/tiptap-ui/improve-dropdown";
+import { useImproveDropdown } from "@workspace/editor/components/tiptap-ui/improve-dropdown";
+
+// --- Lib ---
+import { AI_UNAVAILABLE_NOTICE } from "@workspace/editor/lib/ai";
 
 // --- Icons ---
-import { MicAiIcon } from "@workspace/editor/components/tiptap-icons/mic-ai-icon";
 import { AiSparklesIcon } from "@workspace/editor/components/tiptap-icons/ai-sparkles-icon";
-import { CheckAiIcon } from "@workspace/editor/components/tiptap-icons/check-ai-icon";
-import { TextExtendIcon } from "@workspace/editor/components/tiptap-icons/text-extend-icon";
-import { TextReduceIcon } from "@workspace/editor/components/tiptap-icons/text-reduce-icon";
-import { Simplify2Icon } from "@workspace/editor/components/tiptap-icons/simplify-2-icon";
-import { SmileAiIcon } from "@workspace/editor/components/tiptap-icons/smile-ai-icon";
-import { CompleteSentenceIcon } from "@workspace/editor/components/tiptap-icons/complete-sentence-icon";
-import { SummarizeTextIcon } from "@workspace/editor/components/tiptap-icons/summarize-text-icon";
-import { LanguagesIcon } from "@workspace/editor/components/tiptap-icons/languages-icon";
-import { ChevronRightIcon } from "@workspace/editor/components/tiptap-icons/chevron-right-icon";
-
-// --- Tiptap UI ---
-import {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_TONES,
-} from "@workspace/editor/components/tiptap-ui/ai-menu";
-import { AiAskButton } from "@workspace/editor/components/tiptap-ui/ai-ask-button";
 
 // --- UI Primitives ---
 import type { ButtonProps } from "@workspace/editor/components/tiptap-ui-primitive/button";
@@ -37,35 +18,15 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuGroup,
-  DropdownMenuPortal,
 } from "@workspace/editor/components/tiptap-ui-primitive/dropdown-menu";
-import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator";
 
-export interface ToneOption {
-  label: string;
-  value: Tone;
-  icon?: React.ComponentType<{ className?: string }>;
-}
+import "@workspace/editor/components/tiptap-ui/ai-menu/ai-notice.scss";
 
 export interface ImproveDropdownProps extends Omit<ButtonProps, "type"> {
   /**
    * Optional editor instance. If not provided, will use editor from context
    */
   editor?: Editor;
-  /**
-   * List of AI command types to show in the dropdown.
-   */
-  types?: Tone[];
-  /**
-   * Optional text options for AI commands
-   * @default { stream: true, format: "rich-text" }
-   */
-  textOptions?: TextOptions;
   /**
    * Whether to hide the dropdown when AI features are not available
    * @default false
@@ -77,155 +38,22 @@ export interface ImproveDropdownProps extends Omit<ButtonProps, "type"> {
   modal?: boolean;
 }
 
-interface MenuAction {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  command: AICommand;
-  onClick: () => void;
-}
-
-interface SubMenuAction {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  items: Array<{
-    label: string;
-    value: string;
-    icon?: React.ComponentType<{ className?: string }>;
-    onClick: () => void;
-  }>;
-}
-
-function SubMenuButton({ action }: { action: SubMenuAction }) {
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger asChild>
-        <Button variant="ghost" type="button">
-          <action.icon className="tiptap-button-icon" />
-          <span className="tiptap-button-text">{action.label}</span>
-          <ChevronRightIcon className="tiptap-button-icon-sub" />
-        </Button>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuSubContent>
-          <DropdownMenuGroup>
-            {action.items.map((item) => (
-              <DropdownMenuItem key={item.value} asChild>
-                <Button type="button" variant="ghost" onClick={item.onClick}>
-                  {item.icon && <item.icon className="tiptap-button-icon" />}
-                  <span className="tiptap-button-text">{item.label}</span>
-                </Button>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuSubContent>
-      </DropdownMenuPortal>
-    </DropdownMenuSub>
-  );
-}
-
+/**
+ * The AI entry point that sits in the toolbars. It keeps its place, icon and
+ * label, and opens onto a single line stating that AI is unavailable — the
+ * release has no AI backend, so the action list it used to render could only
+ * ever insert placeholder text.
+ */
 export function ImproveDropdown({
   editor: providedEditor,
   hideWhenUnavailable = false,
-  textOptions,
   modal = true,
   ...props
 }: ImproveDropdownProps) {
-  const {
-    isVisible,
-    isDisabled,
-    isOpen,
-    handleOpenChange,
-    executeAICommand,
-    adjustTone,
-    translate,
-  } = useImproveDropdown({
+  const { isVisible, isDisabled, isOpen, handleOpenChange } = useImproveDropdown({
     editor: providedEditor,
     hideWhenUnavailable,
-    textOptions,
   });
-
-  const menuActions: MenuAction[] = useMemo(
-    () => [
-      {
-        icon: CheckAiIcon,
-        label: "Fix spelling & grammar",
-        command: "fixSpellingAndGrammar",
-        onClick: () => executeAICommand("fixSpellingAndGrammar"),
-      },
-      {
-        icon: TextExtendIcon,
-        label: "Extend text",
-        command: "extend",
-        onClick: () => executeAICommand("extend"),
-      },
-      {
-        icon: TextReduceIcon,
-        label: "Reduce text",
-        command: "shorten",
-        onClick: () => executeAICommand("shorten"),
-      },
-      {
-        icon: Simplify2Icon,
-        label: "Simplify text",
-        command: "simplify",
-        onClick: () => executeAICommand("simplify"),
-      },
-      {
-        icon: SmileAiIcon,
-        label: "Emojify",
-        command: "emojify",
-        onClick: () => executeAICommand("emojify"),
-      },
-    ],
-    [executeAICommand],
-  );
-
-  const secondaryActions: MenuAction[] = useMemo(
-    () => [
-      {
-        icon: CompleteSentenceIcon,
-        label: "Complete sentence",
-        command: "complete",
-        onClick: () => executeAICommand("complete"),
-      },
-      {
-        icon: SummarizeTextIcon,
-        label: "Summarize",
-        command: "summarize",
-        onClick: () => executeAICommand("summarize"),
-      },
-    ],
-    [executeAICommand],
-  );
-
-  const subMenuActions: SubMenuAction[] = useMemo(
-    () => [
-      {
-        icon: MicAiIcon,
-        label: "Adjust tone",
-        items: SUPPORTED_TONES.map((option) => ({
-          label: option.label,
-          value: option.value,
-          onClick: () => adjustTone(option.value),
-        })),
-      },
-    ],
-    [adjustTone],
-  );
-
-  const translateSubMenu: SubMenuAction = useMemo(
-    () => ({
-      icon: LanguagesIcon,
-      label: "Translate",
-      items: SUPPORTED_LANGUAGES.map((option) => ({
-        label: option.label,
-        value: option.value,
-        icon: LanguagesIcon,
-        onClick: () => translate(option.value),
-      })),
-    }),
-    [translate],
-  );
 
   if (!isVisible) {
     return null;
@@ -251,39 +79,10 @@ export function ImproveDropdown({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start">
-        <DropdownMenuGroup>
-          {subMenuActions.map((action, index) => (
-            <SubMenuButton key={index} action={action} />
-          ))}
-
-          {menuActions.map((action, index) => (
-            <DropdownMenuItem key={index} asChild>
-              <Button type="button" variant="ghost" onClick={action.onClick}>
-                <action.icon className="tiptap-button-icon" />
-                <span className="tiptap-button-text">{action.label}</span>
-              </Button>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-
-        <Separator orientation="horizontal" />
-
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <AiAskButton text="Ask AI" showTooltip={false} />
-          </DropdownMenuItem>
-
-          {secondaryActions.map((action, index) => (
-            <DropdownMenuItem key={index} asChild>
-              <Button type="button" variant="ghost" onClick={action.onClick}>
-                <action.icon className="tiptap-button-icon" />
-                <span className="tiptap-button-text">{action.label}</span>
-              </Button>
-            </DropdownMenuItem>
-          ))}
-
-          <SubMenuButton action={translateSubMenu} />
-        </DropdownMenuGroup>
+        <div className="tiptap-ai-unavailable" role="status">
+          <AiSparklesIcon className="tiptap-button-icon" />
+          <span className="tiptap-button-text">{AI_UNAVAILABLE_NOTICE}</span>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

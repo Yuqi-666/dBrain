@@ -18,8 +18,6 @@
       "@workspace/api-client/*": ["packages/api-client/src/*"],
       "@workspace/dataview": ["packages/dataview/src/index.ts"],
       "@workspace/dataview/*": ["packages/dataview/src/*"],
-      "@workspace/dev": ["packages/dev/src/index.ts"],
-      "@workspace/dev/*": ["packages/dev/src/*"],
       "@workspace/editor": ["packages/editor/src"],
       "@workspace/editor/*": ["packages/editor/*"],
       "@workspace/graph": ["packages/graph/src/index.ts"],

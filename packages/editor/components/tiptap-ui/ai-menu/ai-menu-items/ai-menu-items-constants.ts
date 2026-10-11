@@ -1,4 +1,4 @@
-import type { Language } from "@workspace/editor/lib/mock-ai";
+import type { Language } from "@workspace/editor/lib/ai";
 
 export const SUPPORTED_LANGUAGES: Array<{
   label: string;

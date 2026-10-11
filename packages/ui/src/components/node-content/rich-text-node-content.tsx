@@ -153,7 +153,6 @@ export function RichTextNodeContent({
       />
 
       <NotionEditor
-        room={node.id}
         placeholder="开始写作..."
         onContentChange={handleBodyChange}
         getInitialContent={() =>

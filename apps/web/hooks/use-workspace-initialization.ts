@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useDataStore, useWorkspaceStore, useUIStore } from "@workspace/store";
 import { WorkspaceService } from "@workspace/services";
 import type { ViewId } from "@workspace/interfaces";
-import { seedDemoIntoCurrentWorkspace } from "../app/(main)/graph/demo-seed";
 
 /**
  * Loads the workspace once for the session: sync the user's workspaces, open the
@@ -40,11 +39,6 @@ export function useWorkspaceInitialization() {
 
       const firstWorkspaceId = firstWorkspace.id;
       await WorkspaceService.open(firstWorkspaceId);
-
-      // In dev, seed demo data into the freshly-provisioned empty workspace.
-      if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop") {
-        await seedDemoIntoCurrentWorkspace();
-      }
 
       const views = useDataStore.getState().views;
       const firstViewId = views.keys().next().value as ViewId | undefined;
