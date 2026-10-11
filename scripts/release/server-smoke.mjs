@@ -6,15 +6,15 @@ import { createRequire } from "node:module";
 import { cp, mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer } from "node:net";
 import { once } from "node:events";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const require = createRequire(join(root, "packages/api-client/package.json"));
 const { createTRPCClient, createWSClient, wsLink } = await import(
-  require.resolve("@trpc/client")
+  pathToFileURL(require.resolve("@trpc/client")).href
 );
-const { default: superjson } = await import(require.resolve("superjson"));
+const { default: superjson } = await import(pathToFileURL(require.resolve("superjson")).href);
 const temp = await mkdtemp(join(tmpdir(), "dbrain-server-smoke-"));
 const children = [],
   connections = [];

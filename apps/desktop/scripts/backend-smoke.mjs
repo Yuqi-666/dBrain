@@ -6,13 +6,13 @@ import { createRequire } from "node:module";
 import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { once } from "node:events";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const requireClient = createRequire(join(root, "packages/api-client/package.json"));
-const { createTRPCClient, createWSClient, wsLink } = await import(requireClient.resolve("@trpc/client"));
-const { default: superjson } = await import(requireClient.resolve("superjson"));
+const { createTRPCClient, createWSClient, wsLink } = await import(pathToFileURL(requireClient.resolve("@trpc/client")).href);
+const { default: superjson } = await import(pathToFileURL(requireClient.resolve("superjson")).href);
 const scratch = await mkdtemp(join(tmpdir(), "dbrain-backend-smoke-"));
 const runtime = join(scratch, "runtime");
 const runtimeSource = process.env.DBRAIN_SMOKE_RUNTIME_DIR
