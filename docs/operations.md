@@ -124,3 +124,34 @@ docker compose -p dbrain start
 回滚需要同时恢复旧数据和旧镜像 digest；仅换回旧镜像不能撤销数据库迁移。恢复演练使用独立 project / 卷，确认数据与附件完整后再操作生产。
 
 桌面个人数据的备份与恢复见 [使用手册](usage.md)，发行与验收过程见 [构建与发布](release-workflow.md)。
+
+## yuqi 自动部署 main
+
+`yuqi` 已安装 host-side systemd 服务 `dbrain-auto-deploy.service` 和 timer `dbrain-auto-deploy.timer`。每次任务结束后 30 秒再次检查 `main`；没有新提交时跳过构建。构建在 yuqi 本地完成，不新增 GitHub Actions runner 任务。现有 GitHub CI 仍按仓库工作流独立运行，自动部署不会等待其结果。
+
+脚本源码为 `scripts/operations/auto-deploy.sh`，主机安装位置为 `/usr/local/libexec/dbrain-auto-deploy`。服务使用 `lyq`，通过现有 sudo 权限调用 Docker；配置位于 `/etc/dbrain/auto-deploy.env`，仅保存部署路径、仓库地址和代理地址。Git 凭据沿用 lyq 已配置的 credential store，不进入 Git、构建上下文或日志。独立 bare 仓库和任务锁位于 `/home/lyq/workspace/deployments/dbrain-auto`，不修改开发工作区。
+
+流程为：拉取 main → 检查是否为当前部署的后续提交 → 从 Git archive 构建三种镜像 → 再次检查是否出现更新提交 → 停止公网入口和服务 → 完整备份数据库与附件 → 更新源码与镜像 → 检查服务健康、实际数据卷及内网页面 → 恢复网关 → 验证公网 `/health`。构建期间旧服务继续运行；备份和切换期间有短暂不可用。主线被 force-push 到非后续提交时任务失败，需人工处理。
+
+服务切换失败且公网尚未开放时，恢复旧源码、配置、镜像和完整数据快照。恢复公网入口后不自动还原数据库，避免覆盖已恢复的用户写入；入口失败会留下 `needs-ingress`，下一次检查重试恢复入口。发生数据库恢复失败时立即查看日志和备份，暂停 timer 后人工处理。
+
+构建或切换失败的提交记录在状态目录 `failed-commit`，相同提交后续跳过；推送新修复提交后自动继续。若只是临时构建故障，可删除该标记后手动启动 service 重试。回滚失败会留下 `HALTED`，所有后续部署停止，人工恢复数据与服务并确认一致后才可移除该标记。
+
+备份保存在部署目录 `backups/auto-<UTC时间>-<提交前缀>`；旧镜像保留用于回滚。备份不会自动删除，需要按实际数据量管理磁盘与异地备份。更新脚本本身需要重新安装 host-side 脚本与 unit，拉取 main 不会自动替换正在运行的部署监督脚本。
+
+```bash
+# 查看运行与下一次检查时间
+sudo systemctl status dbrain-auto-deploy.timer dbrain-auto-deploy.service
+sudo journalctl -u dbrain-auto-deploy.service -n 100 --no-pager
+
+# 立即检查 main；已有任务运行时不会并发部署
+sudo systemctl start dbrain-auto-deploy.service
+
+# 暂停后续自动部署；不会停止已经运行的部署任务
+sudo systemctl disable --now dbrain-auto-deploy.timer
+
+# 恢复自动部署
+sudo systemctl enable --now dbrain-auto-deploy.timer
+```
+
+默认公网域名为 `https://dbrain.yuqi-666.cn`，Git 拉取使用主机现有 `http://127.0.0.1:7890` 代理。网络失败不切换服务，下一轮继续尝试。自动检查和切换的成功不替代桌面安装、数据升级与正式发行验收。
