@@ -6,6 +6,15 @@ services:
       context: .
       dockerfile: deploy/pocketbase/Dockerfile
     restart: unless-stopped
+    environment:
+      # Required configuration: the operator account is upserted by
+      # `deploy/pocketbase/entrypoint.sh` on every start, so the password always
+      # matches this value. Compose itself refuses to render without the email,
+      # and the entrypoint refuses to serve without a password — a deployment must
+      # never quietly end up on PocketBase's unusable placeholder account.
+      DBRAIN_ADMIN_EMAIL: ${DBRAIN_ADMIN_EMAIL:?Set DBRAIN_ADMIN_EMAIL in .env (copy .env.example)}
+      DBRAIN_ADMIN_PASSWORD: ${DBRAIN_ADMIN_PASSWORD:-}
+      DBRAIN_ADMIN_PASSWORD_FILE: ${DBRAIN_ADMIN_PASSWORD_FILE:-}
     volumes:
       - pb_data:/pb_data
     networks: [backend]

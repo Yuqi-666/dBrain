@@ -21,6 +21,15 @@ flowchart LR
 
 使用 `.node-version` 的 Node、`packageManager` 的 pnpm 和 `rust-toolchain.toml` 的 Rust；运行 `pnpm install --frozen-lockfile`。新增依赖时显式修改对应 workspace，提交 pnpm-lock.yaml；Rust 依赖同步 Cargo.lock。`pnpm dev:full` 启动服务开发环境，`pnpm dev:desktop` 启动桌面环境。PocketBase、FFmpeg 和系统 GTK/WebKit 依赖按 desktop README 安装。
 
+首次在一台机器上开发前，先创建 `.env`：
+
+```sh
+cp .env.example .env
+# 填 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD（密码可用 openssl rand -base64 24 生成）
+```
+
+`.env` 是 PocketBase 运维账号的唯一来源，被 `pnpm dev:full` 与仓库内 `docker compose` 共用；**缺失或字段不全时两者都会直接失败**（Compose 在渲染阶段就拒绝，dev 栈在启动 PocketBase 前退出）。原因与账号用途见下文"运维账号"。`.env` 已被 gitignore，不要提交真实值；shell 里已有的同名变量优先于文件内容。
+
 提交前运行：
 
 ```sh
@@ -30,7 +39,7 @@ pnpm lint:gate
 pnpm test:release
 ```
 
-`pnpm lint` 仍是原始报告入口。共享 ESLint 配置中的 only-warn 会降级错误，因此 CI 使用 `lint:gate`：扫描全部 20 个包，与 `scripts/release/lint-baseline.json` 的文件、规则、消息和次数比较；新增诊断、次数增长、配置/解析失败均会失败。当前保留 89 条诊断，不意味着严格 ESLint 零错误。修复存量问题后可运行 `node scripts/release/lint-gate.mjs --update-baseline` **缩减**基线；任何基线扩张需在 PR 解释。CI 不更新基线。新增 workspace 或自定义 lint 命令需同步门禁覆盖范围。
+`pnpm lint` 仍是原始报告入口。共享 ESLint 配置中的 only-warn 会降级错误，因此 CI 使用 `lint:gate`：扫描全部 19 个包，与 `scripts/release/lint-baseline.json` 的文件、规则、消息和次数比较；新增诊断、次数增长、配置/解析失败均会失败。当前保留 89 条诊断，不意味着严格 ESLint 零错误。修复存量问题后可运行 `node scripts/release/lint-gate.mjs --update-baseline` **缩减**基线；任何基线扩张需在 PR 解释。CI 不更新基线。新增 workspace 或自定义 lint 命令需同步门禁覆盖范围。
 
 从短期开发分支发起 PR，默认分支保留可构建状态。配置分支保护，要求 CI 的 `check`、`containers` 通过，并要求代码审查。依赖更新由 Dependabot 发 PR，走同一门禁。PR 模板记录实际验证及发行影响；Bug 模板要求产品版本、OS/架构、安装格式与复现步骤。每周处理构建/依赖问题，每个版本处理发布验收记录中的已知问题；Node/PocketBase/FFmpeg/Tauri 升级必须重新验收四平台及数据库备份恢复。不要在主线已验收版本上直接改 migration，使用新增 migration。
 
@@ -97,7 +106,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.0 
 
 ## 容器部署、升级与恢复
 
-下载 Release 的 `docker-compose.yml`、`compose.release.yml`、`nginx.conf` 到同一目录。发行 Compose 已调整 nginx 配置相对路径；覆盖层通过 digest 指向已验收镜像。先检查配置：
+下载 Release 的 `docker-compose.yml`、`compose.release.yml`、`nginx.conf`、`.env.example` 到同一目录。发行 Compose 已调整 nginx 配置相对路径；覆盖层通过 digest 指向已验收镜像。先把 `.env.example` 复制为 `.env` 并填好 `DBRAIN_ADMIN_EMAIL` 与密码——没有它 Compose 会拒绝渲染。然后检查配置：
 
 ```sh
 docker compose -f docker-compose.yml -f compose.release.yml config
@@ -105,11 +114,33 @@ docker compose -f docker-compose.yml -f compose.release.yml pull
 docker compose -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-保留同一目录/Compose project 名和 `pb_data` 数据卷；默认监听回环 3000，由外部 HTTPS 入口转发。设置 `DBRAIN_PUBLIC_ORIGIN` 为实际 HTTPS origin，并配置访问控制与备份保存策略。覆盖层必须用于 pull/up，避免误用默认版本标签构建源码。
+保留同一目录/Compose project 名和 `pb_data` 数据卷；默认监听回环 3000，由外部 HTTPS 入口转发。仓库自带的 nginx 转发原始 `Host`，API 因此天然通过来源校验，`DBRAIN_PUBLIC_ORIGIN` 通常留空；仅当前置代理改写了 `Host` 头（额外 CDN 跳、`Host $proxy_host`）时才设为浏览器实际使用的 origin——它是精确全等替换而非合并，须含 scheme 与非默认端口、无尾斜杠，且填错会导致 `/trpc` 握手 403（表现为页面停在 loading）。此外配置访问控制与备份保存策略。覆盖层必须用于 pull/up，避免误用默认版本标签构建源码。
 
 升级前停止写入并停止栈，在停止状态备份整个 `pb_data` 卷以及当前发行配置、镜像 digest 和网关配置，再切换新版本发行覆盖层。先在隔离副本上执行迁移和用户/共享附件/媒体验证，再恢复生产流量。不要对生产卷运行测试 smoke；该脚本用于临时测试库，会创建并删除测试记录。不要在升级时运行 `down -v`。
 
 桌面端在迁移前自动创建一致 SQLite 快照及附件/身份备份；仍需在每平台测试从上一正式版本升级。容器卷需自行备份。恢复时停止新服务，恢复完整旧数据/附件和旧发行 digest；不能仅换回旧镜像并继续使用已迁移数据库。备份需要加密存储、限制访问并定期恢复演练；具体存量多用户附件归属必须审核后迁移。
+
+### 运维账号（PocketBase 超级管理员）
+
+超级管理员只用于 PocketBase Dashboard，应用运行不依赖它：用户身份走 `users` 集合与 collection rules，服务端每个请求用终端用户 token 访问 PocketBase。但如果库里没有**真正的**超级管理员，PocketBase 会自建占位记录 `__pbinstaller@example.com`，并在**每次启动**时重新打印一条 30 分钟有效的一次性安装链接（占位记录复用，令牌每次轮换）。该链接在本栈里没有用：Dashboard 不可达——网关只转发 `/health`、`/pb/`、`/trpc`、`/`，PocketBase 容器也不发布端口，容器里打印出来的还是 `http://0.0.0.0:8090/_/#/pbinstall/...`。
+
+因此运维账号是**必需配置**，缺失即失败，不允许静默停在占位账号上：
+
+| 入口                 | 检查点                                                                                        | 失败表现                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm dev:full`      | `scripts/lib/pocketbase-admin.mjs` 要求仓库根 `.env` 存在，且 `DBRAIN_ADMIN_EMAIL` + 密码齐备 | PocketBase 启动前退出码 1，`concurrently -k` 连带停掉 web/server             |
+| `docker compose ...` | `docker-compose.yml` 用 `${DBRAIN_ADMIN_EMAIL:?...}`                                          | 渲染阶段即拒绝，任何 compose 子命令（含 `config`/`logs`/`down`）都会报出提示 |
+| 容器启动             | `deploy/pocketbase/entrypoint.sh` 校验邮箱与密码（直接 `docker run` 镜像时也生效）            | 容器以状态 1 退出，`restart: unless-stopped` 会重启循环                      |
+
+配置写在 `.env` 里，模板是：仓库根 [`.env.example`](.env.example)（开发与仓库内 compose 共用），以及 [deploy/.env.example](deploy/.env.example)（自建部署用，随 Release 作为 `.env.example` 与 compose 文件同级发布）。密码优先用 `DBRAIN_ADMIN_PASSWORD_FILE` 指向只含密码的文件，避免进入 shell 历史与 `docker inspect`；文件末尾的换行会被裁掉。
+
+两个入口都在 `serve` 之前 upsert 账号，语义是声明式的：每次启动都 upsert，密码始终等于配置值（代价是无法在 Dashboard 里长期改密码）。账号就位后 PocketBase 不再创建占位记录、也不再打印安装令牌。`pnpm pb:admin` 用于"改了 `.env` 但 PocketBase 已在运行"——它不重启栈，只把配置里的账号立刻写进 `pb/pb_data`。
+
+`--dir` 不能漏：容器内镜像没有 `WORKDIR`，`superuser` 的 `--dir` 默认是相对路径 `pb/pb_data`，手工排查时漏掉会在当前目录静默建一个空库（表现为"账号建了但登录不上"）。运维要开图形 Dashboard 仍需临时开口子，可参考 [deploy/compose.test.yml](deploy/compose.test.yml) 把 8090 映到 `127.0.0.1` 的某个端口，用完撤掉。
+
+桌面端**刻意不需要**该账号，也不读 `.env`：它建的是普通 `users` 记录（`desktop@dbrain.local`），本地库由 `X-DBrain-Internal` 请求头保护；给每台终端设备植入超级管理员只会扩大攻击面。
+
+注意 `superuser` 必须带正确的 `--dir`（容器内为 `/pb_data`）：该参数默认是相对路径 `pb/pb_data`，漏掉会在当前工作目录下静默新建一个空库，表现为"账号建了但登录不上"。
 
 ## 后续优先级
 

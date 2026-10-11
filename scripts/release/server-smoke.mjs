@@ -111,6 +111,28 @@ try {
       ],
     );
   await ready(`${pbUrl}/api/health`);
+  // Only the container job configures an operator account (`docker-compose.yml`
+  // requires one and the image entrypoint upserts it before serving); when it is
+  // present, prove that the credential it created actually authenticates.
+  if (process.env.DBRAIN_SMOKE_ADMIN_EMAIL) {
+    const response = await fetch(
+      `${pbUrl}/api/collections/_superusers/auth-with-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity: process.env.DBRAIN_SMOKE_ADMIN_EMAIL,
+          password: process.env.DBRAIN_SMOKE_ADMIN_PASSWORD,
+        }),
+      },
+    );
+    assert.equal(
+      response.status,
+      200,
+      `operator account login: ${await response.text()}`,
+    );
+    console.log("PASS container operator account authenticates");
+  }
   if (!process.env.DBRAIN_SMOKE_SERVER_URL) {
     await cp(join(root, "apps/server/dist"), join(temp, "server"), {
       recursive: true,

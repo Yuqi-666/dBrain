@@ -33,7 +33,7 @@ jobs:
       - run: pnpm test:release
       - name: Check build and release script syntax
         run: |
-          for script in scripts/lib/*.mjs scripts/release/*.mjs scripts/dev-pocketbase.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do
+          for script in scripts/lib/*.mjs scripts/release/*.mjs scripts/dev-pocketbase.mjs scripts/dev-pocketbase-admin.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do
             node --check "$script"
           done
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -49,6 +49,13 @@ jobs:
   containers:
     runs-on: ubuntu-22.04
     timeout-minutes: 40
+    env:
+      # `docker-compose.yml` treats the PocketBase operator account as required
+      # configuration, so every compose invocation in this job (up, logs, down)
+      # needs it. The account is upserted by the image entrypoint on start; the
+      # stack and its data are throwaway.
+      DBRAIN_ADMIN_EMAIL: ci@dbrain.invalid
+      DBRAIN_ADMIN_PASSWORD: ci-operator-password
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -76,6 +83,10 @@ jobs:
           DBRAIN_SMOKE_SERVER_URL: http://127.0.0.1:13081
           DBRAIN_SMOKE_PB_URL: http://127.0.0.1:13090
           DBRAIN_SMOKE_WEB_URL: http://127.0.0.1:13080
+          # Same credentials as the job env above: the smoke run then proves the
+          # operator account the image entrypoint upserted actually authenticates.
+          DBRAIN_SMOKE_ADMIN_EMAIL: ci@dbrain.invalid
+          DBRAIN_SMOKE_ADMIN_PASSWORD: ci-operator-password
       - if: failure()
         run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml logs --tail=60
       - if: always()

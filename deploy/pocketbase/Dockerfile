@@ -14,8 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY --from=download /tmp/pb/pocketbase /usr/local/bin/pocketbase
 COPY pb/pb_migrations /pb_migrations
 COPY pb/pb_hooks /pb_hooks
+# Ensures the operator account before `serve` so PocketBase never falls back to
+# its placeholder superuser and the one-time installer URL (see the script).
+COPY deploy/pocketbase/entrypoint.sh /entrypoint.sh
+RUN chmod 0755 /entrypoint.sh
 USER pocketbase
 EXPOSE 8090
 HEALTHCHECK --interval=10s --timeout=3s --start-period=60s CMD curl -fsS http://127.0.0.1:8090/api/health || exit 1
-ENTRYPOINT ["pocketbase"]
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["serve", "--http=0.0.0.0:8090", "--dir=/pb_data", "--migrationsDir=/pb_migrations", "--hooksDir=/pb_hooks", "--automigrate=0"]

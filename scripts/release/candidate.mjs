@@ -155,6 +155,7 @@ export async function verifyCandidate(root, expected) {
     "container-report.json",
   ]);
   assert.deepEqual((await readdir(join(root, "deployment"))).sort(), [
+    ".env.example",
     "docker-compose.yml",
     "nginx.conf",
   ]);
@@ -193,6 +194,9 @@ export async function assembleCandidate(incoming, destination, expected) {
     join(destination, "deployment/docker-compose.yml"),
   );
   await cp("deploy/nginx.conf", join(destination, "deployment/nginx.conf"));
+  // The deployed stack refuses to start without `.env`, so its template ships
+  // next to the compose file it is copied for.
+  await cp("deploy/.env.example", join(destination, "deployment/.env.example"));
   await verifyCandidate(destination, expected);
   const index = {
     schemaVersion: 1,
@@ -324,6 +328,7 @@ export async function prepareReleaseAssets(
     ).replace("./deploy/nginx.conf", "./nginx.conf"),
   );
   await cp(join(root, "deployment/nginx.conf"), join(out, "nginx.conf"));
+  await cp(join(root, "deployment/.env.example"), join(out, ".env.example"));
   const containers = await readJSON(
     join(root, "containers/container-report.json"),
   );

@@ -11,6 +11,8 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+# Password file referenced by DBRAIN_ADMIN_PASSWORD_FILE (see .env.example)
+.pb-admin-password
 
 # Testing
 coverage

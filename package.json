@@ -5,6 +5,7 @@
     "build": "pnpm --filter server build && pnpm --filter web build",
     "dev": "pnpm -r --parallel --if-present run dev",
     "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"pnpm --filter=server dev\"",
+    "pb:admin": "node scripts/dev-pocketbase-admin.mjs",
     "lint": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run typecheck",
