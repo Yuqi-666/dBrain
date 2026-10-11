@@ -232,7 +232,9 @@ export function useGraph() {
         }
       }
 
-      setContextMenu({ x, y, type: "edge", context: { edgeId: firstEdgeId }, visible: true })
+      if (firstEdgeId !== null) {
+        setContextMenu({ x, y, type: "edge", context: { edgeId: firstEdgeId }, visible: true });
+      }
       return firstEdgeId;
     },
     [],

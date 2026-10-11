@@ -6,8 +6,12 @@ function validateEdge(e) {
     const node = e.app.findRecordById("nodes", e.record.getString(field));
     if (node.getString("workspaceId") !== workspace) throw new BadRequestError("Edge endpoints must belong to its workspace");
   }
-  const semantic = e.app.findRecordById("edge_semantics", e.record.getString("semanticId"));
-  if (semantic.getString("workspaceId") !== workspace) throw new BadRequestError("Edge semantic must belong to its workspace");
+  // New edges have no semantic until the user selects one in the edge menu.
+  const semanticId = e.record.getString("semanticId");
+  if (semanticId) {
+    const semantic = e.app.findRecordById("edge_semantics", semanticId);
+    if (semantic.getString("workspaceId") !== workspace) throw new BadRequestError("Edge semantic must belong to its workspace");
+  }
   return e.next();
 }
 module.exports = { validateEdge };

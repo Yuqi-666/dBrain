@@ -56,6 +56,8 @@ export function GraphContextMenuEdge({
   const [showFromTo, showToFrom] = directionToFlags(currentDirection);
   const currentSemantic = edge?.semanticId ? edgeSemantics.get(edge.semanticId) : undefined;
 
+  if (!edge) return null;
+
   const toggleFromTo = () => {
     const newDirection = flagsToDirection(!showFromTo, showToFrom);
     onChangeEdgeDirection?.(edgeId, newDirection);

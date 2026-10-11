@@ -347,10 +347,37 @@ try {
   });
   assert.equal(await b.node.getById.query({ id: node.id }), null);
   await assert.rejects(b.node.delete.mutate({ id: node.id }));
+  const target = await a.node.add.mutate({
+    id: "tmp_edge_target", nodeType: "text", semanticId: "",
+    workspaceId: wa.id, content: { docs: {} }, title: "edge target",
+  });
+  const edge = await a.edge.add.mutate({
+    id: "tmp_edge", from: node.id, to: target.id,
+    direction: "forward", semanticId: "", workspaceId: wa.id,
+  });
+  assert.equal(edge.semanticId, "");
+  assert.equal((await a.edge.getById.query({ id: edge.id })).to, target.id);
+  assert.equal(await b.edge.getById.query({ id: edge.id }), null);
+  await assert.rejects(b.edge.update.mutate({ id: edge.id, updates: { semanticId: "" } }));
+  const edgeSemantic = await a.edgeSemantic.add.mutate({
+    id: "tmp_edge_semantic", name: "relates to", category: "association", workspaceId: wa.id,
+  });
+  await a.edge.update.mutate({ id: edge.id, updates: { semanticId: edgeSemantic.id } });
+  assert.equal((await a.edge.getById.query({ id: edge.id })).semanticId, edgeSemantic.id);
+  await a.edge.update.mutate({ id: edge.id, updates: { semanticId: "" } });
+  const foreignTarget = await b.node.add.mutate({
+    id: "tmp_foreign_target", nodeType: "text", semanticId: "",
+    workspaceId: wb.id, content: { docs: {} }, title: "foreign target",
+  });
+  await assert.rejects(a.edge.add.mutate({
+    id: "tmp_cross_workspace", from: node.id, to: foreignTarget.id,
+    direction: "forward", semanticId: "", workspaceId: wa.id,
+  }));
+  console.log("PASS untyped edge creation, semantic selection/clearing and workspace isolation");
   await new Promise((resolve) => setTimeout(resolve, 400));
   assert.ok(eventsA.some((e) => e.eventType === "NodeCreated"));
   assert.equal(
-    eventsB.length,
+    eventsB.filter((event) => event.metadata?.workspaceId === wa.id).length,
     0,
     "another user must not receive private events",
   );
