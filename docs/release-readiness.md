@@ -6,6 +6,14 @@
 
 上一阶段改动已提交到本地 Git：`47307af`（lint）、`dc8a78c`（web 预渲染）、`ad25111`（web 镜像 public）、`ad9368e`（容器端口发布）。没有推送代码、创建 Release 或部署正式服务。
 
+## GitHub 实际执行（2026-10-11）
+
+用户配置 GitHub CLI 认证后，已核验私有仓库 `Yuqi-666/dBrain`；默认分支为 `main`，当前工作分支为 `develop`。`2d2eb1b` 已由用户推送。首次真实 [CI run 38110711790](https://github.com/Yuqi-666/dBrain/actions/runs/38110711790) 的容器启动、生产 Web、数据权限及媒体鉴权检查通过，但媒体样本生成报 `spawnSync ffmpeg ENOENT`：测试客户端在 runner 生成样本，容器内的 FFmpeg 不能满足该依赖。`4dd0ff6` 在 CI containers 与原生容器候选任务显式安装 runner FFmpeg，并已提交/推送重验。
+
+统一候选手动启动实际返回 404，因 `release-candidate.yml` 尚未存在于默认分支。`develop` 比 `main` 领先 217 个提交，已创建 [草稿 PR #1](https://github.com/Yuqi-666/dBrain/pull/1) 供审查整合范围；用户随后要求取消 PR 并进行最后手动检查，PR #1 已关闭且未合并；保留验证报告，没有更改默认分支，统一候选执行暂缓。Actions 已开启，默认 token 权限为 read；工作流按 job 显式申请所需权限。当前没有已配置的 environment 或仓库 Secret 名称返回，签名和环境保护仍待配置。以下旧阶段的“未推送/未运行”描述仅反映各阶段当时状态；本节为最新远端状态。
+
+修复后的 [develop CI run 38111650383](https://github.com/Yuqi-666/dBrain/actions/runs/38111650383) 已完成，`check` 与 `containers` 均为 **success**；工作流静态检查、20 包类型/lint 增量门禁、13 项回归、独立 server 和桌面后端 smoke、Web 生产构建及完整容器 smoke 在真实 GitHub runner 通过。证据：`docs/release-validation/github-ci.txt`。[PR CI run 38111690205](https://github.com/Yuqi-666/dBrain/actions/runs/38111690205) 也已完成，两个 job 均 success，验证与 main 的合并结果可构建。PR 已按用户要求关闭，未合并。这不代表四平台候选或正式发布验收通过。
+
 ## 工作流续建（2026-10-11，基于 `8c93272`）
 
 已审查 `47307af` 至 `8c93272` 的 lint、Web 构建及容器端口修复与更新后的证据；保留已闭合的两项验收结论。本轮继续完成开发维护和发行链路，当前改动尚未提交/推送。
