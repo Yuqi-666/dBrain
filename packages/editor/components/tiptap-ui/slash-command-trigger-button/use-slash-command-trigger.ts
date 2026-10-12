@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -220,6 +221,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useSlashCommandTrigger(config?: UseSlashCommandTriggerConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     node,
@@ -280,7 +283,7 @@ export function useSlashCommandTrigger(config?: UseSlashCommandTriggerConfig) {
     isVisible,
     handleSlashCommand,
     canInsert,
-    label: "Insert block",
+    label: t("Insert block"),
     shortcutKeys: SLASH_COMMAND_TRIGGER_SHORTCUT_KEY,
     trigger,
     Icon: PlusIcon,

@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 填色 — conditional colours (`docs/propmt/dataview-table-1.md` §填色).
@@ -41,9 +44,15 @@ import {
 } from "../core/filter";
 
 const TARGET_LABELS: Record<TableColorTarget, string> = {
-  cell: "单元格",
-  row: "行",
-  column: "列",
+  get cell() {
+    return translate("单元格");
+  },
+  get row() {
+    return translate("行");
+  },
+  get column() {
+    return translate("列");
+  },
 };
 
 function createRuleId(): string {
@@ -69,6 +78,8 @@ export function TableColorMenu({
   onChange,
   className,
 }: TableColorMenuProps) {
+  const { t } = useI18n();
+
   const fieldById = new Map(fields.map((field) => [field.id, field]));
 
   const patch = (id: string, next: Partial<TableColorRule>) =>
@@ -112,7 +123,7 @@ export function TableColorMenu({
           )}
         >
           <Palette className="size-3.5" />
-          填色
+          {t("填色")}{" "}
           {rules.length > 0 && (
             <Badge className="h-4 min-w-4 justify-center rounded-sm px-1 text-[10px] leading-none">
               {rules.length}
@@ -124,7 +135,7 @@ export function TableColorMenu({
           explicit margin below and left a hole above 添加条件. */}
       <PopoverContent align="start" className="w-[26rem] gap-0 p-3">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-medium">设置填色条件</span>
+          <span className="text-xs font-medium">{t("设置填色条件")}</span>
           {rules.length > 0 && (
             <Button
               type="button"
@@ -133,7 +144,7 @@ export function TableColorMenu({
               className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
               onClick={() => onChange([])}
             >
-              清除全部
+              {t("清除全部")}{" "}
             </Button>
           )}
         </div>
@@ -158,7 +169,7 @@ export function TableColorMenu({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label="填色颜色"
+                          aria-label={t("填色颜色")}
                           className="size-6 shrink-0 rounded-md border border-border"
                           style={{ background: rule.color }}
                         />
@@ -194,7 +205,7 @@ export function TableColorMenu({
                     >
                       <SelectTrigger
                         size="sm"
-                        aria-label="填色范围"
+                        aria-label={t("填色范围")}
                         className="h-7 w-[4.5rem] shrink-0 py-1 pl-2 text-[11px]"
                       >
                         <SelectValue />
@@ -241,7 +252,7 @@ export function TableColorMenu({
                     >
                       <SelectTrigger
                         size="sm"
-                        aria-label="填色运算符"
+                        aria-label={t("填色运算符")}
                         className="h-7 w-20 shrink-0 py-1 pl-2 text-[11px]"
                       >
                         <SelectValue />
@@ -270,7 +281,7 @@ export function TableColorMenu({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      aria-label="删除填色条件"
+                      aria-label={t("删除填色条件")}
                       className="shrink-0 text-muted-foreground"
                       onClick={() =>
                         onChange(rules.filter((entry) => entry.id !== rule.id))
@@ -297,7 +308,7 @@ export function TableColorMenu({
           onClick={addRule}
         >
           <Plus className="size-3.5" />
-          添加条件
+          {t("添加条件")}{" "}
         </Button>
       </PopoverContent>
     </Popover>

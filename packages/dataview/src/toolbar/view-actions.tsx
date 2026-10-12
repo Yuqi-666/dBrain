@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * View-level actions — the 更多 menu (设为默认视图 / 复制视图 / 删除视图).
@@ -44,6 +47,8 @@ export function ViewActionsProvider({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  useI18n();
+
   return (
     <ViewActionsContext.Provider value={actions}>
       {children}
@@ -59,6 +64,8 @@ export function ViewActionsProvider({
  * table's own `TableToolbar` and the shared `ViewToolbar` both do.
  */
 export function useViewActions(): ReactNode {
+  useI18n();
+
   return useContext(ViewActionsContext);
 }
 
@@ -84,13 +91,15 @@ export function ViewActionsMenu({
   onActiveViewChange,
   className,
 }: ViewActionsMenuProps) {
+  const { t } = useI18n();
+
   if (!onViewsChange) return null;
 
   const duplicateActiveView = () => {
     const copy: DataView = {
       ...activeView,
       id: createDataViewId(),
-      name: `${activeView.name} 副本`,
+      name: translate("{value1} 副本", { value1: activeView.name }),
       isDefault: false,
     };
     onViewsChange([...views, copy]);
@@ -124,7 +133,7 @@ export function ViewActionsMenu({
           type="button"
           size="sm"
           variant="outline"
-          aria-label="更多"
+          aria-label={t("更多")}
           className={cn(
             "h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground",
             className,
@@ -139,11 +148,11 @@ export function ViewActionsMenu({
           disabled={activeView.isDefault}
         >
           <Star className="size-4" />
-          设为默认视图
+          {t("设为默认视图")}{" "}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={duplicateActiveView}>
           <Copy className="size-4" />
-          复制视图
+          {t("复制视图")}{" "}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -152,7 +161,7 @@ export function ViewActionsMenu({
           disabled={views.length <= 1}
         >
           <Trash2 className="size-4" />
-          删除视图
+          {t("删除视图")}{" "}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

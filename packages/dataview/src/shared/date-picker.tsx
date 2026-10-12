@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The unified date editor: a shadcn `Calendar` inside a `Popover`.
@@ -35,11 +38,13 @@ export interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "选择日期",
+  placeholder = translate("选择日期"),
   disabled,
   clearable = true,
   className,
 }: DatePickerProps) {
+  const { t } = useI18n();
+
   const selected = parseFieldDate(value);
 
   return (
@@ -79,7 +84,7 @@ export function DatePicker({
           type="button"
           variant="ghost"
           size="icon"
-          aria-label="清除日期"
+          aria-label={t("清除日期")}
           className="size-7 shrink-0 text-muted-foreground"
           onClick={() => onChange(null)}
         >

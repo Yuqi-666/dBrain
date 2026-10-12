@@ -1,11 +1,13 @@
 "use client";
+import { buildNodeFilterFields } from "@workspace/ui/lib/node-filter-fields";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 import { useMemo, useState } from "react";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
 import { filterByViewFilterConfig } from "@workspace/utils";
 import type { RuleGroupType } from "@workspace/utils";
-import { buildNodeFilterFields, type View } from "@workspace/interfaces";
+import { type View } from "@workspace/interfaces";
 import { Search, Filter } from "lucide-react";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -27,6 +29,8 @@ export interface SearchModeProps {
 }
 
 export function SearchMode({ className, onClose }: SearchModeProps) {
+  const { t } = useI18n();
+
   const nodes = useDataStore((state) => state.nodes);
   const edges = useDataStore((state) => state.edges);
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
@@ -63,7 +67,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
     return filteredNodes;
   }, [nodes, edges, filterQuery]);
 
-  const filterFields = useMemo(
+  const filterFields = useLocaleMemo(
     () => buildNodeFilterFields(nodeSemantics),
     [nodeSemantics],
   );
@@ -74,7 +78,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
   const closeLegacyPanel = useUIStore((state) => state.closeQuickPanel);
   const closeQuickPanel = onClose ?? closeLegacyPanel;
 
-  const results = useMemo<QuickSearchMatch[]>(() => {
+  const results = useLocaleMemo<QuickSearchMatch[]>(() => {
     const term = normalizeKeyword(stripSlashPrefix(query));
     const matches: QuickSearchMatch[] = [];
     const kind = activeTabConfig?.kind;
@@ -165,7 +169,6 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
     }
 
     return matches;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterableNodes,
     nodeSemantics,
@@ -225,7 +228,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
                   color: item.color ?? undefined,
                 }}
               >
-                {item.semanticKind === "node" ? "节点" : "边"}
+                {item.semanticKind === "node" ? t("节点") : t("边")}
               </span>
             )}
             {item.subtitle && (
@@ -259,7 +262,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
           <Input
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="Search nodes, commands, types..."
+            placeholder={t("Search nodes, commands, types...")}
             className="pl-8 pr-2"
             autoFocus
           />
@@ -268,7 +271,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
           variant="ghost"
           size="icon"
           onClick={() => setFilterOpen((v) => !v)}
-          aria-label="筛选"
+          aria-label={t("筛选")}
           className={cn("relative", filterOpen && "bg-accent")}
         >
           <Filter />
@@ -307,12 +310,12 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
       )}
 
       <div className="max-h-80 overflow-y-auto p-2">
-        {renderGroup("nodes", "节点", grouped.nodes)}
-        {renderGroup("commands", "命令", grouped.commands)}
-        {renderGroup("types", "类型", grouped.types)}
+        {renderGroup("nodes", t("节点"), grouped.nodes)}
+        {renderGroup("commands", t("命令"), grouped.commands)}
+        {renderGroup("types", t("类型"), grouped.types)}
         {results.length === 0 && (
           <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-            No results
+            {t("No results")}{" "}
           </p>
         )}
       </div>

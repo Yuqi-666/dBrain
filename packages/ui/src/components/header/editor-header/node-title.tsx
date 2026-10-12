@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { Input } from "@workspace/ui/components/ui/input";
 import { useDataStore, useUIStore } from "@workspace/store";
@@ -9,6 +10,8 @@ interface NodeTitleProps {
 }
 
 export function NodeTitle({ className }: NodeTitleProps) {
+  const { t } = useI18n();
+
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
@@ -33,7 +36,7 @@ export function NodeTitle({ className }: NodeTitleProps) {
     <Input
       value={currentNode?.title || ""}
       onChange={handleTitleChange}
-      placeholder="未命名节点"
+      placeholder={t("未命名节点")}
       className={className}
       disabled={!currentNode}
     />

@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -40,8 +42,12 @@ export interface UseTableMergeSplitCellConfig {
 const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableMergeSplitCellLabels: Record<MergeSplitAction, string> = {
-  merge: "Merge cells",
-  split: "Split cell",
+  get merge() {
+    return translate("Merge cells");
+  },
+  get split() {
+    return translate("Split cell");
+  },
 };
 
 export const tableMergeSplitCellIcons = {
@@ -250,6 +256,8 @@ function shouldShowButton({
  * ```
  */
 export function useTableMergeSplitCell(config: UseTableMergeSplitCellConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     action,

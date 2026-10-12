@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The chart view's toolbar — its one control strip.
@@ -89,29 +91,31 @@ function roleBadge(
   levels: readonly DatabaseField[],
 ): string | undefined {
   if (meta.roles.includes("dimension") && resolved.dimension?.id === fieldId) {
-    return "维度";
+    return translate("维度");
   }
   if (meta.roles.includes("series") && resolved.series?.id === fieldId) {
-    return meta.shape === "heatmap" ? "第二维度" : "系列";
+    return meta.shape === "heatmap" ? translate("第二维度") : translate("系列");
   }
   if (meta.roles.includes("xy")) {
     if (config.xMeasure === fieldId) return "X";
     if (config.yMeasure === fieldId) return "Y";
   }
   if (meta.roles.includes("flow")) {
-    if (config.sourceField === fieldId) return "来源";
-    if (config.targetField === fieldId) return "目标";
+    if (config.sourceField === fieldId) return translate("来源");
+    if (config.targetField === fieldId) return translate("目标");
   }
   if (meta.roles.includes("hierarchy")) {
     const index = levels.findIndex((level) => level.id === fieldId);
-    if (index >= 0) return `${index + 1} 级`;
+    if (index >= 0) return translate("{value1} 级", { value1: index + 1 });
   }
   if (meta.roles.includes("measures")) {
     const index = resolved.measures.findIndex(
       (measure) => measure.field?.id === fieldId,
     );
     if (index >= 0)
-      return `度量${resolved.measures.length > 1 ? index + 1 : ""}`;
+      return translate("度量{value1}", {
+        value1: resolved.measures.length > 1 ? index + 1 : "",
+      });
   }
   return undefined;
 }
@@ -132,15 +136,17 @@ function TitleInput({
   disabled?: boolean;
   onCommit: (next: string) => void;
 }) {
+  const { t } = useI18n();
+
   const ref = useRef<HTMLInputElement>(null);
 
   return (
     <Input
       ref={ref}
       defaultValue={value}
-      placeholder="不写标题"
+      placeholder={t("不写标题")}
       disabled={disabled}
-      aria-label="图表标题"
+      aria-label={t("图表标题")}
       className="h-7 text-xs md:text-xs"
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -180,13 +186,15 @@ function MeasureRow({
   onChange: (next: ChartMeasure) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
+
   const isCount = measure.fieldId === CHART_COUNT_FIELD;
   return (
     <div className="flex items-center gap-1">
       <FieldSelect
         fields={[...fields]}
         value={measure.fieldId}
-        placeholder="选择字段"
+        placeholder={t("选择字段")}
         disabled={disabled}
         className="min-w-0 flex-1"
         onValueChange={(fieldId) =>
@@ -213,7 +221,7 @@ function MeasureRow({
         >
           <SelectTrigger
             size="sm"
-            aria-label={`度量 ${index + 1} 聚合`}
+            aria-label={translate("度量 {value1} 聚合", { value1: index + 1 })}
             className="w-20 shrink-0 text-xs"
           >
             <SelectValue />
@@ -235,7 +243,7 @@ function MeasureRow({
         type="button"
         size="icon-xs"
         variant="ghost"
-        aria-label={`删除度量 ${index + 1}`}
+        aria-label={translate("删除度量 {value1}", { value1: index + 1 })}
         disabled={disabled || !removable}
         className="shrink-0 text-muted-foreground"
         onClick={onRemove}
@@ -283,6 +291,8 @@ export function ChartToolbar({
   onExport,
   className,
 }: ChartToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<ChartViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -463,7 +473,7 @@ export function ChartToolbar({
           onClick={onExport}
         >
           <ImageDown className="size-3.5" />
-          导出图片
+          {t("导出图片")}{" "}
         </Button>
       }
     >
@@ -484,7 +494,7 @@ export function ChartToolbar({
             type="button"
             size="icon-xs"
             variant="ghost"
-            aria-label="清除下钻"
+            aria-label={t("清除下钻")}
             className="size-5"
             onClick={onClearDrill}
           >
@@ -495,13 +505,13 @@ export function ChartToolbar({
 
       {/* ——————— 图表 ——————— */}
       <SettingsPanel
-        label="图表"
+        label={t("图表")}
         icon={ChartPie}
         value={meta.label}
         disabled={!canConfigure}
         width="w-64"
       >
-        <PanelSection label="类型">
+        <PanelSection label={t("类型")}>
           <Select
             value={meta.id}
             disabled={!canConfigure}
@@ -527,7 +537,7 @@ export function ChartToolbar({
           >
             <SelectTrigger
               size="sm"
-              aria-label="图表类型"
+              aria-label={t("图表类型")}
               className="w-full text-xs"
             >
               <SelectValue />
@@ -535,7 +545,7 @@ export function ChartToolbar({
             <SelectContent className="max-h-80">
               {CHART_GROUPS.map((group) => (
                 <SelectGroup key={group}>
-                  <SelectLabel className="text-[11px]">{group}</SelectLabel>
+                  <SelectLabel className="text-[11px]">{t(group)}</SelectLabel>
                   {CHART_TYPES.filter((type) => type.group === group).map(
                     (type) => (
                       <SelectItem
@@ -556,24 +566,24 @@ export function ChartToolbar({
 
       {/* ——————— 字段配置 ——————— */}
       <SettingsPanel
-        label="字段配置"
+        label={t("字段配置")}
         icon={FolderTree}
         width="w-80"
         disabled={!canConfigure}
       >
         {hasRole("dimension") && (
           <PanelSection
-            label={meta.shape === "heatmap" ? "横轴维度" : "维度"}
+            label={meta.shape === "heatmap" ? t("横轴维度") : t("维度")}
             hint={
               dimensions.length === 0
-                ? "这张表还没有可作维度的字段。"
+                ? t("这张表还没有可作维度的字段。")
                 : undefined
             }
           >
             <FieldSelect
               fields={dimensions}
               value={resolved.dimension?.id ?? ""}
-              placeholder="选择字段"
+              placeholder={t("选择字段")}
               disabled={!canConfigure || dimensions.length === 0}
               onValueChange={(fieldId) =>
                 patch({
@@ -589,12 +599,12 @@ export function ChartToolbar({
 
         {hasRole("series") && (
           <PanelSection
-            label={meta.shape === "heatmap" ? "纵轴维度" : "系列"}
+            label={meta.shape === "heatmap" ? t("纵轴维度") : t("系列")}
             hint={
               meta.shape === "heatmap"
-                ? "热力图需要两个维度：横轴、纵轴，颜色表示度量。"
+                ? t("热力图需要两个维度：横轴、纵轴，颜色表示度量。")
                 : resolved.series && hasRole("measures") && measures.length > 1
-                  ? "选了系列字段后只画第一个度量。"
+                  ? t("选了系列字段后只画第一个度量。")
                   : undefined
             }
           >
@@ -603,8 +613,10 @@ export function ChartToolbar({
                 (field) => field.id !== resolved.dimension?.id,
               )}
               value={resolved.series?.id ?? ""}
-              placeholder={meta.shape === "heatmap" ? "选择字段" : "不拆分系列"}
-              noneLabel={meta.shape === "heatmap" ? undefined : "不拆分系列"}
+              placeholder={
+                meta.shape === "heatmap" ? t("选择字段") : t("不拆分系列")
+              }
+              noneLabel={meta.shape === "heatmap" ? undefined : t("不拆分系列")}
               disabled={!canConfigure || dimensions.length < 2}
               onValueChange={(fieldId) =>
                 patch({ seriesField: fieldId || undefined })
@@ -616,17 +628,17 @@ export function ChartToolbar({
         {hasRole("xy") && (
           <>
             <PanelSection
-              label="X 轴度量"
+              label={t("X 轴度量")}
               hint={
                 numberFields.length < 2
-                  ? "散点图需要两个「数字」字段。"
+                  ? t("散点图需要两个「数字」字段。")
                   : undefined
               }
             >
               <FieldSelect
                 fields={numberFields}
                 value={xy.x?.id ?? ""}
-                placeholder="选择字段"
+                placeholder={t("选择字段")}
                 disabled={!canConfigure || numberFields.length === 0}
                 onValueChange={(fieldId) =>
                   patch({
@@ -638,11 +650,11 @@ export function ChartToolbar({
                 }
               />
             </PanelSection>
-            <PanelSection label="Y 轴度量">
+            <PanelSection label={t("Y 轴度量")}>
               <FieldSelect
                 fields={numberFields.filter((field) => field.id !== xy.x?.id)}
                 value={xy.y?.id ?? ""}
-                placeholder="选择字段"
+                placeholder={t("选择字段")}
                 disabled={!canConfigure || numberFields.length < 2}
                 onValueChange={(fieldId) =>
                   patch({ yMeasure: fieldId || undefined })
@@ -655,13 +667,13 @@ export function ChartToolbar({
         {hasRole("flow") && (
           <>
             <PanelSection
-              label="来源"
-              hint={flow.source ? undefined : "桑基图需要两个字段表示流向。"}
+              label={t("来源")}
+              hint={flow.source ? undefined : t("桑基图需要两个字段表示流向。")}
             >
               <FieldSelect
                 fields={dimensions}
                 value={flow.source?.id ?? ""}
-                placeholder="选择字段"
+                placeholder={t("选择字段")}
                 disabled={!canConfigure || dimensions.length === 0}
                 onValueChange={(fieldId) =>
                   patch({
@@ -673,13 +685,13 @@ export function ChartToolbar({
                 }
               />
             </PanelSection>
-            <PanelSection label="目标">
+            <PanelSection label={t("目标")}>
               <FieldSelect
                 fields={dimensions.filter(
                   (field) => field.id !== flow.source?.id,
                 )}
                 value={flow.target?.id ?? ""}
-                placeholder="选择字段"
+                placeholder={t("选择字段")}
                 disabled={!canConfigure || dimensions.length < 2}
                 onValueChange={(fieldId) =>
                   patch({ targetField: fieldId || undefined })
@@ -691,8 +703,8 @@ export function ChartToolbar({
 
         {hasRole("hierarchy") && (
           <PanelSection
-            label="层级"
-            hint={levels.length >= 3 ? "最多三层。" : undefined}
+            label={t("层级")}
+            hint={levels.length >= 3 ? t("最多三层。") : undefined}
           >
             <div className="flex flex-col gap-1">
               {levels.map((level, index) => (
@@ -701,12 +713,12 @@ export function ChartToolbar({
                   className="flex items-center gap-1"
                 >
                   <span className="w-7 shrink-0 text-[11px] text-muted-foreground">
-                    {index + 1} 级
+                    {index + 1} {translate("级")}{" "}
                   </span>
                   <FieldSelect
                     fields={dimensions}
                     value={level.id}
-                    placeholder="选择字段"
+                    placeholder={t("选择字段")}
                     disabled={!canConfigure}
                     className="min-w-0 flex-1"
                     onValueChange={(fieldId) => patchLevel(index, fieldId)}
@@ -715,7 +727,9 @@ export function ChartToolbar({
                     type="button"
                     size="icon-xs"
                     variant="ghost"
-                    aria-label={`删除第 ${index + 1} 级`}
+                    aria-label={translate("删除第 {value1} 级", {
+                      value1: index + 1,
+                    })}
                     disabled={!canConfigure || levels.length <= 1}
                     className="shrink-0 text-muted-foreground"
                     onClick={() => removeLevel(index)}
@@ -738,7 +752,7 @@ export function ChartToolbar({
                     if (next) addLevel(next.id);
                   }}
                 >
-                  添加层级
+                  {t("添加层级")}{" "}
                 </Button>
               )}
             </div>
@@ -747,12 +761,12 @@ export function ChartToolbar({
 
         {hasRole("measures") && (
           <PanelSection
-            label="度量"
+            label={t("度量")}
             hint={
               numberFields.length === 0
-                ? "这张表还没有「数字」字段，先按记录数统计。"
+                ? t("这张表还没有「数字」字段，先按记录数统计。")
                 : measureCount === 2
-                  ? "区间图用两个度量作为区间的上下界。"
+                  ? t("区间图用两个度量作为区间的上下界。")
                   : undefined
             }
           >
@@ -781,7 +795,7 @@ export function ChartToolbar({
                   className="h-7 justify-start gap-1.5 px-1.5 text-xs font-normal text-muted-foreground"
                   onClick={addMeasure}
                 >
-                  添加度量
+                  {t("添加度量")}{" "}
                 </Button>
               )}
             </div>
@@ -790,11 +804,11 @@ export function ChartToolbar({
 
         <Separator />
 
-        <PanelSection label="字段">
+        <PanelSection label={t("字段")}>
           <FieldConfigList
             fields={source.fields}
             rows={rows}
-            searchPlaceholder="搜索字段"
+            searchPlaceholder={t("搜索字段")}
             onSubmitField={canEditFields ? handleSubmitField : undefined}
             onDeleteField={canEditFields ? handleDeleteField : undefined}
           />
@@ -803,12 +817,12 @@ export function ChartToolbar({
 
       {/* ——————— 视图 ——————— */}
       <SettingsPanel
-        label="视图"
+        label={t("视图")}
         icon={ChartPie}
         disabled={!canConfigure}
         width="w-72"
       >
-        <PanelSection label="标题">
+        <PanelSection label={t("标题")}>
           <TitleInput
             value={config.title ?? ""}
             disabled={!canConfigure}
@@ -819,7 +833,7 @@ export function ChartToolbar({
         {showRanking && (
           <>
             <Separator />
-            <PanelSection label="排序">
+            <PanelSection label={t("排序")}>
               <div className="flex items-center gap-1">
                 <Select
                   value={
@@ -840,14 +854,14 @@ export function ChartToolbar({
                 >
                   <SelectTrigger
                     size="sm"
-                    aria-label="排序字段"
+                    aria-label={t("排序字段")}
                     className="min-w-0 flex-1 text-xs"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">
-                      不排序
+                      {t("不排序")}{" "}
                     </SelectItem>
                     {resolved.measures.map((measure, index) => (
                       <SelectItem
@@ -877,17 +891,17 @@ export function ChartToolbar({
                   }}
                 >
                   <ToggleGroupItem value="desc" className="h-7 px-2 text-xs">
-                    降序
+                    {t("降序")}{" "}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="asc" className="h-7 px-2 text-xs">
-                    升序
+                    {t("升序")}{" "}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
             </PanelSection>
 
             <Separator />
-            <PanelSection label="前 N 条">
+            <PanelSection label={t("前 N 条")}>
               <ToggleGroup
                 type="single"
                 size="sm"
@@ -900,7 +914,7 @@ export function ChartToolbar({
                 }}
               >
                 <ToggleGroupItem value="all" className="h-7 px-2 text-xs">
-                  全部
+                  {t("全部")}{" "}
                 </ToggleGroupItem>
                 {CHART_LIMITS.map((limit) => (
                   <ToggleGroupItem
@@ -917,7 +931,7 @@ export function ChartToolbar({
         )}
 
         <Separator />
-        <PanelSection label="点击行为">
+        <PanelSection label={t("点击行为")}>
           <Select
             value={config.clickAction}
             disabled={!canConfigure}
@@ -927,7 +941,7 @@ export function ChartToolbar({
           >
             <SelectTrigger
               size="sm"
-              aria-label="点击行为"
+              aria-label={t("点击行为")}
               className="w-full text-xs"
             >
               <SelectValue />
@@ -949,7 +963,7 @@ export function ChartToolbar({
         <Separator />
         {showLegend && (
           <SwitchRow
-            label="图例"
+            label={t("图例")}
             checked={config.showLegend}
             disabled={!canConfigure}
             onCheckedChange={(checked) => patch({ showLegend: checked })}
@@ -957,21 +971,21 @@ export function ChartToolbar({
         )}
         {showLabels && (
           <SwitchRow
-            label="数据标签"
+            label={t("数据标签")}
             checked={config.showLabel}
             disabled={!canConfigure}
             onCheckedChange={(checked) => patch({ showLabel: checked })}
           />
         )}
         <SwitchRow
-          label="悬浮提示"
+          label={t("悬浮提示")}
           checked={config.showTooltip}
           disabled={!canConfigure}
           onCheckedChange={(checked) => patch({ showTooltip: checked })}
         />
 
         <Separator />
-        <PanelSection label="主题">
+        <PanelSection label={t("主题")}>
           <ToggleGroup
             type="single"
             size="sm"
@@ -995,7 +1009,7 @@ export function ChartToolbar({
           </ToggleGroup>
         </PanelSection>
 
-        <PanelSection label="色板">
+        <PanelSection label={t("色板")}>
           <Select
             value={config.colorScheme ?? "default"}
             disabled={!canConfigure}
@@ -1003,7 +1017,7 @@ export function ChartToolbar({
           >
             <SelectTrigger
               size="sm"
-              aria-label="色板"
+              aria-label={t("色板")}
               className="w-full text-xs"
             >
               <SelectValue />

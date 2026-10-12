@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import {
@@ -25,6 +26,8 @@ export function NodeSemanticSelector({
   onSelect,
   onCreateRequest,
 }: NodeSemanticSelectorProps) {
+  const { t } = useI18n();
+
   const [search, setSearch] = React.useState("");
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
@@ -63,7 +66,7 @@ export function NodeSemanticSelector({
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search semantic..."
+          placeholder={t("Search semantic...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-8 h-8"
@@ -73,7 +76,7 @@ export function NodeSemanticSelector({
       <div className="max-h-48 overflow-y-auto">
         {filteredSemantics.length === 0 ? (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">
-            No semantics found
+            {t("No semantics found")}{" "}
           </div>
         ) : (
           filteredSemantics.map((semantic: NodeSemantic) => (
@@ -121,7 +124,7 @@ export function NodeSemanticSelector({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md text-primary"
       >
         <Plus className="size-4" />
-        <span>Add new type</span>
+        <span>{t("Add new type")}</span>
       </DropdownMenuItem>
     </div>
   );

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The ink layer — L1 in design §1.2 and the layer's **only pointer target**.
@@ -163,6 +164,8 @@ export function AnnotationCanvas({
   onOperation,
   onActiveChange,
 }: AnnotationCanvasProps) {
+  const { t } = useI18n();
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const committedRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -742,7 +745,7 @@ export function AnnotationCanvas({
       ref={canvasRef}
       data-annotation-canvas
       tabIndex={0}
-      aria-label="批注画布"
+      aria-label={t("批注画布")}
       // `touch-action: none` is written as a style rather than a class for one
       // reason: a class can be purged, and without this the browser claims the
       // pen's moves as a scroll and never delivers them (design §0.3-2). It is

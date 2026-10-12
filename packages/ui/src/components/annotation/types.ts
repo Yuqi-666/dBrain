@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The annotation layer's UI-side contract — the **one** declaration of what the
  * toolbar, the ink canvas and the host exchange.
@@ -84,12 +85,48 @@ export interface AnnotationColorSpec {
  * (`--annotation-1..6` in both `:root` and `.dark`, added by this milestone).
  */
 export const ANNOTATION_COLORS: readonly AnnotationColorSpec[] = [
-  { key: "red", cssVar: "--annotation-1", label: "红" },
-  { key: "yellow", cssVar: "--annotation-2", label: "黄" },
-  { key: "green", cssVar: "--annotation-3", label: "绿" },
-  { key: "blue", cssVar: "--annotation-4", label: "蓝" },
-  { key: "purple", cssVar: "--annotation-5", label: "紫" },
-  { key: "ink", cssVar: "--annotation-6", label: "墨" },
+  {
+    key: "red",
+    cssVar: "--annotation-1",
+    get label() {
+      return translate("红");
+    },
+  },
+  {
+    key: "yellow",
+    cssVar: "--annotation-2",
+    get label() {
+      return translate("黄");
+    },
+  },
+  {
+    key: "green",
+    cssVar: "--annotation-3",
+    get label() {
+      return translate("绿");
+    },
+  },
+  {
+    key: "blue",
+    cssVar: "--annotation-4",
+    get label() {
+      return translate("蓝");
+    },
+  },
+  {
+    key: "purple",
+    cssVar: "--annotation-5",
+    get label() {
+      return translate("紫");
+    },
+  },
+  {
+    key: "ink",
+    cssVar: "--annotation-6",
+    get label() {
+      return translate("墨");
+    },
+  },
 ];
 
 export const DEFAULT_ANNOTATION_COLOR: AnnotationColorKey = "red";

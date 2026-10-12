@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The kanban view's toolbar — its one control strip.
@@ -72,6 +73,8 @@ export function KanbanToolbar({
   onSettingsChange,
   className,
 }: KanbanToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<KanbanViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -88,23 +91,23 @@ export function KanbanToolbar({
     <ViewToolbar className={className}>
       {/* ——————— 分组 ——————— */}
       <SettingsPanel
-        label="分组"
+        label={t("分组")}
         icon={Columns3}
         value={groupField?.name}
         disabled={!canConfigure}
       >
         <PanelSection
-          label="分组字段"
+          label={t("分组字段")}
           hint={
             groupable.length === 0
-              ? "这张表还没有「单选」或「多选」字段，看板无法分列。"
+              ? t("这张表还没有「单选」或「多选」字段，看板无法分列。")
               : undefined
           }
         >
           <FieldSelect
             fields={groupable}
             value={config.groupByField}
-            placeholder="选择字段"
+            placeholder={t("选择字段")}
             disabled={groupable.length === 0}
             onValueChange={(fieldId) =>
               // A different field has its own options, so a stale lane order
@@ -115,7 +118,7 @@ export function KanbanToolbar({
         </PanelSection>
         <Separator />
         <SwitchRow
-          label="显示未分组"
+          label={t("显示未分组")}
           checked={config.showUnassigned}
           onCheckedChange={(checked) => patch({ showUnassigned: checked })}
         />
@@ -135,8 +138,8 @@ export function KanbanToolbar({
           the levels are the whole change — the cards keep this order inside
           every lane (`core/board.ts`). */}
       <ConditionMenu
-        label="排序"
-        title="设置排序条件"
+        label={t("排序")}
+        title={t("设置排序条件")}
         icon={ArrowUpDown}
         value={sortReadout}
         conditions={sortConditions}

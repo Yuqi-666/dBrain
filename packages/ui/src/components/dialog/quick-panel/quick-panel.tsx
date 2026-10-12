@@ -1,11 +1,9 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useRef } from "react";
 import { useUIStore } from "@workspace/store";
-import {
-  Dialog,
-  DialogContent,
-} from "@workspace/ui/components/ui/dialog";
+import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { cn } from "@workspace/ui/lib/utils";
 import { SearchMode } from "./search-mode";
 import { AgentMode } from "./agent-mode";
@@ -15,6 +13,8 @@ export interface QuickPanelProps {
 }
 
 export function QuickPanel({ className }: QuickPanelProps) {
+  const { t } = useI18n();
+
   const quickPanel = useUIStore((state) => state.quickPanel);
   const setQuickPanelMode = useUIStore((state) => state.setQuickPanelMode);
   const toggleQuickPanelFromKeyboard = useUIStore(
@@ -66,7 +66,7 @@ export function QuickPanel({ className }: QuickPanelProps) {
               quickPanel.mode === "search" && "bg-accent text-foreground",
             )}
           >
-            Search
+            {t("Search")}{" "}
           </button>
           <button
             type="button"
@@ -76,7 +76,7 @@ export function QuickPanel({ className }: QuickPanelProps) {
               quickPanel.mode === "agent" && "bg-accent text-foreground",
             )}
           >
-            Agent
+            {t("Agent")}{" "}
           </button>
         </div>
         {quickPanel.mode === "search" ? <SearchMode /> : <AgentMode />}

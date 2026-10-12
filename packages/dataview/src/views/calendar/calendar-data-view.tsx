@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Calendar data view — rows laid out on a time axis and edited by dragging
@@ -105,6 +106,8 @@ export function CalendarDataView({
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<CalendarViewConfig>) {
+  useI18n();
+
   const tokens = useDataViewThemeTokens(CALENDAR_FIXED.theme);
   const themeVars = useMemo(() => buildCalendarThemeVars(tokens), [tokens]);
 
@@ -166,7 +169,7 @@ export function CalendarDataView({
   const hiddenFieldIdsRef = useRef<readonly string[]>(hiddenFieldIds);
   hiddenFieldIdsRef.current = hiddenFieldIds;
 
-  const events = useMemo(
+  const events = useLocaleMemo(
     () =>
       startField
         ? rowsToEvents(source, config, (nodeId) =>
@@ -423,12 +426,16 @@ function CalendarGuidance({
   fieldCount: number;
   dateFieldCount: number;
 }) {
+  const { t } = useI18n();
+
   if (fieldCount === 0) {
     return (
       <DataViewEmptyState
         icon={CalendarDays}
-        title="这张表还没有字段"
-        description="先在表格视图中添加字段，再回来按日期把记录铺到日历上。"
+        title={t("这张表还没有字段")}
+        description={t(
+          "先在表格视图中添加字段，再回来按日期把记录铺到日历上。",
+        )}
       />
     );
   }
@@ -437,12 +444,18 @@ function CalendarGuidance({
     <DataViewEmptyState
       icon={CalendarDays}
       title={
-        dateFieldCount > 0 ? "还没有选择开始日期" : "日历需要一个「日期」字段"
+        dateFieldCount > 0
+          ? t("还没有选择开始日期")
+          : t("日历需要一个「日期」字段")
       }
       description={
         dateFieldCount > 0
-          ? "在上方工具条的「字段」里选择事件的开始日期，记录就会落到对应的日子。"
-          : "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。"
+          ? t(
+              "在上方工具条的「字段」里选择事件的开始日期，记录就会落到对应的日子。",
+            )
+          : t(
+              "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。",
+            )
       }
     />
   );

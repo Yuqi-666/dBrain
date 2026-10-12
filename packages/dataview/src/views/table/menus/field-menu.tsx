@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * 字段配置 — the field list dropdown (`docs/propmt/dataview-table-1.md` §字段配置).
@@ -184,6 +187,8 @@ export function TableFieldMenu({
   onAddFieldDismiss,
   className,
 }: TableFieldMenuProps) {
+  const { t } = useI18n();
+
   const [isOpen, setOpen] = useState(false);
 
   /**
@@ -271,7 +276,7 @@ export function TableFieldMenu({
     () => buildFieldMenuEntries(config, fields),
     [config, fields],
   );
-  const matched = useMemo(
+  const matched = useLocaleMemo(
     () => new Set(filterFieldsByQuery(fields, query).map((field) => field.id)),
     [fields, query],
   );
@@ -425,7 +430,11 @@ export function TableFieldMenu({
               type="button"
               size="icon-xs"
               variant="ghost"
-              aria-label={visible ? `隐藏 ${field.name}` : `显示 ${field.name}`}
+              aria-label={
+                visible
+                  ? translate("隐藏 {value1}", { value1: field.name })
+                  : translate("显示 {value1}", { value1: field.name })
+              }
               className={cn(
                 "text-muted-foreground",
                 visible
@@ -466,7 +475,9 @@ export function TableFieldMenu({
                 type="button"
                 size="icon-xs"
                 variant="ghost"
-                aria-label={`${field.name} 更多操作`}
+                aria-label={translate("{value1} 更多操作", {
+                  value1: field.name,
+                })}
                 className={cn(
                   "text-muted-foreground",
                   canEditColumns
@@ -516,20 +527,20 @@ export function TableFieldMenu({
                     }}
                   >
                     <Pencil className="size-4" />
-                    编辑字段
+                    {t("编辑字段")}{" "}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canEditFields || Boolean(group)}
                     onSelect={() => handleCreateGroup(field)}
                   >
                     <FolderPlus className="size-4" />
-                    创建编组
+                    {t("创建编组")}{" "}
                   </DropdownMenuItem>
                   {groups.length > 0 && (
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger disabled={!canEditFields}>
                         <FolderTree className="size-4" />
-                        加入编组
+                        {t("加入编组")}{" "}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-40">
                         {groups.map((entry) => (
@@ -562,7 +573,7 @@ export function TableFieldMenu({
                       }
                     >
                       <FolderTree className="size-4" />
-                      移出编组
+                      {t("移出编组")}{" "}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
@@ -572,7 +583,7 @@ export function TableFieldMenu({
                     onSelect={() => setPending({ kind: "delete", field })}
                   >
                     <Trash2 className="size-4" />
-                    删除字段
+                    {t("删除字段")}{" "}
                   </DropdownMenuItem>
                 </>
               )}
@@ -583,7 +594,9 @@ export function TableFieldMenu({
         {deleting && (
           <div className="mx-1.5 mb-1 flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5">
             <span className="min-w-0 flex-1 text-[11px] text-muted-foreground">
-              删除「{field.name}」？该列数据一并清除。
+              {t("删除「")}
+              {field.name}
+              {t("」？该列数据一并清除。")}{" "}
             </span>
             <Button
               type="button"
@@ -592,7 +605,7 @@ export function TableFieldMenu({
               className="h-6 shrink-0 text-[11px]"
               onClick={() => setPending(null)}
             >
-              取消
+              {t("取消")}{" "}
             </Button>
             <Button
               type="button"
@@ -601,7 +614,7 @@ export function TableFieldMenu({
               className="h-6 shrink-0 text-[11px]"
               onClick={() => handleDelete(field)}
             >
-              删除
+              {t("删除")}{" "}
             </Button>
           </div>
         )}
@@ -652,7 +665,9 @@ export function TableFieldMenu({
             size="icon-xs"
             variant="ghost"
             aria-label={
-              isCollapsed ? `展开 ${group.name}` : `折叠 ${group.name}`
+              isCollapsed
+                ? translate("展开 {value1}", { value1: group.name })
+                : translate("折叠 {value1}", { value1: group.name })
             }
             aria-expanded={!isCollapsed}
             className="text-muted-foreground"
@@ -678,7 +693,11 @@ export function TableFieldMenu({
               type="button"
               size="icon-xs"
               variant="ghost"
-              aria-label={visible ? `隐藏 ${group.name}` : `显示 ${group.name}`}
+              aria-label={
+                visible
+                  ? translate("隐藏 {value1}", { value1: group.name })
+                  : translate("显示 {value1}", { value1: group.name })
+              }
               className={cn(
                 "text-muted-foreground",
                 visible
@@ -709,7 +728,9 @@ export function TableFieldMenu({
                   if (node) groupMenuTrigger.current.set(group.id, node);
                   else groupMenuTrigger.current.delete(group.id);
                 }}
-                aria-label={`${group.name} 更多操作`}
+                aria-label={translate("{value1} 更多操作", {
+                  value1: group.name,
+                })}
                 className="text-muted-foreground opacity-0 group-hover/group:opacity-100 data-[state=open]:opacity-100"
               >
                 <MoreHorizontal className="size-3.5" />
@@ -732,7 +753,7 @@ export function TableFieldMenu({
                 }}
               >
                 <Pencil className="size-4" />
-                重命名编组
+                {t("重命名编组")}{" "}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -742,7 +763,7 @@ export function TableFieldMenu({
                 }
               >
                 <Trash2 className="size-4" />
-                解散编组
+                {t("解散编组")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -802,7 +823,7 @@ export function TableFieldMenu({
             )}
           >
             <FolderTree className="size-3.5" />
-            字段配置
+            {t("字段配置")}{" "}
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -826,8 +847,8 @@ export function TableFieldMenu({
               </InputGroupAddon>
               <InputGroupInput
                 value={query}
-                placeholder="搜索字段"
-                aria-label="搜索字段"
+                placeholder={t("搜索字段")}
+                aria-label={t("搜索字段")}
                 className="h-7 text-xs"
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -842,7 +863,7 @@ export function TableFieldMenu({
               <div className="flex flex-col gap-1 pr-1">
                 {entries.length > 0 && visibleEntries === 0 && (
                   <p className="px-1.5 py-3 text-center text-[11px] text-muted-foreground">
-                    没有匹配的字段。
+                    {t("没有匹配的字段。")}{" "}
                   </p>
                 )}
                 {entries.map((entry) => {
@@ -885,7 +906,7 @@ export function TableFieldMenu({
                   className="h-7 justify-start gap-1.5 px-1.5 text-xs font-normal text-muted-foreground"
                 >
                   <Plus className="size-3.5" />
-                  新增字段
+                  {t("新增字段")}{" "}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -974,16 +995,18 @@ function RenameGroupForm({
   onCancel: () => void;
   onSubmit: (name: string) => void;
 }) {
+  const { t } = useI18n();
+
   const [name, setName] = useState(group.name);
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] text-muted-foreground">编组名称</span>
+      <span className="text-[11px] text-muted-foreground">{t("编组名称")}</span>
       <div className="flex items-center gap-1.5">
         <input
           autoFocus
           ref={inputRef}
           value={name}
-          aria-label="编组名称"
+          aria-label={t("编组名称")}
           className="h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-primary"
           onChange={(event) => setName(event.target.value)}
           onFocus={(event) => event.target.select()}
@@ -1001,7 +1024,7 @@ function RenameGroupForm({
           disabled={!name.trim()}
           onClick={() => onSubmit(name)}
         >
-          确定
+          {t("确定")}{" "}
         </Button>
       </div>
     </div>

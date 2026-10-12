@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 
@@ -25,6 +26,8 @@ export function IslandPlaceholder({
   form,
   nav,
 }: IslandPlaceholderProps): React.ReactNode {
+  useI18n();
+
   return (
     <div data-island-placeholder={form} className="flex h-full w-full flex-col">
       <IslandNav
@@ -53,13 +56,15 @@ export function IslandPlaceholder({
  * reason the user can see.
  */
 function IslandAgentBody(): React.ReactNode {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-contain rounded-xl bg-muted/40 px-4 text-center text-sm text-muted-foreground">
-        agent 面板将在 M9 接入
+        {t("agent 面板将在 M9 接入")}{" "}
       </div>
       <div className="flex h-16 shrink-0 items-center rounded-xl border border-dashed border-border px-3 text-xs text-muted-foreground">
-        输入区将在 M9 接入
+        {t("输入区将在 M9 接入")}{" "}
       </div>
     </div>
   );

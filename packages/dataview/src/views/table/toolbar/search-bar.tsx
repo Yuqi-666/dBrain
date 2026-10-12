@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The table's search bar — a **second row** under the view toolbar, shown only
@@ -68,6 +69,8 @@ export function TableSearchBar({
   onClose,
   className,
 }: TableSearchBarProps) {
+  const { t } = useI18n();
+
   const rowRef = useRef<HTMLDivElement>(null);
   /** `onClose` is an inline arrow upstream; the veto listener mounts once. */
   const closeRef = useRef(onClose);
@@ -166,8 +169,8 @@ export function TableSearchBar({
         <InputGroupInput
           autoFocus
           value={query}
-          placeholder="搜索表格"
-          aria-label="搜索表格"
+          placeholder={t("搜索表格")}
+          aria-label={t("搜索表格")}
           className="h-7 text-xs"
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={(event) => {
@@ -193,12 +196,12 @@ export function TableSearchBar({
                 matchCount === 0 ? "text-destructive" : "text-muted-foreground",
               )}
             >
-              {matchCount === 0 ? "无结果" : `${index + 1}/${matchCount}`}
+              {matchCount === 0 ? t("无结果") : `${index + 1}/${matchCount}`}
             </span>
           )}
           <InputGroupButton
             size="icon-xs"
-            aria-label="上一个匹配"
+            aria-label={t("上一个匹配")}
             disabled={matchCount === 0}
             onClick={() => onStep(-1)}
           >
@@ -206,7 +209,7 @@ export function TableSearchBar({
           </InputGroupButton>
           <InputGroupButton
             size="icon-xs"
-            aria-label="下一个匹配"
+            aria-label={t("下一个匹配")}
             disabled={matchCount === 0}
             onClick={() => onStep(1)}
           >
@@ -214,7 +217,7 @@ export function TableSearchBar({
           </InputGroupButton>
           <InputGroupButton
             size="icon-xs"
-            aria-label="关闭搜索"
+            aria-label={t("关闭搜索")}
             onClick={onClose}
           >
             <X className="size-3.5" />

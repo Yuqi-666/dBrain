@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   DropdownMenuSub,
@@ -12,7 +13,13 @@ import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-dat
 import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
 
 export interface GraphContextMenuCanvasProps {
-  onAddNode?: (nodeType: NodeDataType, semanticId: string, simX?: number, simY?: number, viewId?: string) => void;
+  onAddNode?: (
+    nodeType: NodeDataType,
+    semanticId: string,
+    simX?: number,
+    simY?: number,
+    viewId?: string,
+  ) => void;
   simX?: number;
   simY?: number;
   viewId?: string;
@@ -26,6 +33,8 @@ export function GraphContextMenuCanvas({
   viewId,
   onClose,
 }: GraphContextMenuCanvasProps) {
+  const { t } = useI18n();
+
   const openNodeSemanticDialog = useUIStore(
     (state) => state.openNodeSemanticDialog,
   );
@@ -34,7 +43,7 @@ export function GraphContextMenuCanvas({
     <DropdownMenuSub>
       <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md">
         <Plus className="size-4" />
-        <span>Add Node</span>
+        <span>{t("Add Node")}</span>
       </DropdownMenuSubTrigger>
       <NodeDataTypeSelector>
         {(nodeType) => (

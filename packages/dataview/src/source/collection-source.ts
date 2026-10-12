@@ -1,3 +1,5 @@
+import { NODE_TYPE_LABELS } from "@workspace/ui/lib/node-type-labels";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * `collection` host adapter: projects the graph nodes a collection selects
  * into a fixed "node attribute table" with the same shape a database produces,
@@ -44,9 +46,24 @@ export const COLLECTION_FIELD_IDS = {
 export const COLLECTION_PRIMARY_FIELD_ID = COLLECTION_FIELD_IDS.title;
 
 const PERMISSION_OPTIONS: { id: Permission; name: string }[] = [
-  { id: "private", name: "私有" },
-  { id: "public", name: "公开" },
-  { id: "restricted", name: "受限" },
+  {
+    id: "private",
+    get name() {
+      return translate("私有");
+    },
+  },
+  {
+    id: "public",
+    get name() {
+      return translate("公开");
+    },
+  },
+  {
+    id: "restricted",
+    get name() {
+      return translate("受限");
+    },
+  },
 ];
 
 /** Lookup maps the projection needs to name semantics / tags. */
@@ -71,17 +88,24 @@ export function buildCollectionFields(
   const tags = Array.from(options.tags?.values() ?? []);
 
   return [
-    { id: COLLECTION_FIELD_IDS.title, name: "标题", type: "text" },
-    { id: COLLECTION_FIELD_IDS.abstract, name: "摘要", type: "text" },
+    { id: COLLECTION_FIELD_IDS.title, name: translate("标题"), type: "text" },
+    {
+      id: COLLECTION_FIELD_IDS.abstract,
+      name: translate("摘要"),
+      type: "text",
+    },
     {
       id: COLLECTION_FIELD_IDS.nodeType,
-      name: "节点类型",
+      name: translate("节点类型"),
       type: "select",
-      options: NODE_DATA_TYPES.map((type) => ({ id: type, name: type })),
+      options: NODE_DATA_TYPES.map((type) => ({
+        id: type,
+        name: NODE_TYPE_LABELS[type] ?? type,
+      })),
     },
     {
       id: COLLECTION_FIELD_IDS.semantic,
-      name: "语义类型",
+      name: translate("语义类型"),
       type: "select",
       options: semantics.map((semantic) => ({
         id: semantic.id,
@@ -91,7 +115,7 @@ export function buildCollectionFields(
     },
     {
       id: COLLECTION_FIELD_IDS.tags,
-      name: "标签",
+      name: translate("标签"),
       type: "multiSelect",
       options: tags.map((tag) => ({
         id: tag.id,
@@ -101,13 +125,25 @@ export function buildCollectionFields(
     },
     {
       id: COLLECTION_FIELD_IDS.permission,
-      name: "权限",
+      name: translate("权限"),
       type: "select",
       options: PERMISSION_OPTIONS.map((option) => ({ ...option })),
     },
-    { id: COLLECTION_FIELD_IDS.weight, name: "权重", type: "number" },
-    { id: COLLECTION_FIELD_IDS.createdAt, name: "创建时间", type: "date" },
-    { id: COLLECTION_FIELD_IDS.updatedAt, name: "更新时间", type: "date" },
+    {
+      id: COLLECTION_FIELD_IDS.weight,
+      name: translate("权重"),
+      type: "number",
+    },
+    {
+      id: COLLECTION_FIELD_IDS.createdAt,
+      name: translate("创建时间"),
+      type: "date",
+    },
+    {
+      id: COLLECTION_FIELD_IDS.updatedAt,
+      name: translate("更新时间"),
+      type: "date",
+    },
   ];
 }
 

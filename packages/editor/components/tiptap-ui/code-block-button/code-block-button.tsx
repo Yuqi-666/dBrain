@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function CodeBlockShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -63,6 +66,8 @@ export const CodeBlockButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -102,7 +107,7 @@ export const CodeBlockButton = forwardRef<
         tabIndex={-1}
         aria-label={label}
         aria-pressed={isActive}
-        tooltip="Code Block"
+        tooltip={t("Code Block")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

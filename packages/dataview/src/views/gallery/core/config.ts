@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Gallery geometry config — the self-healing layer over the wall's own two keys
  * (排列方式 / 卡片尺寸).
@@ -17,16 +18,46 @@ import type { GalleryViewConfig } from "@workspace/interfaces";
 
 /** The three card-wall shapes, in toolbar order. */
 export const GALLERY_LAYOUT_OPTIONS = [
-  { value: "grid", label: "网格" },
-  { value: "masonry", label: "瀑布流" },
-  { value: "list", label: "列表" },
+  {
+    value: "grid",
+    get label() {
+      return translate("网格");
+    },
+  },
+  {
+    value: "masonry",
+    get label() {
+      return translate("瀑布流");
+    },
+  },
+  {
+    value: "list",
+    get label() {
+      return translate("列表");
+    },
+  },
 ] as const;
 
 /** Card sizes; they drive the tile height and the responsive column width. */
 export const GALLERY_CARD_SIZE_OPTIONS = [
-  { value: "small", label: "小" },
-  { value: "medium", label: "中" },
-  { value: "large", label: "大" },
+  {
+    value: "small",
+    get label() {
+      return translate("小");
+    },
+  },
+  {
+    value: "medium",
+    get label() {
+      return translate("中");
+    },
+  },
+  {
+    value: "large",
+    get label() {
+      return translate("大");
+    },
+  },
 ] as const;
 
 function isLayoutOption(value: unknown): value is GalleryViewConfig["layout"] {

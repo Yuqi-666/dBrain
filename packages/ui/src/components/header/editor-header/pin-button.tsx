@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { PinIcon, PinOffIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -13,9 +14,9 @@ interface PinButtonProps {
  * 图钉按钮 - 切换节点置顶状态
  */
 export function PinButton({ className }: PinButtonProps) {
-  const currentEditingNodeId = useUIStore(
-    (s) => s.currentEditingNodeId,
-  );
+  const { t } = useI18n();
+
+  const currentEditingNodeId = useUIStore((s) => s.currentEditingNodeId);
   const node = useDataStore((s) =>
     currentEditingNodeId ? s.getNode(currentEditingNodeId) : undefined,
   );
@@ -33,7 +34,7 @@ export function PinButton({ className }: PinButtonProps) {
       size="icon"
       onClick={handleTogglePin}
       className={className}
-      aria-label={isPinned ? "取消置顶" : "置顶节点"}
+      aria-label={isPinned ? t("取消置顶") : t("置顶节点")}
     >
       {isPinned ? <PinIcon className="fill-current" /> : <PinOffIcon />}
     </Button>

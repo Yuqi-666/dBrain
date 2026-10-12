@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function CopyToClipboardShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -64,6 +67,8 @@ export const CopyToClipboardButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleCopyToClipboard, label, shortcutKeys, Icon } =
       useCopyToClipboard({
@@ -93,7 +98,7 @@ export const CopyToClipboardButton = forwardRef<
         role="button"
         tabIndex={-1}
         aria-label={label}
-        tooltip="Copy to clipboard"
+        tooltip={t("Copy to clipboard")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

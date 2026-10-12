@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useState } from "react";
 import {
@@ -33,6 +34,8 @@ export interface AddNodeDialogProps {
 }
 
 export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
+  const { t } = useI18n();
+
   const { onAddNode } = useGraph();
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const [nodeType, setNodeType] = useState<NodeDataType | null>(null);
@@ -81,20 +84,22 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Node</DialogTitle>
+            <DialogTitle>{t("Add Node")}</DialogTitle>
             <DialogDescription>
-              Create a new node and pick its type and semantic.
+              {t("Create a new node and pick its type and semantic.")}{" "}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">
-                Node Type
+                {t("Node Type")}{" "}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="justify-start">
-                    {nodeType ? NODE_TYPE_LABELS[nodeType] : "Select node type"}
+                    {nodeType
+                      ? NODE_TYPE_LABELS[nodeType]
+                      : t("Select node type")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
@@ -115,7 +120,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
             </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">
-                Semantic
+                {t("Semantic")}{" "}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -136,10 +141,10 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={handleCancel}>
-              Cancel
+              {t("Cancel")}{" "}
             </Button>
             <Button disabled={!nodeType || !semanticId} onClick={handleConfirm}>
-              Create
+              {t("Create")}{" "}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   DropdownMenu,
@@ -32,6 +33,8 @@ interface OptionsMenuProps {
  * 选项菜单 - 节点操作菜单（删除、复制、导出等）
  */
 export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
+  const { t } = useI18n();
+
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
@@ -65,13 +68,13 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
           variant="ghost"
           size="icon"
           className={className}
-          aria-label="更多选项"
+          aria-label={t("更多选项")}
         >
           <MoreHorizontalIcon />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>操作</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("操作")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
@@ -84,36 +87,36 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
           <LayoutDashboard className="size-4 mr-2" />
           <span>
             {targetNodeId && workspace?.candidates.includes(targetNodeId)
-              ? "从 Dashboard 备选移除"
-              : "添加到 Dashboard 备选"}
+              ? t("从 Dashboard 备选移除")
+              : t("添加到 Dashboard 备选")}
           </span>
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={handleCopy}>
           <CopyIcon className="size-4 mr-2" />
-          <span>复制节点</span>
+          <span>{t("复制节点")}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem>
           <DownloadIcon className="size-4 mr-2" />
-          <span>导出节点</span>
+          <span>{t("导出节点")}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem>
           <ShareIcon className="size-4 mr-2" />
-          <span>分享节点</span>
+          <span>{t("分享节点")}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem>
           <ExternalLinkIcon className="size-4 mr-2" />
-          <span>在新窗口打开</span>
+          <span>{t("在新窗口打开")}</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleDelete} variant="destructive">
           <TrashIcon className="size-4 mr-2" />
-          <span>删除节点</span>
+          <span>{t("删除节点")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

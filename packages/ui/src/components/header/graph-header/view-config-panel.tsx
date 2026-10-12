@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useDataStore, useUIStore } from "@workspace/store";
 import { ViewService } from "@workspace/services";
@@ -34,22 +36,72 @@ import {
 } from "./node-density";
 
 const BACKGROUND_COLORS = [
-  { label: "默认白", value: "#ffffff" },
-  { label: "浅灰", value: "#f8f9fa" },
-  { label: "深灰", value: "#343a40" },
-  { label: "深蓝", value: "#1a365d" },
-  { label: "黑色", value: "#000000" },
+  {
+    get label() {
+      return translate("默认白");
+    },
+    value: "#ffffff",
+  },
+  {
+    get label() {
+      return translate("浅灰");
+    },
+    value: "#f8f9fa",
+  },
+  {
+    get label() {
+      return translate("深灰");
+    },
+    value: "#343a40",
+  },
+  {
+    get label() {
+      return translate("深蓝");
+    },
+    value: "#1a365d",
+  },
+  {
+    get label() {
+      return translate("黑色");
+    },
+    value: "#000000",
+  },
 ];
 
 const GRID_STYLES = [
-  { label: "网格", value: "grid" },
-  { label: "点阵", value: "dots" },
-  { label: "无", value: "none" },
+  {
+    get label() {
+      return translate("网格");
+    },
+    value: "grid",
+  },
+  {
+    get label() {
+      return translate("点阵");
+    },
+    value: "dots",
+  },
+  {
+    get label() {
+      return translate("无");
+    },
+    value: "none",
+  },
 ];
 
 const VIEW_TYPES = [
-  { label: "力导向视图", value: "Force" },
-  { label: "工作流视图", value: "Flow" },
+  {
+    get label() {
+      return translate("力导向视图");
+    },
+    value: "Force",
+  },
+  {
+    get label() {
+      return translate("工作流视图");
+    },
+    value: "Flow",
+  },
 ] as const;
 
 interface ViewConfigPanelProps {
@@ -60,6 +112,8 @@ interface ViewConfigPanelProps {
  * 视图配置面板 - 配置当前视图的视觉样式
  */
 export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
+  const { t } = useI18n();
+
   const currentViewId = useUIStore((state) => state.currentViewId);
   const views = useDataStore((state) => state.views);
 
@@ -92,13 +146,13 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <ViewConfigButton className={className} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>视图配置</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("视图配置")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <PaletteIcon className="size-4 mr-2" />
-            <span>背景颜色</span>
+            <span>{t("背景颜色")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-32">
             {BACKGROUND_COLORS.map((color) => (
@@ -124,7 +178,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Grid3X3Icon className="size-4 mr-2" />
-            <span>网格样式</span>
+            <span>{t("网格样式")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-28">
             {GRID_STYLES.map((style) => (
@@ -149,15 +203,15 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <RadiusIcon className="size-4 mr-2" />
-            <span>节点密度</span>
+            <span>{t("节点密度")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48">
-            <div className="px-2 py-1.5" title="仅「力导向」布局生效">
+            <div className="px-2 py-1.5" title={t("仅「力导向」布局生效")}>
               <div className="mb-1 text-center text-xs text-muted-foreground">
                 {densityScaleLabel(nodeDensity)}
               </div>
               <Slider
-                aria-label="节点密度"
+                aria-label={t("节点密度")}
                 min={0}
                 max={DENSITY_SLIDER_STEPS}
                 step={1}
@@ -177,7 +231,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <LayoutIcon className="size-4 mr-2" />
-            <span>视图类型</span>
+            <span>{t("视图类型")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-32">
             {VIEW_TYPES.map((viewType) => (
@@ -209,13 +263,15 @@ export const ViewConfigButton = forwardRef<
   HTMLButtonElement,
   ViewConfigButtonProps
 >(({ className, ...props }, ref) => {
+  const { t } = useI18n();
+
   return (
     <Button
       variant="outline"
       size="icon-lg"
       ref={ref}
       className={className}
-      aria-label="视图配置"
+      aria-label={t("视图配置")}
       {...props}
     >
       <SettingsIcon />

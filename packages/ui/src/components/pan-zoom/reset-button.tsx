@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * `PanZoomResetButton` — the **mouse** half of 恢复位置大小.
@@ -79,10 +82,12 @@ export interface PanZoomResetPillProps {
 }
 
 export function PanZoomResetPill({
-  label = "恢复位置大小",
+  label = translate("恢复位置大小"),
   className,
   onClick,
 }: PanZoomResetPillProps) {
+  useI18n();
+
   return (
     <div
       data-pan-zoom-reset
@@ -111,9 +116,11 @@ export function PanZoomResetPill({
 export function PanZoomResetButton({
   transform,
   controller,
-  label = "恢复位置大小",
+  label = translate("恢复位置大小"),
   className,
 }: PanZoomResetButtonProps) {
+  useI18n();
+
   // The one render-time decision: at fit there is nothing to restore, so there
   // is no button. `isIdentityTransform` is the same predicate the clamp and the
   // gestures use, so "the button is gone" and "the view is at fit" cannot

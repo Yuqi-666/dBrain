@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import "katex/dist/katex.min.css";
 import katex from "katex";
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -13,6 +14,8 @@ import { Button } from "@workspace/editor/components/tiptap-ui-primitive/button"
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 export default function LatexBlockView(props: NodeViewProps) {
+  const { t } = useI18n();
+
   const { node, updateAttributes, editor, getPos, deleteNode, selected } =
     props;
   const mathResultContainer = useRef<HTMLDivElement>(null);
@@ -174,11 +177,13 @@ export default function LatexBlockView(props: NodeViewProps) {
           {((isEditing && !preview?.trim().length) ||
             (!isEditing && !node.attrs.text.trim().length)) && (
             <div className="py-2 text-sm text-muted-foreground/60 italic">
-              Empty equation
+              {t("Empty equation")}{" "}
             </div>
           )}
           {error && (
-            <div className="py-2 text-sm text-red-500">Invalid equation</div>
+            <div className="py-2 text-sm text-red-500">
+              {t("Invalid equation")}
+            </div>
           )}
         </NodeViewWrapper>
       </PopoverTrigger>
@@ -198,7 +203,7 @@ export default function LatexBlockView(props: NodeViewProps) {
         <div className="flex flex-col">
           <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Block Equation
+              {t("Block Equation")}{" "}
             </span>
             <Button
               variant="ghost"
@@ -206,7 +211,7 @@ export default function LatexBlockView(props: NodeViewProps) {
               onClick={() => deleteNode()}
               className="h-6 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors"
             >
-              Delete
+              {t("Delete")}{" "}
             </Button>
           </div>
 

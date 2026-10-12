@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 卡片配置 — the one card settings menu the kanban and the gallery share.
@@ -74,6 +75,8 @@ export function CardConfigMenu({
   onFieldsChange,
   className,
 }: CardConfigMenuProps) {
+  const { t } = useI18n();
+
   const canConfigure = Boolean(onChange);
   const coverable = coverableFields(source.fields);
   const coverField = resolveCardCoverField(source.fields, settings);
@@ -98,9 +101,9 @@ export function CardConfigMenu({
     const shownIds = new Set(shown.map((field) => field.id));
     const badge = (field: DatabaseField) =>
       field.id === title?.id
-        ? "标题"
+        ? t("标题")
         : coverByField && field.id === coverField?.id
-          ? "封面"
+          ? t("封面")
           : undefined;
 
     const list: FieldConfigRow[] = [];
@@ -116,21 +119,21 @@ export function CardConfigMenu({
       list.push({ field, visible: false, badge: badge(field) });
     }
     return list;
-  }, [coverByField, coverField?.id, settings, source.fields]);
+  }, [coverByField, coverField?.id, settings, source.fields, t]);
 
   return (
     <SettingsPanel
-      label="卡片配置"
+      label={t("卡片配置")}
       icon={IdCard}
       width="w-80"
       disabled={!canConfigure}
       className={className}
     >
-      <PanelSection label="标题">
+      <PanelSection label={t("标题")}>
         <FieldSelect
           fields={source.fields}
           value={titleField?.id ?? ""}
-          placeholder="选择字段"
+          placeholder={t("选择字段")}
           disabled={!canConfigure}
           onValueChange={(fieldId) =>
             onChange?.(setCardTitleField(settings, fieldId || undefined))
@@ -139,12 +142,14 @@ export function CardConfigMenu({
       </PanelSection>
 
       <PanelSection
-        label="封面"
+        label={t("封面")}
         hint={
           !coverByField
-            ? "集合的每一行就是一个节点，卡片直接用它自己的预览作封面。"
+            ? t("集合的每一行就是一个节点，卡片直接用它自己的预览作封面。")
             : coverable.length === 0
-              ? "需要一个「链接」字段（指向图片），或用「关联」字段指向图片／视频节点。"
+              ? t(
+                  "需要一个「链接」字段（指向图片），或用「关联」字段指向图片／视频节点。",
+                )
               : undefined
         }
       >
@@ -152,8 +157,8 @@ export function CardConfigMenu({
           <FieldSelect
             fields={coverable}
             value={coverField?.id ?? ""}
-            placeholder="无封面"
-            noneLabel="无封面"
+            placeholder={t("无封面")}
+            noneLabel={t("无封面")}
             disabled={!canConfigure || coverable.length === 0}
             onValueChange={(fieldId) =>
               onChange?.(setCardCoverField(settings, fieldId || undefined))
@@ -163,7 +168,7 @@ export function CardConfigMenu({
           <FieldSelect
             fields={[]}
             value=""
-            placeholder="使用节点预览"
+            placeholder={t("使用节点预览")}
             disabled
             onValueChange={() => {}}
           />
@@ -172,7 +177,7 @@ export function CardConfigMenu({
 
       <Separator />
 
-      <PanelSection label="展示模式">
+      <PanelSection label={t("展示模式")}>
         <ToggleGroup
           type="single"
           size="sm"
@@ -185,17 +190,17 @@ export function CardConfigMenu({
           }}
         >
           <ToggleGroupItem value="default" className="h-7 px-3 text-xs">
-            常规
+            {t("常规")}{" "}
           </ToggleGroupItem>
           <ToggleGroupItem value="compact" className="h-7 px-3 text-xs">
-            紧凑
+            {t("紧凑")}{" "}
           </ToggleGroupItem>
         </ToggleGroup>
       </PanelSection>
 
       <Separator />
 
-      <PanelSection label="卡片字段">
+      <PanelSection label={t("卡片字段")}>
         <FieldConfigList
           fields={source.fields}
           rows={rows}

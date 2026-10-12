@@ -1,4 +1,8 @@
 "use client";
+import { getLocale } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /**
  * The one place a cell becomes *pixels*.
@@ -57,7 +61,7 @@ export function toISODate(date: Date): string {
 export function formatFieldDate(value: string | null | undefined): string {
   const date = parseFieldDate(value);
   if (!date) return "";
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(getLocale());
 }
 
 /**
@@ -83,6 +87,8 @@ export function OptionBadge({
   onRemove?: (() => void) | undefined;
   children?: ReactNode;
 }) {
+  useI18n();
+
   const tint = color ? tintColor(color, 0.16) : undefined;
   const border = color ? tintColor(color, 0.4) : undefined;
 
@@ -109,7 +115,7 @@ export function OptionBadge({
       {onRemove && (
         <button
           type="button"
-          aria-label={`移除 ${label}`}
+          aria-label={translate("移除 {value1}", { value1: label })}
           onClick={(event) => {
             event.stopPropagation();
             onRemove();
@@ -221,6 +227,7 @@ export function FieldValue({
   emptyFallback,
   className,
 }: FieldValueProps) {
+  useI18n();
   if (!cell || !field) {
     return <>{emptyFallback ?? <EmptyValue />}</>;
   }

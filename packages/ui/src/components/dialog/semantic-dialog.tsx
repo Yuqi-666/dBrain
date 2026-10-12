@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback } from "react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -56,6 +58,8 @@ export async function createNodeSemantic(
 }
 
 export function NodeSemanticDialog() {
+  useI18n();
+
   const { open, editingSemantic, afterCreate } = useUIStore(
     (state) => state.nodeSemanticDialog,
   );
@@ -113,7 +117,11 @@ export function NodeSemanticDialog() {
       onOpenChange={(o) => !o && closeDialog()}
       editingSemantic={editingSemantic}
       onSubmit={handleSubmit}
-      onDelete={editingSemantic ? () => NodeSemanticService.delete(editingSemantic.id) : undefined}
+      onDelete={
+        editingSemantic
+          ? () => NodeSemanticService.delete(editingSemantic.id)
+          : undefined
+      }
     />
   );
 }
@@ -133,12 +141,14 @@ export function NodeSemanticDialogContent({
   onSubmit,
   onDelete,
 }: NodeSemanticDialogContentProps) {
+  const { t } = useI18n();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
-            {editingSemantic ? "Edit Node Semantic" : "Add Node Semantic"}
+            {editingSemantic ? t("Edit Node Semantic") : t("Add Node Semantic")}
           </DialogTitle>
         </DialogHeader>
 
@@ -148,9 +158,11 @@ export function NodeSemanticDialogContent({
             const form = e.currentTarget;
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
-              description: (form.elements.namedItem("description") as HTMLInputElement)
+              description: (
+                form.elements.namedItem("description") as HTMLInputElement
+              ).value,
+              color: (form.elements.namedItem("color") as HTMLInputElement)
                 .value,
-              color: (form.elements.namedItem("color") as HTMLInputElement).value,
               icon: (form.elements.namedItem("icon") as HTMLInputElement).value,
             };
             onSubmit(data);
@@ -158,28 +170,28 @@ export function NodeSemanticDialogContent({
         >
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="node-name">Name</Label>
+              <Label htmlFor="node-name">{t("Name")}</Label>
               <Input
                 id="node-name"
                 name="name"
                 defaultValue={editingSemantic?.name ?? ""}
-                placeholder="e.g., Concept, Person, Event"
+                placeholder={t("e.g., Concept, Person, Event")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-description">Description</Label>
+              <Label htmlFor="node-description">{t("Description")}</Label>
               <Input
                 id="node-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
-                placeholder="Optional description"
+                placeholder={t("Optional description")}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-color">Color</Label>
+              <Label htmlFor="node-color">{t("Color")}</Label>
               <div className="flex gap-2">
                 <Input
                   id="node-color"
@@ -198,12 +210,12 @@ export function NodeSemanticDialogContent({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-icon">Icon (Lucide icon name)</Label>
+              <Label htmlFor="node-icon">{t("Icon (Lucide icon name)")}</Label>
               <Input
                 id="node-icon"
                 name="icon"
                 defaultValue={editingSemantic?.icon ?? ""}
-                placeholder="e.g., Lightbulb, User, Calendar"
+                placeholder={t("e.g., Lightbulb, User, Calendar")}
               />
             </div>
           </div>
@@ -219,14 +231,18 @@ export function NodeSemanticDialogContent({
                 }}
                 className="mr-auto"
               >
-                Delete
+                {t("Delete")}{" "}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("Cancel")}{" "}
             </Button>
             <Button type="submit">
-              {editingSemantic ? "Update" : "Create"}
+              {editingSemantic ? t("Update") : t("Create")}
             </Button>
           </DialogFooter>
         </form>
@@ -236,13 +252,35 @@ export function NodeSemanticDialogContent({
 }
 
 const EDGE_TYPE_OPTIONS: { value: EdgeType; label: string }[] = [
-  { value: "hierarchy", label: "Hierarchy" },
-  { value: "flow", label: "Flow" },
-  { value: "association", label: "Association" },
-  { value: "interaction", label: "Interaction" },
+  {
+    value: "hierarchy",
+    get label() {
+      return translate("Hierarchy");
+    },
+  },
+  {
+    value: "flow",
+    get label() {
+      return translate("Flow");
+    },
+  },
+  {
+    value: "association",
+    get label() {
+      return translate("Association");
+    },
+  },
+  {
+    value: "interaction",
+    get label() {
+      return translate("Interaction");
+    },
+  },
 ];
 
 export function EdgeSemanticDialog() {
+  useI18n();
+
   const { open, editingSemantic, assignToEdgeId } = useUIStore(
     (state) => state.edgeSemanticDialog,
   );
@@ -325,12 +363,14 @@ export function EdgeSemanticDialogContent({
   onSubmit,
   onDelete,
 }: EdgeSemanticDialogContentProps) {
+  const { t } = useI18n();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
-            {editingSemantic ? "Edit Edge Semantic" : "Add Edge Semantic"}
+            {editingSemantic ? t("Edit Edge Semantic") : t("Add Edge Semantic")}
           </DialogTitle>
         </DialogHeader>
 
@@ -340,30 +380,32 @@ export function EdgeSemanticDialogContent({
             const form = e.currentTarget;
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
-              category: (form.elements.namedItem("category") as HTMLSelectElement)
-                .value as EdgeType,
-              description: (form.elements.namedItem(
-                "description",
-              ) as HTMLInputElement).value,
-              color: (form.elements.namedItem("color") as HTMLInputElement).value,
+              category: (
+                form.elements.namedItem("category") as HTMLSelectElement
+              ).value as EdgeType,
+              description: (
+                form.elements.namedItem("description") as HTMLInputElement
+              ).value,
+              color: (form.elements.namedItem("color") as HTMLInputElement)
+                .value,
             };
             onSubmit(data);
           }}
         >
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edge-name">Name</Label>
+              <Label htmlFor="edge-name">{t("Name")}</Label>
               <Input
                 id="edge-name"
                 name="name"
                 defaultValue={editingSemantic?.name ?? ""}
-                placeholder="e.g., Causes, Part Of, References"
+                placeholder={t("e.g., Causes, Part Of, References")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-category">Category</Label>
+              <Label htmlFor="edge-category">{t("Category")}</Label>
               <select
                 id="edge-category"
                 name="category"
@@ -379,17 +421,17 @@ export function EdgeSemanticDialogContent({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-description">Description</Label>
+              <Label htmlFor="edge-description">{t("Description")}</Label>
               <Input
                 id="edge-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
-                placeholder="Optional description"
+                placeholder={t("Optional description")}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-color">Color</Label>
+              <Label htmlFor="edge-color">{t("Color")}</Label>
               <div className="flex gap-2">
                 <Input
                   id="edge-color"
@@ -419,14 +461,18 @@ export function EdgeSemanticDialogContent({
                 }}
                 className="mr-auto"
               >
-                Delete
+                {t("Delete")}{" "}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("Cancel")}{" "}
             </Button>
             <Button type="submit">
-              {editingSemantic ? "Update" : "Create"}
+              {editingSemantic ? t("Update") : t("Create")}
             </Button>
           </DialogFooter>
         </form>
@@ -436,9 +482,9 @@ export function EdgeSemanticDialogContent({
 }
 
 export function NodeSemanticManager({ className }: { className?: string }) {
-  const nodeSemantics = useDataStore((state) =>
-    state.getAllNodeSemantics(),
-  );
+  const { t } = useI18n();
+
+  const nodeSemantics = useDataStore((state) => state.getAllNodeSemantics());
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
 
   const handleDelete = async (id: NodeSemanticId) => {
@@ -452,15 +498,17 @@ export function NodeSemanticManager({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Node Semantics</h4>
+        <h4 className="text-sm font-medium">{t("Node Semantics")}</h4>
         <Button size="sm" variant="ghost" onClick={() => openDialog()}>
           <PlusIcon className="h-4 w-4 mr-1" />
-          Add
+          {t("Add")}{" "}
         </Button>
       </div>
 
       {nodeSemantics.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No node semantics yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("No node semantics yet.")}
+        </p>
       ) : (
         <div className="space-y-2">
           {nodeSemantics.map((semantic) => (
@@ -483,7 +531,7 @@ export function NodeSemanticManager({ className }: { className?: string }) {
                   variant="ghost"
                   onClick={() => openDialog(semantic)}
                 >
-                  Edit
+                  {t("Edit")}{" "}
                 </Button>
                 <Button
                   size="sm"
@@ -502,9 +550,9 @@ export function NodeSemanticManager({ className }: { className?: string }) {
 }
 
 export function EdgeSemanticManager({ className }: { className?: string }) {
-  const edgeSemantics = useDataStore((state) =>
-    state.getAllEdgeSemantics(),
-  );
+  const { t } = useI18n();
+
+  const edgeSemantics = useDataStore((state) => state.getAllEdgeSemantics());
   const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
 
   const handleDelete = async (id: EdgeSemanticId) => {
@@ -518,15 +566,17 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Edge Semantics</h4>
+        <h4 className="text-sm font-medium">{t("Edge Semantics")}</h4>
         <Button size="sm" variant="ghost" onClick={() => openDialog()}>
           <PlusIcon className="h-4 w-4 mr-1" />
-          Add
+          {t("Add")}{" "}
         </Button>
       </div>
 
       {edgeSemantics.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No edge semantics yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("No edge semantics yet.")}
+        </p>
       ) : (
         <div className="space-y-2">
           {edgeSemantics.map((semantic) => (
@@ -552,7 +602,7 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
                   variant="ghost"
                   onClick={() => openDialog(semantic)}
                 >
-                  Edit
+                  {t("Edit")}{" "}
                 </Button>
                 <Button
                   size="sm"

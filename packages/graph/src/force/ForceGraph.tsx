@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * ForceGraph — main-thread orchestrator for the d3-force + OffscreenCanvas
@@ -168,6 +171,8 @@ function resolveBoundaryDensity(view: View): number {
 
 export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
   function ForceGraph(props, ref) {
+    useI18n();
+
     const {
       view,
       viewId,
@@ -676,7 +681,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
           // ★ Re-check cancelled BEFORE subscribing (fixes 0.4 leak)
           if (cancelled) {
-            api.setEventHandler(null).catch(() => { });
+            api.setEventHandler(null).catch(() => {});
             worker.terminate();
             return;
           }
@@ -702,7 +707,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           },
           onViewportChange: (x, y, scale) => {
             // best-effort: rejections during worker teardown races are expected and harmless
-            api?.setViewport(x, y, scale).catch(() => { });
+            api?.setViewport(x, y, scale).catch(() => {});
           },
         },
         dprRef.current,
@@ -898,7 +903,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               fontSize: 12,
             }}
           >
-            Worker init failed: {error.message}
+            {translate("Worker init failed:")} {error.message}
           </div>
         ) : null}
         {!isReady && !error ? (
@@ -911,7 +916,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               color: "#9ca3af",
             }}
           >
-            Initializing…
+            {translate("Initializing…")}{" "}
           </div>
         ) : null}
         {contextMenuState && contextMenuState.visible ? (

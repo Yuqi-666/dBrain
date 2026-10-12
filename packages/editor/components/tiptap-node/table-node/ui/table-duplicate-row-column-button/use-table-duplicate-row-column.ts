@@ -1,6 +1,9 @@
 "use client";
+import { useLocaleMemo } from "@workspace/ui/lib/i18n";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import { addColumnAfter, addRowAfter, CellSelection } from "@tiptap/pm/tables";
 
@@ -54,8 +57,12 @@ export interface UseTableDuplicateRowColumnConfig {
 const REQUIRED_EXTENSIONS = ["tableHandleExtension"];
 
 export const tableDuplicateRowColumnLabels: Record<Orientation, string> = {
-  row: "Duplicate row",
-  column: "Duplicate column",
+  get row() {
+    return translate("Duplicate row");
+  },
+  get column() {
+    return translate("Duplicate column");
+  },
 };
 
 /**
@@ -358,6 +365,8 @@ function shouldShowButton({
 export function useTableDuplicateRowColumn(
   config: UseTableDuplicateRowColumnConfig,
 ) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,
@@ -396,7 +405,7 @@ export function useTableDuplicateRowColumn(
     return success;
   }, [editor, index, orientation, tablePos, onDuplicated]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     return tableDuplicateRowColumnLabels[selectionType?.orientation || "row"];
   }, [selectionType]);
 

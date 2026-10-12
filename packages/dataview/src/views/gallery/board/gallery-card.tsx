@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * One gallery card: the shared `DataCard` plus the wall's own interaction layer.
@@ -110,6 +113,8 @@ export function GalleryCardItem({
   onOpenNode,
   className,
 }: GalleryCardItemProps) {
+  const { t } = useI18n();
+
   /**
    * The card's one gesture entry point. Modifiers are tested first because they
    * all mean "select".
@@ -148,7 +153,7 @@ export function GalleryCardItem({
   const openLayer = (
     <button
       type="button"
-      aria-label={`打开「${card.title}」`}
+      aria-label={translate("打开「{value1}」", { value1: card.title })}
       onClick={handleActivate}
       {...focusProps}
       className="absolute inset-0 z-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
@@ -173,7 +178,7 @@ export function GalleryCardItem({
       items: [
         {
           id: "gallery.select",
-          label: selected ? "取消选择" : "选择",
+          label: selected ? t("取消选择") : t("选择"),
           icon: Check,
           onSelect: () => onToggleSelect(card),
         },
@@ -181,7 +186,9 @@ export function GalleryCardItem({
           ? [
               {
                 id: "gallery.deleteSelected",
-                label: `删除选中的 ${selectedCount} 条记录`,
+                label: translate("删除选中的 {value1} 条记录", {
+                  value1: selectedCount,
+                }),
                 icon: Trash2,
                 destructive: true,
                 onSelect: onDeleteSelected,

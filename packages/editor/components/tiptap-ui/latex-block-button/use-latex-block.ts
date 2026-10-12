@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -121,6 +122,8 @@ export function shouldShowLatexButton(props: {
 }
 
 export function useLatexBlock(config?: UseLatexBlockConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -163,7 +166,7 @@ export function useLatexBlock(config?: UseLatexBlockConfig) {
     isActive,
     handleToggle,
     canToggle: canToggleState,
-    label: "Math block",
+    label: t("Math block"),
     shortcutKeys: LATEX_BLOCK_SHORTCUT_KEY,
     Icon: TypeIcon,
   };

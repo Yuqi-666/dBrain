@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useState } from "react";
 import { FileAudio } from "lucide-react";
@@ -33,6 +34,8 @@ interface AudioNodeContentProps {
  * and the skeleton used to hide the control bar until `loadeddata`.
  */
 export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
+  const { t } = useI18n();
+
   const [failed, setFailed] = useState(false);
 
   const url = resolveFileUrl(node.content?.url);
@@ -65,14 +68,14 @@ export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
       >
         <FileAudio className="size-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          音频加载失败，可能是网络或文件本身的问题。
+          {t("音频加载失败，可能是网络或文件本身的问题。")}{" "}
         </p>
         <a
           href={url}
           download
           className="text-sm text-primary underline underline-offset-4 hover:no-underline"
         >
-          下载原文件
+          {t("下载原文件")}{" "}
         </a>
       </div>
     );

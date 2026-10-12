@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import { resolveFileUrl } from "@workspace/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor, NodeViewProps } from "@tiptap/react";
@@ -32,6 +33,8 @@ export interface ResizableImageProps extends React.HTMLAttributes<HTMLDivElement
 }
 
 export function ImageNodeView(props: NodeViewProps) {
+  useI18n();
+
   const { editor, node, updateAttributes, getPos } = props;
   const hasContent = node.content.size > 0;
 
@@ -67,6 +70,8 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
   onUpdateAttributes,
   getPos,
 }) => {
+  const { t } = useI18n();
+
   const [resizeParams, setResizeParams] = useState<ResizeParams | undefined>();
   const [width, setWidth] = useState<number | undefined>(initialWidth);
   const [showHandles, setShowHandles] = useState(false);
@@ -338,7 +343,7 @@ export const ResizableImage: React.FC<ResizableImageProps> = ({
           <NodeViewContent
             as="div"
             className="tiptap-image-caption"
-            data-placeholder="Add a caption..."
+            data-placeholder={t("Add a caption...")}
           />
         )}
       </div>

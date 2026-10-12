@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function DuplicateShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -63,6 +66,8 @@ export const DuplicateButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleDuplicate, label, shortcutKeys, Icon } =
       useDuplicate({
@@ -91,7 +96,7 @@ export const DuplicateButton = forwardRef<
         role="button"
         tabIndex={-1}
         aria-label={label}
-        tooltip="Duplicate"
+        tooltip={t("Duplicate")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

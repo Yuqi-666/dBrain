@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * Document lifecycle for the PDF viewer: lazy pdfjs, the worker, page metrics
@@ -101,7 +103,7 @@ function createWorker(): Worker {
       { type: "module" },
     );
   } catch (error) {
-    const failure = new Error("PDF 解析线程启动失败");
+    const failure = new Error(translate("PDF 解析线程启动失败"));
     failure.name = WORKER_FAILURE;
     failure.cause = error;
     throw failure;
@@ -115,26 +117,26 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
       case "PasswordException":
         return {
           code: "password",
-          message: "这个 PDF 有打开密码，无法直接预览。",
+          message: translate("这个 PDF 有打开密码，无法直接预览。"),
           cause: error,
         };
       case "InvalidPDFException":
         return {
           code: "invalid",
-          message: "文件不是有效的 PDF，或已经损坏。",
+          message: translate("文件不是有效的 PDF，或已经损坏。"),
           cause: error,
         };
       case "MissingPDFException":
       case "UnexpectedResponseException":
         return {
           code: "network",
-          message: "读取 PDF 失败：地址无效，或跨源请求被拒绝。",
+          message: translate("读取 PDF 失败：地址无效，或跨源请求被拒绝。"),
           cause: error,
         };
       case WORKER_FAILURE:
         return {
           code: "worker",
-          message: "PDF 解析线程没能启动，已切换到兼容预览。",
+          message: translate("PDF 解析线程没能启动，已切换到兼容预览。"),
           cause: error,
         };
       default:
@@ -143,17 +145,21 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
     if (error instanceof TypeError) {
       return {
         code: "network",
-        message: "读取 PDF 失败：地址无效，或跨源请求被拒绝。",
+        message: translate("读取 PDF 失败：地址无效，或跨源请求被拒绝。"),
         cause: error,
       };
     }
     return {
       code: "unknown",
-      message: `PDF 加载失败：${error.message}`,
+      message: translate("PDF 加载失败：{value1}", { value1: error.message }),
       cause: error,
     };
   }
-  return { code: "unknown", message: "PDF 加载失败。", cause: error };
+  return {
+    code: "unknown",
+    message: translate("PDF 加载失败。"),
+    cause: error,
+  };
 }
 
 export interface PdfDocumentApi {
@@ -178,6 +184,8 @@ interface RawOutlineItem {
 }
 
 export function usePdfDocument(url: string): PdfDocumentApi {
+  useI18n();
+
   const [status, setStatus] = useState<PdfDocumentApi["status"]>("loading");
   const [pageCount, setPageCount] = useState(0);
   const [metrics, setMetrics] = useState<ReadonlyMap<number, PdfPageMetrics>>(
@@ -295,7 +303,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
         if (settled) return;
         if (stallTimer !== undefined) window.clearTimeout(stallTimer);
         stallTimer = window.setTimeout(() => {
-          const error = new Error("PDF 解析线程没有响应");
+          const error = new Error(translate("PDF 解析线程没有响应"));
           error.name = WORKER_FAILURE;
           failStalled?.(error);
         }, STALL_TIMEOUT_MS);
@@ -311,7 +319,9 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           worker?.addEventListener(
             "error",
             (event) => {
-              const error = new Error(event.message || "PDF 解析线程加载失败");
+              const error = new Error(
+                event.message || translate("PDF 解析线程加载失败"),
+              );
               error.name = WORKER_FAILURE;
               reject(error);
             },

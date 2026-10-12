@@ -6,6 +6,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
+import { LocaleInitializer } from "@workspace/ui/lib/i18n";
 const notoSerifHeading = Noto_Serif({
   subsets: ["latin"],
   variable: "--font-heading",
@@ -25,7 +26,7 @@ export default function RootLayout({
 }>): ReactNode {
   return (
     <html
-      lang="en"
+      lang="zh-CN"
       suppressHydrationWarning
       className={cn(
         "antialiased",
@@ -36,6 +37,7 @@ export default function RootLayout({
       )}
     >
       <body>
+        <LocaleInitializer />
         <ContextMenuInterceptor />
         <ThemeProvider>
           <Providers>

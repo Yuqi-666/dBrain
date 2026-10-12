@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * Main `Graph` component for graph.
@@ -38,11 +41,7 @@ import { filterByViewFilterConfig } from "@workspace/utils";
 import { ForceGraph } from "./force/ForceGraph";
 import { ForceGraphErrorBoundary } from "./force/ForceGraphErrorBoundary";
 import { FlowGraph } from "./flow/FlowGraph";
-import type {
-  GraphSnapshot,
-  DiffCallback,
-  SourceDiff,
-} from "./types";
+import type { GraphSnapshot, DiffCallback, SourceDiff } from "./types";
 import { useGraphEventHandler } from "./eventHandler";
 
 // -----------------------------------------------------------------------
@@ -73,6 +72,8 @@ const VIEW_TYPE_TO_MODE: Record<ViewType, Mode> = {
 };
 
 export function Graph(props: GraphProps) {
+  useI18n();
+
   const { viewId, view: viewProp, className, style } = props;
 
   // ---- Resolve the view ------------------------------------------
@@ -150,7 +151,7 @@ export function Graph(props: GraphProps) {
           ...style,
         }}
       >
-        No view selected
+        {translate("No view selected")}{" "}
       </div>
     );
   }

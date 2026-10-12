@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useMemo } from "react";
 import type { Workspace } from "@workspace/interfaces";
@@ -42,6 +43,8 @@ export function WorkSpaceSelector({
   side = "right",
   sideOffset,
 }: WorkSpaceSelectorProps) {
+  const { t } = useI18n();
+
   const workspaces = useWorkspaceStore((state) => state.workspaces);
   const currentWorkspaceId = useWorkspaceStore(
     (state) => state.currentWorkspaceId,
@@ -108,7 +111,7 @@ export function WorkSpaceSelector({
             disabled
             className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground/50 cursor-default"
           >
-            No workspaces
+            {t("No workspaces")}{" "}
           </DropdownMenuItem>
         )}
         <Separator className="my-1.5 bg-sidebar-border" />
@@ -117,7 +120,7 @@ export function WorkSpaceSelector({
           className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
         >
           <Plus className="mr-2 size-4" />
-          Create new workspace
+          {t("Create new workspace")}{" "}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

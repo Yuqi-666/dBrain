@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 
@@ -55,13 +56,15 @@ export function IslandNav({
   className,
   ref,
 }: IslandNavProps): React.ReactNode {
+  const { t } = useI18n();
+
   const { coarsePointer } = useIslandEnvironment();
 
   return (
     <TooltipProvider delayDuration={0}>
       <nav
         ref={ref}
-        aria-label="主导航"
+        aria-label={t("主导航")}
         data-island-nav
         // `w-fit` is load-bearing, not cosmetic: the collapsed pill has no
         // authored width, so the framework measures *this row's* natural width
@@ -97,6 +100,8 @@ function IslandNavButton({
   label,
   coarse,
 }: IslandNavButtonProps): React.ReactNode {
+  useI18n();
+
   const disabled = !item.enabled;
 
   // Touch has no hover, and a 36px glyph is not a hit area you can reach

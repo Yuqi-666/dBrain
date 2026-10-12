@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The viewer's toolbar. Purely presentational: every value arrives as a prop and
@@ -100,6 +101,8 @@ function IconButton({
   disabled,
   className,
 }: IconButtonProps) {
+  useI18n();
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -136,6 +139,8 @@ export function PdfToolbar({
   extras,
   className,
 }: PdfToolbarProps) {
+  const { t } = useI18n();
+
   const horizontal = mode.direction === "horizontal";
   const PreviousIcon = horizontal ? ChevronLeft : ChevronUp;
   const NextIcon = horizontal ? ChevronRight : ChevronDown;
@@ -185,9 +190,9 @@ export function PdfToolbar({
 
   const zoomLabel =
     zoom.fit === "width"
-      ? "适配宽度"
+      ? t("适配宽度")
       : zoom.fit === "page"
-        ? "适配页面"
+        ? t("适配页面")
         : `${Math.round(zoom.scale * 100)}%`;
 
   const activeScale = Math.round(zoom.scale * 100);
@@ -227,7 +232,7 @@ export function PdfToolbar({
         {/* 翻页 — always first, always present. */}
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton
-            label="上一页"
+            label={t("上一页")}
             icon={PreviousIcon}
             disabled={page <= 1}
             onClick={() => stepPage(-1)}
@@ -242,7 +247,7 @@ export function PdfToolbar({
             <Input
               value={draft}
               inputMode="numeric"
-              aria-label="页码"
+              aria-label={t("页码")}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={commitPage}
               className="h-7 w-11 px-1 text-center text-xs tabular-nums"
@@ -252,7 +257,7 @@ export function PdfToolbar({
             </span>
           </form>
           <IconButton
-            label="下一页"
+            label={t("下一页")}
             icon={NextIcon}
             // 双页 moves a whole spread at a time, so the last *slot* is the end
             // of the document — page 5 of 6 is already the last pair.
@@ -268,7 +273,11 @@ export function PdfToolbar({
 
         {/* 缩放 */}
         <div className="flex shrink-0 items-center gap-0.5">
-          <IconButton label="缩小" icon={ZoomOut} onClick={zoom.onZoomOut} />
+          <IconButton
+            label={t("缩小")}
+            icon={ZoomOut}
+            onClick={zoom.onZoomOut}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -300,17 +309,17 @@ export function PdfToolbar({
                 <Check
                   className={cn("size-4", zoom.fit !== "width" && "opacity-0")}
                 />
-                适配宽度
+                {t("适配宽度")}{" "}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => zoom.onSelectFit("page")}>
                 <Check
                   className={cn("size-4", zoom.fit !== "page" && "opacity-0")}
                 />
-                适配页面
+                {t("适配页面")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <IconButton label="放大" icon={ZoomIn} onClick={zoom.onZoomIn} />
+          <IconButton label={t("放大")} icon={ZoomIn} onClick={zoom.onZoomIn} />
         </div>
 
         <Separator
@@ -326,10 +335,18 @@ export function PdfToolbar({
             value={mode.direction}
             onValueChange={selectDirection}
           >
-            <ToggleGroupItem value="vertical" aria-label="垂直" title="垂直">
+            <ToggleGroupItem
+              value="vertical"
+              aria-label={t("垂直")}
+              title={t("垂直")}
+            >
               <Rows3 />
             </ToggleGroupItem>
-            <ToggleGroupItem value="horizontal" aria-label="水平" title="水平">
+            <ToggleGroupItem
+              value="horizontal"
+              aria-label={t("水平")}
+              title={t("水平")}
+            >
               <Columns3 />
             </ToggleGroupItem>
           </ToggleGroup>
@@ -341,12 +358,16 @@ export function PdfToolbar({
           >
             <ToggleGroupItem
               value="continuous"
-              aria-label="连续滚动"
-              title="连续滚动"
+              aria-label={t("连续滚动")}
+              title={t("连续滚动")}
             >
               <ScrollText />
             </ToggleGroupItem>
-            <ToggleGroupItem value="paged" aria-label="翻页" title="翻页">
+            <ToggleGroupItem
+              value="paged"
+              aria-label={t("翻页")}
+              title={t("翻页")}
+            >
               <File />
             </ToggleGroupItem>
           </ToggleGroup>
@@ -356,10 +377,18 @@ export function PdfToolbar({
             value={mode.spread}
             onValueChange={selectSpread}
           >
-            <ToggleGroupItem value="single" aria-label="单页" title="单页">
+            <ToggleGroupItem
+              value="single"
+              aria-label={t("单页")}
+              title={t("单页")}
+            >
               <Square />
             </ToggleGroupItem>
-            <ToggleGroupItem value="double" aria-label="双页" title="双页">
+            <ToggleGroupItem
+              value="double"
+              aria-label={t("双页")}
+              title={t("双页")}
+            >
               <BookOpen />
             </ToggleGroupItem>
           </ToggleGroup>
@@ -372,8 +401,8 @@ export function PdfToolbar({
               <Input
                 autoFocus
                 value={search.query}
-                placeholder="在文档中查找"
-                aria-label="在文档中查找"
+                placeholder={t("在文档中查找")}
+                aria-label={t("在文档中查找")}
                 onChange={(event) => search.onQueryChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -398,13 +427,13 @@ export function PdfToolbar({
                     : "0 / 0"}
               </span>
               <IconButton
-                label="上一个匹配"
+                label={t("上一个匹配")}
                 icon={PreviousIcon}
                 disabled={search.count === 0}
                 onClick={search.onPrev}
               />
               <IconButton
-                label="下一个匹配"
+                label={t("下一个匹配")}
                 icon={NextIcon}
                 disabled={search.count === 0}
                 onClick={search.onNext}
@@ -417,16 +446,16 @@ export function PdfToolbar({
                         type="button"
                         size="icon-sm"
                         variant="ghost"
-                        aria-label="查找选项"
+                        aria-label={t("查找选项")}
                       >
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">查找选项</TooltipContent>
+                  <TooltipContent side="bottom">{t("查找选项")}</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>查找选项</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("查找选项")}</DropdownMenuLabel>
                   <DropdownMenuCheckboxItem
                     checked={search.caseSensitive}
                     onCheckedChange={(value) =>
@@ -434,7 +463,7 @@ export function PdfToolbar({
                     }
                   >
                     <CaseSensitive className="size-4" />
-                    区分大小写
+                    {t("区分大小写")}{" "}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={search.wholeWord}
@@ -443,19 +472,19 @@ export function PdfToolbar({
                     }
                   >
                     <WholeWord className="size-4" />
-                    全字匹配
+                    {t("全字匹配")}{" "}
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <IconButton
-                label="关闭查找"
+                label={t("关闭查找")}
                 icon={X}
                 onClick={() => search.onOpenChange(false)}
               />
             </>
           ) : (
             <IconButton
-              label="查找"
+              label={t("查找")}
               icon={Search}
               onClick={() => search.onOpenChange(true)}
             />
@@ -465,27 +494,27 @@ export function PdfToolbar({
         {/* 功能组 — right-anchored, fixed size. */}
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <IconButton
-            label="缩略图"
+            label={t("缩略图")}
             icon={LayoutGrid}
             active={sidebar.tab === "thumbs"}
             onClick={() => toggleSidebar("thumbs")}
             className="hidden @4xl:inline-flex"
           />
           <IconButton
-            label="大纲"
+            label={t("大纲")}
             icon={ListTree}
             active={sidebar.tab === "outline"}
             onClick={() => toggleSidebar("outline")}
             className="hidden @4xl:inline-flex"
           />
           <IconButton
-            label="下载"
+            label={t("下载")}
             icon={Download}
             onClick={onDownload}
             className="hidden @2xl:inline-flex"
           />
           <IconButton
-            label="在新标签页打开"
+            label={t("在新标签页打开")}
             icon={ExternalLink}
             onClick={() => {
               window.open(downloadUrl, "_blank", "noopener,noreferrer");
@@ -504,20 +533,20 @@ export function PdfToolbar({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label="更多"
+                    aria-label={t("更多")}
                     className="@5xl:hidden"
                   >
                     <MoreHorizontal />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent side="bottom">更多</TooltipContent>
+              <TooltipContent side="bottom">{t("更多")}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>{title || "PDF"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                方向
+                {t("方向")}{" "}
               </DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={mode.direction}
@@ -525,16 +554,16 @@ export function PdfToolbar({
               >
                 <DropdownMenuRadioItem value="vertical">
                   <Rows3 className="size-4" />
-                  垂直
+                  {t("垂直")}{" "}
                 </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="horizontal">
                   <Columns3 className="size-4" />
-                  水平
+                  {t("水平")}{" "}
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                滚动
+                {t("滚动")}{" "}
               </DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={mode.scroll}
@@ -542,11 +571,11 @@ export function PdfToolbar({
               >
                 <DropdownMenuRadioItem value="continuous">
                   <ScrollText className="size-4" />
-                  连续滚动
+                  {t("连续滚动")}{" "}
                 </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="paged">
                   <File className="size-4" />
-                  翻页
+                  {t("翻页")}{" "}
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
@@ -557,7 +586,7 @@ export function PdfToolbar({
                 }
               >
                 <BookOpen className="size-4" />
-                双页显示
+                {t("双页显示")}{" "}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
@@ -565,19 +594,19 @@ export function PdfToolbar({
                 onCheckedChange={() => toggleSidebar("thumbs")}
               >
                 <LayoutGrid className="size-4" />
-                缩略图
+                {t("缩略图")}{" "}
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={sidebar.tab === "outline"}
                 onCheckedChange={() => toggleSidebar("outline")}
               >
                 <ListTree className="size-4" />
-                大纲
+                {t("大纲")}{" "}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={onDownload}>
                 <Download className="size-4" />
-                下载
+                {t("下载")}{" "}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
@@ -585,7 +614,7 @@ export function PdfToolbar({
                 }}
               >
                 <ExternalLink className="size-4" />
-                在新标签页打开
+                {t("在新标签页打开")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

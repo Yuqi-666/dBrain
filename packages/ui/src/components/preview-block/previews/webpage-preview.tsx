@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { WebpageNodeData } from "@workspace/interfaces";
 import { Code2 } from "lucide-react";
@@ -12,6 +13,8 @@ const MAX_SNIPPET_CHARS = 800;
  * truncated to a snippet rather than spun up in a full editor.
  */
 export function WebpagePreview({ node }: { node: WebpageNodeData }) {
+  const { t } = useI18n();
+
   const content = node.content;
 
   return (
@@ -20,7 +23,7 @@ export function WebpagePreview({ node }: { node: WebpageNodeData }) {
         {content.code.trim() ? (
           content.language === "html" ? (
             <iframe
-              title={node.title || "HTML 预览"}
+              title={node.title || t("HTML 预览")}
               srcDoc={content.code}
               sandbox=""
               className="size-full border-0 bg-white"
@@ -34,7 +37,7 @@ export function WebpagePreview({ node }: { node: WebpageNodeData }) {
           <div className="flex h-full flex-col items-center justify-center gap-2 px-3">
             <Code2 className="size-10 text-muted-foreground" />
             <span className="w-full truncate text-center text-xs text-muted-foreground">
-              还没有源码
+              {t("还没有源码")}{" "}
             </span>
           </div>
         )}

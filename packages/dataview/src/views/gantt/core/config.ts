@@ -1,3 +1,4 @@
+import { getLocale, translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Gantt config resolution — the self-healing layer between a persisted
  * `GanttViewConfig` and the concrete fields a timeline is built from.
@@ -23,9 +24,24 @@ export const GANTT_VIEW_MODES: ReadonlyArray<{
   value: GanttViewConfig["viewMode"];
   label: string;
 }> = [
-  { value: "day", label: "日" },
-  { value: "week", label: "周" },
-  { value: "month", label: "月" },
+  {
+    value: "day",
+    get label() {
+      return translate("日");
+    },
+  },
+  {
+    value: "week",
+    get label() {
+      return translate("周");
+    },
+  },
+  {
+    value: "month",
+    get label() {
+      return translate("月");
+    },
+  },
 ];
 
 /** 行高 choices (the table's 低 / 中 / 高, in px). */
@@ -33,9 +49,24 @@ export const GANTT_ROW_HEIGHTS: ReadonlyArray<{
   value: number;
   label: string;
 }> = [
-  { value: 28, label: "低" },
-  { value: 36, label: "中" },
-  { value: 48, label: "高" },
+  {
+    value: 28,
+    get label() {
+      return translate("低");
+    },
+  },
+  {
+    value: 36,
+    get label() {
+      return translate("中");
+    },
+  },
+  {
+    value: 48,
+    get label() {
+      return translate("高");
+    },
+  },
 ];
 
 /** The row height a config that names none opens with. */
@@ -192,12 +223,16 @@ export interface GanttTimelineScale {
 
 /** `2026年` — the year row of the 月 granularity. */
 function formatYear(date: GanttScaleDate): string {
-  return `${date.startDate.getFullYear()}年`;
+  return getLocale() === "zh-CN"
+    ? `${date.startDate.getFullYear()}年`
+    : String(date.startDate.getFullYear());
 }
 
 /** `6月` — the month row. */
 function formatMonth(date: GanttScaleDate): string {
-  return `${date.startDate.getMonth() + 1}月`;
+  return new Intl.DateTimeFormat(getLocale(), { month: "short" }).format(
+    date.startDate,
+  );
 }
 
 /** `20` — the day row of the 日 granularity. */
@@ -289,7 +324,9 @@ export const GANTT_FIXED = {
   /** Follows `next-themes`, like every other canvas view. */
   theme: "auto",
   /** Date cells are days; the label is localised by the readout, not the axis. */
-  locale: "zh-CN",
+  get locale() {
+    return getLocale();
+  },
   /** One header row's height. */
   headerRowHeight: 28,
   /** The task list panel's column — the title, and nothing that repeats a bar. */
@@ -301,7 +338,9 @@ export const GANTT_FIXED = {
    * own name, and this is what a node with no name yet (or a bare source with no
    * `nodeTitle`) shows.
    */
-  taskColumnTitle: "任务",
+  get taskColumnTitle() {
+    return translate("任务");
+  },
   /**
    * How far a task's title is indented under its 分组 header row.
    *
@@ -311,7 +350,11 @@ export const GANTT_FIXED = {
    */
   taskListIndent: 20,
   /** A title a gantt can always show; the readout names the empty case. */
-  untitled: "未命名",
+  get untitled() {
+    return translate("未命名");
+  },
   /** The label "group" a row with no group value is filed under. */
-  ungroupedLabel: "未分组",
+  get ungroupedLabel() {
+    return translate("未分组");
+  },
 } as const;

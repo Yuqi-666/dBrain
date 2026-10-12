@@ -1,6 +1,9 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
-import { useCallback, useMemo } from "react";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
+
+import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   cellAround,
@@ -64,8 +67,12 @@ export interface UseTableClearRowColumnContentConfig {
 const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableClearRowColumnContentLabels: Record<Orientation, string> = {
-  row: "Clear row contents",
-  column: "Clear column contents",
+  get row() {
+    return translate("Clear row contents");
+  },
+  get column() {
+    return translate("Clear column contents");
+  },
 };
 
 /**
@@ -405,6 +412,8 @@ function shouldShowButton({
 export function useTableClearRowColumnContent(
   config: UseTableClearRowColumnContentConfig = {},
 ) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     index,
@@ -451,12 +460,12 @@ export function useTableClearRowColumnContent(
     return success;
   }, [editor, index, orientation, tablePos, resetAttrs, onCleared]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     if (selectionType) {
       return tableClearRowColumnContentLabels[selectionType.orientation];
     }
-    return "Clear contents";
-  }, [selectionType]);
+    return t("Clear contents");
+  }, [selectionType, t]);
 
   const Icon = SquareXIcon;
 

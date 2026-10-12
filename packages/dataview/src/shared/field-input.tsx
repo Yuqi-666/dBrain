@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /**
  * The unified field editor control — one field type, one control.
@@ -55,6 +57,7 @@ export function FieldInput({
   onOpenNode,
   className,
 }: FieldInputProps) {
+  useI18n();
   if (readOnly || field.type === "relation") {
     return (
       <div className={cn("flex min-h-7 items-center px-2 py-1", className)}>
@@ -153,7 +156,7 @@ export function FieldInput({
       return (
         <DraftInput
           value={value}
-          placeholder="空"
+          placeholder={translate("空")}
           className={className}
           onCommit={(next) => onChange({ type: "text", text: next })}
         />

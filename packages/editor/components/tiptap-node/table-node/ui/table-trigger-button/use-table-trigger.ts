@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -129,6 +130,8 @@ export function shouldShowButton(
  * ```
  */
 export function useTableTriggerButton(config?: UseTableTriggerButtonConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -173,7 +176,7 @@ export function useTableTriggerButton(config?: UseTableTriggerButtonConfig) {
     handleCellHover,
     handleCellClick,
     resetHoveredCell,
-    label: "Insert table",
+    label: t("Insert table"),
     Icon: TableIcon,
   };
 }

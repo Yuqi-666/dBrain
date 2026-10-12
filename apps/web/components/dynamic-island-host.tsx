@@ -1,6 +1,7 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, Bot } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
@@ -21,6 +22,8 @@ import {
 
 /** App adapter: routes, feature panels, global shortcuts and live island height. */
 export function DynamicIslandHost() {
+  const { t } = useI18n();
+
   const pathname = usePathname();
   const router = useRouter();
   const islandPanel = useUIStore((s) => s.islandPanel);
@@ -98,7 +101,7 @@ export function DynamicIslandHost() {
 
   const capsule = useRef<HTMLDivElement | null>(null);
 
-  const nav = useMemo<IslandNavItem[]>(
+  const nav = useLocaleMemo<IslandNavItem[]>(
     () => [
       ...ISLAND_ROUTES.map((route): IslandNavItem => {
         const Icon = route.icon;
@@ -120,7 +123,7 @@ export function DynamicIslandHost() {
       }),
       {
         key: "agent",
-        label: "Agent",
+        label: t("Agent"),
         icon: <Bot className="size-4" />,
         active: islandPanel === "agent",
         enabled: true,
@@ -133,7 +136,7 @@ export function DynamicIslandHost() {
       },
       {
         key: "search",
-        label: "搜索",
+        label: t("搜索"),
         icon: <Search className="size-4" />,
         active: islandPanel === "search",
         enabled: true,
@@ -142,7 +145,7 @@ export function DynamicIslandHost() {
           setIslandPanel(islandPanel === "search" ? "idle" : "search"),
       },
     ],
-    [activeView, pathname, islandPanel, navigate, setIslandPanel],
+    [activeView, pathname, islandPanel, navigate, setIslandPanel, t],
   );
 
   useEffect(() => {
@@ -184,13 +187,13 @@ export function DynamicIslandHost() {
       content={{
         search: (
           <>
-            <PanelHeader title="搜索" />
+            <PanelHeader title={t("搜索")} />
             <SearchMode onClose={close} />
           </>
         ),
         agent: (
           <>
-            <PanelHeader title="Agent" />
+            <PanelHeader title={t("Agent")} />
             <AgentMode />
           </>
         ),
@@ -203,6 +206,8 @@ export function DynamicIslandHost() {
 }
 
 function PanelHeader({ title }: { title: string }) {
+  useI18n();
+
   return (
     <div className="flex items-center justify-between px-4 pt-3 pb-1">
       <span className="text-sm font-medium">{title}</span>

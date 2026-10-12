@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
 import { Providers } from "./providers";
+import { LocaleInitializer } from "@workspace/ui/lib/i18n";
 
 export const metadata: Metadata = {
   title: "dBrain",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className="antialiased font-sans"
     >
       <body>
+        <LocaleInitializer />
         <ContextMenuInterceptor />
         <ThemeProvider>
           <Providers>{children}</Providers>

@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The calendar's data-transformation layer: `rows` + a field mapping → calendar
  * events (calendar.md §3), and a drag/resize/select gesture → the date cells it
@@ -153,7 +154,7 @@ export function rowsToEvents(
           titleField ? row.cells[titleField.id] : undefined,
           titleField ?? undefined,
           resolveNodeTitle,
-        ) || CALENDAR_UNTITLED,
+        ) || translate(CALENDAR_UNTITLED),
       start: toISODate(start),
       // Exclusive: the day after the last day the range covers.
       end: end ? toISODate(addDays(end, 1)) : undefined,

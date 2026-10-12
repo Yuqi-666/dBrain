@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { AudioNodeData } from "@workspace/interfaces";
 import { resolveFileUrl } from "@workspace/api-client";
@@ -20,6 +23,8 @@ function formatSize(bytes: number) {
 }
 
 export function AudioPreview({ node }: { node: AudioNodeData }) {
+  const { t } = useI18n();
+
   const url = resolveFileUrl(node.content?.url);
   const hasDuration = Number.isFinite(node.duration) && node.duration > 0;
   const hasSize = Number.isFinite(node.fileSize) && node.fileSize > 0;
@@ -31,19 +36,21 @@ export function AudioPreview({ node }: { node: AudioNodeData }) {
           src={url}
           controls
           preload="metadata"
-          aria-label={`${node.title || "音频"}预览`}
+          aria-label={translate("{value1}预览", {
+            value1: node.title || t("音频"),
+          })}
           className="block w-full"
         />
       ) : (
         <div className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
-          暂无音频
+          {t("暂无音频")}{" "}
         </div>
       )}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <div className="flex items-baseline gap-2">
-          <span>时长</span>
+          <span>{t("时长")}</span>
           <span className="font-medium tabular-nums text-foreground/80">
-            {hasDuration ? formatDuration(node.duration) : "未知"}
+            {hasDuration ? formatDuration(node.duration) : t("未知")}
           </span>
         </div>
         {hasSize && (

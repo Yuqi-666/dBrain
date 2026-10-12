@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The **selection bubble** of the single-block editor (`single-block-editor.tsx`,
@@ -101,6 +102,8 @@ export interface SingleBlockToolbarProps {
  * (`latexInline` is in `isSelectionValid`'s `excludedNodeTypes`).
  */
 export function SingleBlockToolbar({ editor }: SingleBlockToolbarProps) {
+  const { t } = useI18n();
+
   const { shouldShow } = useFloatingToolbarVisibility({
     editor,
     isSelectionValid,
@@ -113,7 +116,7 @@ export function SingleBlockToolbar({ editor }: SingleBlockToolbarProps) {
     // the context, so one provider is enough (and keeps the controls reusable).
     <EditorContext.Provider value={{ editor }}>
       <FloatingElement shouldShow={shouldShow}>
-        <Toolbar variant="floating" aria-label="文本格式">
+        <Toolbar variant="floating" aria-label={t("文本格式")}>
           <ToolbarGroup>
             <MarkButton type="bold" hideWhenUnavailable={true} />
             <MarkButton type="italic" hideWhenUnavailable={true} />
@@ -196,6 +199,8 @@ export function SingleBlockMoreOptions({
   hideWhenUnavailable = true,
   ...props
 }: SingleBlockMoreOptionsProps) {
+  const { t } = useI18n();
+
   // `useTiptapEditor` falls back to `EditorContext` — the provider above — so the
   // whole bubble can stay context-driven like the Notion template's controls.
   const { editor } = useTiptapEditor(providedEditor);
@@ -232,8 +237,8 @@ export function SingleBlockMoreOptions({
               variant="ghost"
               role="button"
               tabIndex={-1}
-              tooltip="更多"
-              aria-label="更多"
+              tooltip={t("更多")}
+              aria-label={t("更多")}
               {...props}
             >
               <MoreVerticalIcon className="tiptap-button-icon" />

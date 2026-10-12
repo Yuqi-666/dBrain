@@ -1,6 +1,8 @@
 "use client";
+import { buildNodeFilterFields } from "@workspace/ui/lib/node-filter-fields";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,6 @@ import { Label } from "@workspace/ui/components/ui/label";
 import { FilterQueryBuilder } from "@workspace/ui/components/filter/filter";
 import { NodeSelectionList } from "./node-selection-list";
 import {
-  buildNodeFilterFields,
   type FilterConfig,
   type NodeData,
   type NodeId,
@@ -66,6 +67,8 @@ export function CollectionFilterDialog({
   nodeSemantics,
   onSubmit,
 }: CollectionFilterDialogProps) {
+  const { t } = useI18n();
+
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<NodeId>>(
     new Set(),
   );
@@ -83,7 +86,7 @@ export function CollectionFilterDialog({
     setError(null);
   }, [open, filterConfig]);
 
-  const filterFields = useMemo(
+  const filterFields = useLocaleMemo(
     () => buildNodeFilterFields(nodeSemantics),
     [nodeSemantics],
   );
@@ -119,20 +122,21 @@ export function CollectionFilterDialog({
       onOpenChange(false);
     } catch (submitError) {
       console.error("Failed to save collection filter:", submitError);
-      setError("保存失败，请稍后重试");
+      setError(t("保存失败，请稍后重试"));
     } finally {
       setIsSubmitting(false);
     }
-  }, [buildFilterConfig, onSubmit, onOpenChange]);
+  }, [buildFilterConfig, onSubmit, onOpenChange, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>编辑过滤</DialogTitle>
+          <DialogTitle>{t("编辑过滤")}</DialogTitle>
           <DialogDescription>
-            这个 collection 显示「已勾选节点」与「命中筛选条件的节点」的并集；
-            两者都为空时显示全部节点。
+            {t(
+              "这个 collection 显示「已勾选节点」与「命中筛选条件的节点」的并集； 两者都为空时显示全部节点。",
+            )}{" "}
           </DialogDescription>
         </DialogHeader>
 
@@ -151,7 +155,7 @@ export function CollectionFilterDialog({
           />
 
           <div className="grid gap-2">
-            <Label>筛选条件</Label>
+            <Label>{t("筛选条件")}</Label>
             <FilterQueryBuilder
               fields={filterFields}
               query={ruleGroup}
@@ -169,14 +173,14 @@ export function CollectionFilterDialog({
             disabled={isSubmitting}
             onClick={() => onOpenChange(false)}
           >
-            取消
+            {t("取消")}{" "}
           </Button>
           <Button
             type="button"
             disabled={isSubmitting}
             onClick={() => void handleSubmit()}
           >
-            {isSubmitting ? "保存中…" : "保存"}
+            {isSubmitting ? t("保存中…") : t("保存")}
           </Button>
         </DialogFooter>
       </DialogContent>

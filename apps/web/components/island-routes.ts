@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 import type { LucideIcon } from "lucide-react";
 import { LayoutDashboard, Network } from "lucide-react";
 import type { MainViewType } from "@workspace/store";
@@ -61,7 +62,9 @@ export interface IslandRoute {
 export const ISLAND_ROUTES: IslandRoute[] = [
   {
     key: "graph",
-    label: "图谱",
+    get label() {
+      return translate("图谱");
+    },
     href: "/graph",
     icon: Network,
     enabled: true,
@@ -69,7 +72,9 @@ export const ISLAND_ROUTES: IslandRoute[] = [
   },
   {
     key: "dashboard",
-    label: "仪表盘",
+    get label() {
+      return translate("仪表盘");
+    },
     href: "/dashboard",
     icon: LayoutDashboard,
     enabled: true,

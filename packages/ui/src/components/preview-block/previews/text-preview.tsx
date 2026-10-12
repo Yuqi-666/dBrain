@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { TextNodeData } from "@workspace/interfaces";
 
@@ -19,6 +20,8 @@ function extractTextContent(docs: Record<string, any>): string {
 }
 
 export function TextPreview({ node }: { node: TextNodeData }) {
+  const { t } = useI18n();
+
   const content = node.content?.docs
     ? extractTextContent(node.content.docs)
     : "";
@@ -29,7 +32,7 @@ export function TextPreview({ node }: { node: TextNodeData }) {
     <div className="flex items-start gap-2">
       <div className="min-w-0 flex-1">
         <p className="text-sm text-foreground leading-relaxed line-clamp-5">
-          {previewText || "暂无内容"}
+          {previewText || t("暂无内容")}
         </p>
       </div>
     </div>

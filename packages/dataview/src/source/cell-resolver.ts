@@ -1,3 +1,4 @@
+import { getLocale } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The single conversion hub between `DatabaseCell` and whatever shape a view
  * needs (label, scalar, date, number, color, node reference, sort key).
@@ -124,7 +125,7 @@ export function displayText(
     case "date": {
       const date = parseDate(cell.date);
       // Date-only in the editor; render in the viewer's locale.
-      return date ? date.toLocaleDateString() : "";
+      return date ? date.toLocaleDateString(getLocale()) : "";
     }
     case "checkbox":
       return cell.checked ? "✓" : "";

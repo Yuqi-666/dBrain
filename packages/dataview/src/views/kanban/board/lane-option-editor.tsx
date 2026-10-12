@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 编辑选项 — the lane header's rename / recolour popover.
@@ -37,6 +40,8 @@ export function LaneOptionEditor({
   color,
   onSave,
 }: LaneOptionEditorProps) {
+  const { t } = useI18n();
+
   const [draftName, setDraftName] = useState(name);
   // `null` = "no declared colour" (fall back to the palette), `undefined` =
   // "untouched by this edit".
@@ -75,7 +80,7 @@ export function LaneOptionEditor({
           htmlFor="kanban-option-name"
           className="text-[11px] font-medium text-muted-foreground"
         >
-          选项名称
+          {t("选项名称")}{" "}
         </label>
         <Input
           id="kanban-option-name"
@@ -91,12 +96,12 @@ export function LaneOptionEditor({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-medium text-muted-foreground">
-          颜色
+          {t("颜色")}{" "}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            aria-label="默认颜色"
+            aria-label={t("默认颜色")}
             onClick={() => setDraftColor(null)}
             className={cn(
               "size-5 rounded-full border border-dashed border-muted-foreground/60",
@@ -107,7 +112,7 @@ export function LaneOptionEditor({
             <button
               key={swatch}
               type="button"
-              aria-label={`颜色 ${swatch}`}
+              aria-label={translate("颜色 {value1}", { value1: swatch })}
               onClick={() => setDraftColor(swatch)}
               style={{ backgroundColor: swatch }}
               className={cn(
@@ -128,7 +133,7 @@ export function LaneOptionEditor({
         onClick={save}
       >
         <Check className="size-3.5" />
-        保存
+        {t("保存")}{" "}
       </Button>
     </div>
   );

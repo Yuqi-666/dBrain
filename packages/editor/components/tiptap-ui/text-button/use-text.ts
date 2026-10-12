@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -228,6 +229,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useText(config?: UseTextConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -284,7 +287,7 @@ export function useText(config?: UseTextConfig) {
     isActive,
     handleToggle,
     canToggle,
-    label: "Text",
+    label: t("Text"),
     shortcutKeys: TEXT_SHORTCUT_KEY,
     Icon: TypeIcon,
   };

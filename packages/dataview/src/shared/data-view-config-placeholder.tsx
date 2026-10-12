@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { Settings2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -28,6 +29,8 @@ export function DataViewConfigPlaceholder({
   readOnly,
   className,
 }: DataViewConfigPlaceholderProps) {
+  const { t } = useI18n();
+
   return (
     <div
       data-dataview-config-editor={type}
@@ -35,16 +38,16 @@ export function DataViewConfigPlaceholder({
     >
       <DataViewEmptyState
         icon={Settings2}
-        title="配置项尚未实现"
+        title={t("配置项尚未实现")}
         description={
           readOnly
-            ? "当前视图只读，配置不可编辑。"
-            : "该视图类型的配置项将在实现渲染器时一并落地。"
+            ? t("当前视图只读，配置不可编辑。")
+            : t("该视图类型的配置项将在实现渲染器时一并落地。")
         }
       />
       <details open className="rounded-lg border border-border bg-card/40">
         <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-          配置数据
+          {t("配置数据")}{" "}
         </summary>
         <pre className="max-h-72 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground tabular-nums">
           {JSON.stringify(config, null, 2)}

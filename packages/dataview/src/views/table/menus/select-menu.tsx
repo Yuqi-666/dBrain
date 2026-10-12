@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 单选 / 多选 — the option dropdown a capsule cell opens.
@@ -88,6 +89,8 @@ function OptionCapsule({
   option: DatabaseFieldOption;
   index: number;
 }) {
+  useI18n();
+
   const color = resolveOptionColor(option, index);
   return (
     <span
@@ -109,6 +112,8 @@ export function TableSelectMenu({
   onCreateOption,
   className,
 }: TableSelectMenuProps) {
+  const { t } = useI18n();
+
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -228,15 +233,17 @@ export function TableSelectMenu({
               data-dataview-select-search
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={canCreateOption ? "查找或创建选项" : "查找选项"}
-              aria-label="查找或创建选项"
+              placeholder={
+                canCreateOption ? t("查找或创建选项") : t("查找选项")
+              }
+              aria-label={t("查找或创建选项")}
               className="h-8 min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
             <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
           </div>
           <CommandList aria-multiselectable={multi} className="max-h-64 p-1">
             <CommandEmpty className="py-4 text-xs text-muted-foreground">
-              没有匹配的选项
+              {t("没有匹配的选项")}{" "}
             </CommandEmpty>
             {matches.map(({ option, index }) => (
               <CommandItem
@@ -260,7 +267,8 @@ export function TableSelectMenu({
               >
                 <Plus className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">
-                  创建「{trimmed}」
+                  {t("创建「")}
+                  {trimmed}」
                 </span>
               </CommandItem>
             )}

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The gantt view's toolbar — its one control strip.
@@ -89,6 +90,8 @@ function TaskColumnTitleInput({
   disabled?: boolean;
   onCommit: (next: string) => void;
 }) {
+  const { t } = useI18n();
+
   const ref = useRef<HTMLInputElement>(null);
 
   return (
@@ -97,7 +100,7 @@ function TaskColumnTitleInput({
       defaultValue={value}
       placeholder={placeholder}
       disabled={disabled}
-      aria-label="表头名称"
+      aria-label={t("表头名称")}
       className="h-7 text-xs md:text-xs"
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -145,6 +148,8 @@ export function GanttToolbar({
   onFieldsChange,
   className,
 }: GanttToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<GanttViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -170,11 +175,11 @@ export function GanttToolbar({
    * row states the strongest one in role order.
    */
   const roleBadge = (field: DatabaseField): string | undefined => {
-    if (field.id === startField?.id) return "开始";
-    if (field.id === endField?.id) return "结束";
-    if (field.id === titleField?.id) return "标题";
-    if (field.id === progressField?.id) return "进度";
-    if (field.id === groupField?.id) return "分组";
+    if (field.id === startField?.id) return t("开始");
+    if (field.id === endField?.id) return t("结束");
+    if (field.id === titleField?.id) return t("标题");
+    if (field.id === progressField?.id) return t("进度");
+    if (field.id === groupField?.id) return t("分组");
     return undefined;
   };
 
@@ -249,23 +254,23 @@ export function GanttToolbar({
     <ViewToolbar className={className}>
       {/* ——————— 字段配置 ——————— */}
       <SettingsPanel
-        label="字段配置"
+        label={t("字段配置")}
         icon={FolderTree}
         width="w-80"
         disabled={!canConfigure}
       >
         <PanelSection
-          label="开始日期"
+          label={t("开始日期")}
           hint={
             dateFields.length === 0
-              ? "这张表还没有「日期」字段，甘特图无法定位任务。"
+              ? t("这张表还没有「日期」字段，甘特图无法定位任务。")
               : undefined
           }
         >
           <FieldSelect
             fields={dateFields}
             value={startField?.id ?? ""}
-            placeholder="选择字段"
+            placeholder={t("选择字段")}
             disabled={!canConfigure || dateFields.length === 0}
             onValueChange={(fieldId) =>
               patch({
@@ -279,12 +284,12 @@ export function GanttToolbar({
           />
         </PanelSection>
 
-        <PanelSection label="结束日期">
+        <PanelSection label={t("结束日期")}>
           <FieldSelect
             fields={dateFields.filter((field) => field.id !== startField?.id)}
             value={endField?.id ?? ""}
-            placeholder="单日"
-            noneLabel="单日"
+            placeholder={t("单日")}
+            noneLabel={t("单日")}
             disabled={!canConfigure || dateFields.length < 2}
             onValueChange={(fieldId) =>
               patch({ endField: fieldId || undefined })
@@ -294,11 +299,11 @@ export function GanttToolbar({
 
         <Separator />
 
-        <PanelSection label="标题">
+        <PanelSection label={t("标题")}>
           <FieldSelect
             fields={source.fields}
             value={titleField?.id ?? ""}
-            placeholder="选择字段"
+            placeholder={t("选择字段")}
             disabled={!canConfigure}
             onValueChange={(fieldId) =>
               patch({ titleField: fieldId || undefined })
@@ -307,18 +312,18 @@ export function GanttToolbar({
         </PanelSection>
 
         <PanelSection
-          label="进度"
+          label={t("进度")}
           hint={
             numberFields.length === 0
-              ? "需要一个「数字」字段（取值 0–1），条形才会填充进度。"
+              ? t("需要一个「数字」字段（取值 0–1），条形才会填充进度。")
               : undefined
           }
         >
           <FieldSelect
             fields={numberFields}
             value={progressField?.id ?? ""}
-            placeholder="不显示进度"
-            noneLabel="不显示进度"
+            placeholder={t("不显示进度")}
+            noneLabel={t("不显示进度")}
             disabled={!canConfigure || numberFields.length === 0}
             onValueChange={(fieldId) =>
               patch({ progressField: fieldId || undefined })
@@ -327,18 +332,18 @@ export function GanttToolbar({
         </PanelSection>
 
         <PanelSection
-          label="分组"
+          label={t("分组")}
           hint={
             groupableFields.length === 0
-              ? "需要一个「单选」或「多选」字段，才能按它分组。"
+              ? t("需要一个「单选」或「多选」字段，才能按它分组。")
               : undefined
           }
         >
           <FieldSelect
             fields={groupableFields}
             value={groupField?.id ?? ""}
-            placeholder="不分组"
-            noneLabel="不分组"
+            placeholder={t("不分组")}
+            noneLabel={t("不分组")}
             disabled={!canConfigure || groupableFields.length === 0}
             onValueChange={(fieldId) =>
               patch({ groupByField: fieldId || undefined })
@@ -348,11 +353,11 @@ export function GanttToolbar({
 
         <Separator />
 
-        <PanelSection label="字段">
+        <PanelSection label={t("字段")}>
           <FieldConfigList
             fields={source.fields}
             rows={rows}
-            searchPlaceholder="搜索字段"
+            searchPlaceholder={t("搜索字段")}
             onToggleVisible={
               canConfigure
                 ? (field, visible) => {
@@ -373,14 +378,14 @@ export function GanttToolbar({
 
       {/* ——————— 视图 ——————— */}
       <SettingsPanel
-        label="视图"
+        label={t("视图")}
         icon={ChartGantt}
         value={
           GANTT_VIEW_MODES.find((mode) => mode.value === config.viewMode)?.label
         }
         disabled={!canConfigure}
       >
-        <PanelSection label="表头">
+        <PanelSection label={t("表头")}>
           {/**
            * The task list's column title. The default is the node this view lives
            * in (`DataViewSource.nodeTitle`), which is why the placeholder is not
@@ -397,7 +402,7 @@ export function GanttToolbar({
           />
         </PanelSection>
         <Separator />
-        <PanelSection label="时间粒度">
+        <PanelSection label={t("时间粒度")}>
           <ToggleGroup
             type="single"
             size="sm"
@@ -421,7 +426,7 @@ export function GanttToolbar({
           </ToggleGroup>
         </PanelSection>
         <Separator />
-        <PanelSection label="行高">
+        <PanelSection label={t("行高")}>
           <ToggleGroup
             type="single"
             size="sm"
@@ -446,17 +451,17 @@ export function GanttToolbar({
         </PanelSection>
         <Separator />
         <SwitchRow
-          label="今日线"
+          label={t("今日线")}
           checked={config.showTodayLine}
           disabled={!canConfigure}
           onCheckedChange={(checked) => patch({ showTodayLine: checked })}
         />
         <SwitchRow
-          label="周末"
+          label={t("周末")}
           hint={
             config.viewMode === "day"
               ? undefined
-              : "只有「日」粒度的时间轴有周末列。"
+              : t("只有「日」粒度的时间轴有周末列。")
           }
           checked={config.showWeekends}
           disabled={!canConfigure || config.viewMode !== "day"}

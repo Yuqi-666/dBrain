@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The frame every note card wears: a timestamp that seeks, the card's identity
@@ -76,6 +79,8 @@ export function NoteCardShell({
   cardRef,
   className,
 }: NoteCardShellProps) {
+  const { t } = useI18n();
+
   const time = formatTimeMs(timeMs);
 
   return (
@@ -123,14 +128,16 @@ export function NoteCardShell({
                 size="icon-xs"
                 disabled={disabled}
                 onClick={onLocate}
-                aria-label={`定位到 ${time}`}
+                aria-label={translate("定位到 {value1}", { value1: time })}
               >
                 <Crosshair aria-hidden />
               </Button>
             </TooltipTrigger>
             {/* The frame the note is anchored to, which used to be printed beside
                 the icon: the card's measure belongs to the title now. */}
-            <TooltipContent side="left">定位到 {time}</TooltipContent>
+            <TooltipContent side="left">
+              {t("定位到")} {time}
+            </TooltipContent>
           </Tooltip>
 
           {actions}

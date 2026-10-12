@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -51,6 +52,8 @@ interface TableAction {
  * Hook to manage all table actions and their availability
  */
 function useTableActions() {
+  useI18n();
+
   const mergeCellAction = useTableMergeSplitCell({ action: "merge" });
   const splitCellAction = useTableMergeSplitCell({ action: "split" });
   const clearContentAction = useTableClearRowColumnContent({
@@ -89,6 +92,8 @@ function useTableActions() {
  * Hook to manage table handle menu state and interactions
  */
 function useTableCellHandleMenu({ editor }: { editor: Editor | null }) {
+  useI18n();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const closeMenu = useCallback(() => {
@@ -119,6 +124,8 @@ function useTableCellHandleMenu({ editor }: { editor: Editor | null }) {
 }
 
 const TableActionItem = ({ action }: { action: TableAction }) => {
+  useI18n();
+
   const {
     icon: Icon,
     label,
@@ -142,6 +149,8 @@ const TableActionItem = ({ action }: { action: TableAction }) => {
 };
 
 const TableActionMenu = ({ onClose }: { onClose: () => void }) => {
+  useI18n();
+
   const { mergeAction, splitAction, clearAction } = useTableActions();
 
   const hasMergeOrSplit = mergeAction.isAvailable || splitAction.isAvailable;
@@ -181,6 +190,8 @@ export const TableCellHandleMenu = forwardRef<
   HTMLButtonElement,
   TableCellHandleMenuProps
 >(({ editor: providedEditor, onOpenChange, className, ...props }, ref) => {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const { isMenuOpen, handleMenuToggle, closeMenu } = useTableCellHandleMenu({
     editor,
@@ -203,7 +214,7 @@ export const TableCellHandleMenu = forwardRef<
             isMenuOpen && "menu-opened",
             className,
           )}
-          aria-label="Table cells option"
+          aria-label={t("Table cells option")}
           aria-haspopup="menu"
           aria-expanded={isMenuOpen}
           {...props}

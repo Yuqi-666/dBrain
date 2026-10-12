@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function CopyAnchorLinkShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -65,6 +68,8 @@ export const CopyAnchorLinkButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const { isVisible, handleCopyAnchorLink, label, shortcutKeys, Icon } =
       useCopyAnchorLink({
@@ -95,7 +100,7 @@ export const CopyAnchorLinkButton = forwardRef<
         role="button"
         tabIndex={-1}
         aria-label={label}
-        tooltip="Copy anchor link"
+        tooltip={t("Copy anchor link")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

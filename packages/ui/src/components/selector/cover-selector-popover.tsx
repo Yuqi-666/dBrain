@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -22,8 +24,18 @@ import { SelectorUrlInput } from "@workspace/ui/components/selector/shared/selec
 import { cn } from "@workspace/ui/lib/utils";
 
 const COVER_TABS: SelectorPopoverTab[] = [
-  { value: "upload", label: "上传" },
-  { value: "node", label: "从节点选" },
+  {
+    value: "upload",
+    get label() {
+      return translate("上传");
+    },
+  },
+  {
+    value: "node",
+    get label() {
+      return translate("从节点选");
+    },
+  },
 ];
 
 export interface CoverSelectorPopoverProps {
@@ -54,6 +66,8 @@ export function CoverSelectorPopover({
   children,
   className,
 }: CoverSelectorPopoverProps) {
+  const { t } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("upload");
   const [url, setUrl] = useState("");
@@ -88,10 +102,10 @@ export function CoverSelectorPopover({
       variant="ghost"
       size="sm"
       className={cn("gap-1", className)}
-      aria-label={value ? "更换封面" : "添加封面"}
+      aria-label={value ? t("更换封面") : t("添加封面")}
     >
       <ImagePlusIcon className="size-4" />
-      {value ? "更换封面" : (label ?? "添加封面")}
+      {value ? t("更换封面") : (label ?? t("添加封面"))}
     </Button>
   );
 
@@ -134,11 +148,11 @@ export function CoverSelectorPopover({
           type="button"
           variant="ghost"
           size="sm"
-          aria-label="移除封面"
+          aria-label={t("移除封面")}
           disabled={!value}
           onClick={clear}
         >
-          移除
+          {t("移除")}{" "}
         </Button>
       }
     >
@@ -163,14 +177,14 @@ export function CoverSelectorPopover({
               onChange({ kind: "image", url: next });
               setUrl("");
             }}
-            placeholder="Or add via URL"
+            placeholder={t("Or add via URL")}
           />
         </div>
       ) : null}
 
       {tab === "node" ? (
         <>
-          <SelectorSearchInput placeholder="Click to filter…" autoFocus />
+          <SelectorSearchInput placeholder={t("Click to filter…")} autoFocus />
           <CommandList>
             {candidates.map((candidate) => (
               <CommandItem
@@ -187,7 +201,7 @@ export function CoverSelectorPopover({
                 <span className="truncate text-sm">{candidate.title}</span>
               </CommandItem>
             ))}
-            <CommandEmpty>没有可选节点</CommandEmpty>
+            <CommandEmpty>{t("没有可选节点")}</CommandEmpty>
           </CommandList>
         </>
       ) : null}

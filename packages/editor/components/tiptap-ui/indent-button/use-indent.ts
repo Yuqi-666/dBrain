@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -49,8 +51,12 @@ export const indentIcons = {
 };
 
 export const indentLabels: Record<IndentAction, string> = {
-  indent: "Increase indent",
-  outdent: "Decrease indent",
+  get indent() {
+    return translate("Increase indent");
+  },
+  get outdent() {
+    return translate("Decrease indent");
+  },
 };
 
 /**
@@ -148,6 +154,8 @@ export function shouldShowIndentButton(props: {
  * ```
  */
 export function useIndent(config: UseIndentConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     action,

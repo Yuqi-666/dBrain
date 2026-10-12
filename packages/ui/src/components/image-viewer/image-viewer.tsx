@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   useCallback,
@@ -34,6 +35,8 @@ export function ImageViewer({
   onAnnotationsChange,
   compact,
 }: ImageViewerProps) {
+  const { t } = useI18n();
+
   const root = useRef<HTMLDivElement | null>(null);
   const viewport = useRef<ReactZoomPanPinchRef | null>(null);
   const [toolbarContainer, setToolbarContainer] =
@@ -77,9 +80,9 @@ export function ImageViewer({
   const fit =
     natural && size.width > 0 && size.height > 0
       ? Math.min(
-        Math.max(1, size.width - 32) / natural.width,
-        Math.max(1, size.height - 32) / natural.height,
-      )
+          Math.max(1, size.width - 32) / natural.width,
+          Math.max(1, size.height - 32) / natural.height,
+        )
       : 0;
   const width = (natural?.width ?? 0) * fit;
   const height = (natural?.height ?? 0) * fit;
@@ -218,13 +221,13 @@ export function ImageViewer({
         const box = root.current!.getBoundingClientRect();
         handle.setTransform(
           factor * state.positionX +
-          (1 - factor) * (old.x - box.left) +
-          next.x -
-          old.x,
+            (1 - factor) * (old.x - box.left) +
+            next.x -
+            old.x,
           factor * state.positionY +
-          (1 - factor) * (old.y - box.top) +
-          next.y -
-          old.y,
+            (1 - factor) * (old.y - box.top) +
+            next.y -
+            old.y,
           target,
           0,
         );
@@ -297,7 +300,7 @@ export function ImageViewer({
       {!natural && !failed && <LoadingPlaceholder variant="image" />}
       {failed && (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          图片加载失败
+          {t("图片加载失败")}{" "}
         </div>
       )}
       {fit > 0 && (
@@ -340,7 +343,7 @@ export function ImageViewer({
             <div className="relative" style={{ width, height }}>
               <img
                 src={url}
-                alt={title || "图片"}
+                alt={title || t("图片")}
                 draggable={false}
                 className="block h-full w-full select-none rounded-sm"
               />
@@ -379,7 +382,7 @@ export function ImageViewer({
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="缩小图片"
+              aria-label={t("缩小图片")}
               disabled={active || scale <= minScale}
               onClick={() => viewport.current?.zoomOut()}
             >
@@ -394,7 +397,7 @@ export function ImageViewer({
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="放大图片"
+              aria-label={t("放大图片")}
               disabled={active || scale >= maxScale}
               onClick={() => viewport.current?.zoomIn()}
             >
@@ -407,7 +410,7 @@ export function ImageViewer({
               onClick={fitView}
             >
               <Maximize />
-              适配
+              {t("适配")}{" "}
             </Button>
             <Button
               variant="ghost"

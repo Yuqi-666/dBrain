@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
@@ -44,6 +45,8 @@ import { matchIslandRoute } from "@/components/island-routes";
  * frame instead of waiting for the route to commit.
  */
 export function WorkspaceShell(): ReactNode {
+  const { t } = useI18n();
+
   const pathname = usePathname();
   const { isInitialized, error, retry } = useWorkspaceInitialization();
 
@@ -100,11 +103,11 @@ export function WorkspaceShell(): ReactNode {
             role="alert"
           >
             <p>{error}</p>
-            <Button onClick={retry}>重试</Button>
+            <Button onClick={retry}>{t("重试")}</Button>
           </div>
         ) : !isInitialized ? (
           <div className="flex h-screen items-center justify-center text-muted-foreground">
-            加载工作空间…
+            {t("加载工作空间…")}{" "}
           </div>
         ) : (
           <>
@@ -149,6 +152,8 @@ function WorkspaceSurface({
   active: boolean;
   children: ReactNode;
 }): ReactNode {
+  useI18n();
+
   return (
     <div
       className={cn("absolute inset-0", !active && "invisible")}

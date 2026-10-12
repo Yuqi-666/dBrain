@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -54,9 +56,15 @@ export const listIcons = {
 };
 
 export const listLabels: Record<ListType, string> = {
-  bulletList: "Bullet List",
-  orderedList: "Ordered List",
-  taskList: "Task List",
+  get bulletList() {
+    return translate("Bullet List");
+  },
+  get orderedList() {
+    return translate("Ordered List");
+  },
+  get taskList() {
+    return translate("Task List");
+  },
 };
 
 export const LIST_SHORTCUT_KEYS: Record<ListType, string> = {
@@ -303,6 +311,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useList(config: UseListConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     type,

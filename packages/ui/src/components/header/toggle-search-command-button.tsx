@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { SearchIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -14,6 +15,8 @@ interface ToggleSearchCommandButtonProps {
 export function ToggleSearchCommandButton({
   className,
 }: ToggleSearchCommandButtonProps) {
+  const { t } = useI18n();
+
   const setIslandPanel = useUIStore((state) => state.setIslandPanel);
 
   return (
@@ -22,7 +25,7 @@ export function ToggleSearchCommandButton({
       size="icon"
       onClick={() => setIslandPanel("search")}
       className={className}
-      aria-label="打开搜索命令面板"
+      aria-label={t("打开搜索命令面板")}
     >
       <SearchIcon />
     </Button>

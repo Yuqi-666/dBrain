@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The view toolbar strip — the one place a view puts its controls.
@@ -59,6 +62,8 @@ export function ViewToolbar({
   /** View *functions* (search, export, …) — right aligned. */
   actions?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "children">) {
+  useI18n();
+
   const viewActions = useViewActions();
   return (
     <div
@@ -104,9 +109,11 @@ export function ViewConfigMenu({
   source,
   readOnly,
   onConfigChange,
-  label = "视图配置",
+  label = translate("视图配置"),
   className,
 }: ViewConfigMenuProps) {
+  useI18n();
+
   const ConfigEditor = getDataViewDescriptor(type).configEditor;
   const disabled = !onConfigChange;
 

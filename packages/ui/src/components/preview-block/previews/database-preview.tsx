@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type {
   DatabaseCell,
@@ -48,6 +49,8 @@ function cellText(
 }
 
 export function DatabasePreview({ node }: { node: DatabaseNodeData }) {
+  const { t } = useI18n();
+
   const nodes = useDataStore((state) => state.nodes);
   const fields = node.content?.fields ?? [];
   const rows = node.content?.rows ?? [];
@@ -56,7 +59,7 @@ export function DatabasePreview({ node }: { node: DatabaseNodeData }) {
   if (fields.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        {rows.length} 条记录 · 暂无字段
+        {rows.length} {t("条记录 · 暂无字段")}{" "}
       </p>
     );
   }
@@ -101,10 +104,10 @@ export function DatabasePreview({ node }: { node: DatabaseNodeData }) {
         </table>
       </div>
       {visibleRows.length === 0 && (
-        <p className="text-xs text-muted-foreground">No records yet</p>
+        <p className="text-xs text-muted-foreground">{t("No records yet")}</p>
       )}
       <p className="text-xs text-muted-foreground">
-        {fields.length} fields · {rows.length} records
+        {fields.length} {t("fields ·")} {rows.length} {t("records")}{" "}
       </p>
     </div>
   );

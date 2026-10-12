@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
 import { Doc as YDoc } from "yjs";
 import { createPortal } from "react-dom";
@@ -119,7 +121,12 @@ export interface EditorProviderProps {
 /**
  * Loading spinner component shown while the editor instance is being created
  */
-export function LoadingSpinner({ text = "Loading editor…" }: { text?: string }) {
+export function LoadingSpinner({
+  text = translate("Loading editor…"),
+}: {
+  text?: string;
+}) {
+  useI18n();
   return (
     <div className="spinner-container">
       <div className="spinner-content">
@@ -170,11 +177,13 @@ export function EditorContentArea() {
  * Component that creates and provides the editor instance
  */
 export function EditorProvider(props: EditorProviderProps) {
+  const { locale } = useI18n();
   const {
-    placeholder = "Start writing...",
+    placeholder = translate("Start writing..."),
     onContentChange,
     getInitialContent,
   } = props;
+  const placeholderRef = useRef(placeholder);
 
   const { setTocContent } = useToc();
 
@@ -228,7 +237,7 @@ export function EditorProvider(props: EditorProviderProps) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Collaboration.configure({ document: ydoc }),
       Placeholder.configure({
-        placeholder,
+        placeholder: () => placeholderRef.current,
         emptyNodeClass: "is-empty with-slash",
       }),
       Mention,
@@ -311,6 +320,12 @@ export function EditorProvider(props: EditorProviderProps) {
     ],
   });
 
+  useEffect(() => {
+    placeholderRef.current = placeholder;
+    if (editor)
+      editor.view.dispatch(editor.state.tr.setMeta("i18n.locale", locale));
+  }, [editor, placeholder, locale]);
+
   if (!editor) {
     return <LoadingSpinner />;
   }
@@ -343,7 +358,7 @@ export function EditorProvider(props: EditorProviderProps) {
  * Full editor with all necessary providers, ready to use with just a placeholder
  */
 export function NotionEditor({
-  placeholder = "Start writing...",
+  placeholder,
   onContentChange,
   getInitialContent,
 }: NotionEditorProps) {

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function TextShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -60,6 +63,8 @@ export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -99,7 +104,7 @@ export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(
         data-disabled={!canToggle}
         aria-label={label}
         aria-pressed={isActive}
-        tooltip="Text"
+        tooltip={t("Text")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

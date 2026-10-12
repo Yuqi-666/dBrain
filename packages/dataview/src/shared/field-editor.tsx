@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The field editor — the form behind 添加字段 / 字段项的"编辑" and the record
@@ -179,12 +182,14 @@ function ColorSwatchButton({
   label: string;
   onChange: (color: string) => void;
 }) {
+  useI18n();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`${label} 选项颜色`}
+          aria-label={translate("{value1} 选项颜色", { value1: label })}
           className="size-4 shrink-0 rounded-full border border-black/10"
           style={{ background: color }}
         />
@@ -235,6 +240,8 @@ export function FieldEditor({
   onSubmit,
   className,
 }: FieldEditorProps) {
+  const { t } = useI18n();
+
   const [draft, setDraft] = useState<Draft>(() => draftFromField(field));
   const [draggingOptionId, setDraggingOptionId] = useState<string | null>(null);
   const isNew = !field;
@@ -347,13 +354,13 @@ export function FieldEditor({
           htmlFor="dv-field-title"
           className="text-[11px] text-muted-foreground"
         >
-          标题
+          {t("标题")}{" "}
         </Label>
         <Input
           id="dv-field-title"
           autoFocus={isNew}
           value={draft.name}
-          placeholder="字段名称"
+          placeholder={t("字段名称")}
           aria-invalid={nameInvalid}
           className="h-8 text-xs md:text-xs"
           onChange={(event) => patch({ name: event.target.value })}
@@ -366,21 +373,23 @@ export function FieldEditor({
         />
         {nameTaken && !nameInvalid && (
           <p className="text-[11px] text-muted-foreground">
-            已有同名字段，仍可继续。
+            {t("已有同名字段，仍可继续。")}{" "}
           </p>
         )}
       </div>
 
       {/* —— 字段类型 —— */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-[11px] text-muted-foreground">字段类型</Label>
+        <Label className="text-[11px] text-muted-foreground">
+          {t("字段类型")}
+        </Label>
         <Select
           value={draft.type}
           onValueChange={(value) => patch({ type: value as DatabaseFieldType })}
         >
           <SelectTrigger
             size="sm"
-            aria-label="字段类型"
+            aria-label={t("字段类型")}
             className="h-8 w-full py-1 text-xs"
           >
             <SelectValue />
@@ -399,7 +408,7 @@ export function FieldEditor({
         </Select>
         {!isNew && draft.type !== field?.type && (
           <p className="text-[11px] text-muted-foreground">
-            改变类型会清空该列现有数据。
+            {t("改变类型会清空该列现有数据。")}{" "}
           </p>
         )}
       </div>
@@ -408,7 +417,9 @@ export function FieldEditor({
       {needsOptions && (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground">选项内容</span>
+            <span className="text-[11px] text-muted-foreground">
+              {t("选项内容")}
+            </span>
             <Button
               type="button"
               size="xs"
@@ -417,13 +428,13 @@ export function FieldEditor({
               onClick={addOption}
             >
               <Plus className="size-3" />
-              添加选项
+              {t("添加选项")}{" "}
             </Button>
           </div>
           <div className="flex flex-col gap-1">
             {missingOptions && (
               <p className="px-1 text-[11px] text-muted-foreground">
-                至少填一个选项名称才能保存。
+                {t("至少填一个选项名称才能保存。")}{" "}
               </p>
             )}
             {draft.options.map((option, index) => (
@@ -447,14 +458,17 @@ export function FieldEditor({
               >
                 <GripVertical className="size-3.5 shrink-0 cursor-grab text-muted-foreground" />
                 <ColorSwatchButton
-                  label={option.name || `选项 ${index + 1}`}
+                  label={
+                    option.name ||
+                    translate("选项 {value1}", { value1: index + 1 })
+                  }
                   color={option.color}
                   onChange={(color) => setOption(option.id, { color })}
                 />
                 <Input
                   value={option.name}
-                  aria-label={`选项 ${index + 1}`}
-                  placeholder="选项名称"
+                  aria-label={translate("选项 {value1}", { value1: index + 1 })}
+                  placeholder={t("选项名称")}
                   className="h-7 min-w-0 flex-1 text-xs md:text-xs"
                   onChange={(event) =>
                     setOption(option.id, { name: event.target.value })
@@ -464,7 +478,9 @@ export function FieldEditor({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  aria-label={`删除选项 ${option.name || index + 1}`}
+                  aria-label={translate("删除选项 {value1}", {
+                    value1: option.name || index + 1,
+                  })}
                   className="text-muted-foreground"
                   onClick={() => removeOption(option.id)}
                 >
@@ -483,7 +499,7 @@ export function FieldEditor({
             htmlFor="dv-field-default"
             className="text-[11px] text-muted-foreground"
           >
-            默认值
+            {t("默认值")}{" "}
           </Label>
           {draft.type === "checkbox" ? (
             <div className="flex h-8 items-center">
@@ -499,7 +515,7 @@ export function FieldEditor({
             <div className="flex flex-wrap gap-1">
               {namedOptions.length === 0 && (
                 <span className="text-[11px] text-muted-foreground">
-                  先添加选项
+                  {t("先添加选项")}{" "}
                 </span>
               )}
               {namedOptions.map((option) => {
@@ -544,14 +560,14 @@ export function FieldEditor({
             >
               <SelectTrigger
                 size="sm"
-                aria-label="默认值"
+                aria-label={t("默认值")}
                 className="h-8 w-full py-1 text-xs"
               >
-                <SelectValue placeholder="请选择选项" />
+                <SelectValue placeholder={t("请选择选项")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} className="text-xs">
-                  不设置
+                  {t("不设置")}{" "}
                 </SelectItem>
                 {namedOptions.map((option) => (
                   <SelectItem
@@ -575,7 +591,7 @@ export function FieldEditor({
                     ? "date"
                     : "text"
               }
-              placeholder={draft.type === "date" ? "" : "留空表示不设置"}
+              placeholder={draft.type === "date" ? "" : t("留空表示不设置")}
               className="h-8 text-xs md:text-xs"
               onChange={(event) => patch({ defaultText: event.target.value })}
             />
@@ -592,7 +608,7 @@ export function FieldEditor({
             className="h-7 px-3 text-xs font-normal"
             onClick={onCancel}
           >
-            取消
+            {t("取消")}{" "}
           </Button>
         )}
         <Button
@@ -602,7 +618,7 @@ export function FieldEditor({
           className="h-7 px-3 text-xs font-normal"
           onClick={submit}
         >
-          确定
+          {t("确定")}{" "}
         </Button>
       </div>
     </div>
@@ -638,6 +654,8 @@ export function FieldEditorMenuContent({
   onSubmit: (next: FieldEditResult) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
+
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   /**
@@ -658,7 +676,7 @@ export function FieldEditorMenuContent({
   return (
     <div ref={rootRef} className={cn("flex flex-col gap-2", className)}>
       <span className="px-0.5 text-xs font-medium">
-        {field ? "编辑字段" : "新增字段"}
+        {field ? t("编辑字段") : t("新增字段")}
       </span>
       <FieldEditor
         key={field?.id ?? "new"}

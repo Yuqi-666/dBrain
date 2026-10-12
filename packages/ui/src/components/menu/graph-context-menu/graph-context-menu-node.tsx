@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import {
@@ -29,12 +30,16 @@ export function GraphContextMenuNode({
   onChangeNodeSemantic,
   onClose,
 }: GraphContextMenuNodeProps) {
+  const { t } = useI18n();
+
   const node = useDataStore((state) => state.nodes.get(nodeId));
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const openNodeSemanticDialog = useUIStore(
     (state) => state.openNodeSemanticDialog,
   );
-  const currentSemantic = node?.semanticId ? nodeSemantics.get(node.semanticId) : undefined;
+  const currentSemantic = node?.semanticId
+    ? nodeSemantics.get(node.semanticId)
+    : undefined;
 
   const handleSemanticSelect = (semanticId: string) => {
     onChangeNodeSemantic?.(nodeId, semanticId);
@@ -62,7 +67,9 @@ export function GraphContextMenuNode({
                 </span>
               </>
             ) : (
-              <span className="text-xs text-muted-foreground">请选择类型</span>
+              <span className="text-xs text-muted-foreground">
+                {t("请选择类型")}
+              </span>
             )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
@@ -84,7 +91,7 @@ export function GraphContextMenuNode({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
       >
         <Edit className="size-4" />
-        <span>Edit</span>
+        <span>{t("Edit")}</span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
@@ -95,7 +102,7 @@ export function GraphContextMenuNode({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
       >
         <Link2 className="size-4" />
-        <span>Connect To</span>
+        <span>{t("Connect To")}</span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
@@ -106,7 +113,7 @@ export function GraphContextMenuNode({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
       >
         <Trash2 className="size-4" />
-        <span>Delete</span>
+        <span>{t("Delete")}</span>
       </DropdownMenuItem>
     </>
   );

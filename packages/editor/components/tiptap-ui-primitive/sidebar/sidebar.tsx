@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import React, {
   createContext,
@@ -72,6 +73,8 @@ const SidebarContext = createContext<SidebarContextValue | undefined>(
  * @throws Error if used outside of SidebarProvider
  */
 export function useSidebar(): SidebarContextValue {
+  useI18n();
+
   const context = useContext(SidebarContext);
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider");
@@ -84,6 +87,8 @@ export function useSidebar(): SidebarContextValue {
  * Returns undefined if used outside of SidebarProvider.
  */
 export function useSidebarOptional(): SidebarContextValue | undefined {
+  useI18n();
+
   return useContext(SidebarContext);
 }
 
@@ -106,6 +111,8 @@ function useResizable({
   onResize,
   onResizeEnd,
 }: UseResizableOptions) {
+  useI18n();
+
   const elementRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [width, setWidth] = useState(initialWidth);
@@ -265,6 +272,8 @@ export const SidebarProvider = forwardRef<HTMLDivElement, SidebarProviderProps>(
     },
     ref,
   ) => {
+    useI18n();
+
     const generatedId = useId();
     const id = idProp ?? `sidebar-${generatedId}`;
 
@@ -417,6 +426,8 @@ export const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const context = useSidebarOptional();
     const generatedId = useId();
 
@@ -501,7 +512,7 @@ export const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
             data-resizing={isResizing}
             role="separator"
             aria-orientation="vertical"
-            aria-label="Resize sidebar"
+            aria-label={t("Resize sidebar")}
             tabIndex={0}
           />
         )}
@@ -557,6 +568,8 @@ export const SidebarTrigger = forwardRef<
   HTMLButtonElement,
   SidebarTriggerProps
 >(({ className, children, onClick, onToggle, ...props }, ref) => {
+  useI18n();
+
   const context = useSidebar();
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -599,6 +612,8 @@ export interface SidebarBackdropProps extends React.ComponentProps<"div"> {
 
 export const SidebarBackdrop = forwardRef<HTMLDivElement, SidebarBackdropProps>(
   ({ className, visible, onClose, onClick, ...props }, ref) => {
+    useI18n();
+
     const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
       onClick?.(e);
       onClose?.();

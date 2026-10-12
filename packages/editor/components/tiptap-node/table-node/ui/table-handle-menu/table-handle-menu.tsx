@@ -1,4 +1,5 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import {
   useCallback,
@@ -95,8 +96,12 @@ const MENU_PLACEMENT_MAP: Record<
 };
 
 const ARIA_LABELS: Record<Orientation, string> = {
-  row: "Row actions",
-  column: "Column actions",
+  get row() {
+    return translate("Row actions");
+  },
+  get column() {
+    return translate("Column actions");
+  },
 };
 
 /* -------------------------------------------------------------------------------------------------

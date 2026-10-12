@@ -1,4 +1,7 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /**
  * The timestamp ticks, drawn **inside the player's own seek bar**.
@@ -64,6 +67,8 @@ export function NoteMarks({
   onActivateNote,
   className,
 }: NoteMarksProps) {
+  useI18n();
+
   const [openTimeMs, setOpenTimeMs] = React.useState<number | null>(null);
 
   const clusters = React.useMemo(() => groupNotesByTime(notes), [notes]);
@@ -86,7 +91,9 @@ export function NoteMarks({
         ? clusters.map((cluster) => {
             const percent = positionPercent(cluster.timeMs, duration);
             const open = openTimeMs === cluster.timeMs;
-            const label = `跳到 ${formatTimeMs(cluster.timeMs)}`;
+            const label = translate("跳到 {value1}", {
+              value1: formatTimeMs(cluster.timeMs),
+            });
 
             return (
               <button
@@ -97,7 +104,10 @@ export function NoteMarks({
                 className={cn("vjs-note-mark", open && "is-open")}
                 aria-label={
                   cluster.notes.length > 1
-                    ? `${label}，${cluster.notes.length} 条笔记`
+                    ? translate("{value1}，{value2} 条笔记", {
+                        value1: label,
+                        value2: cluster.notes.length,
+                      })
                     : label
                 }
                 title={label}

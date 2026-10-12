@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The graph header's 节点密度 slider: the pure mapping between the
  * persisted boundary node density and the slider's own position.
@@ -49,7 +50,7 @@ export function positionToDensity(position: number): number {
 
 /** Qualitative reading shown next to the slider. */
 export function densityScaleLabel(density: number): string {
-  if (density <= 4e-6) return "宽松";
-  if (density >= 4e-5) return "紧凑";
-  return "标准";
+  if (density <= 4e-6) return translate("宽松");
+  if (density >= 4e-5) return translate("紧凑");
+  return translate("标准");
 }

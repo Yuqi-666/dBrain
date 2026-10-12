@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { cloneElement, isValidElement, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
@@ -24,9 +26,24 @@ import {
 type IconSelectorTab = "emoji" | "icon" | "upload";
 
 const TABS: SelectorPopoverTab[] = [
-  { value: "emoji", label: "Emoji" },
-  { value: "icon", label: "图标" },
-  { value: "upload", label: "上传" },
+  {
+    value: "emoji",
+    get label() {
+      return translate("Emoji");
+    },
+  },
+  {
+    value: "icon",
+    get label() {
+      return translate("图标");
+    },
+  },
+  {
+    value: "upload",
+    get label() {
+      return translate("上传");
+    },
+  },
 ];
 
 /**
@@ -40,14 +57,54 @@ const EMOJI_KEY_PREFIX = "emoji:";
 const ICON_KEY_PREFIX = "icon:";
 
 const ICON_COLORS: readonly { value: string; label: string }[] = [
-  { value: "#ef4444", label: "红" },
-  { value: "#f97316", label: "橙" },
-  { value: "#eab308", label: "黄" },
-  { value: "#22c55e", label: "绿" },
-  { value: "#14b8a6", label: "青" },
-  { value: "#3b82f6", label: "蓝" },
-  { value: "#8b5cf6", label: "紫" },
-  { value: "#ec4899", label: "粉" },
+  {
+    value: "#ef4444",
+    get label() {
+      return translate("红");
+    },
+  },
+  {
+    value: "#f97316",
+    get label() {
+      return translate("橙");
+    },
+  },
+  {
+    value: "#eab308",
+    get label() {
+      return translate("黄");
+    },
+  },
+  {
+    value: "#22c55e",
+    get label() {
+      return translate("绿");
+    },
+  },
+  {
+    value: "#14b8a6",
+    get label() {
+      return translate("青");
+    },
+  },
+  {
+    value: "#3b82f6",
+    get label() {
+      return translate("蓝");
+    },
+  },
+  {
+    value: "#8b5cf6",
+    get label() {
+      return translate("紫");
+    },
+  },
+  {
+    value: "#ec4899",
+    get label() {
+      return translate("粉");
+    },
+  },
 ];
 
 export interface IconSelectorPopoverProps {
@@ -78,6 +135,8 @@ export function IconSelectorPopover({
   children,
   className,
 }: IconSelectorPopoverProps): ReactNode {
+  const { t } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<IconSelectorTab>("emoji");
   const [urlDraft, setUrlDraft] = useState("");
@@ -139,7 +198,7 @@ export function IconSelectorPopover({
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={value ? "更换图标" : "设置图标"}
+      aria-label={value ? t("更换图标") : t("设置图标")}
     >
       <IconView
         icon={value}
@@ -161,10 +220,10 @@ export function IconSelectorPopover({
   const colorRow = (
     <div
       role="group"
-      aria-label="底色"
+      aria-label={t("底色")}
       className="flex shrink-0 items-center gap-1 border-t border-border/60 p-1"
     >
-      <span className="px-1 text-xs text-muted-foreground">底色</span>
+      <span className="px-1 text-xs text-muted-foreground">{t("底色")}</span>
       {ICON_COLORS.map((entry) => {
         const selected = value?.color === entry.value;
         return (
@@ -173,7 +232,7 @@ export function IconSelectorPopover({
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label={`底色 ${entry.label}`}
+            aria-label={translate("底色 {value1}", { value1: entry.label })}
             aria-pressed={selected}
             disabled={!value}
             className={cn(
@@ -191,7 +250,7 @@ export function IconSelectorPopover({
         type="button"
         variant="ghost"
         size="icon-xs"
-        aria-label="无底色"
+        aria-label={t("无底色")}
         aria-pressed={selectedNoColor}
         disabled={!value}
         className={cn(
@@ -228,11 +287,11 @@ export function IconSelectorPopover({
           type="button"
           variant="ghost"
           size="sm"
-          aria-label="移除图标"
+          aria-label={t("移除图标")}
           disabled={!value}
           onClick={handleRemove}
         >
-          移除
+          {t("移除")}{" "}
         </Button>
       }
     >
@@ -271,7 +330,7 @@ export function IconSelectorPopover({
             columns={8}
             emptyState={
               <p className="py-6 text-center text-sm text-muted-foreground">
-                没有匹配的结果
+                {t("没有匹配的结果")}{" "}
               </p>
             }
           />
