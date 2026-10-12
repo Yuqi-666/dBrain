@@ -18,6 +18,7 @@ It contains no business logic.
 | --- | --- |
 | `src/index.ts` | The HTTP and WebSocket server |
 | `src/origin.ts` | The same-origin check |
+| `src/upload/routes.ts` | The resumable upload endpoints and the session sweeper, shared by both listeners |
 | `src/desktop/` | The local mode for the desktop app: `runtime.ts`, `security.ts`, `upgrade-backup.ts`, and `pb_hooks/local.pb.js` |
 | `src/*.test.ts` | Tests for the origin check and the desktop security rules |
 | `scripts/build.mjs` | The esbuild bundle step |
@@ -27,15 +28,17 @@ It contains no business logic.
 `src/index.ts` creates a `node:http` server.
 It answers `/health`.
 It forwards `/pb/*` only after `allowedFileRequest`, `sameOrigin`, and `verifyToken` all pass.
+It serves `/pb/upload/*` itself, after `sameOrigin` and `verifyToken`: the chunks are spooled on this host and only the assembled file reaches PocketBase.
 It serves the tRPC WebSocket at `/trpc` through `createWSServer` in `noServer` mode.
 
 At start the server waits up to 30 seconds for `PB_URL/api/health`.
-Then it calls `AppContainer.initialize(PB_URL)`.
+Then it calls `AppContainer.initialize(PB_URL)` and starts the upload sweeper.
 It shuts down on `SIGINT` or `SIGTERM`.
 
-Environment variables: `PORT` defaults to 3001. `PB_URL` defaults to `127.0.0.1:8090`. Set `DBRAIN_PUBLIC_ORIGIN` only when a proxy rewrites the Host header.
+Environment variables: `PORT` defaults to 3001. `PB_URL` defaults to `127.0.0.1:8090`. Set `DBRAIN_PUBLIC_ORIGIN` only when a proxy rewrites the Host header. `DBRAIN_UPLOAD_DIR` moves the chunk spool (default `<system temp>/dbrain-uploads`).
 
 The same source produces the desktop backend bundle through `src/desktop/runtime.ts`.
+The desktop listener mounts the same upload handler under `/session/<secret>/upload/*`; there the session secret replaces the token check, and `DBRAIN_PB_INTERNAL_SECRET` in the runtime environment is what lets the file store reach the local PocketBase over raw `node:http`.
 
 ## Commands
 

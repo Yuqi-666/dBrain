@@ -56,6 +56,16 @@ test("routes every same-origin path the browser client can choose", () => {
     kind: "notFound",
     upstreamPath: "/other",
   });
+  // Chunked uploads belong to the API (it spools and assembles them), and the
+  // `/pb` prefix is kept because the API strips it before routing.
+  assert.deepEqual(resolveRoute("/pb/upload/sessions"), {
+    kind: "server",
+    upstreamPath: "/pb/upload/sessions",
+  });
+  assert.deepEqual(resolveRoute("/pb/upload/sessions/ab/parts/3?x=1"), {
+    kind: "server",
+    upstreamPath: "/pb/upload/sessions/ab/parts/3",
+  });
 });
 
 test("cannot be tricked into proxying another host", () => {

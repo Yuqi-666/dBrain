@@ -32,7 +32,8 @@ It exports:
 | `src/pocketbase-client.ts` | The PocketBase singleton |
 | `src/backend-urls.ts` | Chooses the backend address |
 | `src/desktop-backend.ts` | Starts and refreshes the desktop local backend |
-| `src/upload.ts` | Sends a blob to the PocketBase `files` collection |
+| `src/upload.ts` | Sends a blob to the PocketBase `files` collection, or delegates a large one to `upload-chunked.ts` |
+| `src/upload-chunked.ts` | Chunked, resumable upload of one file over the API upload routes |
 | `src/file-analysis.ts` | Asks the backend to parse a PDF or transcode a video |
 
 ## Mechanisms
@@ -57,8 +58,14 @@ On desktop a procedure therefore runs against IndexedDB. A subscription resolves
 It skips that step in desktop mode.
 
 `backend-urls.ts` gives a loopback browser the direct ports. Any other browser gets the same-origin paths `/trpc` and `/pb`.
+It also resolves the upload base: `:3001` for a loopback browser, `<origin>/pb` behind a proxy (which is why no proxy rule has to be added), and the desktop session base.
 
-`upload.ts` sends a blob straight to PocketBase. `file-analysis.ts` then asks the backend to parse the stored file.
+`upload.ts` sends a blob at or below `DIRECT_UPLOAD_MAX_BYTES` straight to PocketBase, exactly as it always has.
+A larger file goes to `upload-chunked.ts`, which opens a session on the API, PUTs the chunks the server reports as missing, and polls until the server has assembled and stored the file.
+A `404` on a chunk means the session is gone, so the client opens a new one and recomputes which chunks it must send — everything the old session held is missing from the new one. A `409` from `complete` names the chunks the server does not have, and the client sends those again before giving up.
+Resume state lives in `localStorage`, keyed by a hash of the file identity, so a reload continues instead of restarting.
+The limits and the route paths come from `@workspace/utils/upload`, the same module the server uses.
+`file-analysis.ts` then asks the backend to parse the stored file.
 
 ## Rules
 

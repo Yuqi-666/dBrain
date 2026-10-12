@@ -55,6 +55,12 @@ export function resolveRoute(rawUrl) {
     // and would reject these calls through its own allowlist.
     if (rest === "/api" || rest.startsWith("/api/"))
       return { kind: "pocketbase", upstreamPath: rest };
+    // Chunked uploads are served by the API, not by PocketBase: the API spools
+    // the chunks on its own disk and stores only the assembled file. The path
+    // keeps its `/pb` prefix, because the API strips exactly that prefix before
+    // it routes (the container's nginx forwards `/pb/` the same way).
+    if (rest === "/upload" || rest.startsWith("/upload/"))
+      return { kind: "server", upstreamPath: path };
     return { kind: "notFound", upstreamPath: rest };
   }
 

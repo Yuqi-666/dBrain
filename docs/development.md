@@ -69,6 +69,7 @@ pnpm dev
 | --- | --- |
 | `/trpc` | Server（含 WebSocket 升级） |
 | `/pb/api/*` | 开发 PocketBase（注册、登录、附件） |
+| `/pb/upload/*` | Server（分块上传会话；分片在 Server 本机落盘，拼装后才写入 PocketBase） |
 | `/pb/*` | 404（不使用生产的文件网关） |
 | 其余，含 `/_next/webpack-hmr` | Next |
 

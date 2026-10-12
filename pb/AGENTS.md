@@ -28,9 +28,10 @@ It rejects an edge when the endpoints or the semantic link belong to another wor
 It authorizes a download for the file owner, the workspace owner, or a workspace member.
 It also accepts a `pb_token` cookie, because media elements cannot send an authorization header.
 
-The two migrations are `1700000000_initial_schema.js` and `1800000000_release_access.js`.
+The three migrations are `1700000000_initial_schema.js`, `1800000000_release_access.js`, and `1900000000_upload_limit.js`.
 The second migration tightens the collection API rules.
 Its downgrade path throws an error, because the change needs a restored backup.
+The third raises the `files.file` cap to 2 GiB, which must stay equal to `MAX_UPLOAD_BYTES` in `packages/utils/src/upload.ts`.
 
 The development launcher `scripts/dev-pocketbase.mjs` pins the directories.
 It passes `--dir`, `--migrationsDir`, and `--hooksDir`, and it sets `--automigrate=0`.

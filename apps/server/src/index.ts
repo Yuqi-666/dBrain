@@ -8,6 +8,11 @@ import {
 import { verifyToken } from "@workspace/infrastructure";
 import { allowedFileRequest } from "./desktop/security";
 import { TRPC_PATH, sameOrigin } from "./origin";
+import {
+  handleUploadRequest,
+  isUploadPath,
+  startUploadSweeper,
+} from "./upload/routes";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
@@ -38,6 +43,9 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   await AppContainer.initialize(PB_URL);
+  // Sessions outlive the request that opened them, so something has to collect
+  // the abandoned ones.
+  startUploadSweeper(() => AppContainer.getInstance().uploadCommandService);
   const server = createServer((req, res) => {
     if (req.url === "/health" && req.method === "GET") {
       void databaseReady().then((ready) =>
@@ -47,13 +55,37 @@ async function main() {
       );
       return;
     }
-    const path = req.url?.startsWith("/pb/") ? req.url.slice(3) : "";
-    if (!allowedFileRequest(path, req.method)) {
+    // Two shapes reach these routes. The container proxy (and `pnpm dev:remote`)
+    // forwards the PocketBase prefix, `/pb/upload/...`; a browser in split
+    // development talks to this listener directly, `/upload/...`. Only the
+    // upload subtree is admitted without the prefix — the file gateway keeps its
+    // `/pb/` contract, so a bare `/api/files/...` on this port still 404s.
+    const raw = req.url ?? "";
+    const prefixed = raw.startsWith("/pb/") ? raw.slice(3) : "";
+    const path = prefixed || (isUploadPath(raw) ? raw : "");
+    if (!allowedFileRequest(path, req.method) && !isUploadPath(path)) {
       res.writeHead(404).end();
       return;
     }
     if (!sameOrigin(req.headers.origin, req.headers.host, publicOrigin)) {
       res.writeHead(403).end();
+      return;
+    }
+    if (isUploadPath(path)) {
+      // The chunked upload path is served here, not proxied to PocketBase: the
+      // chunks are spooled on this host and only the assembled file is stored.
+      void handleUploadRequest(req, res, path, {
+        service: () => AppContainer.getInstance().uploadCommandService,
+        authenticate: async (request) => {
+          const token =
+            request.headers.authorization || cookieToken(request.headers.cookie);
+          try {
+            return { ownerId: await verifyToken(token), token };
+          } catch {
+            return null;
+          }
+        },
+      });
       return;
     }
     const token = req.headers.authorization || cookieToken(req.headers.cookie);

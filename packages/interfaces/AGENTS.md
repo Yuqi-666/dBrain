@@ -12,7 +12,7 @@ It is the agreement between the two client apps, the packages, and `backend/`.
 | Export | Content |
 | --- | --- |
 | `.` | Everything from `./models` and `./api` |
-| `./api` | attachment, query, and event contracts |
+| `./api` | attachment, query, event, and upload-session contracts |
 | `./models` | dashboard, data-view, edge, filter, island, node, user, view, and workspace |
 | `./common` | Declared, but the directory does not exist |
 | `./nodes` | Declared, but the directory does not exist |
@@ -32,6 +32,7 @@ It is the agreement between the two client apps, the packages, and `backend/`.
 | `src/api/event.ts` | `DomainEvent` and the event types per aggregate |
 | `src/api/attachment.ts` | `IAttachment` |
 | `src/api/query.ts` | The query shapes |
+| `src/api/upload.ts` | The resumable upload wire shapes. The limits and the routes are runtime values, so they live in `packages/utils/src/upload.ts`. |
 
 ## Conventions
 

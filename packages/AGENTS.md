@@ -22,7 +22,7 @@ The aliases `@workspace/*` come from `tsconfig.workspace.json`.
 | `services` | Client services that wrap tRPC for each graph entity | [services/AGENTS.md](services/AGENTS.md) |
 | `store` | Zustand stores for data, UI, auth, workspace, source, and dashboard | [store/AGENTS.md](store/AGENTS.md) |
 | `ui` | shadcn and Radix components plus the app composition surface | [ui/AGENTS.md](ui/AGENTS.md) |
-| `utils` | Framework-free helpers and a react-querybuilder re-export | this file |
+| `utils` | Framework-free helpers and a react-querybuilder re-export. `@workspace/utils/upload` is the shared upload contract (limits, chunk maths, route paths) and deliberately avoids the barrel, which re-exports react-querybuilder. | this file |
 | `eslint-config` | Shared ESLint configurations | this file |
 | `typescript-config` | Shared tsconfig files | this file |
 

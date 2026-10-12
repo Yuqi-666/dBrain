@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import PocketBase from "pocketbase";
 import { AppContainer, appRouter, createContext, createWSServer } from "@workspace/adapter-front";
 import { allowedFileRequest, allowedOrigin, rewriteLocalPlaylist, sessionPath } from "./security";
+import { handleUploadRequest, isUploadPath, startUploadSweeper } from "../upload/routes";
 
 const runtimeDir = dirname(fileURLToPath(import.meta.url));
 const dataDir = process.argv[2];
@@ -124,7 +125,15 @@ async function main() {
     session = await pb.collection("users").authWithPassword(identity.email, identity.password);
   }
   await AppContainer.initialize(pbUrl);
+  // The upload pipeline writes to the local PocketBase from this process with
+  // raw `node:http` (a 2 GiB multipart body cannot go through `fetch`), where
+  // the patched global fetch below cannot add the internal header. Handing the
+  // secret to the file store through the environment keeps the local database
+  // reachable while it stays unreachable to every other client.
+  process.env.DBRAIN_PB_INTERNAL_SECRET = databaseSecret;
+  startUploadSweeper(() => AppContainer.getInstance().uploadCommandService);
   const secret = randomBytes(32).toString("hex");
+  const localOwnerId = String(session.record?.id ?? "");
   const server = createServer((req, res) => {
     const origin = req.headers.origin;
     const path = sessionPath(req.url ?? "", secret);
@@ -132,7 +141,7 @@ async function main() {
     if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     if (req.method === "OPTIONS") {
-      res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Range");
       res.writeHead(204).end(); return;
     }
@@ -141,6 +150,15 @@ async function main() {
       void pb.collection("users").authWithPassword(identity.email, identity.password).then(session => {
         res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify({ token: session.token }));
       }).catch(() => res.writeHead(503).end());
+      return;
+    }
+    if (isUploadPath(path)) {
+      // The `/session/<secret>` prefix is the admission ticket here, so there is
+      // no cookie to verify: this process owns the local identity.
+      void handleUploadRequest(req, res, path, {
+        service: () => AppContainer.getInstance().uploadCommandService,
+        authenticate: async () => ({ ownerId: localOwnerId, token: pb.authStore.token }),
+      });
       return;
     }
     if (!allowedFileRequest(path, req.method)) { res.writeHead(404).end(); return; }

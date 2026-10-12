@@ -33,6 +33,7 @@ import {
   createNodeTagDao,
   createDocumentAnalyzer,
   createFileStore,
+  createFileUploadSessionStore,
   createVideoTranscoder,
   createWorkspaceRepository,
   createDashboardRepository,
@@ -52,8 +53,14 @@ import {
   DashboardQueryService,
   WorkspaceQueryService,
   FileCommandService,
+  UploadCommandService,
 } from "@workspace/application";
 import type { IWorkspaceMemberRepository } from "@workspace/domain";
+import {
+  MAX_UPLOAD_BYTES,
+  PDF_ANALYZE_MAX_BYTES,
+  UPLOAD_CHUNK_BYTES,
+} from "@workspace/utils/upload";
 import { initializeEventBridge } from "./event-bridge";
 
 export class AppContainer {
@@ -82,6 +89,8 @@ export class AppContainer {
   readonly workspaceCommandService: WorkspaceCommandService;
   /** Server-side file analysis (PDF parsing, cover rendering). */
   readonly fileCommandService: FileCommandService;
+  /** Resumable (chunked) upload state machine, driven by the HTTP upload routes. */
+  readonly uploadCommandService: UploadCommandService;
 
   // Application Query Services (require repository only)
   readonly nodeQueryService: NodeQueryService;
@@ -120,6 +129,15 @@ export class AppContainer {
       createDocumentAnalyzer(),
       createFileStore(),
       createVideoTranscoder(),
+      PDF_ANALYZE_MAX_BYTES,
+    );
+
+    // The limits come from the shared upload contract, so the client's
+    // direct/chunked decision and the server's guards cannot drift apart.
+    this.uploadCommandService = new UploadCommandService(
+      createFileUploadSessionStore(),
+      createFileStore(),
+      { maxUploadBytes: MAX_UPLOAD_BYTES, chunkSize: UPLOAD_CHUNK_BYTES },
     );
 
     this.nodeQueryService = new NodeQueryService(this.nodeDao);

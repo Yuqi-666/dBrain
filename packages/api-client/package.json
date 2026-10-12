@@ -20,6 +20,7 @@
     "@workspace/interfaces": "workspace:*",
     "@workspace/adapter-front": "workspace:*",
     "@workspace/services": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "@workspace/adapter-tauri": "workspace:*"
   },
   "devDependencies": {

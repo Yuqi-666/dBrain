@@ -29,6 +29,10 @@ services:
       PB_URL: http://pocketbase:8090
       PORT: "3001"
       DBRAIN_PUBLIC_ORIGIN: ${DBRAIN_PUBLIC_ORIGIN:-}
+      # Chunk spool for a resumable upload. Empty means the container's temp
+      # directory; point it at a mounted volume when /tmp is too small for one
+      # upload in flight (up to 2 GiB).
+      DBRAIN_UPLOAD_DIR: ${DBRAIN_UPLOAD_DIR:-}
     depends_on:
       pocketbase:
         condition: service_healthy

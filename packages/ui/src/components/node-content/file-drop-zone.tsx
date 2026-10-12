@@ -16,6 +16,8 @@ import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import {
+  MAX_UPLOAD_BYTES,
+  PDF_ANALYZE_MAX_BYTES,
   matchesAccept,
   useFileUpload,
   uploadFile,
@@ -274,6 +276,10 @@ function buildNodeUpdates(
  * cannot parse (password protected, corrupt) must still leave the node pointing
  * at its file — it just keeps `pageCount: 0` and no cover, which is what the
  * node renders before any metadata arrives.
+ *
+ * A document past the analysis cap is skipped without asking: the server would
+ * have to stream the whole file to disk only to refuse it, and the node is
+ * perfectly usable with the blob alone.
  */
 async function analyzePdfUpload(
   url: string,
@@ -283,13 +289,20 @@ async function analyzePdfUpload(
   let pageCount = 0;
   let fileSize = file.size;
 
-  try {
-    const analysis = await analyzePdf(url);
-    coverUrl = analysis.coverUrl;
-    pageCount = analysis.pageCount;
-    fileSize = analysis.fileSize;
-  } catch (error) {
-    console.warn("[FileDropZone] PDF analysis failed", error);
+  if (file.size > PDF_ANALYZE_MAX_BYTES) {
+    console.warn(
+      "[FileDropZone] PDF is larger than the analysis cap; keeping the file without parsing it",
+      file.size,
+    );
+  } else {
+    try {
+      const analysis = await analyzePdf(url);
+      coverUrl = analysis.coverUrl;
+      pageCount = analysis.pageCount;
+      fileSize = analysis.fileSize;
+    } catch (error) {
+      console.warn("[FileDropZone] PDF analysis failed", error);
+    }
   }
 
   return {
@@ -374,7 +387,10 @@ function UploadDropZone({
   );
 
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
-    maxSize: 100 * 1024 * 1024,
+    // The pipeline's own ceiling, not a UI preference: above it the server
+    // rejects the file, and below it the client would refuse a file the
+    // resumable path could have delivered.
+    maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
     upload: uploadFile,
@@ -487,9 +503,12 @@ function UploadDropZone({
             </button>
           </div>
           <Progress value={packaging ? 100 : item.progress} />
-          <span className="text-xs text-muted-foreground">
+          <span
+            className="text-xs text-muted-foreground break-words"
+            title={item.status === "error" ? item.error : undefined}
+          >
             {item.status === "error"
-              ? "上传失败"
+              ? `上传失败：${item.error ?? "未知原因"}`
               : packaging
                 ? "正在转码为 HLS…"
                 : `${item.progress}%`}
@@ -659,7 +678,7 @@ function DisplayFieldDropZone({
   const Icon = config.icon;
 
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
-    maxSize: 100 * 1024 * 1024,
+    maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
     upload: uploadFile,
@@ -757,8 +776,13 @@ function DisplayFieldDropZone({
             </button>
           </div>
           <Progress value={item.progress} />
-          <span className="text-xs text-muted-foreground">
-            {item.status === "error" ? "上传失败" : `${item.progress}%`}
+          <span
+            className="text-xs text-muted-foreground break-words"
+            title={item.status === "error" ? item.error : undefined}
+          >
+            {item.status === "error"
+              ? `上传失败：${item.error ?? "未知原因"}`
+              : `${item.progress}%`}
           </span>
         </div>
       ))}

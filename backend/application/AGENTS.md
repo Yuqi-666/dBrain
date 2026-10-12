@@ -12,7 +12,7 @@ The package imports `domain` and `interfaces` only.
 
 | Path | Content |
 | --- | --- |
-| `src/commands/` | One directory per aggregate: node, edge, view, semantic, file, workspace, dashboard |
+| `src/commands/` | One directory per aggregate: node, edge, view, semantic, file, upload, workspace, dashboard |
 | `src/queries/` | The read side for node, edge, view, semantic, workspace, and dashboard |
 | `src/dto/` | The DTO types and the mappers, for example `node-dto.mapper.ts` |
 

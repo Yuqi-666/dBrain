@@ -75,6 +75,13 @@ docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-bu
 
 在宿主机或受控入口部署 TLS 反向代理，转发到 Gateway。保留原始 Host，支持 WebSocket，并按实际附件大小设置上传限制。默认只监听回环，远程浏览器不会直接访问到它。
 
+单个附件上限为 2 GiB，但客户端不会一次性发送这么大的请求体：大于 32 MiB 的文件按 8 MiB 分片，经由 `/pb/upload/` 到达 API（网关把整个 `/pb/` 转发给 API，无需新增路由规则），由 API 在本机磁盘拼装后再存入 PocketBase。因此：
+
+- `client_max_body_size` 只需覆盖单次请求，即 100m 的现有配置足够；真正需要放宽的是 PocketBase `files.file` 字段的 `maxSize`，已由 `pb/pb_migrations/1900000000_upload_limit.js` 迁移到 2 GiB。
+- API 会把分片写入 `DBRAIN_UPLOAD_DIR`（默认 `<系统临时目录>/dbrain-uploads`）。该目录需要在拼装期间容纳一个上传（最大约 2 GiB），并建议与 PocketBase 数据卷位于同一磁盘；上传成功后分片与拼装文件立即删除，超过 24 小时未活动的会话由进程内定时任务清理。
+- 反向代理不需要为拼装阶段延长读超时：完成请求立即返回 202，客户端随后轮询状态。若代理设置了很短的 `proxy_read_timeout`，请确认它不低于单次分片请求（8 MiB）所需的传输时间。
+- 上传上限由 `packages/utils/src/upload.ts` 的 `MAX_UPLOAD_BYTES` 统一定义，客户端与服务端都读它；迁移中的 `maxSize` 必须与之保持一致。
+
 只有代理改写 Host 时才设置 `DBRAIN_PUBLIC_ORIGIN`，如 `https://dbrain.example.com`，含 scheme 和非默认端口，无尾斜杠。该值是精确替换规则，填错会使 API / WebSocket 来源校验失败，常见表现是工作空间持续加载。
 
 不要把 PocketBase 管理接口直接暴露到公网。临时管理访问可用额外 override 将 8090 映射到宿主机回环地址，再通过 SSH 隧道访问，操作后撤除端口映射。

@@ -54,6 +54,43 @@ async function upload(bytes, name, type) {
   const record = await response.json();
   return `/api/files/${record.collectionId}/${record.id}/${record.file}`;
 }
+/**
+ * Drives one chunked upload through the desktop listener.
+ *
+ * The desktop base is `/session/<secret>`, so the upload routes ride on the same
+ * session ticket as a file read. One chunk is enough here — the splitting and
+ * the resume logic are covered by the client tests — and it proves the listener
+ * authenticates the request, spools the part, assembles it and stores it into
+ * its own local PocketBase.
+ */
+async function chunkedUpload(bytes, name, type) {
+  const base = `${descriptor.pocketbase}/upload`;
+  const created = await fetch(`${base}/sessions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fileName: name, fileSize: bytes.length, contentType: type, workspaceId: "", fingerprint: `smoke-${name}-${bytes.length}` }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const session = await created.json();
+  assert.equal(session.chunkCount, 1, "a small smoke file is one chunk");
+  const put = await fetch(`${base}/sessions/${session.uploadId}/parts/0`, {
+    method: "PUT",
+    headers: { "content-type": "application/octet-stream", "content-length": String(bytes.length) },
+    body: bytes,
+  });
+  assert.equal(put.status, 200, await put.clone().text());
+  const completing = await fetch(`${base}/sessions/${session.uploadId}/complete`, { method: "POST" });
+  assert.equal(completing.status, 202, await completing.clone().text());
+  let state = await completing.json();
+  const assemblyDeadline = Date.now() + 30_000;
+  while (state.status !== "done" && state.status !== "error" && Date.now() < assemblyDeadline) {
+    await pause(100);
+    state = await (await fetch(`${base}/sessions/${session.uploadId}`)).json();
+  }
+  assert.equal(state.status, "done", `assembly ended as ${state.status}: ${state.error ?? ""}`);
+  assert.ok(state.attachment?.url, "the finished session carries its attachment");
+  return state.attachment.url;
+}
 const deadline = setTimeout(() => {
   console.error("Backend smoke test timed out\n" + logs);
   child?.stdin.end("shutdown\n");
@@ -160,6 +197,9 @@ try {
   const file = await upload(Buffer.from("local attachment"), "offline.txt", "text/plain");
   assert.equal(await (await fetch(`${descriptor.pocketbase}${file}`)).text(), "local attachment");
   assert.equal((await fetch(`${descriptor.pocketbase}${file}`, { headers: { Range: "bytes=0-4" } })).status, 206);
+  const chunked = await chunkedUpload(Buffer.from("chunked desktop attachment"), "chunked.txt", "text/plain");
+  assert.equal(await (await fetch(`${descriptor.pocketbase}${chunked}`)).text(), "chunked desktop attachment");
+  console.log("PASS desktop chunked upload session, assembly and download");
   const pdf = await upload(pdfFixture(), "offline.pdf", "application/pdf");
   console.log("STEP packaged PDF/native canvas");
   const analysis = await client.file.analyzePdf.mutate({ fileUrl: pdf });
@@ -186,6 +226,7 @@ try {
   assert.equal((await client.node.getById.query({ id: nodes[0].id })).title, "重启后保留");
   assert.equal((await client.dashboard.get.query({ workspaceId })).pages[0].name, "离线 Dashboard");
   assert.equal(await (await fetch(`${descriptor.pocketbase}${file}`)).text(), "local attachment");
+  assert.equal(await (await fetch(`${descriptor.pocketbase}${chunked}`)).text(), "chunked desktop attachment");
   const newPlaylist = await (await fetch(`${descriptor.pocketbase}${transcode.hlsUrl}`)).text();
   const newSegment = newPlaylist.split("\n").find(line => line.startsWith("/session/"));
   assert.notEqual(newSegment, segment);
