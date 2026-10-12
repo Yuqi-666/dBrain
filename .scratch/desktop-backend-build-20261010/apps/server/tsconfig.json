@@ -1,0 +1,68 @@
+{
+  "extends": "@workspace/typescript-config/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/server/*": [
+        "./src/*"
+      ],
+      "@workspace/domain": [
+        "../../backend/domain/src"
+      ],
+      "@workspace/domain/*": [
+        "../../backend/domain/src/*"
+      ],
+      "@workspace/application": [
+        "../../backend/application/src"
+      ],
+      "@workspace/application/*": [
+        "../../backend/application/src/*"
+      ],
+      "@workspace/infrastructure": [
+        "../../backend/infrastructure/src"
+      ],
+      "@workspace/infrastructure/*": [
+        "../../backend/infrastructure/src/*"
+      ],
+      "@workspace/adapter-back": [
+        "../../backend/adapter-back/src"
+      ],
+      "@workspace/adapter-back/*": [
+        "../../backend/adapter-back/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
+      ],
+      "@workspace/adapter-tauri": [
+        "../../backend/adapter-tauri/src"
+      ],
+      "@workspace/interfaces": [
+        "../../packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../../packages/interfaces/src/*"
+      ],
+      "@workspace/utils": [
+        "../../packages/utils/src"
+      ],
+      "@workspace/utils/*": [
+        "../../packages/utils/src/*"
+      ],
+      "@workspace/adapter-tauri/*": [
+        "../../backend/adapter-tauri/src/*"
+      ]
+    },
+    "outDir": "./dist",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

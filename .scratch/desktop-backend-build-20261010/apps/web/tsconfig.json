@@ -1,0 +1,74 @@
+{
+  "extends": "@workspace/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@workspace/editor/*": [
+        "../../packages/editor/*"
+      ],
+      "@workspace/dataview": [
+        "../../packages/dataview/src"
+      ],
+      "@workspace/dataview/*": [
+        "../../packages/dataview/src/*"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@workspace/store": [
+        "../../packages/store/src"
+      ],
+      "@workspace/store/*": [
+        "../../packages/store/src/*"
+      ],
+      "@workspace/graph": [
+        "../../packages/graph/src"
+      ],
+      "@workspace/graph/*": [
+        "../../packages/graph/src/*"
+      ],
+      "@workspace/interfaces": [
+        "../../packages/interfaces/src"
+      ],
+      "@workspace/interfaces/*": [
+        "../../packages/interfaces/src/*"
+      ],
+      "@workspace/api-client": [
+        "../../packages/api-client/src"
+      ],
+      "@workspace/api-client/*": [
+        "../../packages/api-client/src/*"
+      ],
+      "@workspace/services": [
+        "../../packages/services/src"
+      ],
+      "@workspace/services/*": [
+        "../../packages/services/src/*"
+      ],
+      "@workspace/adapter-front": [
+        "../../backend/adapter-front/src"
+      ],
+      "@workspace/adapter-front/*": [
+        "../../backend/adapter-front/src/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

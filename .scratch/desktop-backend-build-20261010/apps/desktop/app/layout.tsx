@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import "@workspace/ui/globals.css";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import ContextMenuInterceptor from "@/components/ContextMenuInterceptor";
+import { Providers } from "./providers";
+
+export const metadata: Metadata = {
+  title: "dBrain",
+  description: "本地优先的知识工作空间",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html
+      lang="zh-CN"
+      suppressHydrationWarning
+      className="antialiased font-sans"
+    >
+      <body>
+        <ContextMenuInterceptor />
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
