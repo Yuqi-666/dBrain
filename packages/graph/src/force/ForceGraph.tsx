@@ -147,6 +147,21 @@ function buildForceStyle(view: View): ForceStyle {
   };
 }
 
+/**
+ * The view's persisted boundary node density, or the renderer default.
+ *
+ * `visualConfig.nodeDensity` is a user preference (the graph header's
+ * slider) and may be absent, `0`, or garbage in an old record; the force
+ * layer must still run, so an unusable value falls back rather than
+ * disabling the boundary.
+ */
+function resolveBoundaryDensity(view: View): number {
+  const value = view.visualConfig?.nodeDensity;
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_FORCE_CONFIG.boundaryDensity;
+}
+
 // -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
@@ -354,6 +369,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         ...DEFAULT_FORCE_CONFIG,
         centerX: dims.width / 2,
         centerY: dims.height / 2,
+        boundaryDensity: resolveBoundaryDensity(view),
       };
       await api.updateConfig(cfg);
       await api.setViewport(
@@ -736,6 +752,25 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         console.error("[ForceGraph] updateStyle failed:", err);
       });
     }, [view?.visualConfig]);
+
+    // ---- Effect: node-density change → push config to worker ---------
+    // The settings menu's density slider writes `visualConfig`, and the
+    // boundary has to move on the running simulation — a full re-init
+    // would restart it and throw the layout away. `updateConfig` merges
+    // into the worker's cached config and reheats, so dragging the slider
+    // previews live. Only the boundary fields are sent: the centre axes
+    // are already in the cached config.
+    useEffect(() => {
+      const api = apiRef.current;
+      if (!api) return;
+      api
+        .updateConfig({
+          boundaryDensity: resolveBoundaryDensity(viewRef.current),
+        })
+        .catch((err) => {
+          console.error("[ForceGraph] boundary updateConfig failed:", err);
+        });
+    }, [view?.visualConfig?.nodeDensity]);
 
     // ---- Imperative handle ------------------------------------------
     useImperativeHandle(

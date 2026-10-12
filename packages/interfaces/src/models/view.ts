@@ -9,6 +9,14 @@ export interface VisualConfig {
   gridColor?: string;
   snapToGrid?: boolean;
   showMinimap?: boolean;
+  /**
+   * Node density of the force layout's soft boundary, in nodes per px².
+   * The boundary radius is `r = sqrt(n / nodeDensity)`, where `n` is the
+   * node count; a larger value pulls the layout tighter. Absent means
+   * "use the renderer's default" — the value is a user preference, not a
+   * required input.
+   */
+  nodeDensity?: number;
 }
 
 export interface View {
