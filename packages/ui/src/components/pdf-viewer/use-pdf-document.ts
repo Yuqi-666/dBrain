@@ -19,6 +19,11 @@
  *    `TextContent` to lay spans out and search needs the same strings to match
  *    against; sharing the cached value is what guarantees a highlight lands on
  *    the span it was computed from.
+ *
+ * The document is opened **on demand** (`disableStream` plus
+ * `disableAutoFetch` in {@link usePdfDocument}): an attachment may be a 2 GiB
+ * scan, and anything that streams it whole makes opening the node wait for the
+ * entire file.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
@@ -331,6 +336,24 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           // The viewer is a read-only surface: no cookies, no credentials, so a
           // cross-origin file is either public or it degrades.
           withCredentials: false,
+          // Read the file on demand instead of streaming all of it.
+          //
+          // By default pdf.js opens the file with one request for the whole
+          // body and keeps reading it while the node stays open — pdf.js only
+          // uses byte ranges when streaming is off, and it then cancels that
+          // first request as soon as the response says the server supports
+          // them. Measured on the library's own 136 MiB / 603-page scan against
+          // a range-capable server: the default pulled 130.7 MiB within four
+          // seconds of opening the node, while these two flags pulled 0.3 MiB
+          // and still had page 1 ready in about 100 ms. `disableAutoFetch` is
+          // what stops the background prefetch of every remaining chunk.
+          //
+          // A deployment whose proxy strips range support is unaffected: with
+          // no `Accept-Ranges` header pdf.js never cancels anything and streams
+          // the body exactly as it did before (measured on the same file: both
+          // settings read the whole 130.4 MiB and loaded in the same time).
+          disableStream: true,
+          disableAutoFetch: true,
         });
         // `onProgress` belongs to the loading task, not to its parameters.
         loadingTask.onProgress = ({
