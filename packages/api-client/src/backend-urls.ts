@@ -6,7 +6,7 @@ import { getDesktopBackend } from "./desktop-backend";
  * The two browser clients (tRPC over WebSocket, PocketBase REST/files) must
  * reach the dev backends on `:3001` / `:8090`. Two deployment shapes exist:
  *
- * 1. **Loopback** — the browser runs on the same host as `pnpm dev:full`
+ * 1. **Loopback** — the browser runs on the same host as `pnpm dev`
  *    (`http://localhost:3000`). The backends listen on their own ports, so we
  *    keep talking to `localhost:3001` / `localhost:8090` directly. This is the
  *    local development path and must not change.

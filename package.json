@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build": "pnpm --filter server build && pnpm --filter web build",
-    "dev": "pnpm -r --parallel --if-present run dev",
-    "dev:full": "concurrently -k -p \"[{name}]\" -n \"pb,web,server\" -c \"yellow,blue,green\" \"pnpm --filter=server dev:pb\" \"pnpm --filter=web dev\" \"pnpm --filter=server dev\"",
+    "dev": "node scripts/dev-run.mjs",
+    "dev:remote": "node scripts/dev-run.mjs --remote",
     "pb:admin": "node scripts/dev-pocketbase-admin.mjs",
     "lint": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -13,7 +13,7 @@
     "build:desktop": "pnpm --filter desktop desktop:build",
     "release:check": "node scripts/release/check.mjs",
     "release:version": "node scripts/release/version.mjs",
-    "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts apps/server/src/origin.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
+    "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/lib/*.test.mjs scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts apps/server/src/origin.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
     "smoke:server": "node scripts/release/server-smoke.mjs",
     "lint:gate": "node scripts/release/lint-gate.mjs"
   },

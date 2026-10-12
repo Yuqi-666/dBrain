@@ -38,105 +38,47 @@
 pnpm install --frozen-lockfile
 node scripts/release/download-pocketbase.mjs
 cp .env.example .env
-# 填写管理员邮箱与密码
-pnpm dev:full
+# 填写管理员邮箱与密码，并按需调整开发端口
+pnpm dev
 ```
 
-`dev:full` 并行启动 PocketBase、Web 和 Server；任一进程退出会停止整组。默认地址：
+只有两个开发命令：`pnpm dev`（本机：PocketBase、Web、Server）和 `pnpm dev:remote`（远程域名：在上面三个之外再加 `scripts/dev-gateway.mjs` 网关）。两者都并行启动子进程，任一进程退出会停止整组。端口来自根 `.env`，shell 同名变量优先：
 
-| 服务 | 地址 |
-| --- | --- |
-| Web | http://localhost:3000 |
-| Server | http://localhost:3001 |
-| PocketBase | http://127.0.0.1:8090 |
+| 服务 | 变量 | 默认 | 地址 |
+| --- | --- | --- | --- |
+| Web | `DBRAIN_WEB_PORT` | 3000 | http://localhost:3000 |
+| Server | `DBRAIN_SERVER_PORT` | 3001 | http://localhost:3001 |
+| PocketBase | `DBRAIN_PB_HTTP` | 127.0.0.1:8090 | http://127.0.0.1:8090 |
+| 网关（仅 `dev:remote`） | `DBRAIN_GATEWAY_PORT` | 8080 | https://p8080.<开发域名> |
+
+两个服务占用同一个端口时启动直接报错，不会让 PocketBase 一直等。
 
 开发数据默认写入仓库 `pb/pb_data`。PocketBase 启动器显式指定数据、迁移和 hooks 目录，不随 shell 当前目录变化。自定义 `DBRAIN_PB_DATA_DIR`、`DBRAIN_PB_HTTP` 时，同步检查后端 `PB_URL`。
 
 `.env` 中的 `DBRAIN_ADMIN_EMAIL` 与密码用于运维账号；应用身份使用普通 users 集合。shell 同名变量优先于文件。更新管理员配置后可用 `pnpm pb:admin` 同步开发库账号。
 
-`pnpm dev` 是宽泛的 workspace 并行入口；需要完整 Web 服务栈时优先使用 `pnpm dev:full`。
+单独运行某个包时用 `pnpm --filter <package> <script>`；需要完整服务栈时用 `pnpm dev`。
 
-## 公网域名远程开发与自定义端口
+## 公网域名远程开发
 
-可以把远程开发环境通过 HTTPS 域名提供给浏览器。非 localhost 域名下，客户端自动使用同域 `/trpc` 和 `/pb`，不会访问浏览器本机的 3001 / 8090。反向代理必须同时处理这两个路径和 Next 开发热更新。
+`pnpm dev:remote` 是 `pnpm dev` 加一个网关进程 `scripts/dev-gateway.mjs`，让浏览器能通过域名访问本机开发栈。
 
-### 启动开发服务
+网关用一个端口收下全部请求，按路径分流：
 
-原始 `pnpm dev:full` 的 Web 命令固定为 `next dev -p 3000`。根 .env 目前只由 PocketBase 子进程加载，不会自动传递给并行的 Web / Server；在 .env 写 PORT 不能调整整个开发栈，也没有现成的 DBRAIN_WEB_PORT 参数。
+| 路径 | 上游 |
+| --- | --- |
+| `/trpc` | Server（含 WebSocket 升级） |
+| `/pb/api/*` | 开发 PocketBase（注册、登录、附件） |
+| `/pb/*` | 404（不使用生产的文件网关） |
+| 其余，含 `/_next/webpack-hmr` | Next |
 
-默认 Web 3000、Server 3001、PB 8090 可以直接 `pnpm dev:full`，下面代理中的端口相应改成默认值。需要 Web 4000、Server 4001、PB 8091 时，可使用等价的三进程启动命令（Bash）：
+它同时原样保留浏览器 Host：Server 用 Host 与浏览器 `Origin` 比较做同源判断（`apps/server/src/origin.ts`），改写成上游地址会让所有 API 调用 403。
 
-```bash
-PB_URL=http://127.0.0.1:8091 DBRAIN_PB_HTTP=127.0.0.1:8091 pnpm exec concurrently -k -n pb,web,server 'pnpm --filter server dev:pb' 'pnpm --filter web exec next dev -p 4000 -H 127.0.0.1' 'PORT=4001 pnpm --filter server dev'
-```
+之所以需要它：非 localhost 域名下，客户端只访问同域的 `/trpc` 和 `/pb`，不会去连浏览器本机的 3001 / 8090（见 `packages/api-client/src/backend-urls.ts`），这两个路径必须由同域入口接住。
 
-管理员配置仍从根 .env 读取。仅给 Server 设置 PORT，避免它与 Next 争用端口。域名访问支持自定义后端端口；localhost 浏览器访问仍使用客户端固定的 3001 / 8090，不能自动识别自定义后端端口。
+端口全部来自根 `.env`：`DBRAIN_GATEWAY_PORT`（默认 8080）是网关，也是访问地址 `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>` 里的端口；`DBRAIN_WEB_PORT`、`DBRAIN_SERVER_PORT`、`DBRAIN_PB_HTTP` 是三个上游。远程形态下 Next 只绑回环，只有网关对外（`DBRAIN_GATEWAY_HOST`，默认 0.0.0.0）；`DBRAIN_DEV_DOMAIN` 只用于启动时打印地址，不参与监听。
 
-### 配置开发域名与反向代理
-
-将域名解析到入口并准备 TLS 证书。在 `apps/web/next.config.mjs` 的 nextConfig 对象中添加实际域名，重启 Web：
-
-```js
-allowedDevOrigins: ['dev.example.com'],
-```
-
-当前仓库尚未设置该域名列表，需要按部署修改。此配置用于 Next 开发来源检查，见 [Next 官方说明](https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins)。
-
-以下为同机 nginx 示例。map 放在 http 上下文，server 按现有配置加载；替换域名和 TLS 路径：
-
-```nginx
-map $http_upgrade $dbrain_dev_connection {
-    default upgrade;
-    '' close;
-}
-server {
-    listen 443 ssl;
-    server_name dev.example.com;
-    ssl_certificate /path/to/fullchain.pem;
-    ssl_certificate_key /path/to/privkey.pem;
-    client_max_body_size 100m;
-    location = /trpc {
-        proxy_pass http://127.0.0.1:4001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $dbrain_dev_connection;
-        proxy_read_timeout 3600s;
-    }
-    location ^~ /pb/api/ {
-        proxy_pass http://127.0.0.1:8091/api/;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_buffering off;
-        proxy_read_timeout 120s;
-    }
-    location /pb/ { return 404; }
-    location / {
-        proxy_pass http://127.0.0.1:4000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $dbrain_dev_connection;
-        proxy_buffering off;
-        proxy_read_timeout 3600s;
-    }
-}
-```
-
-开发注册、登录和附件直接走 PB API，保留 `/api/` 路径与 collection rules 用户权限。不要照搬生产 `/pb/ → Server` 文件网关，否则开发注册 / 登录 API 会被路径白名单拒绝。PB 管理 UI 不在代理范围；这不等于阻止所有管理 API，维护者可另加管理 API 拒绝规则。
-
-保留 Host 时 Server 的同源判断可通过，DBRAIN_PUBLIC_ORIGIN 通常无需设置；若代理改写 Host，启动时把 `DBRAIN_PUBLIC_ORIGIN=https://dev.example.com` 传给 Server，不能只写根 .env 就假定 Server 已读取。
-
-开发入口用于受控测试，在代理或网络入口限制访问。阻止公网直连 Server 的 4001 端口（当前程序绑定 0.0.0.0）；本例 PB / Web 绑定回环。应用登录并不保护全部开发工具入口，开发服务不应作为开放生产站点。
-
-### 检查链路
-
-```bash
-curl -fsS https://dev.example.com/pb/api/health
-```
-
-再验证注册 / 登录、工作空间、上传读取附件与代码热更新。浏览器 Network 中 `/trpc` 应升级为 WebSocket（101），请求不应指向浏览器 localhost。health 不能代替登录与文件权限验证。本次提供配置方法，尚未部署或验证实际域名。
+上游地址由命令自己注入（`DBRAIN_WEB_URL`、`DBRAIN_SERVER_URL`、`DBRAIN_PB_URL`），无需手工设置；`DBRAIN_GATEWAY_LOG=1` 打印每个请求，默认只打印 `/trpc`、`/pb` 与升级请求。
 
 ## 桌面开发
 

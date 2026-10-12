@@ -34,10 +34,10 @@ pnpm install --frozen-lockfile
 node scripts/release/download-pocketbase.mjs
 cp .env.example .env
 # 编辑 .env，填写 DBRAIN_ADMIN_EMAIL 和 DBRAIN_ADMIN_PASSWORD
-pnpm dev:full
+pnpm dev
 ```
 
-打开 `http://localhost:3000`。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
+打开 `http://localhost:3000`。端口在 `.env` 里配；远程域名开发用 `pnpm dev:remote`，见 [docs/development.md](docs/development.md)。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
 
 桌面开发还需要 Rust 和对应平台原生依赖，然后运行 `pnpm dev:desktop`。详细前提见开发手册。
 
