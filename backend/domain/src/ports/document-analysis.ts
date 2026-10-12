@@ -133,6 +133,12 @@ export interface IFileStore {
   /**
    * Stores `blob` and resolves to the URL it can be read from afterwards.
    *
+   * Every blob a store accepts lands beside the others in one collection, and
+   * the address names it as `<anything>/api/files/<collection>/<record>/<name>`.
+   * An artifact can therefore address a sibling relatively and keep working
+   * behind any mount prefix; see `rewriteSegmentUrls` in the file command
+   * service.
+   *
    * @throws when the store rejects the write.
    */
   upload(blob: StoredBlob): Promise<string>;

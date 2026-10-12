@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allowedOrigin, allowedFileRequest, rewriteLocalPlaylist, sessionPath } from "./security.ts";
+import { allowedOrigin, allowedFileRequest, sessionPath } from "./security.ts";
 
 test("gateway requires the exact session secret and rejects arbitrary browser origins", () => {
   assert.equal(sessionPath("/session/secret/trpc", "secret"), "/trpc");
@@ -17,8 +17,4 @@ test("file gateway permits only file reads and upload creates", () => {
   assert.equal(allowedFileRequest("/api/collections/files/records", "POST"), true);
   for (const path of ["/_/", "/api/collections/users/records", "/api/files/files/abcdef/../file.png"]) assert.equal(allowedFileRequest(path, "GET"), false);
   assert.equal(allowedFileRequest("/api/collections/files/records", "DELETE"), false);
-});
-test("HLS playback retains the active session prefix without changing comments", () => {
-  const playlist = "#EXTM3U\n#EXTINF:1,\n/api/files/files/abcdef/one.ts\n#EXT-X-ENDLIST\n";
-  assert.equal(rewriteLocalPlaylist(playlist, "new-secret"), playlist.replace("/api/files/", "/session/new-secret/api/files/"));
 });

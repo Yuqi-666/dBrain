@@ -1,8 +1,0 @@
-/* System fonts keep the desktop build and launch independent of Google Fonts. */
-:root {
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  --font-heading: ui-serif, Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
-}

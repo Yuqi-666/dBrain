@@ -3,7 +3,6 @@ import type {
   IDocumentAnalyzer,
   IFileStore,
   IVideoTranscoder,
-  TranscodedArtifact,
 } from "@workspace/domain";
 import type {
   AnalyzePdfCommand,
@@ -11,6 +10,7 @@ import type {
   TranscodeVideoCommand,
   TranscodedVideoDTO,
 } from "./command";
+import { rewriteSegmentUrls } from "./hls-playlist";
 
 /**
  * File upload use cases.
@@ -183,49 +183,4 @@ function sourceSuffix(fileName: string): string {
   if (dot <= 0 || dot === fileName.length - 1) return ".bin";
   const suffix = safeSegment(fileName.slice(dot));
   return suffix.startsWith(".") && suffix.length > 1 ? suffix.slice(0, 12) : ".bin";
-}
-
-/**
- * Rewrites a playlist's bare segment file names into the paths the store handed
- * back, so each `#EXTINF` line points at the blob that was just written.
- *
- * The rewrite keeps the path root-relative (`/api/files/…`) rather than the
- * absolute URL: a playlist is always fetched from the same origin as its
- * segments, so the stored file keeps working when the PocketBase address
- * changes — the same reason the client has `resolveFileUrl`.
- *
- * Unmapped lines are left untouched: a stray URI in the playlist (an fMP4 init
- * map, say) is passed through rather than silently dropped.
- */
-function rewriteSegmentUrls(
-  playlist: TranscodedArtifact,
-  segments: { fileName: string; url: string }[],
-): TranscodedArtifact {
-  if (segments.length === 0) return playlist;
-
-  const pathsByName = new Map(
-    segments.map((segment) => [segment.fileName, toStorePath(segment.url)]),
-  );
-
-  const decoded = new TextDecoder().decode(playlist.bytes);
-  const lines = decoded.split("\n").map((line) => {
-    const uri = line.trim();
-    return pathsByName.get(uri) ?? line;
-  });
-
-  return {
-    ...playlist,
-    bytes: new TextEncoder().encode(lines.join("\n")),
-  };
-}
-
-/** Turns an absolute store URL into a root-relative path, leaving others alone. */
-function toStorePath(url: string): string {
-  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return url;
-
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url;
-  }
 }

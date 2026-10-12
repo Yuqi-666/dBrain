@@ -2,33 +2,33 @@
 
 ## 环境
 
-| 工具 | 项目要求 |
-| --- | --- |
-| Node | 按 `.node-version`，当前为 24.15.0 |
-| pnpm | 9.0.0，见根 package.json |
-| Rust | 按 rust-toolchain.toml，当前为 1.99.0；桌面开发需要 |
-| PocketBase | 用仓库下载脚本获取固定版本、匹配当前平台的二进制 |
-| FFmpeg / FFprobe | 开发媒体功能及桌面运行时准备需要 |
-| Docker Compose | 容器开发、测试和部署需要 |
+| 工具             | 项目要求                                            |
+| ---------------- | --------------------------------------------------- |
+| Node             | 按 `.node-version`，当前为 24.15.0                  |
+| pnpm             | 9.0.0，见根 package.json                            |
+| Rust             | 按 rust-toolchain.toml，当前为 1.99.0；桌面开发需要 |
+| PocketBase       | 用仓库下载脚本获取固定版本、匹配当前平台的二进制    |
+| FFmpeg / FFprobe | 开发媒体功能及桌面运行时准备需要                    |
+| Docker Compose   | 容器开发、测试和部署需要                            |
 
 锁文件安装使用 `pnpm install --frozen-lockfile`。不要把 node_modules、构建产物、运行时资源、真实 .env 或本地数据库提交到仓库。
 
 ## 项目结构
 
-| 目录 | 职责 |
-| --- | --- |
-| apps/web | Next.js Web 应用、登录注册与工作空间入口 |
-| apps/desktop | Next.js 静态前端、Tauri 原生程序与运行时打包 |
-| apps/server | Node 服务入口、桌面本地运行模式 |
-| backend/domain | 领域模型 |
-| backend/application | 应用用例 |
-| backend/infrastructure | 数据库、存储等实现 |
-| backend/adapter-front、adapter-back、adapter-tauri | 边界适配 |
-| packages | 共享 UI、编辑器、图谱、数据视图、状态、接口与客户端 |
-| pb | 开发 PocketBase 与数据；迁移和 hooks 以启动脚本指定目录为准 |
-| deploy | Dockerfile、网关配置和部署环境模板 |
-| scripts/release | 版本、工作流检查、打包校验、候选和发行脚本 |
-| .github/workflows | CI、桌面、容器、候选与发行工作流 |
+| 目录                                               | 职责                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| apps/web                                           | Next.js Web 应用、登录注册与工作空间入口                    |
+| apps/desktop                                       | Next.js 静态前端、Tauri 原生程序与运行时打包                |
+| apps/server                                        | Node 服务入口、桌面本地运行模式                             |
+| backend/domain                                     | 领域模型                                                    |
+| backend/application                                | 应用用例                                                    |
+| backend/infrastructure                             | 数据库、存储等实现                                          |
+| backend/adapter-front、adapter-back、adapter-tauri | 边界适配                                                    |
+| packages                                           | 共享 UI、编辑器、图谱、数据视图、状态、接口与客户端         |
+| pb                                                 | 开发 PocketBase 与数据；迁移和 hooks 以启动脚本指定目录为准 |
+| deploy                                             | Dockerfile、网关配置和部署环境模板                          |
+| scripts/release                                    | 版本、工作流检查、打包校验、候选和发行脚本                  |
+| .github/workflows                                  | CI、桌面、容器、候选与发行工作流                            |
 
 改业务行为时先定位共享领域和应用层，再修改平台适配与 UI。避免将平台细节直接扩散到领域模型。
 
@@ -44,12 +44,12 @@ pnpm dev
 
 只有两个开发命令：`pnpm dev`（本机：PocketBase、Web、Server）和 `pnpm dev:remote`（远程域名：在上面三个之外再加 `scripts/dev-gateway.mjs` 网关）。两者都并行启动子进程，任一进程退出会停止整组。端口来自根 `.env`，shell 同名变量优先：
 
-| 服务 | 变量 | 默认 | 地址 |
-| --- | --- | --- | --- |
-| Web | `DBRAIN_WEB_PORT` | 3000 | http://localhost:3000 |
-| Server | `DBRAIN_SERVER_PORT` | 3001 | http://localhost:3001 |
-| PocketBase | `DBRAIN_PB_HTTP` | 127.0.0.1:8090 | http://127.0.0.1:8090 |
-| 网关（仅 `dev:remote`） | `DBRAIN_GATEWAY_PORT` | 8080 | https://p8080.<开发域名> |
+| 服务                    | 变量                  | 默认           | 地址                     |
+| ----------------------- | --------------------- | -------------- | ------------------------ |
+| Web                     | `DBRAIN_WEB_PORT`     | 3000           | <http://localhost:3000>    |
+| Server                  | `DBRAIN_SERVER_PORT`  | 3001           | <http://localhost:3001>    |
+| PocketBase              | `DBRAIN_PB_HTTP`      | 127.0.0.1:8090 | <http://127.0.0.1:8090>    |
+| 网关（仅 `dev:remote`） | `DBRAIN_GATEWAY_PORT` | 8080           | <https://p8080>.<开发域名> |
 
 两个服务占用同一个端口时启动直接报错，不会让 PocketBase 一直等。
 
@@ -65,13 +65,13 @@ pnpm dev
 
 网关用一个端口收下全部请求，按路径分流：
 
-| 路径 | 上游 |
-| --- | --- |
-| `/trpc` | Server（含 WebSocket 升级） |
-| `/pb/api/*` | 开发 PocketBase（注册、登录、附件） |
-| `/pb/upload/*` | Server（分块上传会话；分片在 Server 本机落盘，拼装后才写入 PocketBase） |
-| `/pb/*` | 404（不使用生产的文件网关） |
-| 其余，含 `/_next/webpack-hmr` | Next |
+| 路径                          | 上游                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `/trpc`                       | Server（含 WebSocket 升级）                                             |
+| `/pb/api/*`                   | 开发 PocketBase（注册、登录、附件）                                     |
+| `/pb/upload/*`                | Server（分块上传会话；分片在 Server 本机落盘，拼装后才写入 PocketBase） |
+| `/pb/*`                       | 404（不使用生产的文件网关）                                             |
+| 其余，含 `/_next/webpack-hmr` | Next                                                                    |
 
 它同时原样保留浏览器 Host：Server 用 Host 与浏览器 `Origin` 比较做同源判断（`apps/server/src/origin.ts`），改写成上游地址会让所有 API 调用 403。
 
@@ -87,11 +87,11 @@ pnpm dev
 
 原生构建必须在对应 OS / 架构准备运行时：
 
-| 平台 | 额外依赖 |
-| --- | --- |
-| Linux | WebKitGTK 4.1、GTK 3、OpenSSL、librsvg、C/C++ 工具链；AppImage 还需 patchelf 和 GStreamer 工具、base/good/libav 插件 |
-| Windows | Rust MSVC、Visual Studio C++ Build Tools、Windows SDK、WebView2 |
-| macOS | Xcode Command Line Tools、匹配架构的运行时和媒体依赖 |
+| 平台    | 额外依赖                                                                                                             |
+| ------- | -------------------------------------------------------------------------------------------------------------------- |
+| Linux   | WebKitGTK 4.1、GTK 3、OpenSSL、librsvg、C/C++ 工具链；AppImage 还需 patchelf 和 GStreamer 工具、base/good/libav 插件 |
+| Windows | Rust MSVC、Visual Studio C++ Build Tools、Windows SDK、WebView2                                                      |
+| macOS   | Xcode Command Line Tools、匹配架构的运行时和媒体依赖                                                                 |
 
 Ubuntu 可参考工作流安装依赖：
 
@@ -141,3 +141,4 @@ Cargo 检查前需准备 Tauri 配置要求的运行时及前端资源。Server 
 新增 JS 依赖时更新对应 workspace 和 pnpm-lock.yaml；新增 Rust 依赖同步 Cargo.lock。已发行迁移不直接修改，新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台的运行时、安装包和备份恢复。
 
 版本使用 `pnpm release:version VERSION` 同步，再运行 `pnpm release:check`。构建和发布入口见 [构建与发布](release-workflow.md)。远端 CI 已配置 Next.js、Rust 依赖与 Docker 层缓存；只缓存中间产物，不跳过检查。冷构建或缓存被淘汰时仍完整执行，命中和维护方法见该手册的构建缓存章节。
+

@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import PocketBase from "pocketbase";
 import { AppContainer, appRouter, createContext, createWSServer } from "@workspace/adapter-front";
-import { allowedFileRequest, allowedOrigin, rewriteLocalPlaylist, sessionPath } from "./security";
+import { allowedFileRequest, allowedOrigin, sessionPath } from "./security";
 import { handleUploadRequest, isUploadPath, startUploadSweeper } from "../upload/routes";
 
 const runtimeDir = dirname(fileURLToPath(import.meta.url));
@@ -165,24 +165,13 @@ async function main() {
     const headers = { ...req.headers, host: `127.0.0.1:${pbPort}`, authorization: pb.authStore.token, "x-dbrain-internal": databaseSecret };
     delete headers.origin;
     const upstream = httpRequest(new URL(path, pbUrl), { method: req.method, headers }, response => {
-      // Root-relative segment URLs otherwise escape /session/<secret> on playback.
-      if (path.split("?")[0]?.endsWith(".m3u8") && req.method === "GET" && response.statusCode === 200) {
-        const chunks: Buffer[] = [];
-        response.on("data", chunk => chunks.push(chunk));
-        response.on("end", () => {
-          const body = rewriteLocalPlaylist(Buffer.concat(chunks).toString("utf8"), secret);
-          res.writeHead(200, { "Content-Type": "application/vnd.apple.mpegurl", "Cache-Control": "no-store" });
-          res.end(body);
-        });
-      } else {
-        for (const key of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
-          const value = response.headers[key];
-          if (value !== undefined) res.setHeader(key, value);
-        }
-        res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
-        res.writeHead(response.statusCode ?? 502);
-        response.pipe(res);
+      for (const key of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
+        const value = response.headers[key];
+        if (value !== undefined) res.setHeader(key, value);
       }
+      res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
+      res.writeHead(response.statusCode ?? 502);
+      response.pipe(res);
       response.once("error", () => res.destroy());
     });
     upstream.once("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });

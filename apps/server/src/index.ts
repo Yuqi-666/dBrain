@@ -109,39 +109,19 @@ async function main() {
           (response) => {
             res.setHeader("Cache-Control", "private, no-store");
             res.setHeader("X-Content-Type-Options", "nosniff");
-            if (
-              path.split("?")[0]?.endsWith(".m3u8") &&
-              req.method === "GET" &&
-              response.statusCode === 200
-            ) {
-              const chunks: Buffer[] = [];
-              response.on("data", (chunk) => chunks.push(chunk));
-              response.on("end", () =>
-                res
-                  .writeHead(200, {
-                    "Content-Type": "application/vnd.apple.mpegurl",
-                  })
-                  .end(
-                    Buffer.concat(chunks)
-                      .toString("utf8")
-                      .replace(/^\/api\/files\//gm, "/pb/api/files/"),
-                  ),
-              );
-            } else {
-              for (const key of [
-                "content-type",
-                "content-length",
-                "content-range",
-                "accept-ranges",
-                "etag",
-                "last-modified",
-              ]) {
-                const value = response.headers[key];
-                if (value !== undefined) res.setHeader(key, value);
-              }
-              res.writeHead(response.statusCode ?? 502);
-              response.pipe(res);
+            for (const key of [
+              "content-type",
+              "content-length",
+              "content-range",
+              "accept-ranges",
+              "etag",
+              "last-modified",
+            ]) {
+              const value = response.headers[key];
+              if (value !== undefined) res.setHeader(key, value);
             }
+            res.writeHead(response.statusCode ?? 502);
+            response.pipe(res);
             response.once("error", () => res.destroy());
           },
         );
