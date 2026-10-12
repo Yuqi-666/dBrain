@@ -13,11 +13,25 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { CheckIcon, PaletteIcon, Grid3X3Icon, LayoutIcon } from "lucide-react";
+import {
+  CheckIcon,
+  PaletteIcon,
+  Grid3X3Icon,
+  LayoutIcon,
+  RadiusIcon,
+  SettingsIcon,
+} from "lucide-react";
 import type { VisualConfig, ViewType } from "@workspace/interfaces";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
-import { SettingsIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Slider } from "@workspace/ui/components/ui/slider";
+import {
+  DENSITY_SLIDER_STEPS,
+  NODE_DENSITY,
+  densityScaleLabel,
+  densityToPosition,
+  positionToDensity,
+} from "./node-density";
 
 const BACKGROUND_COLORS = [
   { label: "默认白", value: "#ffffff" },
@@ -51,6 +65,10 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
 
   const currentView = currentViewId ? views.get(currentViewId) : null;
   const visualConfig = currentView?.visualConfig || {};
+
+  /** 未设置时滑杆停在渲染器的默认密度上。 */
+  const nodeDensity = visualConfig.nodeDensity ?? NODE_DENSITY.default;
+  const densityPosition = densityToPosition(nodeDensity);
 
   const handleUpdateVisualConfig = (updates: Partial<VisualConfig>) => {
     if (!currentViewId) return;
@@ -125,6 +143,34 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
                 )}
               </DropdownMenuItem>
             ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <RadiusIcon className="size-4 mr-2" />
+            <span>节点密度</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            <div className="px-2 py-1.5" title="仅「力导向」布局生效">
+              <div className="mb-1 text-center text-xs text-muted-foreground">
+                {densityScaleLabel(nodeDensity)}
+              </div>
+              <Slider
+                aria-label="节点密度"
+                min={0}
+                max={DENSITY_SLIDER_STEPS}
+                step={1}
+                value={[densityPosition]}
+                onValueChange={([position]) => {
+                  if (position === undefined) return;
+                  handleUpdateVisualConfig({
+                    nodeDensity: positionToDensity(position),
+                  });
+                }}
+                className="min-h-7"
+              />
+            </div>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 

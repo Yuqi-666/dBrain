@@ -28,6 +28,7 @@ const updateSchema = z.object({
         gridColor: z.string().optional(),
         snapToGrid: z.boolean().optional(),
         showMinimap: z.boolean().optional(),
+        nodeDensity: z.number().positive().optional(),
       })
       .optional(),
     workspaceId: z.string().optional(),

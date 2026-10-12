@@ -7,6 +7,7 @@ export interface VisualConfigDTO {
   gridColor?: string;
   snapToGrid?: boolean;
   showMinimap?: boolean;
+  nodeDensity?: number;
 }
 
 export interface ViewDTO {

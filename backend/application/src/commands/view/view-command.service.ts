@@ -19,6 +19,7 @@ function toViewDTO(view: View): ViewDTO {
       gridColor: view.visualConfig.gridColor,
       snapToGrid: view.visualConfig.snapToGrid,
       showMinimap: view.visualConfig.showMinimap,
+      nodeDensity: view.visualConfig.nodeDensity,
     },
     filterConfig: {
       selectedNodes: view.filterConfig.selectedNodes?.map(nodeId => nodeId.value),

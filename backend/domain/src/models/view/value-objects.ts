@@ -101,6 +101,7 @@ interface VisualConfigProps {
   gridColor?: string;
   snapToGrid?: boolean;
   showMinimap?: boolean;
+  nodeDensity?: number;
 }
 
 export class VisualConfig {
@@ -110,6 +111,7 @@ export class VisualConfig {
   readonly gridColor?: string;
   readonly snapToGrid?: boolean;
   readonly showMinimap?: boolean;
+  readonly nodeDensity?: number;
 
   private constructor(props: VisualConfigProps) {
     this.backgroundColor = props.backgroundColor;
@@ -118,6 +120,7 @@ export class VisualConfig {
     this.gridColor = props.gridColor;
     this.snapToGrid = props.snapToGrid;
     this.showMinimap = props.showMinimap;
+    this.nodeDensity = props.nodeDensity;
   }
 
   /**
@@ -131,6 +134,9 @@ export class VisualConfig {
       gridColor: props?.gridColor ?? "#e5e7eb",
       snapToGrid: props?.snapToGrid ?? false,
       showMinimap: props?.showMinimap ?? false,
+      // Deliberately not defaulted: an absent density means "let the
+      // renderer decide", so the physics default lives in one place.
+      nodeDensity: props?.nodeDensity,
     });
   }
 
@@ -145,6 +151,7 @@ export class VisualConfig {
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -159,6 +166,7 @@ export class VisualConfig {
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -173,6 +181,7 @@ export class VisualConfig {
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -187,6 +196,7 @@ export class VisualConfig {
       gridColor: color,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -201,6 +211,7 @@ export class VisualConfig {
       gridColor: this.gridColor,
       snapToGrid: enabled,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -215,6 +226,7 @@ export class VisualConfig {
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: show,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -228,7 +240,8 @@ export class VisualConfig {
       this.gridSpacing === other.gridSpacing &&
       this.gridColor === other.gridColor &&
       this.snapToGrid === other.snapToGrid &&
-      this.showMinimap === other.showMinimap
+      this.showMinimap === other.showMinimap &&
+      this.nodeDensity === other.nodeDensity
     );
   }
 }

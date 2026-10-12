@@ -27,6 +27,7 @@ export interface UpdateViewCommand {
     gridColor?: string;
     snapToGrid?: boolean;
     showMinimap?: boolean;
+    nodeDensity?: number;
   };
   filterConfig?: {
     selectedNodes?: string[];
