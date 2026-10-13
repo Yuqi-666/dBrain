@@ -287,6 +287,7 @@ export function CalendarDataView({
       for (const cell of eventToCells(
         { rowId, start: arg.event.start, end: arg.event.end },
         writeConfig(),
+        latest.current.source.fields,
       )) {
         write(cell.rowId, cell.fieldId, cell.cell);
       }
@@ -317,7 +318,7 @@ export function CalendarDataView({
       // One day means "a click or a one-day drag", which is not a creation
       // gesture — 双击 (dateClick) covers the one-day case instead.
       const days = (arg.end.getTime() - arg.start.getTime()) / 86_400_000;
-      if (days <= 1) return;
+      if (arg.allDay && days <= 1) return;
       createRangeRecord({ start: arg.start, end: arg.end });
     },
     [createRangeRecord],

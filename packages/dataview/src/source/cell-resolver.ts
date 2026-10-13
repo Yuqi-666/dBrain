@@ -125,7 +125,18 @@ export function displayText(
     case "date": {
       const date = parseDate(cell.date);
       // Date-only in the editor; render in the viewer's locale.
-      return date ? date.toLocaleDateString(getLocale()) : "";
+      return date
+        ? field?.includeTime
+          ? date.toLocaleString(getLocale(), {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+          : date.toLocaleDateString(getLocale())
+        : "";
     }
     case "checkbox":
       return cell.checked ? "✓" : "";

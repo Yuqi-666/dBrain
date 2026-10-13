@@ -8,8 +8,7 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  *
  * Every DOM surface that edits a `date` cell uses this component, so a date is
  * always picked the same way (dataview/AGENTS.md § UI conventions). The value
- * is the domain's `YYYY-MM-DD` string — a *calendar day*, never an instant —
- * so the conversion uses the same helpers as the table's React calendar editor.
+ * is a calendar day or a local datetime with minute precision.
  */
 import { useState } from "react";
 import { CalendarDays, X } from "lucide-react";
@@ -22,11 +21,14 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/ui/popover";
 
-import { formatFieldDate, parseFieldDate, toISODate } from "./field-value";
+import { formatFieldDate, parseFieldDate, toFieldDate } from "./field-value";
+
+import { DateTimeInput } from "./date-time-input";
 
 export interface DatePickerProps {
-  /** `YYYY-MM-DD`, or `null` for "no date". */
+  /** Calendar day or ISO datetime; `null` means no date. */
   value: string | null;
+  includeTime?: boolean;
   onChange: (next: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -37,6 +39,7 @@ export interface DatePickerProps {
 
 export function DatePicker({
   value,
+  includeTime = false,
   onChange,
   placeholder = translate("选择日期"),
   disabled,
@@ -64,7 +67,7 @@ export function DatePicker({
           >
             <CalendarDays className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">
-              {selected ? formatFieldDate(value) : placeholder}
+              {selected ? formatFieldDate(value, includeTime) : placeholder}
             </span>
           </Button>
         </PopoverTrigger>
@@ -76,11 +79,23 @@ export function DatePicker({
             autoFocus
             onSelect={(date) => {
               if (date) {
-                onChange(toISODate(date));
-                setOpen(false);
+                date.setHours(
+                  selected?.getHours() ?? 0,
+                  selected?.getMinutes() ?? 0,
+                  0,
+                  0,
+                );
+                onChange(toFieldDate(date, includeTime));
+                if (!includeTime) setOpen(false);
               }
             }}
           />
+          {includeTime && (
+            <DateTimeInput
+              date={selected}
+              onChange={(date) => onChange(toFieldDate(date, true))}
+            />
+          )}
         </PopoverContent>
       </Popover>
       {clearable && selected && !disabled && (

@@ -8,20 +8,14 @@ import { translate } from "@workspace/ui/lib/i18n/runtime";
  * mapping rules stay reviewable independently of the FullCalendar instance the
  * shell drives.
  *
- * Two rules carry the whole view:
- *
- * 1. **A `date` cell is a calendar day, not an instant** (calendar.md §9), so
- *    every event is `allDay` and every conversion goes through
- *    {@link toISODate}/{@link parseISODate}, which work in local components.
- * 2. **FullCalendar's `end` is exclusive while a date cell's end is "the last
- *    day"**, so the ±1 day conversion happens here and nowhere else — a
- *    `eventResize` that is off by one day is invisible in the UI and wrong in
- *    the database, and this is the only place that can get it wrong.
+ * Date-only fields create all-day events with inclusive stored end dates.
+ * Fields with time create timed events with exact start and end boundaries.
  */
 import type { EventApi, EventInput } from "@fullcalendar/core";
 import type {
   CalendarViewConfig,
   DatabaseCell,
+  DatabaseField,
   DataRow,
   DataViewSource,
   NodeId,
@@ -101,8 +95,15 @@ export function addDays(date: Date, amount: number): Date {
 }
 
 /** The cell a date writes into a `date` field. `null` clears it. */
-export function dateCell(date: Date | null): DatabaseCell {
-  return { type: "date", date: date ? toISODate(date) : null };
+function toDateValue(date: Date, includeTime: boolean): string {
+  const day = toISODate(date);
+  return includeTime
+    ? `${day}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+    : day;
+}
+
+export function dateCell(date: Date | null, includeTime = false): DatabaseCell {
+  return { type: "date", date: date ? toDateValue(date, includeTime) : null };
 }
 
 // —— rows → events ——————————————————————————————————————————————————————
@@ -155,10 +156,13 @@ export function rowsToEvents(
           titleField ?? undefined,
           resolveNodeTitle,
         ) || translate(CALENDAR_UNTITLED),
-      start: toISODate(start),
-      // Exclusive: the day after the last day the range covers.
-      end: end ? toISODate(addDays(end, 1)) : undefined,
-      allDay: true,
+      start: toDateValue(start, startField.includeTime ?? false),
+      end: end
+        ? endField?.includeTime
+          ? toDateValue(end, true)
+          : toISODate(addDays(end, 1))
+        : undefined,
+      allDay: !startField.includeTime,
       backgroundColor: color ?? undefined,
       borderColor: color ?? undefined,
       // The themed event text only fits the *untinted* default fill; an option
@@ -217,15 +221,22 @@ export interface CalendarEventReadout {
 }
 
 /** A localised day label; falls back to ISO when the locale is unusable. */
-function formatDay(date: Date, locale: string): string {
+function formatDay(date: Date, locale: string, includeTime = false): string {
   try {
     return new Intl.DateTimeFormat(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
+      ...(includeTime
+        ? {
+            hour: "2-digit" as const,
+            minute: "2-digit" as const,
+            hour12: false,
+          }
+        : {}),
     }).format(date);
   } catch {
-    return toISODate(date);
+    return toDateValue(date, includeTime);
   }
 }
 
@@ -242,13 +253,23 @@ export function readEventReadout(
 ): CalendarEventReadout {
   const record = readEventRecord(event);
   const start = event.start;
-  const lastDay = event.end ? addDays(event.end, -1) : null;
-  const sameDay = !start || !lastDay || toISODate(start) === toISODate(lastDay);
+  const includeTime = !event.allDay;
+  const lastDay = event.end
+    ? event.allDay
+      ? addDays(event.end, -1)
+      : event.end
+    : null;
+  const sameDay =
+    !start ||
+    !lastDay ||
+    (event.allDay
+      ? toISODate(start) === toISODate(lastDay)
+      : start.getTime() === lastDay.getTime());
 
   const dateText = start
     ? sameDay || !lastDay
-      ? formatDay(start, locale)
-      : `${formatDay(start, locale)} → ${formatDay(lastDay, locale)}`
+      ? formatDay(start, locale, includeTime)
+      : `${formatDay(start, locale, includeTime)} → ${formatDay(lastDay, locale, includeTime)}`
     : "";
 
   return {
@@ -279,22 +300,34 @@ export interface CalendarCellWrite {
 export function rangeToCells(
   range: { start: Date | null; end: Date | null },
   config: Pick<CalendarViewConfig, "startField" | "endField">,
+  fields: readonly DatabaseField[] = [],
 ): Array<{ fieldId: string; cell: DatabaseCell }> {
   const writes: Array<{ fieldId: string; cell: DatabaseCell }> = [];
+  const startWithTime =
+    fields.find((field) => field.id === config.startField)?.includeTime ??
+    false;
+  const endWithTime =
+    fields.find((field) => field.id === config.endField)?.includeTime ?? false;
   if (config.startField && range.start) {
     writes.push({
       fieldId: config.startField,
-      cell: dateCell(range.start),
+      cell: dateCell(range.start, startWithTime),
     });
   }
 
   if (config.endField) {
-    const lastDay = range.end ? addDays(range.end, -1) : null;
+    const lastDay = range.end
+      ? endWithTime
+        ? range.end
+        : addDays(range.end, -1)
+      : null;
     const singleDay =
       !lastDay || !range.start || toISODate(lastDay) === toISODate(range.start);
     writes.push({
       fieldId: config.endField,
-      cell: dateCell(singleDay ? null : lastDay),
+      cell: endWithTime
+        ? dateCell(range.end, true)
+        : dateCell(singleDay ? null : lastDay),
     });
   }
 
@@ -305,8 +338,9 @@ export function rangeToCells(
 export function eventToCells(
   event: { rowId: string; start: Date | null; end: Date | null },
   config: Pick<CalendarViewConfig, "startField" | "endField">,
+  fields: readonly DatabaseField[] = [],
 ): CalendarCellWrite[] {
-  return rangeToCells(event, config).map(({ fieldId, cell }) => ({
+  return rangeToCells(event, config, fields).map(({ fieldId, cell }) => ({
     rowId: event.rowId,
     fieldId,
     cell,
@@ -325,7 +359,7 @@ export function selectionToRow(
   config: Pick<CalendarViewConfig, "startField" | "endField">,
 ): DataRow {
   const row = createEmptyDataRow(fields);
-  for (const { fieldId, cell } of rangeToCells(range, config)) {
+  for (const { fieldId, cell } of rangeToCells(range, config, fields)) {
     row.cells[fieldId] = cell;
   }
   return row;

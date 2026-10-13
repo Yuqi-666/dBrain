@@ -9,7 +9,7 @@ import {
 
 export function useViewColors(config?: VisualConfig) {
   const { resolvedTheme } = useTheme();
-  const theme =
+  const theme: "light" | "dark" | undefined =
     resolvedTheme === "light" || resolvedTheme === "dark"
       ? resolvedTheme
       : undefined;
@@ -17,5 +17,5 @@ export function useViewColors(config?: VisualConfig) {
     ...resolveViewColors(config, theme),
     theme,
     colorsSyncTheme: isViewColorSyncEnabled(config),
-  };
+  } as const;
 }

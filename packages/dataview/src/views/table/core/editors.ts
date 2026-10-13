@@ -19,7 +19,7 @@ export function createTableEditor(
     case "url":
       return new TableInputEditor();
     case "date":
-      return new TableDateEditor();
+      return new TableDateEditor(field.includeTime);
     case "select":
     case "multiSelect":
     case "checkbox":

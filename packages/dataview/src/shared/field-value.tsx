@@ -58,10 +58,22 @@ export function toISODate(date: Date): string {
 }
 
 /** The locale text a `date` cell shows in a read-only surface. */
-export function formatFieldDate(value: string | null | undefined): string {
+export function formatFieldDate(
+  value: string | null | undefined,
+  includeTime = false,
+): string {
   const date = parseFieldDate(value);
   if (!date) return "";
-  return date.toLocaleDateString(getLocale());
+  return includeTime
+    ? date.toLocaleString(getLocale(), {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : date.toLocaleDateString(getLocale());
 }
 
 /**
@@ -256,7 +268,10 @@ export function FieldValue({
         <>{emptyFallback ?? <EmptyValue />}</>
       );
     case "date": {
-      const text = cell.type === "date" ? formatFieldDate(cell.date) : "";
+      const text =
+        cell.type === "date"
+          ? formatFieldDate(cell.date, field.includeTime)
+          : "";
       return text ? (
         <span className={cn("tabular-nums", className)}>{text}</span>
       ) : (
@@ -310,4 +325,11 @@ export function FieldValue({
       );
     }
   }
+}
+
+/** Local calendar date and time, without an implicit UTC conversion. */
+export function toFieldDate(date: Date, includeTime: boolean): string {
+  const day = toISODate(date);
+  if (!includeTime) return day;
+  return `${day}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }

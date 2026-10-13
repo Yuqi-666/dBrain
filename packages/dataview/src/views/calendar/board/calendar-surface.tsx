@@ -255,7 +255,10 @@ export const CalendarSurface = memo(function CalendarSurface({
         buttonText={buttonTextFor(locale)}
         firstDay={firstDay}
         timeZone="local"
+        eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
+        slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
         editable={editable}
+        eventResizableFromStart
         selectable={selectable}
         selectMirror
         // The rest is presentation and fixed (see `CALENDAR_FIXED`): weekend

@@ -573,6 +573,7 @@ export function TableDataView({
   const appliedSortRef = useRef<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [tableContentHeight, setTableContentHeight] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchMatch, setSearchMatch] = useState({ count: 0, index: -1 });
   /**
@@ -1569,6 +1570,7 @@ export function TableDataView({
       // 自动排序 off: keep VTable's own sort state instead of re-stamping ours.
       sortState: autoSort ? sortStateRef.current : undefined,
     });
+    setTableContentHeight(table.getAllRowsHeight());
   }, [filteredRecords, structureKey]);
 
   // —— sort ——
@@ -1711,6 +1713,8 @@ export function TableDataView({
   const fieldCount = source.fields.length;
   const noFields = fieldCount === 0;
   const noVisibleColumns = !noFields && columns.length === 0;
+  const canInsertRow = !readOnly && Boolean(onRowInsert) && fieldCount > 0;
+  const addRowHeight = TABLE_DENSITY_ROW_HEIGHT[config.density];
 
   return (
     /**
@@ -1741,9 +1745,7 @@ export function TableDataView({
         onFiltersChange={handleFiltersChange}
         visibleRowCount={filteredRecords.length}
         totalRowCount={records.length}
-        canInsertRow={
-          !readOnly && config.editable && Boolean(onRowInsert) && fieldCount > 0
-        }
+        canInsertRow={canInsertRow}
         onInsertRow={handleInsertRow}
         onExport={(format) => {
           void handleExport(format);
@@ -1814,11 +1816,34 @@ export function TableDataView({
          * are confined to the same box by VTable itself (`confine: true`), and
          * every menu the view owns is a Radix portal on `document.body`.
          */
-        <div
-          ref={containerRef}
-          data-dataview-table-canvas
-          className="min-h-0 w-full flex-1 overflow-hidden"
-        />
+        <>
+          <div
+            ref={containerRef}
+            data-dataview-table-canvas
+            className="min-h-0 w-full shrink overflow-hidden"
+            style={{
+              height: tableContentHeight ?? "100%",
+              maxHeight: canInsertRow ? `calc(100% - ${addRowHeight}px)` : "100%",
+            }}
+          />
+          {canInsertRow && (
+            <div
+              data-dataview-table-add-row
+              className="flex w-full shrink-0 items-center border-t bg-background"
+              style={{ height: addRowHeight }}
+            >
+              <button
+                type="button"
+                aria-label={t("添加记录")}
+                title={t("添加记录")}
+                className="flex h-full w-11 items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+                onClick={handleInsertRow}
+              >
+                <span className="text-[13px] leading-none">+</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/**

@@ -79,8 +79,6 @@ const FIELD_TYPES: DatabaseFieldType[] = [
 
 /** Radix `Select` rejects an empty item value, so "not set" needs a sentinel. */
 const NONE = "__none__";
-const ISO_8601_DATE =
-  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{2,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
 interface DraftOption {
   id: string;
@@ -96,6 +94,7 @@ interface Draft {
   defaultText: string;
   defaultOptionIds: string[];
   defaultChecked: boolean;
+  includeTime: boolean;
 }
 
 function draftFromField(field: DatabaseField | undefined): Draft {
@@ -107,6 +106,7 @@ function draftFromField(field: DatabaseField | undefined): Draft {
       defaultText: "",
       defaultOptionIds: [],
       defaultChecked: false,
+      includeTime: false,
     };
   }
   return {
@@ -120,6 +120,7 @@ function draftFromField(field: DatabaseField | undefined): Draft {
     defaultText: "",
     defaultOptionIds: [],
     defaultChecked: false,
+    includeTime: field.includeTime ?? false,
   };
 }
 
@@ -148,9 +149,7 @@ function buildDefaultCell(
         ? { type: "multiSelect", optionIds: [...draft.defaultOptionIds] }
         : undefined;
     case "date":
-      return text && ISO_8601_DATE.test(text) && !Number.isNaN(Date.parse(text))
-        ? { type: "date", date: text.slice(0, 10) }
-        : undefined;
+      return undefined;
     case "checkbox":
       // `false` is indistinguishable from "no default", so only `true` seeds.
       return draft.defaultChecked
@@ -341,6 +340,7 @@ export function FieldEditor({
         name,
         type: draft.type,
         ...(options ? { options } : {}),
+        ...(draft.type === "date" ? { includeTime: draft.includeTime } : {}),
       },
       seed: buildDefaultCell(draft.type, draft),
     });
@@ -513,9 +513,28 @@ export function FieldEditor({
             htmlFor="dv-field-default"
             className="text-[11px] text-muted-foreground"
           >
-            {t("默认值")}{" "}
+            {draft.type === "date" ? t("时间格式") : t("默认值")}
           </Label>
-          {draft.type === "checkbox" ? (
+          {draft.type === "date" ? (
+            <Select
+              value={draft.includeTime ? "time" : "date"}
+              onValueChange={(value) =>
+                patch({ includeTime: value === "time" })
+              }
+            >
+              <SelectTrigger
+                size="sm"
+                aria-label={t("时间格式")}
+                className="h-8 w-full text-xs"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">{t("不带分时")}</SelectItem>
+                <SelectItem value="time">{t("带分时")}</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : draft.type === "checkbox" ? (
             <div className="flex h-8 items-center">
               <Switch
                 id="dv-field-default"
@@ -598,14 +617,8 @@ export function FieldEditor({
             <Input
               id="dv-field-default"
               value={draft.defaultText}
-              type={
-                draft.type === "number"
-                  ? "number"
-                  : draft.type === "date"
-                    ? "date"
-                    : "text"
-              }
-              placeholder={draft.type === "date" ? "" : t("留空表示不设置")}
+              type={draft.type === "number" ? "number" : "text"}
+              placeholder={t("留空表示不设置")}
               className="h-8 text-xs md:text-xs"
               onChange={(event) => patch({ defaultText: event.target.value })}
             />

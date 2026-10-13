@@ -215,7 +215,9 @@ export function cellToRecordValue(
     case "multiSelect":
       return cellToOptionNames(cell, field).join(", ");
     case "date":
-      return cellToDateInputValue(cell);
+      return field.includeTime && cell?.type === "date"
+        ? (cell.date ?? "")
+        : cellToDateInputValue(cell);
     case "checkbox":
       return cell?.type === "checkbox" ? cell.checked : false;
     case "url":
@@ -348,7 +350,10 @@ export function recordValueToCell(
       if (!ISO_8601_DATE.test(text) || Number.isNaN(Date.parse(text))) {
         return null;
       }
-      return { type: "date", date: text.slice(0, 10) };
+      return {
+        type: "date",
+        date: field.includeTime ? text : text.slice(0, 10),
+      };
     }
     case "checkbox":
       return { type: "checkbox", checked: Boolean(value) };
@@ -611,6 +616,12 @@ export function buildTableColumns({
               const value = record?.[field.id];
               if (value === "" || value === null || value === undefined) {
                 return cellEmptyText;
+              }
+              if (field.type === "date" && field.includeTime) {
+                return displayText(
+                  { type: "date", date: String(value) },
+                  field,
+                );
               }
               return value as string | number;
             },

@@ -90,6 +90,7 @@ export function FieldInput({
       const value = cell?.type === "date" ? (cell.date ?? null) : null;
       return (
         <DatePicker
+          includeTime={field.includeTime}
           value={value}
           className={className}
           onChange={(next) => onChange({ type: "date", date: next })}

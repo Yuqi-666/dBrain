@@ -177,6 +177,7 @@ export function toNodeDTO(node: Node): NodeDTO {
             id: field.id,
             name: field.name,
             type: field.type,
+            includeTime: field.includeTime,
             options: field.options?.map((option) => ({
               id: option.id,
               name: option.name,

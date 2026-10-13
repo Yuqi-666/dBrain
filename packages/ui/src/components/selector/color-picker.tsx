@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, Check } from "lucide-react";
+import { Ban } from "lucide-react";
 import { useI18n } from "@workspace/ui/lib/i18n";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";

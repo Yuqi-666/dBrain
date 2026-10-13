@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { DateTimeInput } from "../../../shared/date-time-input";
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
@@ -19,7 +21,11 @@ import {
 } from "@workspace/ui/components/ui/popover";
 import { useI18n } from "@workspace/ui/lib/i18n";
 import { CalendarDays } from "lucide-react";
-import { parseFieldDate, toISODate } from "../../../shared/field-value";
+import {
+  parseFieldDate,
+  toFieldDate,
+  formatFieldDate,
+} from "../../../shared/field-value";
 
 /** Keep VTable's text entry lifecycle, but render the shared input skin. */
 export class TableInputEditor extends InputEditor {
@@ -77,6 +83,8 @@ export class TableInputEditor extends InputEditor {
 
 /** A canvas cell anchors a React popover; portal clicks remain inside the editor. */
 export class TableDateEditor implements IEditor<string> {
+  constructor(private readonly includeTime = false) {}
+
   private root?: Root;
   private host?: HTMLDivElement;
   private content: HTMLDivElement | null = null;
@@ -94,7 +102,8 @@ export class TableDateEditor implements IEditor<string> {
     row,
   }: EditContext<string, ListTable>) {
     this.onEnd();
-    this.value = this.initialValue = value ?? "";
+    const rawValue = table.getCellRawValue(col, row);
+    this.value = this.initialValue = String(rawValue ?? value ?? "");
     this.endEdit = endEdit;
     this.host = document.createElement("div");
     this.host.className = "absolute z-10";
@@ -108,13 +117,14 @@ export class TableDateEditor implements IEditor<string> {
           portalContainer={container.closest<HTMLElement>(
             '[data-slot="dialog-content"]',
           )}
+          includeTime={this.includeTime}
           value={this.value}
           contentRef={(element) => {
             this.content = element;
           }}
           onChange={(next) => {
             this.value = next;
-            this.finish();
+            if (!this.includeTime || !next) this.finish();
           }}
           onClose={() => this.finish()}
           onCancel={() => {
@@ -165,6 +175,7 @@ export class TableDateEditor implements IEditor<string> {
 }
 
 function DateEditorContent({
+  includeTime,
   portalContainer,
   value,
   contentRef,
@@ -172,6 +183,7 @@ function DateEditorContent({
   onClose,
   onCancel,
 }: {
+  includeTime: boolean;
   portalContainer: HTMLElement | null;
   value: string;
   contentRef: (element: HTMLDivElement | null) => void;
@@ -180,7 +192,12 @@ function DateEditorContent({
   onCancel: () => void;
 }) {
   const { t } = useI18n();
-  const selected = parseFieldDate(value);
+  const [draft, setDraft] = useState(value);
+  const selected = parseFieldDate(draft);
+  const change = (next: string) => {
+    setDraft(next);
+    onChange(next);
+  };
   return (
     <Popover
       defaultOpen
@@ -200,7 +217,7 @@ function DateEditorContent({
           }}
         >
           <CalendarDays className="size-3.5 text-muted-foreground" />
-          {value || t("选择日期")}
+          {formatFieldDate(draft, includeTime) || t("选择日期")}
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -217,10 +234,29 @@ function DateEditorContent({
           selected={selected ?? undefined}
           defaultMonth={selected ?? undefined}
           onSelect={(date) => {
-            if (date) onChange(toISODate(date));
+            if (date) {
+              date.setHours(
+                selected?.getHours() ?? 0,
+                selected?.getMinutes() ?? 0,
+                0,
+                0,
+              );
+              change(toFieldDate(date, includeTime));
+            }
           }}
         />
+        {includeTime && (
+          <DateTimeInput
+            date={selected}
+            onChange={(date) => change(toFieldDate(date, true))}
+          />
+        )}
         <div className="flex justify-end border-t p-2">
+          {includeTime && (
+            <Button type="button" size="sm" onClick={onClose}>
+              {t("确定")}
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"

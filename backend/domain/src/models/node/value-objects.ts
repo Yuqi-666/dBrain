@@ -776,6 +776,7 @@ export class DatabaseField {
     name: string,
     type: DatabaseFieldType,
     options?: DatabaseFieldOption[],
+    readonly includeTime: boolean = false,
   ) {
     if (!id || id.trim().length === 0) {
       throw new Error("DatabaseField id cannot be empty");
@@ -838,11 +839,18 @@ export class DatabaseField {
       name,
       this._type,
       this._options ? [...this._options] : undefined,
+      this.includeTime,
     );
   }
 
   withOptions(options: DatabaseFieldOption[]): DatabaseField {
-    return new DatabaseField(this._id, this._name, this._type, options);
+    return new DatabaseField(
+      this._id,
+      this._name,
+      this._type,
+      options,
+      this.includeTime,
+    );
   }
 
   /**
@@ -861,7 +869,8 @@ export class DatabaseField {
     if (
       this._id !== other._id ||
       this._name !== other._name ||
-      this._type !== other._type
+      this._type !== other._type ||
+      this.includeTime !== other.includeTime
     ) {
       return false;
     }
@@ -1031,6 +1040,7 @@ export class DatabaseContent {
             (option) =>
               new DatabaseFieldOption(option.id, option.name, option.color),
           ),
+          field.includeTime,
         ),
     );
     const rows = (raw.rows ?? []).map(
