@@ -9,6 +9,7 @@ import { ViewService } from "@workspace/services";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -29,6 +30,12 @@ import type { VisualConfig, ViewType } from "@workspace/interfaces";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Slider } from "@workspace/ui/components/ui/slider";
+import { useViewColors } from "@workspace/ui/hooks/use-view-colors";
+import {
+  resolveThemeColor,
+  resolveGridThemeColor,
+} from "@workspace/ui/lib/color-palette";
+import { cn } from "@workspace/ui/lib/utils";
 import {
   DENSITY_SLIDER_STEPS,
   NODE_DENSITY,
@@ -88,6 +95,8 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
 
   const currentView = currentViewId ? views.get(currentViewId) : null;
   const visualConfig = currentView?.visualConfig || {};
+  const { backgroundColor, gridColor, theme, colorsSyncTheme } =
+    useViewColors(visualConfig);
 
   /** 未设置时滑杆停在渲染器的默认密度上。 */
   const nodeDensity = visualConfig.nodeDensity ?? NODE_DENSITY.default;
@@ -109,6 +118,18 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
     void ViewService.upsert(currentViewId, { viewType }, { debounce: true });
   };
 
+  const handleThemeSyncChange = (checked: boolean) => {
+    handleUpdateVisualConfig({
+      colorsSyncTheme: checked,
+      backgroundColor:
+        checked && theme
+          ? resolveThemeColor(backgroundColor, theme)
+          : backgroundColor,
+      gridColor:
+        checked && theme ? resolveGridThemeColor(gridColor, theme) : gridColor,
+    });
+  };
+
   return (
     <DropdownMenu dir="rtl">
       <DropdownMenuTrigger asChild>
@@ -125,23 +146,41 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <PaletteIcon className="size-4 mr-2" />
-            <span>{t("背景颜色")}</span>
-            <span
-              aria-hidden
-              className="ml-auto size-4 rounded-sm border border-foreground/10"
-              style={{ background: visualConfig.backgroundColor ?? "#ffffff" }}
-            />
+            <span>{t("背景样式")}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent
-            style={{ direction: "ltr" }}
-            className="w-72 rounded-xl p-0"
-          >
-            <ColorPicker
-              value={visualConfig.backgroundColor ?? "#ffffff"}
-              onChange={(backgroundColor) =>
-                handleUpdateVisualConfig({ backgroundColor })
-              }
-              aria-label={t("背景颜色")}
+          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-48">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <span>{t("背景颜色")}</span>
+                <span
+                  aria-hidden
+                  className="ml-auto size-4 rounded-sm border border-foreground/10"
+                  style={{ background: backgroundColor }}
+                />
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent
+                style={{ direction: "ltr" }}
+                className="w-72 rounded-xl p-0"
+              >
+                <ColorPicker
+                  value={backgroundColor}
+                  onChange={(color) =>
+                    handleUpdateVisualConfig({
+                      backgroundColor:
+                        theme && colorsSyncTheme
+                          ? resolveThemeColor(color, theme)
+                          : color,
+                    })
+                  }
+                  aria-label={t("背景颜色")}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <ThemeSyncItem
+              label={`${t("背景颜色")}：${t("与主题同步")}`}
+              checked={colorsSyncTheme}
+              onCheckedChange={handleThemeSyncChange}
             />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
@@ -151,7 +190,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
             <Grid3X3Icon className="size-4 mr-2" />
             <span>{t("网格样式")}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-36">
+          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-48">
             {GRID_STYLES.map((style) => (
               <DropdownMenuItem
                 key={style.value}
@@ -175,7 +214,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
                 <span
                   aria-hidden
                   className="ml-auto size-4 rounded-sm border border-foreground/10"
-                  style={{ background: visualConfig.gridColor ?? "#e5e7eb" }}
+                  style={{ background: gridColor }}
                 />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent
@@ -183,18 +222,34 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
                 className="w-72 rounded-xl p-0"
               >
                 <ColorPicker
-                  value={visualConfig.gridColor ?? "#e5e7eb"}
-                  onChange={(gridColor) =>
-                    handleUpdateVisualConfig({ gridColor })
+                  value={gridColor}
+                  onChange={(color) =>
+                    handleUpdateVisualConfig({
+                      gridColor:
+                        theme && colorsSyncTheme
+                          ? resolveGridThemeColor(color, theme)
+                          : color,
+                    })
                   }
                   onClear={() =>
-                    handleUpdateVisualConfig({ gridColor: "#e5e7eb" })
+                    handleUpdateVisualConfig({
+                      gridColor:
+                        theme && colorsSyncTheme
+                          ? resolveGridThemeColor("#e5e7eb", theme)
+                          : "#e5e7eb",
+                    })
                   }
                   clearLabel={t("默认颜色")}
                   aria-label={t("网格颜色")}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <ThemeSyncItem
+              label={`${t("网格颜色")}：${t("与主题同步")}`}
+              checked={colorsSyncTheme}
+              onCheckedChange={handleThemeSyncChange}
+            />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
@@ -247,6 +302,43 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
         </DropdownMenuSub>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ThemeSyncItem({
+  checked,
+  onCheckedChange,
+  label,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  label: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <DropdownMenuCheckboxItem
+      aria-label={label}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      onSelect={(event) => event.preventDefault()}
+      className="pl-2 [&>span:first-child]:hidden"
+    >
+      {t("与主题同步")}
+      <span
+        aria-hidden
+        className={cn(
+          "ml-auto inline-flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
+          checked ? "bg-primary" : "bg-input",
+        )}
+      >
+        <span
+          className={cn(
+            "size-3 rounded-full bg-background transition-transform",
+            checked && "translate-x-3 dark:bg-primary-foreground",
+          )}
+        />
+      </span>
+    </DropdownMenuCheckboxItem>
   );
 }
 

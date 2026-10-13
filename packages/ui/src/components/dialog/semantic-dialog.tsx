@@ -1,5 +1,7 @@
 "use client";
 import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+import { IconSelectorPopover } from "@workspace/ui/components/selector/icon-selector-popover";
+import { IconView } from "@workspace/ui/components/icon/icon-view";
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
@@ -17,6 +19,14 @@ import {
 } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
+import { Textarea } from "@workspace/ui/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
 import { Label } from "@workspace/ui/components/ui/label";
 import type {
   NodeSemantic,
@@ -25,7 +35,7 @@ import type {
   EdgeSemanticId,
   EdgeType,
 } from "@workspace/interfaces";
-import { Trash2Icon, PlusIcon } from "lucide-react";
+import { Trash2Icon, PlusIcon, SmilePlus } from "lucide-react";
 
 export interface NodeSemanticFormData {
   name: string;
@@ -35,7 +45,7 @@ export interface NodeSemanticFormData {
 }
 
 /**
- * 节点语义表单值 → 落库载荷：裁剪空白，空串统一收敛为 `undefined`。
+ * 节点语义表单值 → 落库载荷：裁剪空白；图标用空串明确清除旧值。
  * 语义对话框与「Add Node」表单共用，保证两个入口创建出的语义完全一致。
  */
 export function buildNodeSemanticPayload(formData: NodeSemanticFormData) {
@@ -43,7 +53,7 @@ export function buildNodeSemanticPayload(formData: NodeSemanticFormData) {
     name: formData.name.trim(),
     description: formData.description?.trim() || undefined,
     color: formData.color || undefined,
-    icon: formData.icon?.trim() || undefined,
+    icon: formData.icon?.trim() || "",
   };
 }
 
@@ -160,7 +170,7 @@ export function NodeSemanticDialogContent({
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
               description: (
-                form.elements.namedItem("description") as HTMLInputElement
+                form.elements.namedItem("description") as HTMLTextAreaElement
               ).value,
               color: (form.elements.namedItem("color") as HTMLInputElement)
                 .value,
@@ -183,7 +193,7 @@ export function NodeSemanticDialogContent({
 
             <div className="grid gap-2">
               <Label htmlFor="node-description">{t("Description")}</Label>
-              <Input
+              <Textarea
                 id="node-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
@@ -201,12 +211,10 @@ export function NodeSemanticDialogContent({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-icon">{t("Icon (Lucide icon name)")}</Label>
-              <Input
-                id="node-icon"
-                name="icon"
+              <Label htmlFor="node-icon">{t("图标")}</Label>
+              <SemanticIconField
+                key={editingSemantic?.id ?? "new"}
                 defaultValue={editingSemantic?.icon ?? ""}
-                placeholder={t("e.g., Lightbulb, User, Calendar")}
               />
             </div>
           </div>
@@ -284,6 +292,7 @@ export function EdgeSemanticDialog() {
       category: EdgeType;
       description?: string;
       color?: string;
+      icon?: string;
     }) => {
       if (!formData.name.trim()) return;
 
@@ -293,6 +302,7 @@ export function EdgeSemanticDialog() {
           description: formData.description?.trim() || undefined,
           category: formData.category,
           color: formData.color || undefined,
+          icon: formData.icon?.trim() || "",
         };
 
         if (editingSemantic) {
@@ -343,6 +353,7 @@ interface EdgeSemanticDialogContentProps {
     category: EdgeType;
     description?: string;
     color?: string;
+    icon?: string;
   }) => void;
   onDelete?: () => void;
 }
@@ -372,10 +383,11 @@ export function EdgeSemanticDialogContent({
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
               category: (
-                form.elements.namedItem("category") as HTMLSelectElement
+                form.elements.namedItem("category") as HTMLInputElement
               ).value as EdgeType,
+              icon: (form.elements.namedItem("icon") as HTMLInputElement).value,
               description: (
-                form.elements.namedItem("description") as HTMLInputElement
+                form.elements.namedItem("description") as HTMLTextAreaElement
               ).value,
               color: (form.elements.namedItem("color") as HTMLInputElement)
                 .value,
@@ -397,23 +409,26 @@ export function EdgeSemanticDialogContent({
 
             <div className="grid gap-2">
               <Label htmlFor="edge-category">{t("Category")}</Label>
-              <select
-                id="edge-category"
+              <Select
                 name="category"
                 defaultValue={editingSemantic?.category ?? "association"}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                {EDGE_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="edge-category" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {EDGE_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="edge-description">{t("Description")}</Label>
-              <Input
+              <Textarea
                 id="edge-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
@@ -427,6 +442,14 @@ export function EdgeSemanticDialogContent({
                 key={editingSemantic?.id ?? "new"}
                 defaultValue={editingSemantic?.color ?? "#6366f1"}
                 aria-label={t("Color")}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edge-icon">{t("图标")}</Label>
+              <SemanticIconField
+                key={editingSemantic?.id ?? "new"}
+                id="edge-icon"
+                defaultValue={editingSemantic?.icon ?? ""}
               />
             </div>
           </div>
@@ -598,6 +621,46 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Select a Lucide icon and include its name in the semantic form submission. */
+function SemanticIconField({
+  defaultValue,
+  id = "node-icon",
+}: {
+  defaultValue: string;
+  id?: string;
+}) {
+  const { t } = useI18n();
+  const [icon, setIcon] = useState(defaultValue);
+  const value = icon ? { kind: "icon" as const, value: icon } : undefined;
+
+  return (
+    <>
+      <input type="hidden" name="icon" value={icon} />
+      <IconSelectorPopover
+        allowedKinds={["icon"]}
+        showColorPicker={false}
+        value={value}
+        onChange={(next) => setIcon(next?.value ?? "")}
+      >
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          className="w-full justify-start"
+          aria-label={t("设置图标")}
+        >
+          <IconView
+            icon={value}
+            className="size-4"
+            fallback={<SmilePlus className="size-4" />}
+          />
+          {icon || t("设置图标")}
+        </Button>
+      </IconSelectorPopover>
+    </>
   );
 }
 

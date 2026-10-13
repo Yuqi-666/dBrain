@@ -158,8 +158,7 @@ export function defaultCellTypeForField(field: DatabaseField): string {
 /**
  * The date shown and edited in a date cell.
  *
- * Only the calendar day is meaningful to the editor (`<input type="date">`
- * speaks `YYYY-MM-DD`), and slicing the ISO string keeps the day from shifting
+ * The calendar editor uses `YYYY-MM-DD`; slicing the ISO string keeps the day from shifting
  * with the viewer's timezone.
  */
 export function cellToDateInputValue(cell: DatabaseCell | undefined): string {

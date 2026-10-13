@@ -6,6 +6,7 @@ export interface CreateViewCommand {
   viewType: string;
   visualConfig?: {
     backgroundColor?: string;
+    colorsSyncTheme?: boolean;
     showLabels?: boolean;
     labelField?: string;
   };
@@ -22,6 +23,7 @@ export interface UpdateViewCommand {
   viewType?: string;
   visualConfig?: {
     backgroundColor?: string;
+    colorsSyncTheme?: boolean;
     backgroundStyle?: "solid" | "grid" | "dots" | "none";
     gridSpacing?: number;
     gridColor?: string;

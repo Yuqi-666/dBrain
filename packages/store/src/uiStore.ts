@@ -24,9 +24,6 @@ export type ContextMenuContext =
 
 export type MainViewType = "graph" | "editor" | "dashboard";
 
-/** Quick Panel 模式：search（搜索）+ agent（智能体，占位） */
-export type QuickPanelMode = "search" | "agent";
-
 /**
  * 灵动岛当前面板（`idle` 即收起）。定义在 `@workspace/interfaces`（唯一真源），
  * 这里只是把 store 的公开面重新导出一次。
@@ -194,29 +191,6 @@ export interface UIStore {
   /** 设置当前选中的视图 */
   setCurrentViewId: (viewId: ViewId | null) => void;
 
-  // ==================== Command Panel Section ====================
-  /** 命令面板是否显示 */
-  commandDialogOpen: boolean;
-  /** 设置命令面板显示状态 */
-  setCommandDialogOpen: (open: boolean) => void;
-  /** 切换命令面板显示状态 */
-  toggleCommandDialog: () => void;
-
-  // ==================== Quick Panel Section ====================
-  /** Quick Panel 状态：open + mode（mode 关闭时保留，ctr+k 复用） */
-  quickPanel: {
-    open: boolean;
-    mode: QuickPanelMode;
-  };
-  /** 以指定模式打开 Quick Panel（按钮入口用，强制 mode） */
-  openQuickPanel: (mode: QuickPanelMode) => void;
-  /** 只切换 Quick Panel 的 mode（面板内 tab 用，不影响 open） */
-  setQuickPanelMode: (mode: QuickPanelMode) => void;
-  /** ctrl/⌘+K 切换：已开则关，未开则以当前 quickPanel.mode 打开 */
-  toggleQuickPanelFromKeyboard: () => void;
-  /** 关闭 Quick Panel（保留 mode） */
-  closeQuickPanel: () => void;
-
   // ==================== Dynamic Island Section ====================
   /**
    * 灵动岛当前面板（受控状态；`idle` 即收起）。受控壳
@@ -227,8 +201,7 @@ export interface UIStore {
   islandPreviewNodeId: NodeId | null;
   openIslandPreview: (nodeId: NodeId) => void;
   /**
-   * 「最近一次打开的功能面板」，`⌘K` 在未展开时复用它 —— 对齐 `quickPanel.mode`
-   * 「关闭后仍保留」的既有语义。收起（`idle`）**不**写这里。
+   * 「最近一次打开的功能面板」，收起（`idle`）时保留，供再次展开时复用。
    */
   lastIslandPanel: Exclude<IslandPanel, "idle">;
   /** 打开某个面板（等价于「展开岛」）；传 `idle` 即收起 */
@@ -430,33 +403,6 @@ export const useUIStore = create<UIStore>()(
       // ==================== View ====================
       currentViewId: null,
       setCurrentViewId: (viewId) => set({ currentViewId: viewId }),
-
-      // ==================== Command Panel ====================
-      commandDialogOpen: false,
-      setCommandDialogOpen: (open) => set({ commandDialogOpen: open }),
-      toggleCommandDialog: () =>
-        set((state) => ({
-          commandDialogOpen: !state.commandDialogOpen,
-        })),
-
-      // ==================== Quick Panel ====================
-      quickPanel: {
-        open: false,
-        mode: "search",
-      },
-      openQuickPanel: (mode) => set({ quickPanel: { open: true, mode } }),
-      setQuickPanelMode: (mode) =>
-        set((state) => ({
-          quickPanel: { ...state.quickPanel, mode },
-        })),
-      toggleQuickPanelFromKeyboard: () =>
-        set((state) => ({
-          quickPanel: { mode: state.quickPanel.mode, open: !state.quickPanel.open },
-        })),
-      closeQuickPanel: () =>
-        set((state) => ({
-          quickPanel: { mode: state.quickPanel.mode, open: false },
-        })),
 
       // ==================== Dynamic Island ====================
       islandPanel: "idle",

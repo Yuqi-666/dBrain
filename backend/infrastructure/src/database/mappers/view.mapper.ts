@@ -28,6 +28,7 @@ export class ViewMapper {
       viewType: view.viewType.getValue(),
       visualConfig: {
         backgroundColor: view.visualConfig.backgroundColor,
+        colorsSyncTheme: view.visualConfig.colorsSyncTheme,
         backgroundStyle: view.visualConfig.backgroundStyle,
         gridSpacing: view.visualConfig.gridSpacing,
         gridColor: view.visualConfig.gridColor,

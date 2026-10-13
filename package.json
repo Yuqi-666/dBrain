@@ -2,6 +2,7 @@
   "name": "dBrain",
   "private": true,
   "scripts": {
+    "icons:generate": "node scripts/generate-icons.mjs",
     "build": "pnpm --filter server build && pnpm --filter web build",
     "dev": "node scripts/dev-run.mjs",
     "dev:remote": "node scripts/dev-run.mjs --remote",

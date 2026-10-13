@@ -16,9 +16,30 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
+      <ThemeFavicon />
       {children}
     </NextThemesProvider>
   );
+}
+
+function ThemeFavicon() {
+  const { resolvedTheme } = useTheme();
+
+  React.useEffect(() => {
+    if (!resolvedTheme) return;
+    const href = `/icons/logo-${resolvedTheme === "dark" ? "dark" : "light"}.svg`;
+    // Follow the app's explicit theme as well as the system default.
+    document
+      .querySelectorAll<HTMLLinkElement>(
+        'link[rel="icon"][type="image/svg+xml"]',
+      )
+      .forEach((link) => {
+        link.href = href;
+        link.removeAttribute("media");
+      });
+  }, [resolvedTheme]);
+
+  return null;
 }
 
 function isTypingTarget(target: EventTarget | null) {

@@ -12,60 +12,17 @@ import {
   TabsContent,
 } from "@workspace/ui/components/ui/tabs";
 
-export interface ColorPickerColor {
-  value: string;
-  label?: string;
-  /** Display color when the stored value is a token. */
-  background?: string;
-}
+import {
+  COLOR_PICKER_GROUPS,
+  type ColorPickerColor,
+  type ColorPickerGroup,
+} from "@workspace/ui/lib/color-palette";
 
-export interface ColorPickerGroup {
-  label: string;
-  colors: readonly ColorPickerColor[];
-}
-
-/** Six shades per family, from light to dark. */
-export const COLOR_PICKER_GROUPS: readonly ColorPickerGroup[] = [
-  {
-    label: "灰",
-    colors: ["#ffffff", "#e2e8f0", "#94a3b8", "#64748b", "#334155", "#000000"],
-  },
-  {
-    label: "红",
-    colors: ["#fee2e2", "#fca5a5", "#f87171", "#ef4444", "#dc2626", "#991b1b"],
-  },
-  {
-    label: "橙",
-    colors: ["#ffedd5", "#fdba74", "#fb923c", "#f97316", "#ea580c", "#9a3412"],
-  },
-  {
-    label: "黄",
-    colors: ["#fef9c3", "#fde047", "#facc15", "#eab308", "#ca8a04", "#854d0e"],
-  },
-  {
-    label: "绿",
-    colors: ["#dcfce7", "#86efac", "#4ade80", "#22c55e", "#16a34a", "#166534"],
-  },
-  {
-    label: "青",
-    colors: ["#ccfbf1", "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488", "#115e59"],
-  },
-  {
-    label: "蓝",
-    colors: ["#dbeafe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1e3a8a"],
-  },
-  {
-    label: "紫",
-    colors: ["#ede9fe", "#c4b5fd", "#a78bfa", "#8b5cf6", "#6366f1", "#5b21b6"],
-  },
-  {
-    label: "粉",
-    colors: ["#fce7f3", "#f9a8d4", "#f472b6", "#ec4899", "#db2777", "#9d174d"],
-  },
-].map((group) => ({
-  ...group,
-  colors: group.colors.map((value) => ({ value })),
-}));
+export { COLOR_PICKER_GROUPS } from "@workspace/ui/lib/color-palette";
+export type {
+  ColorPickerColor,
+  ColorPickerGroup,
+} from "@workspace/ui/lib/color-palette";
 
 export interface ColorPickerProps {
   value?: string;
@@ -134,9 +91,6 @@ export function ColorPicker({
         style={{ background: color.background ?? color.value }}
         onClick={() => onChange?.(color.value)}
       >
-        {selected && (
-          <Check className="size-4 rounded-sm bg-popover text-popover-foreground" />
-        )}
       </button>
     );
   };

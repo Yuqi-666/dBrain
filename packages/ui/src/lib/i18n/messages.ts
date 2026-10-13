@@ -494,9 +494,9 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "节点",
     en: "Nodes",
   },
-  "Search nodes, commands, types...": {
-    "zh-CN": "搜索节点、命令、类型…",
-    en: "Search nodes, commands, types...",
+  "Search nodes, types...": {
+    "zh-CN": "搜索节点、类型…",
+    en: "Search nodes, types...",
   },
   筛选: {
     "zh-CN": "筛选",
@@ -659,14 +659,6 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
   主导航: {
     "zh-CN": "主导航",
     en: "Main navigation",
-  },
-  "agent 面板将在 M9 接入": {
-    "zh-CN": "智能助手面板即将推出",
-    en: "The assistant panel is coming soon",
-  },
-  "输入区将在 M9 接入": {
-    "zh-CN": "输入区即将推出",
-    en: "The input area is coming soon",
   },
   "Enter value...": {
     "zh-CN": "输入值…",
@@ -896,6 +888,14 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "背景颜色",
     en: "Background color",
   },
+  背景样式: {
+    "zh-CN": "背景样式",
+    en: "Background style",
+  },
+  与主题同步: {
+    "zh-CN": "与主题同步",
+    en: "Sync with theme",
+  },
   网格颜色: {
     "zh-CN": "网格颜色",
     en: "Grid color",
@@ -928,9 +928,9 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "暂无视图",
     en: "No views yet",
   },
-  打开搜索命令面板: {
-    "zh-CN": "打开搜索命令面板",
-    en: "Open search and command panel",
+  打开搜索面板: {
+    "zh-CN": "打开搜索面板",
+    en: "Open search panel",
   },
   表情: {
     "zh-CN": "表情",

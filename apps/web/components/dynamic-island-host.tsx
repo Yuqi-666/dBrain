@@ -7,11 +7,11 @@ import { Search, Bot } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
 import {
   DynamicIsland,
+  SearchPanel,
+  AgentPanel,
   type IslandNavItem,
-} from "@workspace/ui/components/dynamic-island/dynamic-island";
+} from "@workspace/ui/components/dynamic-island/index";
 
-import { SearchMode } from "@workspace/ui/components/dialog/quick-panel/search-mode";
-import { AgentMode } from "@workspace/ui/components/dialog/quick-panel/agent-mode";
 import { IslandNodePreview } from "@workspace/ui/components/preview-block/island-node-preview";
 
 import {
@@ -185,32 +185,12 @@ export function DynamicIslandHost() {
           : 360,
       }}
       content={{
-        search: (
-          <>
-            <PanelHeader title={t("搜索")} />
-            <SearchMode onClose={close} />
-          </>
-        ),
-        agent: (
-          <>
-            <PanelHeader title={t("Agent")} />
-            <AgentMode />
-          </>
-        ),
+        search: <SearchPanel onClose={close} />,
+        agent: <AgentPanel />,
         preview: previewNodeId ? (
           <IslandNodePreview nodeId={previewNodeId} onClose={close} />
         ) : null,
       }}
     />
-  );
-}
-
-function PanelHeader({ title }: { title: string }) {
-  useI18n();
-
-  return (
-    <div className="flex items-center justify-between px-4 pt-3 pb-1">
-      <span className="text-sm font-medium">{title}</span>
-    </div>
   );
 }

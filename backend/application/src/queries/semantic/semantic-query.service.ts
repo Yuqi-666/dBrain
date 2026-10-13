@@ -25,6 +25,7 @@ function toEdgeSemanticDTO(entity: EdgeSemantic): EdgeSemanticDTO {
     name: entity.name,
     category: entity.category,
     color: entity.color,
+    icon: entity.icon,
     description: entity.description,
     workspaceId: entity.workspaceId,
   };

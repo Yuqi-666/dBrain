@@ -1,4 +1,5 @@
 import { Geist_Mono, Manrope, Noto_Serif } from "next/font/google";
+import type { Metadata } from "next";
 
 import "@workspace/ui/globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -11,6 +12,24 @@ const notoSerifHeading = Noto_Serif({
   subsets: ["latin"],
   variable: "--font-heading",
 });
+
+export const metadata: Metadata = {
+  title: "dBrain",
+  icons: {
+    icon: [
+      {
+        url: "/icons/logo-light.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/icons/logo-dark.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+  },
+};
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans" });
 

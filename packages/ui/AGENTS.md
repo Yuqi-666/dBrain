@@ -21,7 +21,8 @@ Consumers therefore import a deep path, for example `@workspace/ui/components/he
 | --- | --- |
 | `src/components/` | About 23 feature directories, for example `header`, `dialog`, `sidebar`, `node-content`, and `dynamic-island` |
 | `src/components/ui/` | About 31 vendored shadcn primitives |
-| `src/components/index.ts` | The aggregate application surface. It exports the graph layout, the sidebar, the quick panel, the command registry, the preview block, and the dynamic island. |
+| `src/components/index.ts` | The aggregate application surface. It exports the graph layout, the sidebar, the preview block, and the dynamic island. |
+| `src/components/dynamic-island/` | Island shell, navigation, motion, and feature panels. Read [src/components/dynamic-island/AGENTS.md](src/components/dynamic-island/AGENTS.md). |
 | `src/hooks/` | Shared React hooks |
 | `src/lib/` | `utils.ts` holds `cn`. `inner-layer.ts` holds the layer order. |
 | `src/styles/` | `globals.css` and the Tailwind setup |

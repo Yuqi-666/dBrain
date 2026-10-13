@@ -2,6 +2,7 @@
 import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
+import { LayoutGroup, motion, useAnimationControls } from "motion/react";
 
 import { Kbd } from "@workspace/ui/components/ui/kbd";
 import {
@@ -14,6 +15,7 @@ import { cn } from "@workspace/ui/lib/utils";
 
 import { useIslandEnvironment } from "./environment";
 import type { IslandNavItem } from "./types";
+import { useIslandMotion } from "./use-tuning";
 
 export interface IslandNavProps {
   nav: readonly IslandNavItem[];
@@ -58,33 +60,39 @@ export function IslandNav({
 }: IslandNavProps): React.ReactNode {
   const { t } = useI18n();
 
-  const { coarsePointer } = useIslandEnvironment();
+  const { coarsePointer, reducedMotion } = useIslandEnvironment();
+  const feel = useIslandMotion();
+  const instant = feel.instant ?? reducedMotion;
+  const layoutId = React.useId();
 
   return (
     <TooltipProvider delayDuration={0}>
-      <nav
-        ref={ref}
-        aria-label={t("主导航")}
-        data-island-nav
-        // `w-fit` is load-bearing, not cosmetic: the collapsed pill has no
-        // authored width, so the framework measures *this row's* natural width
-        // and springs the capsule to it. Without it the row would simply inherit
-        // whatever box it was put in and the pill would measure itself.
-        className={cn("flex w-fit items-center gap-0.5 px-1.5", className)}
-      >
-        {nav.map((item) => (
-          <React.Fragment key={item.key}>
-            {item.separator ? (
-              <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
-            ) : null}
-            <IslandNavButton
-              item={item}
-              label={labels && !coarsePointer}
-              coarse={coarsePointer}
-            />
-          </React.Fragment>
-        ))}
-      </nav>
+      <LayoutGroup id={layoutId}>
+        <nav
+          ref={ref}
+          aria-label={t("主导航")}
+          data-island-nav
+          // `w-fit` is load-bearing, not cosmetic: the collapsed pill has no
+          // authored width, so the framework measures *this row's* natural width
+          // and springs the capsule to it. Without it the row would simply inherit
+          // whatever box it was put in and the pill would measure itself.
+          className={cn("flex w-fit items-center gap-0.5 px-1.5", className)}
+        >
+          {nav.map((item) => (
+            <React.Fragment key={item.key}>
+              {item.separator ? (
+                <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+              ) : null}
+              <IslandNavButton
+                item={item}
+                label={labels && !coarsePointer}
+                coarse={coarsePointer}
+                instant={instant}
+              />
+            </React.Fragment>
+          ))}
+        </nav>
+      </LayoutGroup>
     </TooltipProvider>
   );
 }
@@ -93,16 +101,25 @@ interface IslandNavButtonProps {
   item: IslandNavItem;
   label: boolean;
   coarse: boolean;
+  instant: boolean;
 }
 
 function IslandNavButton({
   item,
   label,
   coarse,
+  instant,
 }: IslandNavButtonProps): React.ReactNode {
   useI18n();
 
   const disabled = !item.enabled;
+  const droplet = useAnimationControls();
+
+  React.useEffect(() => {
+    if (!instant) return;
+    droplet.stop();
+    droplet.set({ scaleX: 1, scaleY: 1 });
+  }, [droplet, instant]);
 
   // Touch has no hover, and a 36px glyph is not a hit area you can reach
   // reliably, so the button grows rather than the icon.
@@ -130,14 +147,44 @@ function IslandNavButton({
         item.onSelect();
       }}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-sm transition-colors",
+        "relative isolate inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-sm transition-colors",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         sizing,
-        item.active ? "bg-accent text-foreground" : "text-muted-foreground",
+        item.active ? "text-foreground" : "text-muted-foreground",
         !disabled && !item.active && "hover:bg-accent/60 hover:text-foreground",
         disabled && "opacity-40",
       )}
     >
+      {item.active ? (
+        <motion.span
+          aria-hidden
+          // Each row scopes its shared droplet, including overlapping island layers.
+          layoutId={instant ? undefined : "nav-selection"}
+          initial={false}
+          transition={{
+            layout: { type: "spring", stiffness: 500, damping: 28, mass: 0.7 },
+          }}
+          onLayoutAnimationStart={() => {
+            if (instant) return;
+            void droplet.start({
+              scaleX: [1, 1.22, 1],
+              scaleY: [1, 0.84, 1],
+              transition: {
+                duration: 0.38,
+                times: [0, 0.35, 1],
+                ease: "easeOut",
+              },
+            });
+          }}
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{ borderRadius: 9999 }}
+        >
+          <motion.span
+            animate={droplet}
+            className="absolute inset-0 rounded-full bg-accent"
+          />
+        </motion.span>
+      ) : null}
       {item.icon}
       {label ? <span className="hidden md:inline">{item.label}</span> : null}
     </button>

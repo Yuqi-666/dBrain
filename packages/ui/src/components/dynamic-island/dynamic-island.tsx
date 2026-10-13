@@ -13,7 +13,6 @@ import { resolveGeometry } from "./geometry";
 import { useLayerStack } from "./layers";
 import { useBoxMotion } from "./motion";
 import { IslandNav } from "./nav";
-import { IslandPlaceholder } from "./panels";
 import { IslandStage } from "./stage";
 import { ISLAND_SHADOW, islandSurfaceClass } from "./surface";
 import type { DynamicIslandProps } from "./types";
@@ -100,10 +99,10 @@ export function DynamicIsland({
         form === "idle"
           ? ISLAND_FORMS[form]
           : {
-              ...ISLAND_FORMS[form],
-              width: contentWidths?.[form] ?? ISLAND_FORMS[form].width,
-              height: bodyHeights[form] ?? ISLAND_FORMS[form].height,
-            },
+            ...ISLAND_FORMS[form],
+            width: contentWidths?.[form] ?? ISLAND_FORMS[form].width,
+            height: bodyHeights[form] ?? ISLAND_FORMS[form].height,
+          },
         viewport,
         pill,
       ),
@@ -159,7 +158,7 @@ export function DynamicIsland({
 
       return (
         <MeasuredBody form={form} onMeasure={measureBody} actions={actions}>
-          {content?.[form] ?? <IslandPlaceholder form={form} nav={nav} />}
+          {content?.[form]}
         </MeasuredBody>
       );
     },

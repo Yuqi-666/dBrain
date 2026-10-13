@@ -57,6 +57,7 @@ function toEdgeSemanticDTO(s: EdgeSemantic): EdgeSemanticDTO {
     category: s.category,
     description: s.description,
     color: s.color,
+    icon: s.icon,
     workspaceId: s.workspaceId,
   };
 }
@@ -182,6 +183,7 @@ export class SemanticCommandService {
       category: cmd.category,
       description: cmd.description,
       color: cmd.color,
+      icon: cmd.icon,
       workspaceId: cmd.workspaceId,
     });
 
@@ -221,6 +223,7 @@ export class SemanticCommandService {
       category: cmd.category,
       description: cmd.description,
       color: cmd.color,
+      icon: cmd.icon,
     });
 
     const saved = await this.edgeSemanticRepository.save(updated);

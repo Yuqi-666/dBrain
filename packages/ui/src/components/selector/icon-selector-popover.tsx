@@ -52,7 +52,10 @@ const EMOJI_KEY_PREFIX = "emoji:";
 const ICON_KEY_PREFIX = "icon:";
 
 export interface IconSelectorPopoverProps {
-  nodeId: string;
+  /** Required for uploads, which write directly to an existing node. */
+  nodeId?: string;
+  allowedKinds?: readonly NodeIcon["kind"][];
+  showColorPicker?: boolean;
   /** Controlled; `undefined` means "no icon set". */
   value?: NodeIcon;
   /** Discrete picks fire immediately; the URL row fires on Enter / blur. */
@@ -71,6 +74,8 @@ export interface IconSelectorPopoverProps {
 
 export function IconSelectorPopover({
   nodeId,
+  allowedKinds = ["emoji", "icon", "image"],
+  showColorPicker = true,
   value,
   onChange,
   onRemove,
@@ -85,6 +90,14 @@ export function IconSelectorPopover({
   const [tab, setTab] = useState<IconSelectorTab>("emoji");
   const [urlDraft, setUrlDraft] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const availableTabs = TABS.filter((candidate) =>
+    candidate.value === "upload"
+      ? Boolean(nodeId) && allowedKinds.includes("image")
+      : allowedKinds.includes(candidate.value as "emoji" | "icon"),
+  );
+  const activeTab = availableTabs.some((candidate) => candidate.value === tab)
+    ? tab
+    : ((availableTabs[0]?.value as IconSelectorTab | undefined) ?? "icon");
 
   const disabled = Boolean(disabledReason);
 
@@ -100,7 +113,7 @@ export function IconSelectorPopover({
    * no grid.
    */
   const handleSelect = (item: SelectorGridItem) => {
-    if (tab === "emoji") {
+    if (activeTab === "emoji") {
       commit({
         kind: "emoji",
         value: item.key.slice(EMOJI_KEY_PREFIX.length),
@@ -177,13 +190,13 @@ export function IconSelectorPopover({
         setOpen(next);
       }}
       trigger={withTriggerDisabledState(baseTrigger, disabled, disabledReason)}
-      tabs={TABS}
-      activeTab={tab}
+      tabs={availableTabs}
+      activeTab={activeTab}
       onTabChange={(next) => setTab(next as IconSelectorTab)}
       width={320}
       bodyMaxHeight="min(280px, 35vh)"
       className={className}
-      footer={colorRow}
+      footer={showColorPicker ? colorRow : undefined}
       actions={
         // Always rendered, merely disabled when empty: a control that appears and
         // disappears pushes its left-hand neighbours around (sel §5 清除).
@@ -202,8 +215,8 @@ export function IconSelectorPopover({
       {/* Only the grid tabs filter, so the search row only exists there. `autoFocus`
           is what puts the caret in it when the popover opens (sel §5 keyboard);
           its query belongs to the shell's `Command`, so it survives a tab switch. */}
-      {tab === "upload" ? null : <SelectorSearchInput autoFocus />}
-      {tab === "upload" ? (
+      {activeTab === "upload" ? null : <SelectorSearchInput autoFocus />}
+      {activeTab === "upload" && nodeId ? (
         // No `overflow-y-auto` of its own: the shell caps the body and lets either
         // the body wrapper or the `CommandList` scroll it, so a second viewport in
         // here would either be dead or clip the drop pane.
@@ -229,7 +242,7 @@ export function IconSelectorPopover({
       ) : (
         <CommandList>
           <SelectorGrid
-            items={tab === "emoji" ? EMOJI_ITEMS : ICON_ITEMS}
+            items={activeTab === "emoji" ? EMOJI_ITEMS : ICON_ITEMS}
             onSelect={handleSelect}
             columns={8}
             emptyState={

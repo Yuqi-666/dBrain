@@ -13,22 +13,20 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 import {
-  QUICK_TABS,
-  stripSlashPrefix,
+  SEARCH_TABS,
   normalizeKeyword,
-  type QuickTabKey,
-  type QuickSearchMatch,
-  type QuickGroupKey,
-} from "./quick-panel.type";
-import { COMMANDS } from "../../command/command-registry";
-import type { ArgCommand } from "../../command/command";
+  type SearchTabKey,
+  type SearchMatch,
+  type SearchGroupKey,
+} from "./search-types";
+import { IslandPanelHeader } from "./panel-header";
 
-export interface SearchModeProps {
+export interface SearchPanelProps {
   className?: string;
   onClose?: () => void;
 }
 
-export function SearchMode({ className, onClose }: SearchModeProps) {
+export function SearchPanel({ className, onClose }: SearchPanelProps) {
   const { t } = useI18n();
 
   const nodes = useDataStore((state) => state.nodes);
@@ -37,30 +35,20 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
   const edgeSemantics = useDataStore((state) => state.edgeSemantics);
 
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<QuickTabKey>("all");
+  const [activeTab, setActiveTab] = useState<SearchTabKey>("all");
   const [filterOpen, setFilterOpen] = useState(false);
-  const [activeArgForm, setActiveArgForm] = useState<ArgCommand | null>(null);
   const [filterQuery, setFilterQuery] = useState<RuleGroupType>({
     combinator: "and",
     rules: [],
   });
 
-  const handleQueryChange = (value: string) => {
-    setQuery(value);
-    if (value.startsWith("/") && activeTab !== "commands") {
-      setActiveTab("commands");
-    } else if (value.trim() === "" && activeTab === "commands") {
-      setActiveTab("all");
-    }
-  };
-
-  const activeTabConfig = QUICK_TABS.find((t) => t.key === activeTab);
+  const activeTabConfig = SEARCH_TABS.find((t) => t.key === activeTab);
 
   const filterableNodes = useMemo(() => {
     const hasRules = (filterQuery.rules?.length ?? 0) > 0;
     if (!hasRules) return nodes;
 
-    // Search mode passes only `ruleGroup` (no `selectedNodes`); with the
+    // Search panel passes only `ruleGroup` (no `selectedNodes`); with the
     // UNION semantics this is a pure ruleGroup match — unchanged behavior.
     const view = { filterConfig: { ruleGroup: filterQuery } } as View;
     const { filteredNodes } = filterByViewFilterConfig(nodes, edges, view);
@@ -75,12 +63,12 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
   const setCurrentEditingNodeId = useUIStore(
     (state) => state.setCurrentEditingNodeId,
   );
-  const closeLegacyPanel = useUIStore((state) => state.closeQuickPanel);
-  const closeQuickPanel = onClose ?? closeLegacyPanel;
+  const collapseIsland = useUIStore((state) => state.collapseIsland);
+  const closePanel = onClose ?? collapseIsland;
 
-  const results = useLocaleMemo<QuickSearchMatch[]>(() => {
-    const term = normalizeKeyword(stripSlashPrefix(query));
-    const matches: QuickSearchMatch[] = [];
+  const results = useLocaleMemo<SearchMatch[]>(() => {
+    const term = normalizeKeyword(query);
+    const matches: SearchMatch[] = [];
     const kind = activeTabConfig?.kind;
     const typeSet = kind === "nodes" ? activeTabConfig?.nodeTypes : undefined;
     const showAll = activeTab === "all";
@@ -102,36 +90,10 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
           semanticId: node.semanticId,
           semanticName: semantic?.name,
           color: semantic?.color,
-          // Every other group filled this in; the node group did not, so the
-          // button rendered with `onClick={undefined}` and a search result could
-          // not be opened at all. Opening is the same store write the graph's
-          // double-click uses, and it closes the panel first so the editor is not
-          // mounted behind a modal.
+          // 先收起灵动岛，再打开选中的节点。
           onSelect: () => {
-            closeQuickPanel();
+            closePanel();
             setCurrentEditingNodeId(node.id);
-          },
-        });
-      });
-    }
-
-    if (kind === "commands" || showAll) {
-      COMMANDS.forEach((cmd) => {
-        const haystack = normalizeKeyword(
-          `${cmd.title} ${cmd.keywords.join(" ")}`,
-        );
-        if (term && !haystack.includes(term)) return;
-        matches.push({
-          id: cmd.id,
-          title: cmd.title,
-          group: "commands",
-          icon: "command",
-          onSelect: () => {
-            if (cmd.requiresArgs) {
-              setActiveArgForm(cmd);
-            } else {
-              cmd.run();
-            }
           },
         });
       });
@@ -175,14 +137,13 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
     edgeSemantics,
     query,
     activeTab,
-    closeQuickPanel,
+    closePanel,
     setCurrentEditingNodeId,
   ]);
 
   const grouped = useMemo(() => {
-    const g: Record<QuickGroupKey, QuickSearchMatch[]> = {
+    const g: Record<SearchGroupKey, SearchMatch[]> = {
       nodes: [],
-      commands: [],
       types: [],
     };
     results.forEach((r) => g[r.group].push(r));
@@ -190,9 +151,9 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
   }, [results]);
 
   const renderGroup = (
-    key: QuickGroupKey,
+    key: SearchGroupKey,
     label: string,
-    items: QuickSearchMatch[],
+    items: SearchMatch[],
   ) => {
     if (items.length === 0) return null;
     return (
@@ -256,13 +217,14 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
 
   return (
     <div className={cn("flex flex-col", className)}>
+      <IslandPanelHeader title={t("搜索")} />
       <div className="flex items-center gap-2 border-b p-3">
         <div className="relative flex flex-1 items-center">
           <Search className="absolute left-2.5 size-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder={t("Search nodes, commands, types...")}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("Search nodes, types...")}
             className="pl-8 pr-2"
             autoFocus
           />
@@ -284,7 +246,7 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
       </div>
 
       <div className="flex flex-wrap gap-1 border-b px-3 py-2">
-        {QUICK_TABS.map((tab) => (
+        {SEARCH_TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -311,7 +273,6 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
 
       <div className="max-h-80 overflow-y-auto p-2">
         {renderGroup("nodes", t("节点"), grouped.nodes)}
-        {renderGroup("commands", t("命令"), grouped.commands)}
         {renderGroup("types", t("类型"), grouped.types)}
         {results.length === 0 && (
           <p className="px-2 py-6 text-center text-sm text-muted-foreground">
@@ -319,14 +280,6 @@ export function SearchMode({ className, onClose }: SearchModeProps) {
           </p>
         )}
       </div>
-
-      {activeArgForm &&
-        activeArgForm.renderForm({
-          open: true,
-          onOpenChange: (open) => {
-            if (!open) setActiveArgForm(null);
-          },
-        })}
     </div>
   );
 }

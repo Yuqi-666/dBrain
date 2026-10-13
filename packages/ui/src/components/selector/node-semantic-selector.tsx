@@ -11,8 +11,10 @@ import { Search, Plus, Trash2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeSemanticService } from "@workspace/services";
 import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
+import { cn } from "@workspace/ui/lib/utils";
 
 export interface NodeSemanticSelectorProps {
+  className?: string;
   onSelect: (semanticId: string) => void;
   /**
    * 覆盖 “Add new type” 的默认行为（默认只打开全局语义对话框）。
@@ -23,6 +25,7 @@ export interface NodeSemanticSelectorProps {
 
 /** Node semantic picker body; mount inside DropdownMenuContent or DropdownMenuSubContent. */
 export function NodeSemanticSelector({
+  className,
   onSelect,
   onCreateRequest,
 }: NodeSemanticSelectorProps) {
@@ -62,7 +65,7 @@ export function NodeSemanticSelector({
   };
 
   return (
-    <div className="w-64 p-2">
+    <div className={cn("w-64 min-w-0 p-2", className)}>
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
@@ -95,7 +98,7 @@ export function NodeSemanticSelector({
                   {semantic.icon}
                 </span>
               ) : null}
-              <span className="flex-1 truncate">{semantic.name}</span>
+              <span className="min-w-0 flex-1 truncate">{semantic.name}</span>
               {semantic.description && (
                 <span className="text-xs text-muted-foreground truncate max-w-[80px]">
                   {semantic.description}

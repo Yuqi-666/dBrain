@@ -44,6 +44,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { Input } from "@workspace/ui/components/ui/input";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -1002,12 +1003,12 @@ function RenameGroupForm({
     <div className="flex flex-col gap-1.5">
       <span className="text-[11px] text-muted-foreground">{t("编组名称")}</span>
       <div className="flex items-center gap-1.5">
-        <input
+        <Input
           autoFocus
           ref={inputRef}
           value={name}
           aria-label={t("编组名称")}
-          className="h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-primary"
+          className="h-7 min-w-0 flex-1 px-2 text-xs"
           onChange={(event) => setName(event.target.value)}
           onFocus={(event) => event.target.select()}
           onKeyDown={(event) => {

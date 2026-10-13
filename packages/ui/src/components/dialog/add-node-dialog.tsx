@@ -130,6 +130,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="p-0">
                   <NodeSemanticSelector
+                    className="w-full"
                     onSelect={(id) => {
                       setSemanticId(id);
                     }}

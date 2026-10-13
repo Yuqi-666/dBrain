@@ -8,7 +8,6 @@ export type {
   ContextMenuContext,
   MainViewType,
   SidebarMode,
-  QuickPanelMode,
   IslandPanel,
   NodeSemanticAfterCreate,
 } from "./uiStore";

@@ -32,13 +32,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-data-type-selector";
-import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
+import { AddNodeDialog } from "@workspace/ui/components/dialog/add-node-dialog";
 import { WorkSpaceSelector } from "@workspace/ui/components/selector/workspace-selector";
 import {
   Tabs,
@@ -65,8 +61,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import LogoIcon from "../../img/icon/logo.svg";
-import { useGraph } from "@workspace/hooks";
+import { LogoIcon } from "@workspace/ui/components/brand/brand-icons";
+import { IconView } from "@workspace/ui/components/icon/icon-view";
 
 export function GraphSidebar() {
   const { t } = useI18n();
@@ -124,7 +120,7 @@ export function GraphSidebar() {
     }
   };
 
-  const { onAddNode } = useGraph();
+  const [addNodeDialogOpen, setAddNodeDialogOpen] = useState(false);
 
   return (
     <aside
@@ -155,42 +151,18 @@ export function GraphSidebar() {
             <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
               <CircleDot className="size-3.5 text-sidebar-foreground/40" />
               <span>{t("节点")}</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent sideOffset={6} align="start">
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
-                      <span className="text-[13px]">{t("Add Node")}</span>
-                    </DropdownMenuSubTrigger>
-                    <NodeDataTypeSelector>
-                      {(nodeType) => (
-                        <DropdownMenuSubContent>
-                          <NodeSemanticSelector
-                            onSelect={(semanticId) => {
-                              onAddNode?.(nodeType, semanticId);
-                            }}
-                            onCreateRequest={() =>
-                              openNodeSemanticDialog(null, {
-                                kind: "create",
-                                nodeType,
-                              })
-                            }
-                          />
-                        </DropdownMenuSubContent>
-                      )}
-                    </NodeDataTypeSelector>
-                  </DropdownMenuSub>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("Add Node")}
+                className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAddNodeDialogOpen(true);
+                }}
+              >
+                <Plus className="size-3.5" />
+              </Button>
             </div>
           </TabsTrigger>
           <TabsTrigger asChild value="views">
@@ -275,6 +247,10 @@ export function GraphSidebar() {
       <div className="h-px bg-sidebar-border" />
       <LanguageSwitcher />
       <SidebarUserMenu />
+      <AddNodeDialog
+        open={addNodeDialogOpen}
+        onOpenChange={setAddNodeDialogOpen}
+      />
     </aside>
   );
 }
@@ -288,7 +264,7 @@ function SidebarHeader({ onToggle }: { onToggle: () => void }) {
     <header className="flex items-center justify-between px-4 py-3.5">
       <div className="flex items-center gap-3">
         <div className="flex size-10 items-center justify-center rounded-lg bg-sidebar-primary/10">
-          <img src={LogoIcon.src} className="size-10" alt="dBrain" />
+          <LogoIcon className="size-10" aria-hidden />
         </div>
         <span className="text-[18px] font-heading tracking-tight text-sidebar-foreground">
           dBrain
@@ -656,9 +632,24 @@ function NodeSemanticItem({
   return (
     <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
       <div className="flex items-center gap-2.5 min-w-0">
-        <CircleDot
+        <IconView
+          icon={
+            semantic.icon
+              ? {
+                  kind: "icon",
+                  value: semantic.icon,
+                  color: semantic.color || "var(--sidebar-primary)",
+                }
+              : undefined
+          }
           className="size-3.5 shrink-0"
-          style={{ color: semantic.color || "var(--sidebar-primary)" }}
+          glyphClassName="size-3.5"
+          fallback={
+            <CircleDot
+              className="size-3.5 shrink-0"
+              style={{ color: semantic.color || "var(--sidebar-primary)" }}
+            />
+          }
         />
         <span className="text-[13px] text-sidebar-foreground truncate">
           {semantic.name}
@@ -784,16 +775,28 @@ function EdgeSemanticCategory({
               className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Link2 className="size-3 text-sidebar-foreground/30 shrink-0" />
+                <IconView
+                  icon={
+                    semantic.icon
+                      ? {
+                          kind: "icon",
+                          value: semantic.icon,
+                          color: semantic.color || "var(--sidebar-foreground)",
+                        }
+                      : undefined
+                  }
+                  className="size-3 shrink-0"
+                  glyphClassName="size-3"
+                  fallback={
+                    <Link2
+                      className="size-3 text-sidebar-foreground/30 shrink-0"
+                      style={{ color: semantic.color || undefined }}
+                    />
+                  }
+                />
                 <span className="text-[12px] text-sidebar-foreground truncate">
                   {semantic.name}
                 </span>
-                {semantic.color && (
-                  <span
-                    className="size-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: semantic.color }}
-                  />
-                )}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

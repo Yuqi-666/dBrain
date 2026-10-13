@@ -17,7 +17,7 @@ It exports six stores and their types: `useDataStore`, `useUIStore`, `useAuthSto
 | Path | Content |
 | --- | --- |
 | `src/dataStore.ts` | Nodes, edges, views, node semantics, edge semantics, and tags. It publishes an `EntityDiff` with added, updated, and removed entries. |
-| `src/uiStore.ts` | The interface state: context menu, main view, sidebar mode, quick panel, and island panel |
+| `src/uiStore.ts` | The interface state: context menu, main view, sidebar mode, and island panel |
 | `src/authStore.ts` | The current user. It uses the persist middleware. |
 | `src/workspaceStore.ts` | The workspaces as a map, `currentWorkspaceId`, and a `reset` action |
 | `src/sourceIdStore.ts` | One ULID for this client session |

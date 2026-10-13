@@ -1,25 +1,8 @@
 "use client";
 
-/**
- * The in-cell editors the table view plugs into VTable.
- *
- * Only the two edit-in-place types are VTable editors: text-ish fields
- * (`InputEditor`) and dates (`DateInputEditor`). Both take over the cell for the
- * duration of the edit and are positioned by VTable itself, so they need no
- * layout work here.
- *
- * **单选 / 多选 deliberately have no editor.** Their value is a set of coloured
- * options, which an in-cell text/checkbox box cannot express — the cell shows
- * capsules (canvas, `canvas/pill.ts`) and the user picks from the dropdown the
- * capsule's chevron opens (`menus/select-menu.tsx`, driven by
- * `table-data-view.tsx`). Returning `undefined` here is what keeps VTable from
- * opening a plain text input on a double-click: `ListTable.getEditor` falls back
- * to `options.editor`, which the shell never sets.
- *
- * See `docs/dataview/table.md` §3.1 / §8.3.
- */
+/** VTable owns cell positioning; React renders the shared shadcn controls. */
 import type { ColumnDefine } from "@visactor/vtable";
-import { DateInputEditor, InputEditor } from "@visactor/vtable-editors";
+import { TableDateEditor, TableInputEditor } from "./shadcn-editors";
 import type { DatabaseField } from "@workspace/interfaces";
 
 /**
@@ -34,9 +17,9 @@ export function createTableEditor(
     case "text":
     case "number":
     case "url":
-      return new InputEditor();
+      return new TableInputEditor();
     case "date":
-      return new DateInputEditor();
+      return new TableDateEditor();
     case "select":
     case "multiSelect":
     case "checkbox":

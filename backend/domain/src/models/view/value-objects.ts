@@ -96,6 +96,7 @@ export class ViewType {
  */
 interface VisualConfigProps {
   backgroundColor?: string;
+  colorsSyncTheme?: boolean;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
   gridSpacing?: number;
   gridColor?: string;
@@ -106,6 +107,7 @@ interface VisualConfigProps {
 
 export class VisualConfig {
   readonly backgroundColor?: string;
+  readonly colorsSyncTheme?: boolean;
   readonly backgroundStyle?: "solid" | "grid" | "dots" | "none";
   readonly gridSpacing?: number;
   readonly gridColor?: string;
@@ -115,6 +117,7 @@ export class VisualConfig {
 
   private constructor(props: VisualConfigProps) {
     this.backgroundColor = props.backgroundColor;
+    this.colorsSyncTheme = props.colorsSyncTheme;
     this.backgroundStyle = props.backgroundStyle;
     this.gridSpacing = props.gridSpacing;
     this.gridColor = props.gridColor;
@@ -127,8 +130,15 @@ export class VisualConfig {
    * Creates a new VisualConfig with optional properties
    */
   static create(props?: Partial<VisualConfig>): VisualConfig {
+    const legacy = props as {
+      backgroundColorSyncTheme?: boolean;
+      gridColorSyncTheme?: boolean;
+    } | undefined;
     return new VisualConfig({
       backgroundColor: props?.backgroundColor,
+      colorsSyncTheme: props?.colorsSyncTheme ?? Boolean(
+        legacy?.backgroundColorSyncTheme || legacy?.gridColorSyncTheme,
+      ),
       backgroundStyle: props?.backgroundStyle ?? "none",
       gridSpacing: props?.gridSpacing ?? 20,
       gridColor: props?.gridColor ?? "#e5e7eb",
@@ -146,6 +156,7 @@ export class VisualConfig {
   withBackgroundColor(color: string): VisualConfig {
     return new VisualConfig({
       backgroundColor: color,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
@@ -161,6 +172,7 @@ export class VisualConfig {
   withBackgroundStyle(style: VisualConfig["backgroundStyle"]): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: style,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
@@ -176,6 +188,7 @@ export class VisualConfig {
   withGridSpacing(spacing: number): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: spacing,
       gridColor: this.gridColor,
@@ -191,6 +204,7 @@ export class VisualConfig {
   withGridColor(color: string): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: color,
@@ -206,6 +220,7 @@ export class VisualConfig {
   withSnapToGrid(enabled: boolean): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
@@ -221,6 +236,7 @@ export class VisualConfig {
   withShowMinimap(show: boolean): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
@@ -236,6 +252,7 @@ export class VisualConfig {
   equals(other: VisualConfig): boolean {
     return (
       this.backgroundColor === other.backgroundColor &&
+      this.colorsSyncTheme === other.colorsSyncTheme &&
       this.backgroundStyle === other.backgroundStyle &&
       this.gridSpacing === other.gridSpacing &&
       this.gridColor === other.gridColor &&

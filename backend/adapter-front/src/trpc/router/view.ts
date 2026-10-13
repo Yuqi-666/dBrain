@@ -23,6 +23,7 @@ const updateSchema = z.object({
     visualConfig: z
       .object({
         backgroundColor: z.string().optional(),
+        colorsSyncTheme: z.boolean().optional(),
         backgroundStyle: z.enum(["solid", "grid", "dots", "none"]).optional(),
         gridSpacing: z.number().optional(),
         gridColor: z.string().optional(),

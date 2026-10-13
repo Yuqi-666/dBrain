@@ -24,7 +24,11 @@
  * the core; everything else falls back to `zh-cn`, so a hand-written config can
  * never crash the view with an unregistered locale.
  */
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Plus } from "lucide-react";
+import { Button } from "@workspace/ui/components/ui/button";
+import { useI18n } from "@workspace/ui/lib/i18n";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -34,6 +38,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type {
   CalendarApi,
+  DayCellMountArg,
   DateSelectArg,
   DatesSetArg,
   EventClickArg,
@@ -54,6 +59,8 @@ import { buttonTextFor, toFullCalendarView } from "../core/config";
 import type { CalendarEventInput } from "../core/schema";
 
 /** The five plugins the calendar's views need; no premium plugin is used. */
+const DAY_CELL_CLASSES = ["group/calendar-day"];
+
 const PLUGINS: PluginDef[] = [
   dayGridPlugin,
   timeGridPlugin,
@@ -103,6 +110,7 @@ export interface CalendarSurfaceProps {
   onEventResize: (arg: EventResizeDoneArg) => void;
   onSelectRange: (arg: DateSelectArg) => void;
   onDateDoubleClick: (arg: DateClickArg) => void;
+  onAddDate: (date: Date) => void;
   onEventClick: (arg: EventClickArg) => void;
   onEventMouseEnter: (arg: EventHoveringArg) => void;
   onEventMouseLeave: () => void;
@@ -145,6 +153,7 @@ export const CalendarSurface = memo(function CalendarSurface({
   onEventResize,
   onSelectRange,
   onDateDoubleClick,
+  onAddDate,
   onEventClick,
   onEventMouseEnter,
   onEventMouseLeave,
@@ -171,6 +180,35 @@ export const CalendarSurface = memo(function CalendarSurface({
    * blue for the length of the drag. A zero-size, untransformed box at the
    * viewport origin carries them without affecting where the mirror lands.
    */
+  const { t } = useI18n();
+  const nextCellKey = useRef(0);
+  const cellCleanup = useRef(new WeakMap<HTMLElement, () => void>());
+  const [dayCells, setDayCells] = useState<
+    Array<DayCellMountArg & { portalKey: number }>
+  >([]);
+  const handleDayMount = useCallback((arg: DayCellMountArg) => {
+    if (!arg.el.querySelector(".fc-daygrid-day-bottom")) return;
+    const measureChip = () => {
+      const chip =
+        arg.el.querySelector<HTMLElement>(".fc-daygrid-event") ??
+        arg.el.closest(".fc")?.querySelector<HTMLElement>(".fc-daygrid-event");
+      const height = chip?.getBoundingClientRect().height;
+      if (height)
+        arg.el.style.setProperty("--calendar-add-height", `${height}px`);
+    };
+    arg.el.addEventListener("mouseenter", measureChip);
+    cellCleanup.current.set(arg.el, () =>
+      arg.el.removeEventListener("mouseenter", measureChip),
+    );
+    const portalKey = nextCellKey.current++;
+    setDayCells((cells) => [...cells, { ...arg, portalKey }]);
+  }, []);
+  const handleDayUnmount = useCallback((arg: DayCellMountArg) => {
+    cellCleanup.current.get(arg.el)?.();
+    cellCleanup.current.delete(arg.el);
+    setDayCells((cells) => cells.filter((cell) => cell.el !== arg.el));
+  }, []);
+
   const [mirrorHost, setMirrorHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -204,46 +242,83 @@ export const CalendarSurface = memo(function CalendarSurface({
   );
 
   return (
-    <FullCalendar
-      ref={handleRef}
-      plugins={PLUGINS}
-      initialView={toFullCalendarView(initialView)}
-      headerToolbar={headerToolbar}
-      // The calendar fills the pane the shell hands it (`CALENDAR_FIXED.height`
-      // is "auto"), so 100% is what "automatic" means here.
-      height="100%"
-      locale={resolveLocale(locale)}
-      buttonText={buttonTextFor(locale)}
-      firstDay={firstDay}
-      timeZone="local"
-      editable={editable}
-      selectable={selectable}
-      selectMirror
-      // The rest is presentation and fixed (see `CALENDAR_FIXED`): weekend
-      // columns, the "now" line, and folding a busy day behind "+N more".
-      weekends
-      nowIndicator
-      dayMaxEvents
-      navLinks={false}
-      dayHeaders
-      events={events}
-      // Applied on the calendar's own `resetOptions` after the first commit; a
-      // drag cannot happen before that.
-      {...(mirrorHost ? { fixedMirrorParent: mirrorHost } : {})}
-      {...(onEventContextMenu
-        ? {
-            eventDidMount: (arg: EventMountArg) =>
-              attachEventContextMenu(arg, onEventContextMenu),
-          }
-        : {})}
-      eventDrop={onEventDrop}
-      eventResize={onEventResize}
-      select={onSelectRange}
-      dateClick={onDateDoubleClick}
-      eventClick={onEventClick}
-      eventMouseEnter={onEventMouseEnter}
-      eventMouseLeave={onEventMouseLeave}
-      datesSet={onDatesSet}
-    />
+    <>
+      <FullCalendar
+        ref={handleRef}
+        plugins={PLUGINS}
+        initialView={toFullCalendarView(initialView)}
+        headerToolbar={headerToolbar}
+        // The calendar fills the pane the shell hands it (`CALENDAR_FIXED.height`
+        // is "auto"), so 100% is what "automatic" means here.
+        height="100%"
+        locale={resolveLocale(locale)}
+        buttonText={buttonTextFor(locale)}
+        firstDay={firstDay}
+        timeZone="local"
+        editable={editable}
+        selectable={selectable}
+        selectMirror
+        // The rest is presentation and fixed (see `CALENDAR_FIXED`): weekend
+        // columns, the "now" line, and folding a busy day behind "+N more".
+        weekends
+        nowIndicator
+        dayMaxEvents
+        navLinks={false}
+        dayHeaders
+        dayCellClassNames={DAY_CELL_CLASSES}
+        dayCellDidMount={handleDayMount}
+        dayCellWillUnmount={handleDayUnmount}
+        events={events}
+        // Applied on the calendar's own `resetOptions` after the first commit; a
+        // drag cannot happen before that.
+        {...(mirrorHost ? { fixedMirrorParent: mirrorHost } : {})}
+        {...(onEventContextMenu
+          ? {
+              eventDidMount: (arg: EventMountArg) =>
+                attachEventContextMenu(arg, onEventContextMenu),
+            }
+          : {})}
+        eventDrop={onEventDrop}
+        eventResize={onEventResize}
+        select={onSelectRange}
+        dateClick={onDateDoubleClick}
+        eventClick={onEventClick}
+        eventMouseEnter={onEventMouseEnter}
+        eventMouseLeave={onEventMouseLeave}
+        datesSet={onDatesSet}
+      />
+      {selectable &&
+        dayCells.map((cell) => {
+          const container = cell.el.querySelector<HTMLElement>(
+            ".fc-daygrid-day-bottom",
+          );
+          if (!container) return null;
+          return createPortal(
+            <Button
+              type="button"
+              variant="ghost"
+              aria-label={`${t("添加记录")} ${cell.date.toLocaleDateString(locale)}`}
+              className="relative z-6 mt-px flex h-5 w-full rounded-[3px] border border-dashed px-0 py-0 text-muted-foreground opacity-0 pointer-events-none shadow-none transition-opacity group-hover/calendar-day:opacity-100 group-hover/calendar-day:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto"
+              style={{
+                height: "var(--calendar-add-height, 20px)",
+                borderColor: "var(--fc-event-border-color)",
+                backgroundColor:
+                  "color-mix(in oklab, var(--fc-event-bg-color) 50%, transparent)",
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onDoubleClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAddDate(cell.date);
+              }}
+            >
+              <Plus className="size-3.5" />
+            </Button>,
+            container,
+            cell.portalKey,
+          );
+        })}
+    </>
   );
 });

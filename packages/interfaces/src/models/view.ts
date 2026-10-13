@@ -4,6 +4,8 @@ export type ViewId = string;
 export type ViewType = "Force" | "Flow";
 export interface VisualConfig {
   backgroundColor?: string;
+  /** Sync background and grid together; grid uses the opposite shade range. */
+  colorsSyncTheme?: boolean;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
   gridSpacing?: number;
   gridColor?: string;

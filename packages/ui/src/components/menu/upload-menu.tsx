@@ -227,9 +227,9 @@ export function UploadMenu({
 
   return (
     <>
-      <input
+      <Input
         ref={fileInputRef}
-        type={t("file")}
+        type="file"
         accept={accept}
         onChange={handleFileChange}
         onClick={(event) => event.stopPropagation()}

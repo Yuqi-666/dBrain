@@ -205,6 +205,22 @@ export function CalendarDataView({
 
   const apiRef = useRef<CalendarApi | null>(null);
   const [hover, setHover] = useState<ReadoutState | null>(null);
+  const [createdRowId, setCreatedRowId] = useState<string | null>(null);
+
+  // Open only once the host exposes the new row, including when insertion is
+  // asynchronous or the calendar's current filters hide the record.
+  useEffect(() => {
+    if (
+      !createdRowId ||
+      !recordActions.source.rows.some((row) => row.id === createdRowId)
+    )
+      return;
+    recordActions.openRecord(createdRowId, {
+      hiddenFieldIds: hiddenFieldIdsRef.current,
+    });
+    setCreatedRowId(null);
+    setHover(null);
+  }, [createdRowId, recordActions]);
 
   const handleApi = useCallback((api: CalendarApi | null) => {
     apiRef.current = api;
@@ -278,41 +294,45 @@ export function CalendarDataView({
     [writeConfig],
   );
 
-  const handleSelectRange = useCallback(
-    (arg: DateSelectArg) => {
-      const { source: liveSource, onRowInsert: insert } = latest.current;
-      // The mirror highlight is left over once the row exists; clear it so the
-      // new event is what the user sees.
-      apiRef.current?.unselect();
-      if (!insert) return;
-      // One day means "a click or a one-day drag", which is not a creation
-      // gesture — 双击 (dateClick) covers the one-day case instead.
-      const days = (arg.end.getTime() - arg.start.getTime()) / 86_400_000;
-      if (days <= 1) return;
-      insert(
-        selectionToRow(
-          liveSource.fields,
-          { start: arg.start, end: arg.end },
-          writeConfig(),
-        ),
-      );
+  const createRangeRecord = useCallback(
+    (range: { start: Date; end: Date | null }) => {
+      const {
+        source: liveSource,
+        onRowInsert: insert,
+        readOnly: locked,
+      } = latest.current;
+      if (!insert || locked) return;
+      const row = selectionToRow(liveSource.fields, range, writeConfig());
+      insert(row);
+      setCreatedRowId(row.id);
     },
     [writeConfig],
   );
 
+  const handleSelectRange = useCallback(
+    (arg: DateSelectArg) => {
+      // The mirror highlight is left over once the row exists; clear it so the
+      // new event is what the user sees.
+      apiRef.current?.unselect();
+      // One day means "a click or a one-day drag", which is not a creation
+      // gesture — 双击 (dateClick) covers the one-day case instead.
+      const days = (arg.end.getTime() - arg.start.getTime()) / 86_400_000;
+      if (days <= 1) return;
+      createRangeRecord({ start: arg.start, end: arg.end });
+    },
+    [createRangeRecord],
+  );
+
+  const handleAddDate = useCallback(
+    (date: Date) => createRangeRecord({ start: date, end: null }),
+    [createRangeRecord],
+  );
+
   const handleDateDoubleClick = useCallback(
     (arg: DateClickArg) => {
-      const { source: liveSource, onRowInsert: insert } = latest.current;
-      if (!insert || arg.jsEvent.detail < 2) return;
-      insert(
-        selectionToRow(
-          liveSource.fields,
-          { start: arg.date, end: null },
-          writeConfig(),
-        ),
-      );
+      if (arg.jsEvent.detail >= 2) handleAddDate(arg.date);
     },
-    [writeConfig],
+    [handleAddDate],
   );
 
   /**
@@ -364,6 +384,7 @@ export function CalendarDataView({
       onEventResize={handleEventDrop}
       onSelectRange={handleSelectRange}
       onDateDoubleClick={handleDateDoubleClick}
+      onAddDate={handleAddDate}
       onEventClick={handleEventClick}
       onEventMouseEnter={handleEventMouseEnter}
       onEventMouseLeave={handleEventMouseLeave}

@@ -9,9 +9,9 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  * Every DOM surface that edits a `date` cell uses this component, so a date is
  * always picked the same way (dataview/AGENTS.md § UI conventions). The value
  * is the domain's `YYYY-MM-DD` string — a *calendar day*, never an instant —
- * so the conversion lives here and nowhere else in the DOM layer (the table's
- * canvas editor keeps its own `input[type=date]`, which cannot mount React).
+ * so the conversion uses the same helpers as the table's React calendar editor.
  */
+import { useState } from "react";
 import { CalendarDays, X } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -45,11 +45,12 @@ export function DatePicker({
 }: DatePickerProps) {
   const { t } = useI18n();
 
+  const [open, setOpen] = useState(false);
   const selected = parseFieldDate(value);
 
   return (
     <div className={cn("flex min-w-0 items-center gap-1", className)}>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -74,7 +75,10 @@ export function DatePicker({
             defaultMonth={selected ?? undefined}
             autoFocus
             onSelect={(date) => {
-              if (date) onChange(toISODate(date));
+              if (date) {
+                onChange(toISODate(date));
+                setOpen(false);
+              }
             }}
           />
         </PopoverContent>

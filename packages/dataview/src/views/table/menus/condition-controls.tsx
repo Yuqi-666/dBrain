@@ -20,6 +20,7 @@ import {
 } from "@workspace/ui/components/ui/select";
 import type { DatabaseField } from "@workspace/interfaces";
 
+import { DatePicker } from "../../../shared/date-picker";
 import type { TableFilterOperator } from "../core/filter";
 
 /** Radix `Select` rejects an empty item value, so "not set" needs a sentinel. */
@@ -86,6 +87,21 @@ export function ConditionValueInput({
           ))}
         </SelectContent>
       </Select>
+    );
+  }
+
+  if (field?.type === "date") {
+    return (
+      <DatePicker
+        value={value || null}
+        disabled={disabled || inert}
+        placeholder={inert ? "—" : placeholder}
+        className={cn(
+          "h-7 min-w-0 flex-1 rounded-lg border border-input/80 bg-background/80",
+          className,
+        )}
+        onChange={(next) => onChange(next ?? "")}
+      />
     );
   }
 
