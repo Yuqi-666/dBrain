@@ -4,7 +4,7 @@ import * as React from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 
 function DropdownMenu({
   ...props
@@ -233,7 +233,6 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto" />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

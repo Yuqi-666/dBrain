@@ -1,4 +1,5 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
@@ -1010,43 +1011,27 @@ export function ChartToolbar({
         </PanelSection>
 
         <PanelSection label={t("色板")}>
-          <Select
+          <ColorPicker
             value={config.colorScheme ?? "default"}
+            onChange={(colorScheme) => patch({ colorScheme })}
             disabled={!canConfigure}
-            onValueChange={(next) => patch({ colorScheme: next })}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={t("色板")}
-              className="w-full text-xs"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CHART_PALETTES.map((palette) => (
-                <SelectItem
-                  key={palette.value}
-                  value={palette.value}
-                  className="text-xs"
-                >
-                  <span className="flex items-center gap-1.5">
-                    {palette.colors.length > 0 && (
-                      <span className="flex items-center gap-0.5">
-                        {palette.colors.slice(0, 5).map((color) => (
-                          <span
-                            key={color}
-                            className="size-2.5 rounded-[2px]"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </span>
-                    )}
-                    <span>{palette.label}</span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            aria-label={t("色板")}
+            className="p-0"
+            columns={3}
+            showLabels
+            groups={[
+              {
+                label: t("色板"),
+                colors: CHART_PALETTES.map((palette) => ({
+                  value: palette.value,
+                  label: palette.label,
+                  background: palette.colors.length
+                    ? `linear-gradient(90deg, ${palette.colors.join(", ")})`
+                    : "var(--muted)",
+                })),
+              },
+            ]}
+          />
         </PanelSection>
       </SettingsPanel>
     </ViewToolbar>

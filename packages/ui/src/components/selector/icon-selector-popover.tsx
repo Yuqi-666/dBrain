@@ -1,11 +1,13 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { cloneElement, isValidElement, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import type { NodeIcon } from "@workspace/interfaces";
-import { Ban, SmilePlus } from "lucide-react";
+import { SmilePlus } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { CommandList } from "@workspace/ui/components/ui/command";
 import { cn } from "@workspace/ui/lib/utils";
@@ -46,66 +48,8 @@ const TABS: SelectorPopoverTab[] = [
   },
 ];
 
-/**
- * 8 swatches + 「无」. Copied — not imported — from
- * `packages/dataview/src/shared/field-meta.tsx`'s `OPTION_COLORS` (sel §5
- * 颜色/底色: "色板取 shared/field-meta.tsx 的既有调色板以保持一致"), minus its
- * neutral `#94a3b8` first entry, which is the one value that would read as
- * "no colour" and leave exactly the eight chromatic swatches the design asks for.
- */
 const EMOJI_KEY_PREFIX = "emoji:";
 const ICON_KEY_PREFIX = "icon:";
-
-const ICON_COLORS: readonly { value: string; label: string }[] = [
-  {
-    value: "#ef4444",
-    get label() {
-      return translate("红");
-    },
-  },
-  {
-    value: "#f97316",
-    get label() {
-      return translate("橙");
-    },
-  },
-  {
-    value: "#eab308",
-    get label() {
-      return translate("黄");
-    },
-  },
-  {
-    value: "#22c55e",
-    get label() {
-      return translate("绿");
-    },
-  },
-  {
-    value: "#14b8a6",
-    get label() {
-      return translate("青");
-    },
-  },
-  {
-    value: "#3b82f6",
-    get label() {
-      return translate("蓝");
-    },
-  },
-  {
-    value: "#8b5cf6",
-    get label() {
-      return translate("紫");
-    },
-  },
-  {
-    value: "#ec4899",
-    get label() {
-      return translate("粉");
-    },
-  },
-];
 
 export interface IconSelectorPopoverProps {
   nodeId: string;
@@ -208,60 +152,20 @@ export function IconSelectorPopover({
     </Button>
   );
 
-  const selectedNoColor = Boolean(value) && !value?.color;
-
-  /**
-   * The 底色 row is **pinned chrome**, not part of the body: it goes through the
-   * shell's `footer` slot so a 46-row grid cannot push it under the fold (that
-   * was G2-r1's 「底色只在上传 tab 有了」). It must stay always-rendered and merely
-   * `disabled` when there is no icon — a control that appears and disappears
-   * pushes its left-hand neighbours around (sel §5 清除).
-   */
   const colorRow = (
-    <div
-      role="group"
-      aria-label={t("底色")}
-      className="flex shrink-0 items-center gap-1 border-t border-border/60 p-1"
-    >
-      <span className="px-1 text-xs text-muted-foreground">{t("底色")}</span>
-      {ICON_COLORS.map((entry) => {
-        const selected = value?.color === entry.value;
-        return (
-          <Button
-            key={entry.value}
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={translate("底色 {value1}", { value1: entry.label })}
-            aria-pressed={selected}
-            disabled={!value}
-            className={cn(
-              "p-0 hover:opacity-90",
-              // `--primary` = 用户已激活 (sel §0.3-8); it never means "has icon".
-              selected &&
-                "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-            )}
-            style={{ backgroundColor: entry.value }}
-            onClick={() => handleColor(entry.value)}
-          />
-        );
-      })}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        aria-label={t("无底色")}
-        aria-pressed={selectedNoColor}
+    <div className="border-t border-border/60 bg-muted/15 p-2">
+      <span className="px-1 text-[11px] font-medium text-muted-foreground">
+        {t("底色")}
+      </span>
+      <ColorPicker
+        className="p-1"
+        value={value?.color}
+        onChange={handleColor}
+        onClear={() => handleColor(undefined)}
+        clearLabel={t("无底色")}
         disabled={!value}
-        className={cn(
-          "hover:opacity-90",
-          selectedNoColor &&
-            "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-        )}
-        onClick={() => handleColor(undefined)}
-      >
-        <Ban className="size-4" />
-      </Button>
+        aria-label={t("底色")}
+      />
     </div>
   );
 
@@ -277,7 +181,7 @@ export function IconSelectorPopover({
       activeTab={tab}
       onTabChange={(next) => setTab(next as IconSelectorTab)}
       width={320}
-      bodyMaxHeight="min(384px, 52vh)"
+      bodyMaxHeight="min(280px, 35vh)"
       className={className}
       footer={colorRow}
       actions={

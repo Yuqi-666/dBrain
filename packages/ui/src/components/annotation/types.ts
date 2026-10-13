@@ -58,19 +58,9 @@ export interface LayerBox {
   height: number;
 }
 
-/**
- * A colour **token key** — never a hex value (design §2.3).
- *
- * Storing a key keeps the data theme-independent: the same annotation renders on
- * light and dark themes because the key resolves to a different `oklch()` in each.
- */
-export type AnnotationColorKey =
-  | "red"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "purple"
-  | "ink";
+/** Legacy theme-aware tokens and full-palette tokens share the same stored shape. */
+import type { AnnotationColorKey } from "./colors";
+export type { AnnotationColorKey } from "./colors";
 
 export interface AnnotationColorSpec {
   key: AnnotationColorKey;

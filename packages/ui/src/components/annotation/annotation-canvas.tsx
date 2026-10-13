@@ -82,6 +82,7 @@ import {
 import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { annotationPaletteHex } from "./colors";
 import { drawAnnotation, drawAnnotations } from "./draw";
 import { normalizePoint } from "./geometry";
 import {
@@ -286,6 +287,8 @@ export function AnnotationCanvas({
    * dropped in that case.
    */
   const resolveColor = useCallback((key: string): string => {
+    const paletteColor = annotationPaletteHex(key);
+    if (paletteColor) return paletteColor;
     const cached = colorCacheRef.current.get(key);
     if (cached) return cached;
 

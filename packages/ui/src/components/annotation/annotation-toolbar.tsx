@@ -1,4 +1,11 @@
 "use client";
+import {
+  annotationColorFromHex,
+  annotationPaletteHex,
+  annotationPickerValue,
+} from "./colors";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
@@ -6,7 +13,6 @@ import { useI18n } from "@workspace/ui/lib/i18n";
 import * as React from "react";
 import { motion } from "motion/react";
 import {
-  Check,
   MousePointer2,
   Ellipsis,
   Eraser,
@@ -206,10 +212,11 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         entry.tool ===
         (tool === "eraser" || tool === "pointer" ? lastBrush : tool),
     ) ?? BRUSHES[0];
-  const selectedColor =
-    ANNOTATION_COLORS.find((entry) => entry.key === color) ??
-    ANNOTATION_COLORS[0]!;
-  const colorStyle = `var(${selectedColor.cssVar})`;
+  const legacyColor = ANNOTATION_COLORS.find((entry) => entry.key === color);
+  const paletteHex = annotationPaletteHex(color);
+  const selectedColorLabel = legacyColor?.label ?? paletteHex ?? color;
+  const colorStyle =
+    paletteHex ?? `var(${legacyColor?.cssVar ?? ANNOTATION_COLORS[0]!.cssVar})`;
   const side =
     floating.edge === "left"
       ? "right"
@@ -500,7 +507,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               size="icon"
               data-annotation-color-trigger
               aria-label={translate("颜色与粗细（{value1}）", {
-                value1: selectedColor.label,
+                value1: selectedColorLabel,
               })}
               className={HIT}
             >
@@ -514,33 +521,19 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
             side={side}
             align="start"
             sideOffset={12}
-            className="w-60 rounded-2xl p-4"
+            className="w-80 max-w-[calc(100vw-1rem)] rounded-2xl p-4"
           >
             <div className="mb-3 flex items-center justify-between text-xs">
               <span className="font-medium">{t("颜色")}</span>
-              <span className="text-muted-foreground">
-                {selectedColor.label}
-              </span>
             </div>
-            <div className="grid grid-cols-6 gap-1.5 pointer-coarse:grid-cols-3">
-              {ANNOTATION_COLORS.map((entry) => (
-                <Button
-                  key={entry.key}
-                  variant="ghost"
-                  size="icon"
-                  data-annotation-color={entry.key}
-                  aria-label={entry.label}
-                  aria-pressed={color === entry.key}
-                  onClick={() => onColorChange(entry.key)}
-                  className="size-7 rounded-full p-0 ring-1 ring-border aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-2 aria-pressed:ring-offset-popover pointer-coarse:size-11"
-                  style={{ backgroundColor: `var(${entry.cssVar})` }}
-                >
-                  {color === entry.key && (
-                    <Check className="size-3.5 text-background" />
-                  )}
-                </Button>
-              ))}
-            </div>
+            <ColorPicker
+              value={annotationPickerValue(color)}
+              onChange={(value) => {
+                const next = annotationColorFromHex(value);
+                if (next) onColorChange(next);
+              }}
+              className="p-0"
+            />
             <div className="mb-2 mt-5 flex items-center justify-between text-xs">
               <span className="font-medium">{t("笔刷大小")}</span>
               <output className="tabular-nums text-muted-foreground">

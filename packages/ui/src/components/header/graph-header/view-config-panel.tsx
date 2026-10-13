@@ -1,4 +1,6 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
@@ -34,39 +36,6 @@ import {
   densityToPosition,
   positionToDensity,
 } from "./node-density";
-
-const BACKGROUND_COLORS = [
-  {
-    get label() {
-      return translate("默认白");
-    },
-    value: "#ffffff",
-  },
-  {
-    get label() {
-      return translate("浅灰");
-    },
-    value: "#f8f9fa",
-  },
-  {
-    get label() {
-      return translate("深灰");
-    },
-    value: "#343a40",
-  },
-  {
-    get label() {
-      return translate("深蓝");
-    },
-    value: "#1a365d",
-  },
-  {
-    get label() {
-      return translate("黑色");
-    },
-    value: "#000000",
-  },
-];
 
 const GRID_STYLES = [
   {
@@ -141,11 +110,15 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu dir="rtl">
       <DropdownMenuTrigger asChild>
         <ViewConfigButton className={className} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent
+        style={{ direction: "ltr" }}
+        align="end"
+        className="w-56"
+      >
         <DropdownMenuLabel>{t("视图配置")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
@@ -153,25 +126,23 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
           <DropdownMenuSubTrigger>
             <PaletteIcon className="size-4 mr-2" />
             <span>{t("背景颜色")}</span>
+            <span
+              aria-hidden
+              className="ml-auto size-4 rounded-sm border border-foreground/10"
+              style={{ background: visualConfig.backgroundColor ?? "#ffffff" }}
+            />
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-32">
-            {BACKGROUND_COLORS.map((color) => (
-              <DropdownMenuItem
-                key={color.value}
-                onClick={() =>
-                  handleUpdateVisualConfig({ backgroundColor: color.value })
-                }
-              >
-                <span
-                  className="size-4 rounded mr-2 border"
-                  style={{ backgroundColor: color.value }}
-                />
-                <span>{color.label}</span>
-                {visualConfig.backgroundColor === color.value && (
-                  <CheckIcon className="size-3 ml-auto" />
-                )}
-              </DropdownMenuItem>
-            ))}
+          <DropdownMenuSubContent
+            style={{ direction: "ltr" }}
+            className="w-72 rounded-xl p-0"
+          >
+            <ColorPicker
+              value={visualConfig.backgroundColor ?? "#ffffff"}
+              onChange={(backgroundColor) =>
+                handleUpdateVisualConfig({ backgroundColor })
+              }
+              aria-label={t("背景颜色")}
+            />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
@@ -180,7 +151,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
             <Grid3X3Icon className="size-4 mr-2" />
             <span>{t("网格样式")}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-28">
+          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-36">
             {GRID_STYLES.map((style) => (
               <DropdownMenuItem
                 key={style.value}
@@ -197,6 +168,33 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
                 )}
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <span>{t("网格颜色")}</span>
+                <span
+                  aria-hidden
+                  className="ml-auto size-4 rounded-sm border border-foreground/10"
+                  style={{ background: visualConfig.gridColor ?? "#e5e7eb" }}
+                />
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent
+                style={{ direction: "ltr" }}
+                className="w-72 rounded-xl p-0"
+              >
+                <ColorPicker
+                  value={visualConfig.gridColor ?? "#e5e7eb"}
+                  onChange={(gridColor) =>
+                    handleUpdateVisualConfig({ gridColor })
+                  }
+                  onClear={() =>
+                    handleUpdateVisualConfig({ gridColor: "#e5e7eb" })
+                  }
+                  clearLabel={t("默认颜色")}
+                  aria-label={t("网格颜色")}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
@@ -205,7 +203,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
             <RadiusIcon className="size-4 mr-2" />
             <span>{t("节点密度")}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-48">
+          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-48">
             <div className="px-2 py-1.5" title={t("仅「力导向」布局生效")}>
               <div className="mb-1 text-center text-xs text-muted-foreground">
                 {densityScaleLabel(nodeDensity)}
@@ -233,7 +231,7 @@ export function ViewConfigPanel({ className }: ViewConfigPanelProps) {
             <LayoutIcon className="size-4 mr-2" />
             <span>{t("视图类型")}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-32">
+          <DropdownMenuSubContent style={{ direction: "ltr" }} className="w-32">
             {VIEW_TYPES.map((viewType) => (
               <DropdownMenuItem
                 key={viewType.value}

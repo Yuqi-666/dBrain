@@ -1,8 +1,9 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeSemanticService, EdgeSemanticService } from "@workspace/services";
@@ -191,22 +192,12 @@ export function NodeSemanticDialogContent({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-color">{t("Color")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="node-color"
-                  name="color"
-                  type="color"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  className="w-12 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  name="color-text"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  placeholder="#6366f1"
-                  className="flex-1"
-                />
-              </div>
+              <Label>{t("Color")}</Label>
+              <SemanticColorField
+                key={editingSemantic?.id ?? "new"}
+                defaultValue={editingSemantic?.color ?? "#6366f1"}
+                aria-label={t("Color")}
+              />
             </div>
 
             <div className="grid gap-2">
@@ -431,22 +422,12 @@ export function EdgeSemanticDialogContent({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-color">{t("Color")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edge-color"
-                  name="color"
-                  type="color"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  className="w-12 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  name="color-text"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  placeholder="#6366f1"
-                  className="flex-1"
-                />
-              </div>
+              <Label>{t("Color")}</Label>
+              <SemanticColorField
+                key={editingSemantic?.id ?? "new"}
+                defaultValue={editingSemantic?.color ?? "#6366f1"}
+                aria-label={t("Color")}
+              />
             </div>
           </div>
 
@@ -616,6 +597,23 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The semantic form embeds the palette and includes its value in form submission. */
+function SemanticColorField({
+  defaultValue,
+  "aria-label": label,
+}: {
+  defaultValue: string;
+  "aria-label": string;
+}) {
+  const [color, setColor] = useState(defaultValue);
+  return (
+    <div className="max-w-80 rounded-xl border border-border/60 bg-muted/10">
+      <input type="hidden" name="color" value={color} />
+      <ColorPicker value={color} onChange={setColor} aria-label={label} />
     </div>
   );
 }

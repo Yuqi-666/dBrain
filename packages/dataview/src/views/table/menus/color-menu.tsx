@@ -1,4 +1,8 @@
 "use client";
+import { useState } from "react";
+import { usePopoverLayer } from "@workspace/ui/hooks/use-popover-layer";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
@@ -36,7 +40,7 @@ import type {
 
 import { ConditionValueInput } from "./condition-controls";
 import { FieldPickerButton } from "../../../shared/field-picker";
-import { DEFAULT_FILL_COLOR, FILL_COLORS } from "../../../shared/field-meta";
+import { DEFAULT_FILL_COLOR } from "../../../shared/field-meta";
 import {
   TABLE_FILTER_OPERATOR_LABELS,
   filterOperatorsForField,
@@ -165,36 +169,10 @@ export function TableColorMenu({
                     <GripVertical className="size-3.5 shrink-0 text-muted-foreground/60" />
 
                     {/* —— 颜色 —— */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={t("填色颜色")}
-                          className="size-6 shrink-0 rounded-md border border-border"
-                          style={{ background: rule.color }}
-                        />
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="w-auto p-2">
-                        <div className="grid grid-cols-5 gap-1.5">
-                          {FILL_COLORS.map((swatch) => (
-                            <button
-                              key={swatch}
-                              type="button"
-                              aria-label={swatch}
-                              aria-pressed={swatch === rule.color}
-                              className={cn(
-                                "size-5 rounded-md border",
-                                swatch === rule.color
-                                  ? "border-primary"
-                                  : "border-transparent",
-                              )}
-                              style={{ background: swatch }}
-                              onClick={() => patch(rule.id, { color: swatch })}
-                            />
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <RuleFillColor
+                      value={rule.color}
+                      onChange={(color) => patch(rule.id, { color })}
+                    />
 
                     {/* —— 范围 —— */}
                     <Select
@@ -310,6 +288,54 @@ export function TableColorMenu({
           <Plus className="size-3.5" />
           {t("添加条件")}{" "}
         </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** A compact fill preview leaves room for the condition fields in each rule. */
+function RuleFillColor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const layer = usePopoverLayer();
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) layer.prepareLayer();
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          ref={layer.triggerRef}
+          type="button"
+          aria-label={t("填色颜色")}
+          title={value}
+          className="size-6 shrink-0 rounded-md border border-foreground/10 shadow-xs outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          style={{ background: value }}
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        container={layer.container}
+        style={{ zIndex: layer.zIndex }}
+        align="start"
+        className="w-72 rounded-xl p-0"
+      >
+        <ColorPicker
+          value={value}
+          aria-label={t("填色颜色")}
+          onChange={(color) => {
+            onChange(color);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

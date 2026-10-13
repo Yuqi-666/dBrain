@@ -1,4 +1,12 @@
 "use client";
+import { usePopoverLayer } from "@workspace/ui/hooks/use-popover-layer";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/ui/popover";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
@@ -31,11 +39,6 @@ import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -183,34 +186,45 @@ function ColorSwatchButton({
   onChange: (color: string) => void;
 }) {
   useI18n();
-
+  const [open, setOpen] = useState(false);
+  const layer = usePopoverLayer();
+  const ariaLabel = translate("{value1} 选项颜色", { value1: label });
   return (
-    <Popover>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) layer.prepareLayer();
+        setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
+          ref={layer.triggerRef}
           type="button"
-          aria-label={translate("{value1} 选项颜色", { value1: label })}
-          className="size-4 shrink-0 rounded-full border border-black/10"
-          style={{ background: color }}
-        />
+          aria-label={ariaLabel}
+          title={ariaLabel}
+          className="flex size-7 shrink-0 items-center justify-center rounded-md outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span
+            className="size-4 rounded-full border border-foreground/10 shadow-xs"
+            style={{ background: color }}
+          />
+        </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-2">
-        <div className="grid grid-cols-5 gap-1.5">
-          {OPTION_COLORS.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              aria-label={swatch}
-              aria-pressed={swatch === color}
-              className={cn(
-                "size-5 rounded-md border",
-                swatch === color ? "border-primary" : "border-transparent",
-              )}
-              style={{ background: swatch }}
-              onClick={() => onChange(swatch)}
-            />
-          ))}
-        </div>
+      <PopoverContent
+        container={layer.container}
+        style={{ zIndex: layer.zIndex }}
+        align="start"
+        className="w-72 rounded-xl p-0"
+      >
+        <ColorPicker
+          value={color}
+          aria-label={ariaLabel}
+          onChange={(next) => {
+            onChange(next);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

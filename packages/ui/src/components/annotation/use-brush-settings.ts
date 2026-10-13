@@ -4,18 +4,13 @@ import { useCallback, useEffect } from "react";
 import type { SetStateAction } from "react";
 import { BRUSHES } from "./brushes";
 import type { BrushTool } from "./brushes";
-import {
-  ANNOTATION_COLORS,
-  DEFAULT_ANNOTATION_COLOR,
-  DEFAULT_ANNOTATION_SIZE,
-} from "./types";
+import { DEFAULT_ANNOTATION_COLOR, DEFAULT_ANNOTATION_SIZE } from "./types";
 import type { AnnotationColorKey, AnnotationTool } from "./types";
+import { isAnnotationColor } from "./colors";
 import { useToolbarPreference } from "./use-toolbar-preference";
 
 type BrushSettings = { color: AnnotationColorKey; size: number };
 type Settings = Partial<Record<BrushTool | "eraser", BrushSettings>>;
-const isColor = (value: unknown): value is AnnotationColorKey =>
-  ANNOTATION_COLORS.some((entry) => entry.key === value);
 const isSize = (value: unknown): value is number =>
   typeof value === "number" &&
   Number.isFinite(value) &&
@@ -29,7 +24,7 @@ const isSettings = (value: unknown): value is Settings => {
       (key === "eraser" || BRUSHES.some((brush) => brush.tool === key)) &&
       typeof item === "object" &&
       item !== null &&
-      isColor(item.color) &&
+      isAnnotationColor(item.color) &&
       isSize(item.size),
   );
 };
@@ -39,7 +34,7 @@ export function useBrushSettings(tool: AnnotationTool) {
   const [legacyColor] = useToolbarPreference(
     "color",
     DEFAULT_ANNOTATION_COLOR,
-    isColor,
+    isAnnotationColor,
   );
   const [legacySize] = useToolbarPreference(
     "size",

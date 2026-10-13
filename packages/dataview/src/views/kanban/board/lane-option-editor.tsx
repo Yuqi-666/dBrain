@@ -1,5 +1,5 @@
 "use client";
-import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
 
@@ -21,11 +21,8 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  */
 import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
-
-import { OPTION_COLORS } from "../../../shared/field-meta";
 
 export interface LaneOptionEditorProps {
   /** The option's current name. */
@@ -98,31 +95,12 @@ export function LaneOptionEditor({
         <span className="text-[11px] font-medium text-muted-foreground">
           {t("颜色")}{" "}
         </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            aria-label={t("默认颜色")}
-            onClick={() => setDraftColor(null)}
-            className={cn(
-              "size-5 rounded-full border border-dashed border-muted-foreground/60",
-              draftColor === null && "ring-2 ring-ring ring-offset-1",
-            )}
-          />
-          {OPTION_COLORS.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              aria-label={translate("颜色 {value1}", { value1: swatch })}
-              onClick={() => setDraftColor(swatch)}
-              style={{ backgroundColor: swatch }}
-              className={cn(
-                "size-5 rounded-full",
-                effectiveColor.toLowerCase() === swatch.toLowerCase() &&
-                  "ring-2 ring-ring ring-offset-1",
-              )}
-            />
-          ))}
-        </div>
+        <ColorPicker
+          className="rounded-xl border border-border/60 p-2"
+          value={draftColor === null ? undefined : effectiveColor}
+          onChange={setDraftColor}
+          onClear={() => setDraftColor(null)}
+        />
       </div>
 
       <Button
