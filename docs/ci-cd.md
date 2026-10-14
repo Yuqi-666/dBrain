@@ -42,6 +42,12 @@ The command commits every change in the workspace. Commit or stash unrelated wor
 
 The command signs the commit with an SSH key. Set the key once. Add the same key to GitHub as a signing key.
 
+The command asks GitHub for the merge only when GitHub can hold the merge back.
+GitHub holds an auto-merge request until every required check passes.
+A repository without the required `verify` check merges the request at once, a red check included.
+The command then prints why it skipped the auto-merge and leaves the merge to you.
+A change under the protected paths never asks for an auto-merge, because the verifier asks for the label `gate-change` and a review first.
+
 ```bash
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
@@ -101,10 +107,12 @@ The verifier takes about 30 seconds. It installs no dependency. It makes these d
 2. The tree of the head commit equals `Gate-Tree`.
 3. The trailer lists every check that the changed paths require.
 4. No tracked file is on the deny list. The deny list holds a local `.env` file, a dependency, a local database, a build output, and a key file.
-5. A change to `scripts/gate/**`, `scripts/gate.mjs`, or `.github/workflows/gate.yml` needs the label `gate-change` and a review.
+5. A change to `scripts/gate/**`, `scripts/gate.mjs`, or `.github/workflows/gate.yml` needs the label `gate-change` and a review. `pnpm gate:policy --apply` creates the label. Adding or removing the label runs the job again, so the verdict follows the label.
 6. The commit signature is valid. The verifier reads the result from the GitHub API.
 
 A rejected commit fails the job. The ruleset makes the job `verify` a required status check, so the merge is blocked.
+
+On a repository without a ruleset the check cannot be required. The merge is then never blocked automatically. Add the label, let the job pass, and merge by hand.
 
 Rule 6 keeps the identity of the author. A signature proves a claim. It does not prove that a command ran. An author can write a false trailer. The branch ruleset and the review of the gate files are the defence against that.
 
@@ -292,12 +300,22 @@ pnpm gate:policy --apply
 | Setting                        | Value                                                    | Reason                                                       |
 | ------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------ |
 | Auto-merge                     | On                                                       | The local gate asks GitHub to merge the pull request.        |
+| Auto-merge, effective          | Only when `verify` is a required check                    | Without the required check, GitHub merges the request at once. The gate then leaves the merge to you. |
 | Merge methods                  | Merge commit only                                        | The job `merged` reads the second parent of the merge commit.|
 | Pull request                   | Required for `main`                                      | A direct push to `main` cannot bypass the gate.              |
 | Status checks                  | `verify`, from GitHub Actions, and the branch must be current | The gate must pass before the merge.                    |
 | Force push and branch deletion | Blocked                                                  | A gated commit cannot leave the history.                     |
+| Label                          | `gate-change` exists                                     | A person attaches it to approve a change to the gate itself. A label must exist before a pull request can carry it. |
+
+`pnpm gate:policy --apply` writes the settings, the ruleset, and the label.
 
 The owner needs a `gh` login with admin access. The token of a workflow cannot change a ruleset.
+
+A private repository on a free plan has no rulesets and no branch protection.
+The GitHub API then answers `403`.
+The gate prints the plan and reports the refusal.
+Apply the policy again after an upgrade to GitHub Pro, or make the repository public.
+Until then the required check cannot exist, and the gate never asks for a merge.
 
 Two items are manual.
 

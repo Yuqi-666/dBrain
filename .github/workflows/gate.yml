@@ -16,7 +16,9 @@ name: Gate
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    # A label decides a protected-path change, so the label itself must run the
+    # check again. Without `labeled`, the verdict could only change on a push.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
   workflow_dispatch:

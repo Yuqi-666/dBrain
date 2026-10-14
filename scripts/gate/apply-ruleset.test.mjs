@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   actionsAppId,
   describe,
+  labelPayload,
   main,
   parseArgs,
   planRuleset,
@@ -60,6 +61,14 @@ test('the description names every rule and the check context', () => {
   assert.ok(text.includes('non_fast_forward'));
   assert.ok(text.includes('allow_auto_merge=true'));
   assert.ok(text.includes('creates it'));
+  assert.ok(text.includes(`    - ${labelPayload().name}: `), 'the plan names the approval label');
+});
+
+test('the approval label is described for the repository', () => {
+  const label = labelPayload();
+  assert.equal(label.name, 'gate-change');
+  assert.match(label.color, /^[0-9a-f]{6}$/);
+  assert.ok(label.description.length > 0);
 });
 
 test('the argument parser follows the usage text', () => {
@@ -93,6 +102,7 @@ test('a dry run prints the plan and changes nothing', async () => {
   assert.ok(output.join('\n').includes('Dry run'));
   assert.ok(!calls.some(call => call.includes('PATCH')), 'a dry run writes nothing');
   assert.ok(!calls.some(call => call.includes('POST')));
+  assert.ok(!calls.some(call => call.includes('label create')), 'a dry run creates no label');
 });
 
 test('an apply writes the settings and creates the ruleset', async () => {
@@ -109,6 +119,7 @@ test('an apply writes the settings and creates the ruleset', async () => {
   assert.equal(code, 0);
   assert.ok(calls.some(call => call.includes('PATCH repos/o/r')));
   assert.ok(calls.some(call => call.includes('POST repos/o/r/rulesets')));
+  assert.ok(calls.some(call => call.includes('label create gate-change')), 'the label is created too');
   assert.ok(output.join('\n').includes('created'));
 });
 

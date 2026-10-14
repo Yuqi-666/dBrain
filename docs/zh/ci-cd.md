@@ -50,6 +50,12 @@ git config --global user.signingkey ~/.ssh/id_ed25519.pub
 git config --global commit.gpgsign true
 ```
 
+只有当 GitHub 能拦住这次合并时，命令才请 GitHub 合并。
+GitHub 会把 auto-merge 请求挂起，直到每一个必需检查通过。
+仓库如果没有必需的 `verify` 检查，就立即合并该请求，检查是红的也照合。
+这种情况下命令会打印跳过 auto-merge 的原因，并把合并留给你。
+受保护路径下的改动永不请求 auto-merge，因为验证器先要标签 `gate-change` 和一次复核。
+
 ### Trailer
 
 门控把一段 trailer 写入提交信息。
@@ -103,10 +109,12 @@ Gate-Run: 2026-05-05T09:12:44Z
 2. 头部提交的树等于 `Gate-Tree`。
 3. trailer 列出改动路径所要求的每一个检查。
 4. 没有已跟踪文件落在禁止清单上。禁止清单包含本地 `.env` 文件、依赖、本地数据库、构建产物和密钥文件。
-5. 改动 `scripts/gate/**`、`scripts/gate.mjs` 或 `.github/workflows/gate.yml` 需要标签 `gate-change` 和一次复核。
+5. 改动 `scripts/gate/**`、`scripts/gate.mjs` 或 `.github/workflows/gate.yml` 需要标签 `gate-change` 和一次复核。标签由 `pnpm gate:policy --apply` 创建。添加或移除该标签会重新运行作业，因此结论跟随标签变化。
 6. 提交签名有效。验证器从 GitHub API 读取结果。
 
 被拒绝的提交会让作业失败。ruleset 把作业 `verify` 设为必需状态检查，因此合并被阻止。
+
+在没有 ruleset 的仓库上，该检查无法被设为必需。此时合并不再被自动阻止。请添加标签、等作业通过，然后手工合并。
 
 第 6 条绑定作者身份。签名只能证明一个声明。它不能证明某条命令真的运行过。作者可以写一份假的 trailer。防线是分支 ruleset 和对门控文件的复核。
 
@@ -294,12 +302,22 @@ pnpm gate:policy --apply
 | 设置 | 值 | 原因 |
 | --- | --- | --- |
 | 自动合并 | 开启 | 本地门控请 GitHub 合并 PR。 |
+| 自动合并，实际生效 | 仅当 `verify` 是必需检查 | 没有必需检查时 GitHub 立即合并该请求。此时门控把合并留给你。 |
 | 合并方式 | 仅 merge commit | 作业 `merged` 读取 merge commit 的第二个父提交。 |
 | PR | `main` 必需 | 直接推送 `main` 无法绕过门控。 |
 | 状态检查 | `verify`，来自 GitHub Actions，且分支必须最新 | 合并前必须通过门控。 |
 | force-push 与分支删除 | 阻止 | 已门控的提交不能离开历史。 |
+| 标签 | `gate-change` 已存在 | 由人添加该标签以批准对门控自身的改动。标签必须先存在，PR 才能带上它。 |
+
+`pnpm gate:policy --apply` 写入这些设置、ruleset 和标签。
 
 所有者需要具备管理员权限的 `gh` 登录。工作流的令牌无法更改 ruleset。
+
+免费套餐下的私有仓库没有 ruleset，也没有分支保护。
+GitHub API 此时返回 `403`。
+门控会打印计划并报告该拒绝。
+升级到 GitHub Pro 或把仓库改为公开之后，请再次应用策略。
+在此之前必需检查无法存在，门控也永不请求合并。
 
 另外两项需要手工完成。
 

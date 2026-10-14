@@ -12,7 +12,13 @@ import { appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTrailers } from './attest.mjs';
-import { checks, protocol, protectedPaths, trackedDeny } from './checks.mjs';
+import {
+  checks,
+  gateChangeLabel,
+  protocol,
+  protectedPaths,
+  trackedDeny,
+} from './checks.mjs';
 import {
   allLocalCheckIds,
   codePaths,
@@ -22,7 +28,6 @@ import {
 } from './scope.mjs';
 
 const defaultDefinition = { protocol, checks, protectedPaths, trackedDeny };
-const gateChangeLabel = 'gate-change';
 
 export function createGit(cwd) {
   return args =>
