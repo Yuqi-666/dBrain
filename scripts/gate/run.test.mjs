@@ -379,8 +379,51 @@ test('a merged pull request on the branch leaves a new pull request to the gate'
     'the gate opens a new pull request',
   );
   assert.ok(
-    !calls.some(call => call.startsWith('gh pr edit')),
-    'the gate does not edit the merged pull request',
+    !calls.some(call => call.includes('/pulls/21')),
+    'the gate does not touch the merged pull request',
   );
   assert.match(text, /Pull request https:\/\/github\.com\/o\/r\/pull\/22/);
+});
+
+test('an open pull request keeps the title and the body of the last gate run', async t => {
+  const root = createRepo(t);
+  write(root, 'README.md', '# dBrain\n');
+  commitAll(root, 'docs: start');
+  git(root, ['checkout', '--quiet', '-b', 'topic']);
+  const output = [];
+  const calls = [];
+  const run = (command, args, options = {}) => {
+    calls.push({ line: [command, ...args].join(' '), input: options.input });
+    if (command === 'pnpm' && args[0] === '--version') return { status: 0, stdout: '9.0.0\n' };
+    if (command === 'gh' && args[1] === 'view') {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          number: 22,
+          url: 'https://github.com/o/r/pull/22',
+          state: 'OPEN',
+        }),
+      };
+    }
+    return { status: 0, stdout: '' };
+  };
+
+  const code = await runGate([], {
+    cwd: root,
+    options: parseArgs(['-m', 'docs: change', '--no-hooks', '--no-sign', '--no-auto-merge']),
+    git: createGit(root),
+    run,
+    runCheck: async () => ({ status: 'passed', exitCode: 0, durationMs: 1 }),
+    io: quietIo(output),
+    env: { GITHUB_REPOSITORY: 'o/r' },
+  });
+
+  const text = output.join('\n');
+  assert.equal(code, 0, text);
+  const edit = calls.find(call => call.line.startsWith('gh api --method PATCH'));
+  assert.ok(edit, 'the gate patches the open pull request');
+  assert.match(edit.line, /repos\/\{owner\}\/\{repo\}\/pulls\/22 --input -$/);
+  const body = JSON.parse(edit.input);
+  assert.equal(body.title, 'docs: change');
+  assert.match(body.body, /Gate-Tree: [0-9a-f]{40}/);
 });

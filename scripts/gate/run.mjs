@@ -477,10 +477,14 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     .join('\n');
 
   if (open) {
+    // The command `gh pr edit` reads the project cards of the pull request over
+    // GraphQL. That query fails on a repository that uses the retired Projects
+    // classic. The REST endpoint keeps the title and the body in step without
+    // it.
     const edited = run(
       'gh',
-      ['pr', 'edit', String(open.number), '--title', subject, '--body-file', '-'],
-      { cwd: root, input: pullRequestBody },
+      ['api', '--method', 'PATCH', `repos/{owner}/{repo}/pulls/${open.number}`, '--input', '-'],
+      { cwd: root, input: JSON.stringify({ title: subject, body: pullRequestBody }) },
     );
     if (edited.status !== 0) io.log(describeFailure(edited));
     if (autoMerge?.arm) askForMerge({ run, io, root, number: open.number });
