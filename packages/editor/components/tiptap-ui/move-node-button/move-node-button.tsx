@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -35,6 +36,8 @@ export function MoveNodeShortcutBadge({
 }: {
   shortcutKeys: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -59,6 +62,8 @@ export const MoveNodeButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -87,7 +92,7 @@ export const MoveNodeButton = forwardRef<
       return null;
     }
 
-    const tooltip = direction === "up" ? "Move Up" : "Move Down";
+    const tooltip = direction === "up" ? t("Move Up") : t("Move Down");
 
     return (
       <Button

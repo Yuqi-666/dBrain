@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { RichTextNodeData } from "@workspace/interfaces";
 import { Link2 } from "lucide-react";
@@ -20,6 +21,8 @@ function extractTextContent(docs: Record<string, any>): string {
 }
 
 export function RichTextPreview({ node }: { node: RichTextNodeData }) {
+  const { t } = useI18n();
+
   const docsText = node.content?.docs
     ? extractTextContent(node.content.docs)
     : "";
@@ -32,14 +35,16 @@ export function RichTextPreview({ node }: { node: RichTextNodeData }) {
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-foreground leading-relaxed line-clamp-5">
-            {previewText || "暂无内容"}
+            {previewText || t("暂无内容")}
           </p>
         </div>
       </div>
       {referencedCount > 0 && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Link2 className="size-3.5" />
-          <span>{referencedCount} referenced nodes</span>
+          <span>
+            {referencedCount} {t("referenced nodes")}
+          </span>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useRef } from "react";
 import type { ReactNode } from "react";
@@ -33,6 +34,8 @@ export function SelectorUrlInput({
   invalidReason,
   className,
 }: SelectorUrlInputProps): ReactNode {
+  const { t } = useI18n();
+
   /**
    * The value of the last commit. An `Enter` usually closes the popover, whose
    * unmount blurs the input — without this the blur would submit the same URL a
@@ -88,7 +91,7 @@ export function SelectorUrlInput({
           disabled={!canSubmit}
           onClick={submit}
         >
-          添加
+          {t("添加")}{" "}
         </InputGroupButton>
       </InputGroup>
       {invalidReason ? (

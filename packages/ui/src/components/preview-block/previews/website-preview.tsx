@@ -1,9 +1,12 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { WebsiteNodeData } from "@workspace/interfaces";
 import { ExternalLink } from "lucide-react";
 
 export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
+  const { t } = useI18n();
+
   const getDomain = (url: string) => {
     try {
       return new URL(url).hostname;
@@ -32,7 +35,7 @@ export function WebsitePreview({ node }: { node: WebsiteNodeData }) {
           <ExternalLink className="size-3.5 shrink-0" />
         </a>
       ) : (
-        <p className="text-xs text-muted-foreground">暂无网址</p>
+        <p className="text-xs text-muted-foreground">{t("暂无网址")}</p>
       )}
     </div>
   );

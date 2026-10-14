@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function ResetAllFormattingShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -65,6 +68,8 @@ export const ResetAllFormattingButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -103,7 +108,7 @@ export const ResetAllFormattingButton = forwardRef<
         role="button"
         tabIndex={-1}
         aria-label={label}
-        tooltip="Reset formatting"
+        tooltip={t("Reset formatting")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

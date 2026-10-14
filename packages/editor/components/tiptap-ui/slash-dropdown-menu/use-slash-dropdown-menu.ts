@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -51,14 +53,18 @@ export interface SlashMenuConfig {
 const texts = {
   // AI
   continue_writing: {
-    title: "Continue Writing",
+    get title() {
+      return translate("Continue Writing");
+    },
     subtext: "Continue writing from the current position",
     keywords: ["continue", "write", "continue writing", "ai"],
     badge: AiSparklesIcon,
     group: "AI",
   },
   ai_ask_button: {
-    title: "Ask AI",
+    get title() {
+      return translate("Ask AI");
+    },
     subtext: "Ask AI to generate content",
     keywords: ["ai", "ask", "generate"],
     badge: AiSparklesIcon,
@@ -67,63 +73,81 @@ const texts = {
 
   // Style
   text: {
-    title: "Text",
+    get title() {
+      return translate("Text");
+    },
     subtext: "Regular text paragraph",
     keywords: ["p", "paragraph", "text"],
     badge: TypeIcon,
     group: "Style",
   },
   heading_1: {
-    title: "Heading 1",
+    get title() {
+      return translate("Heading 1");
+    },
     subtext: "Top-level heading",
     keywords: ["h", "heading1", "h1"],
     badge: HeadingOneIcon,
     group: "Style",
   },
   heading_2: {
-    title: "Heading 2",
+    get title() {
+      return translate("Heading 2");
+    },
     subtext: "Key section heading",
     keywords: ["h2", "heading2", "subheading"],
     badge: HeadingTwoIcon,
     group: "Style",
   },
   heading_3: {
-    title: "Heading 3",
+    get title() {
+      return translate("Heading 3");
+    },
     subtext: "Subsection and group heading",
     keywords: ["h3", "heading3", "subheading"],
     badge: HeadingThreeIcon,
     group: "Style",
   },
   bullet_list: {
-    title: "Bullet List",
+    get title() {
+      return translate("Bullet List");
+    },
     subtext: "List with unordered items",
     keywords: ["ul", "li", "list", "bulletlist", "bullet list"],
     badge: ListIcon,
     group: "Style",
   },
   ordered_list: {
-    title: "Numbered List",
+    get title() {
+      return translate("Numbered List");
+    },
     subtext: "List with ordered items",
     keywords: ["ol", "li", "list", "numberedlist", "numbered list"],
     badge: ListOrderedIcon,
     group: "Style",
   },
   task_list: {
-    title: "To-do list",
+    get title() {
+      return translate("To-do list");
+    },
     subtext: "List with tasks",
     keywords: ["tasklist", "task list", "todo", "checklist"],
     badge: ListTodoIcon,
     group: "Style",
   },
   quote: {
-    title: "Blockquote",
+    get title() {
+      return translate("Blockquote");
+    },
     subtext: "Blockquote block",
     keywords: ["quote", "blockquote"],
     badge: BlockquoteIcon,
     group: "Style",
   },
   code_block: {
-    title: "Code Block",
+    get title() {
+      return translate("Code Block");
+    },
     subtext: "Code block with syntax highlighting",
     keywords: ["code", "pre"],
     badge: CodeBlockIcon,
@@ -132,56 +156,72 @@ const texts = {
 
   // Insert
   mention: {
-    title: "Mention",
+    get title() {
+      return translate("Mention");
+    },
     subtext: "Mention a user or item",
     keywords: ["mention", "user", "item", "tag"],
     badge: AtSignIcon,
     group: "Insert",
   },
   emoji: {
-    title: "Emoji",
+    get title() {
+      return translate("Emoji");
+    },
     subtext: "Insert an emoji",
     keywords: ["emoji", "emoticon", "smiley"],
     badge: SmilePlusIcon,
     group: "Insert",
   },
   table: {
-    title: "Table",
+    get title() {
+      return translate("Table");
+    },
     subtext: "Insert a table",
     aliases: ["table", "insertTable"],
     badge: TableIcon,
     group: "Insert",
   },
   divider: {
-    title: "Separator",
+    get title() {
+      return translate("Separator");
+    },
     subtext: "Horizontal line to separate content",
     keywords: ["hr", "horizontalRule", "line", "separator"],
     badge: MinusIcon,
     group: "Insert",
   },
   toc: {
-    title: "Table of contents",
+    get title() {
+      return translate("Table of contents");
+    },
     subtext: "Insert a table of contents",
     keywords: ["toc", "tableofcontents", "table of contents"],
     badge: ListIndentedIcon,
     group: "Insert",
   },
   excalidraw: {
-    title: "Excalidraw diagram",
+    get title() {
+      return translate("Excalidraw diagram");
+    },
     subtext: "Draw and sketch excalidraw diagrams",
     keywords: ["excalidraw", "diagrams", "draw", "sketch", "whiteboard"],
     badge: IconExcalidraw,
     group: "Insert",
   },
   inline_latex: {
-    title: "Inline LaTeX",
+    get title() {
+      return translate("Inline LaTeX");
+    },
     subtext: "Insert inline mathematical formula",
     keywords: ["latex", "math", "inline", "formula", "equation", "$"],
     badge: Sigma,
     group: "Insert",
   },
   block_latex: {
-    title: "Block LaTeX",
+    get title() {
+      return translate("Block LaTeX");
+    },
     subtext: "Insert block-level mathematical formula",
     keywords: ["latex", "math", "block", "formula", "equation", "$$"],
     badge: Sigma,
@@ -190,7 +230,9 @@ const texts = {
 
   // Upload
   image: {
-    title: "Image",
+    get title() {
+      return translate("Image");
+    },
     subtext: "Resizable image with caption",
     keywords: [
       "image",
@@ -450,6 +492,8 @@ function organizeItemsByGroups(
  * Custom hook for slash dropdown menu functionality
  */
 export function useSlashDropdownMenu(config?: SlashMenuConfig) {
+  useI18n();
+
   const getSlashMenuItems = useCallback(
     (editor: Editor) => {
       const items: SuggestionItem[] = [];

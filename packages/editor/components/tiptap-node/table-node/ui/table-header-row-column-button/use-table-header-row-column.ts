@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -60,8 +62,12 @@ export interface UseTableHeaderRowColumnConfig {
 const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableHeaderRowColumnLabels: Record<Orientation, string> = {
-  row: "Header row",
-  column: "Header column",
+  get row() {
+    return translate("Header row");
+  },
+  get column() {
+    return translate("Header column");
+  },
 };
 
 export const tableHeaderRowColumnIcons = {
@@ -196,6 +202,8 @@ function shouldShowButton({
  * no cell is selected.
  */
 export function useTableHeaderRowColumn(config: UseTableHeaderRowColumnConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,

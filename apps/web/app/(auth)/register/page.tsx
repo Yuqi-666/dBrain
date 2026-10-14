@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,8 @@ import {
 } from "@workspace/ui/components/ui/card";
 
 export default function RegisterPage() {
+  const { t } = useI18n();
+
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   const [email, setEmail] = useState("");
@@ -52,26 +55,26 @@ export default function RegisterPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
+        <CardTitle>{t("Create Account")}</CardTitle>
         <CardDescription>
-          Join dBrain to build your knowledge graph
+          {t("Join dBrain to build your knowledge graph")}{" "}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nickname">Nickname</Label>
+            <Label htmlFor="nickname">{t("Nickname")}</Label>
             <Input
               id="nickname"
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Your display name"
+              placeholder={t("Your display name")}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("Email")}</Label>
             <Input
               id="email"
               type="email"
@@ -82,13 +85,13 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("Password")}</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min 8 characters"
+              placeholder={t("Min 8 characters")}
               minLength={8}
               required
             />
@@ -99,13 +102,15 @@ export default function RegisterPage() {
             className="w-full"
             disabled={registerMutation.isPending}
           >
-            {registerMutation.isPending ? "Creating account..." : "Create Account"}
+            {registerMutation.isPending
+              ? t("Creating account...")
+              : t("Create Account")}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm">
-          Already have an account?{" "}
+          {t("Already have an account?")}{" "}
           <a href="/login" className="text-primary hover:underline">
-            Sign In
+            {t("Sign In")}{" "}
           </a>
         </p>
       </CardContent>

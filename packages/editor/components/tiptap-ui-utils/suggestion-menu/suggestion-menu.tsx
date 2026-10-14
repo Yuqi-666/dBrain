@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flip, offset, shift, size } from "@floating-ui/react";
@@ -41,6 +42,8 @@ export const SuggestionMenu = ({
   pluginKey = SuggestionPluginKey,
   ...internalSuggestionProps
 }: SuggestionMenuProps) => {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
 
   const [show, setShow] = useState<boolean>(false);
@@ -335,7 +338,7 @@ export const SuggestionMenu = ({
       data-selector={selector}
       className="tiptap-suggestion-menu"
       role="listbox"
-      aria-label="Suggestions"
+      aria-label={t("Suggestions")}
       onPointerDown={(e) => e.preventDefault()}
     >
       {children({

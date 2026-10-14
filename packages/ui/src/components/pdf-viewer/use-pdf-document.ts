@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * Document lifecycle for the PDF viewer: lazy pdfjs, the worker, page metrics
@@ -19,6 +21,11 @@
  *    `TextContent` to lay spans out and search needs the same strings to match
  *    against; sharing the cached value is what guarantees a highlight lands on
  *    the span it was computed from.
+ *
+ * The document is opened **on demand** (`disableStream` plus
+ * `disableAutoFetch` in {@link usePdfDocument}): an attachment may be a 2 GiB
+ * scan, and anything that streams it whole makes opening the node wait for the
+ * entire file.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
@@ -96,7 +103,7 @@ function createWorker(): Worker {
       { type: "module" },
     );
   } catch (error) {
-    const failure = new Error("PDF 解析线程启动失败");
+    const failure = new Error(translate("PDF 解析线程启动失败"));
     failure.name = WORKER_FAILURE;
     failure.cause = error;
     throw failure;
@@ -110,26 +117,26 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
       case "PasswordException":
         return {
           code: "password",
-          message: "这个 PDF 有打开密码，无法直接预览。",
+          message: translate("这个 PDF 有打开密码，无法直接预览。"),
           cause: error,
         };
       case "InvalidPDFException":
         return {
           code: "invalid",
-          message: "文件不是有效的 PDF，或已经损坏。",
+          message: translate("文件不是有效的 PDF，或已经损坏。"),
           cause: error,
         };
       case "MissingPDFException":
       case "UnexpectedResponseException":
         return {
           code: "network",
-          message: "读取 PDF 失败：地址无效，或跨源请求被拒绝。",
+          message: translate("读取 PDF 失败：地址无效，或跨源请求被拒绝。"),
           cause: error,
         };
       case WORKER_FAILURE:
         return {
           code: "worker",
-          message: "PDF 解析线程没能启动，已切换到兼容预览。",
+          message: translate("PDF 解析线程没能启动，已切换到兼容预览。"),
           cause: error,
         };
       default:
@@ -138,17 +145,21 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
     if (error instanceof TypeError) {
       return {
         code: "network",
-        message: "读取 PDF 失败：地址无效，或跨源请求被拒绝。",
+        message: translate("读取 PDF 失败：地址无效，或跨源请求被拒绝。"),
         cause: error,
       };
     }
     return {
       code: "unknown",
-      message: `PDF 加载失败：${error.message}`,
+      message: translate("PDF 加载失败：{value1}", { value1: error.message }),
       cause: error,
     };
   }
-  return { code: "unknown", message: "PDF 加载失败。", cause: error };
+  return {
+    code: "unknown",
+    message: translate("PDF 加载失败。"),
+    cause: error,
+  };
 }
 
 export interface PdfDocumentApi {
@@ -173,6 +184,8 @@ interface RawOutlineItem {
 }
 
 export function usePdfDocument(url: string): PdfDocumentApi {
+  useI18n();
+
   const [status, setStatus] = useState<PdfDocumentApi["status"]>("loading");
   const [pageCount, setPageCount] = useState(0);
   const [metrics, setMetrics] = useState<ReadonlyMap<number, PdfPageMetrics>>(
@@ -290,7 +303,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
         if (settled) return;
         if (stallTimer !== undefined) window.clearTimeout(stallTimer);
         stallTimer = window.setTimeout(() => {
-          const error = new Error("PDF 解析线程没有响应");
+          const error = new Error(translate("PDF 解析线程没有响应"));
           error.name = WORKER_FAILURE;
           failStalled?.(error);
         }, STALL_TIMEOUT_MS);
@@ -306,7 +319,9 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           worker?.addEventListener(
             "error",
             (event) => {
-              const error = new Error(event.message || "PDF 解析线程加载失败");
+              const error = new Error(
+                event.message || translate("PDF 解析线程加载失败"),
+              );
               error.name = WORKER_FAILURE;
               reject(error);
             },
@@ -331,6 +346,24 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           // The viewer is a read-only surface: no cookies, no credentials, so a
           // cross-origin file is either public or it degrades.
           withCredentials: false,
+          // Read the file on demand instead of streaming all of it.
+          //
+          // By default pdf.js opens the file with one request for the whole
+          // body and keeps reading it while the node stays open — pdf.js only
+          // uses byte ranges when streaming is off, and it then cancels that
+          // first request as soon as the response says the server supports
+          // them. Measured on the library's own 136 MiB / 603-page scan against
+          // a range-capable server: the default pulled 130.7 MiB within four
+          // seconds of opening the node, while these two flags pulled 0.3 MiB
+          // and still had page 1 ready in about 100 ms. `disableAutoFetch` is
+          // what stops the background prefetch of every remaining chunk.
+          //
+          // A deployment whose proxy strips range support is unaffected: with
+          // no `Accept-Ranges` header pdf.js never cancels anything and streams
+          // the body exactly as it did before (measured on the same file: both
+          // settings read the whole 130.4 MiB and loaded in the same time).
+          disableStream: true,
+          disableAutoFetch: true,
         });
         // `onProgress` belongs to the loading task, not to its parameters.
         loadingTask.onProgress = ({

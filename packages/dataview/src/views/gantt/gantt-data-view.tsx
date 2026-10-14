@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Gantt data view — the rows of a table laid out on a time axis and edited by
@@ -86,6 +87,8 @@ export function GanttDataView({
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<GanttViewConfig>) {
+  useI18n();
+
   const tokens = useDataViewThemeTokens(GANTT_FIXED.theme);
   const theme = useMemo(() => buildGanttTheme(tokens), [tokens]);
 
@@ -143,7 +146,7 @@ export function GanttDataView({
   const groupFieldIdRef = useRef(groupField?.id);
   groupFieldIdRef.current = groupField?.id;
 
-  const records = useMemo(
+  const records = useLocaleMemo(
     () =>
       startField
         ? rowsToGanttRecords(source, config, {
@@ -284,7 +287,7 @@ export function GanttDataView({
    * header row has no source row behind it — its readout is the span it
    * summarises, which lives on the record itself.
    */
-  const hoverReadout = useMemo(() => {
+  const hoverReadout = useLocaleMemo(() => {
     if (!hover) return null;
     const record = records.find(
       (candidate) => candidate[GANTT_ROW_ID] === hover.rowId,
@@ -372,12 +375,16 @@ function GanttGuidance({
   hasStartField: boolean;
   hasTitleField: boolean;
 }) {
+  const { t } = useI18n();
+
   if (fieldCount === 0) {
     return (
       <DataViewEmptyState
         icon={ChartGantt}
-        title="这张表还没有字段"
-        description="先在表格视图中添加字段，再回来按起止日期把记录铺到时间轴上。"
+        title={t("这张表还没有字段")}
+        description={t(
+          "先在表格视图中添加字段，再回来按起止日期把记录铺到时间轴上。",
+        )}
         className="flex-1"
       />
     );
@@ -387,8 +394,10 @@ function GanttGuidance({
     return (
       <DataViewEmptyState
         icon={ChartGantt}
-        title="甘特图需要一个「日期」字段"
-        description="甘特图把每行画成一条起止日期之间的任务条。先用表格视图添加一个「日期」字段（例如「开始日」），再回到甘特图选择它。"
+        title={t("甘特图需要一个「日期」字段")}
+        description={t(
+          "甘特图把每行画成一条起止日期之间的任务条。先用表格视图添加一个「日期」字段（例如「开始日」），再回到甘特图选择它。",
+        )}
         className="flex-1"
       />
     );
@@ -398,8 +407,10 @@ function GanttGuidance({
     return (
       <DataViewEmptyState
         icon={ChartGantt}
-        title="还没有选择开始日期"
-        description="在上方工具条的「字段配置」里选择任务的开始日期，记录就会落到时间轴上。"
+        title={t("还没有选择开始日期")}
+        description={t(
+          "在上方工具条的「字段配置」里选择任务的开始日期，记录就会落到时间轴上。",
+        )}
         className="flex-1"
       />
     );
@@ -408,11 +419,13 @@ function GanttGuidance({
   return (
     <DataViewEmptyState
       icon={ChartGantt}
-      title="还没有带日期的记录"
+      title={t("还没有带日期的记录")}
       description={
         hasTitleField
-          ? "在开始日期字段里填上日期，任务就会画在时间轴上；结束日期留空的任务按单日显示。"
-          : "在开始日期字段里填上日期，任务就会画在时间轴上。"
+          ? t(
+              "在开始日期字段里填上日期，任务就会画在时间轴上；结束日期留空的任务按单日显示。",
+            )
+          : t("在开始日期字段里填上日期，任务就会画在时间轴上。")
       }
       className="flex-1"
     />

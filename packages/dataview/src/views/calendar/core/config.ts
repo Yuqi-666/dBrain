@@ -1,3 +1,4 @@
+import { getLocale, translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Calendar config resolution — the self-healing layer between a persisted
  * `CalendarViewConfig` and the concrete fields an event list is built from, plus
@@ -29,11 +30,51 @@ export const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{
   /** Spelled out for the header button the user builds. */
   buttonLabel: string;
 }> = [
-  { value: "dayGridMonth", label: "月", buttonLabel: "月" },
-  { value: "timeGridWeek", label: "周", buttonLabel: "周" },
-  { value: "timeGridDay", label: "日", buttonLabel: "日" },
-  { value: "listWeek", label: "列表", buttonLabel: "列表" },
-  { value: "multiMonth", label: "多月", buttonLabel: "多月" },
+  {
+    value: "dayGridMonth",
+    get label() {
+      return translate("月");
+    },
+    get buttonLabel() {
+      return translate("月");
+    },
+  },
+  {
+    value: "timeGridWeek",
+    get label() {
+      return translate("周");
+    },
+    get buttonLabel() {
+      return translate("周");
+    },
+  },
+  {
+    value: "timeGridDay",
+    get label() {
+      return translate("日");
+    },
+    get buttonLabel() {
+      return translate("日");
+    },
+  },
+  {
+    value: "listWeek",
+    get label() {
+      return translate("列表");
+    },
+    get buttonLabel() {
+      return translate("列表");
+    },
+  },
+  {
+    value: "multiMonth",
+    get label() {
+      return translate("多月");
+    },
+    get buttonLabel() {
+      return translate("多月");
+    },
+  },
 ];
 
 export const CALENDAR_VIEW_NAMES: readonly CalendarViewName[] =
@@ -219,7 +260,7 @@ export function fromFullCalendarView(
 export function buttonTextFor(code: string): Record<string, string> {
   return code === "en"
     ? { multiMonth: "Multi-month", multiMonthYear: "Multi-month" }
-    : { multiMonth: "多月", multiMonthYear: "多月" };
+    : { multiMonth: translate("多月"), multiMonthYear: translate("多月") };
 }
 
 // —— the fixed defaults ——————————————————————————————————————————————————
@@ -240,7 +281,9 @@ export function buttonTextFor(code: string): Record<string, string> {
  * drag a date and a host without row inserts cannot create a row.
  */
 export const CALENDAR_FIXED = {
-  locale: "zh-CN",
+  get locale() {
+    return getLocale();
+  },
   /** `"auto"` fills the pane the shell hands the surface. */
   height: "auto",
   theme: "auto",

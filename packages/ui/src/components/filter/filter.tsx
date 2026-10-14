@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import {
@@ -32,10 +34,10 @@ interface FlatOption {
   label: string;
 }
 
-function renderOptions(options: readonly FlatOption[]) {
+function renderOptions(options: readonly FlatOption[], localize = false) {
   return options.map((option) => (
     <SelectItem key={option.name} value={option.name}>
-      {option.label}
+      {localize ? translate(option.label) : option.label}
     </SelectItem>
   ));
 }
@@ -51,6 +53,8 @@ const CombinatorSelector = ({
   value,
   handleOnChange,
 }: CombinatorSelectorProps) => {
+  const { t } = useI18n();
+
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[100px] h-8 text-xs">
@@ -60,10 +64,10 @@ const CombinatorSelector = ({
         {options.map((option) =>
           isOption(option) ? (
             <SelectItem key={option.name} value={option.name}>
-              {option.label}
+              {t(option.label)}
             </SelectItem>
           ) : (
-            renderOptions(option.options)
+            renderOptions(option.options, true)
           ),
         )}
       </SelectContent>
@@ -76,6 +80,8 @@ const FieldSelector = ({
   value,
   handleOnChange,
 }: FieldSelectorProps) => {
+  useI18n();
+
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[180px] h-8 text-xs">
@@ -101,6 +107,8 @@ const OperatorSelector = ({
   value,
   handleOnChange,
 }: OperatorSelectorProps) => {
+  const { t } = useI18n();
+
   return (
     <Select value={value} onValueChange={handleOnChange}>
       <SelectTrigger className="w-[120px] h-8 text-xs">
@@ -110,10 +118,10 @@ const OperatorSelector = ({
         {options.map((option) =>
           isOption(option) ? (
             <SelectItem key={option.name} value={option.name}>
-              {option.label}
+              {t(option.label)}
             </SelectItem>
           ) : (
-            renderOptions(option.options)
+            renderOptions(option.options, true)
           ),
         )}
       </SelectContent>
@@ -128,14 +136,13 @@ const ValueEditor = ({
   inputType,
   type,
 }: ValueEditorProps) => {
+  const { t } = useI18n();
+
   const isSelect = type === "select" || (values && values.length > 0);
 
   if (isSelect === true) {
     return (
-      <Select
-        value={(value as string) ?? ""}
-        onValueChange={handleOnChange}
-      >
+      <Select value={(value as string) ?? ""} onValueChange={handleOnChange}>
         <SelectTrigger className="w-[140px] h-8 text-xs">
           <SelectValue />
         </SelectTrigger>
@@ -158,12 +165,14 @@ const ValueEditor = ({
         handleOnChange(e.target.value)
       }
       className="h-8 text-xs"
-      placeholder="Enter value..."
+      placeholder={t("Enter value...")}
     />
   );
 };
 
 const AddRuleAction = ({ handleOnClick }: ActionWithRulesProps) => {
+  const { t } = useI18n();
+
   return (
     <Button
       variant="ghost"
@@ -172,12 +181,14 @@ const AddRuleAction = ({ handleOnClick }: ActionWithRulesProps) => {
       className="h-7 px-2 text-xs gap-1"
     >
       <Plus className="size-3" />
-      Add Rule
+      {t("Add Rule")}{" "}
     </Button>
   );
 };
 
 const AddGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
+  const { t } = useI18n();
+
   return (
     <Button
       variant="ghost"
@@ -186,12 +197,14 @@ const AddGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
       className="h-7 px-2 text-xs gap-1"
     >
       <Plus className="size-3" />
-      Add Group
+      {t("Add Group")}{" "}
     </Button>
   );
 };
 
 const RemoveGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
+  const { t } = useI18n();
+
   return (
     <Button
       variant="ghost"
@@ -200,12 +213,14 @@ const RemoveGroupAction = ({ handleOnClick }: ActionWithRulesProps) => {
       className="h-7 px-2 text-xs text-destructive gap-1"
     >
       <Trash2 className="size-3" />
-      Remove Group
+      {t("Remove Group")}{" "}
     </Button>
   );
 };
 
 const RemoveRuleAction = ({ handleOnClick }: ActionWithRulesProps) => {
+  useI18n();
+
   return (
     <Button
       variant="ghost"
@@ -243,6 +258,8 @@ export const FilterQueryBuilder = ({
   onQueryChange,
   className,
 }: FilterQueryBuilderProps) => {
+  useI18n();
+
   return (
     <div className={cn("w-full", className)}>
       <QueryBuilder

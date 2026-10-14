@@ -1,5 +1,5 @@
 "use client";
-
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /** One Emoji: the character plus everything `Command` needs to filter it. */
 export interface EmojiItem {
@@ -33,7 +33,9 @@ const e = (emoji: string, name: string, keywords: string): EmojiItem => ({
 export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   {
     id: "smileys",
-    label: "表情",
+    get label() {
+      return translate("表情");
+    },
     icon: "😀",
     items: [
       e("😀", "grinning face", "smile happy"),
@@ -86,7 +88,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "people",
-    label: "人物",
+    get label() {
+      return translate("人物");
+    },
     icon: "👋",
     items: [
       e("👋", "waving hand", "wave hello"),
@@ -139,7 +143,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "animals",
-    label: "动物",
+    get label() {
+      return translate("动物");
+    },
     icon: "🐶",
     items: [
       e("🐶", "dog face", "dog pet"),
@@ -192,7 +198,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "food",
-    label: "食物",
+    get label() {
+      return translate("食物");
+    },
     icon: "🍎",
     items: [
       e("🍎", "red apple", "fruit"),
@@ -245,7 +253,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "travel",
-    label: "旅行",
+    get label() {
+      return translate("旅行");
+    },
     icon: "✈️",
     items: [
       e("🚗", "automobile", "car drive"),
@@ -298,7 +308,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "activities",
-    label: "活动",
+    get label() {
+      return translate("活动");
+    },
     icon: "⚽",
     items: [
       e("⚽", "soccer ball", "football sport"),
@@ -351,7 +363,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "objects",
-    label: "物品",
+    get label() {
+      return translate("物品");
+    },
     icon: "💡",
     items: [
       e("⌚", "watch", "time"),
@@ -404,7 +418,9 @@ export const EMOJI_CATEGORIES: readonly EmojiCategory[] = [
   },
   {
     id: "symbols",
-    label: "符号",
+    get label() {
+      return translate("符号");
+    },
     icon: "❤️",
     items: [
       e("❤️", "red heart", "love"),

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -25,6 +26,8 @@ const WORKSPACE_NAME_MAX_LENGTH = 50;
  * 本组件里，页面级挂载，任何入口只要调用 `openWorkspaceCreateDialog()` 即可打开。
  */
 export function CreateWorkspaceDialog() {
+  useI18n();
+
   const { open } = useUIStore((state) => state.workspaceCreateDialog);
   const closeDialog = useUIStore((state) => state.closeWorkspaceCreateDialog);
 
@@ -81,6 +84,8 @@ export function CreateWorkspaceDialogContent({
   onOpenChange,
   onSubmit,
 }: CreateWorkspaceDialogContentProps) {
+  const { t } = useI18n();
+
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +104,7 @@ export function CreateWorkspaceDialogContent({
       event.preventDefault();
       const trimmed = name.trim();
       if (!trimmed) {
-        setError("请输入工作区名称");
+        setError(t("请输入工作区名称"));
         return;
       }
 
@@ -110,34 +115,34 @@ export function CreateWorkspaceDialogContent({
         onOpenChange(false);
       } catch (err) {
         console.error("Failed to create workspace:", err);
-        setError("创建失败，请稍后重试");
+        setError(t("创建失败，请稍后重试"));
       } finally {
         setIsSubmitting(false);
       }
     },
-    [name, onSubmit, onOpenChange],
+    [name, onSubmit, onOpenChange, t],
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>创建新工作区</DialogTitle>
+          <DialogTitle>{t("创建新工作区")}</DialogTitle>
           <DialogDescription>
-            工作区用于隔离你的节点、视图与语义配置。
+            {t("工作区用于隔离你的节点、视图与语义配置。")}{" "}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-2 py-2">
-            <Label htmlFor="workspace-name">名称</Label>
+            <Label htmlFor="workspace-name">{t("名称")}</Label>
             <Input
               id="workspace-name"
               name="name"
               autoFocus
               value={name}
               maxLength={WORKSPACE_NAME_MAX_LENGTH}
-              placeholder="例如：我的知识库"
+              placeholder={t("例如：我的知识库")}
               disabled={isSubmitting}
               onChange={(e) => {
                 setName(e.target.value);
@@ -154,10 +159,10 @@ export function CreateWorkspaceDialogContent({
               disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
-              取消
+              {t("取消")}{" "}
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting ? "创建中…" : "创建"}
+              {isSubmitting ? t("创建中…") : t("创建")}
             </Button>
           </DialogFooter>
         </form>

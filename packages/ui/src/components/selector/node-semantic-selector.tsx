@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import {
@@ -10,8 +11,10 @@ import { Search, Plus, Trash2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeSemanticService } from "@workspace/services";
 import type { NodeSemantic, NodeSemanticId } from "@workspace/interfaces";
+import { cn } from "@workspace/ui/lib/utils";
 
 export interface NodeSemanticSelectorProps {
+  className?: string;
   onSelect: (semanticId: string) => void;
   /**
    * 覆盖 “Add new type” 的默认行为（默认只打开全局语义对话框）。
@@ -22,9 +25,12 @@ export interface NodeSemanticSelectorProps {
 
 /** Node semantic picker body; mount inside DropdownMenuContent or DropdownMenuSubContent. */
 export function NodeSemanticSelector({
+  className,
   onSelect,
   onCreateRequest,
 }: NodeSemanticSelectorProps) {
+  const { t } = useI18n();
+
   const [search, setSearch] = React.useState("");
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
@@ -59,11 +65,11 @@ export function NodeSemanticSelector({
   };
 
   return (
-    <div className="w-64 p-2">
+    <div className={cn("w-64 min-w-0 p-2", className)}>
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search semantic..."
+          placeholder={t("Search semantic...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-8 h-8"
@@ -73,7 +79,7 @@ export function NodeSemanticSelector({
       <div className="max-h-48 overflow-y-auto">
         {filteredSemantics.length === 0 ? (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">
-            No semantics found
+            {t("No semantics found")}{" "}
           </div>
         ) : (
           filteredSemantics.map((semantic: NodeSemantic) => (
@@ -92,7 +98,7 @@ export function NodeSemanticSelector({
                   {semantic.icon}
                 </span>
               ) : null}
-              <span className="flex-1 truncate">{semantic.name}</span>
+              <span className="min-w-0 flex-1 truncate">{semantic.name}</span>
               {semantic.description && (
                 <span className="text-xs text-muted-foreground truncate max-w-[80px]">
                   {semantic.description}
@@ -121,7 +127,7 @@ export function NodeSemanticSelector({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md text-primary"
       >
         <Plus className="size-4" />
-        <span>Add new type</span>
+        <span>{t("Add new type")}</span>
       </DropdownMenuItem>
     </div>
   );

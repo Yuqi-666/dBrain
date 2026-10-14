@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -52,7 +54,9 @@ export interface UseTurnIntoDropdownConfig {
 export const blockTypeOptions = [
   {
     type: "paragraph",
-    label: "Text",
+    get label() {
+      return translate("Text");
+    },
     isActive: (editor: Editor) =>
       editor.isActive("paragraph") &&
       !editor.isActive("heading") &&
@@ -66,55 +70,75 @@ export const blockTypeOptions = [
   },
   {
     type: "heading",
-    label: "Heading 1",
+    get label() {
+      return translate("Heading 1");
+    },
     level: 1 as Level,
     isActive: (editor: Editor) => editor.isActive("heading", { level: 1 }),
   },
   {
     type: "heading",
-    label: "Heading 2",
+    get label() {
+      return translate("Heading 2");
+    },
     level: 2 as Level,
     isActive: (editor: Editor) => editor.isActive("heading", { level: 2 }),
   },
   {
     type: "heading",
-    label: "Heading 3",
+    get label() {
+      return translate("Heading 3");
+    },
     level: 3 as Level,
     isActive: (editor: Editor) => editor.isActive("heading", { level: 3 }),
   },
   {
     type: "bulletList",
-    label: "Bulleted list",
+    get label() {
+      return translate("Bulleted list");
+    },
     isActive: (editor: Editor) => editor.isActive("bulletList"),
   },
   {
     type: "orderedList",
-    label: "Numbered list",
+    get label() {
+      return translate("Numbered list");
+    },
     isActive: (editor: Editor) => editor.isActive("orderedList"),
   },
   {
     type: "taskList",
-    label: "To-do list",
+    get label() {
+      return translate("To-do list");
+    },
     isActive: (editor: Editor) => editor.isActive("taskList"),
   },
   {
     type: "blockquote",
-    label: "Blockquote",
+    get label() {
+      return translate("Blockquote");
+    },
     isActive: (editor: Editor) => editor.isActive("blockquote"),
   },
   {
     type: "codeBlock",
-    label: "Code block",
+    get label() {
+      return translate("Code block");
+    },
     isActive: (editor: Editor) => editor.isActive("codeBlock"),
   },
   {
     type: "latexBlock",
-    label: "Latex block",
+    get label() {
+      return translate("Latex block");
+    },
     isActive: (editor: Editor) => editor.isActive("latexBlock"),
   },
   {
     type: "latexInline",
-    label: "Latex inline",
+    get label() {
+      return translate("Latex inline");
+    },
     isActive: (editor: Editor) => editor.isActive("latexInline"),
   },
 ];
@@ -235,6 +259,8 @@ export function shouldShowTurnInto(params: {
  * ```
  */
 export function useTurnIntoDropdown(config?: UseTurnIntoDropdownConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,

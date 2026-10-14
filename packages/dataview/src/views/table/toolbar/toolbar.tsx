@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The table view's toolbar — the single control strip of the view
@@ -90,9 +92,27 @@ const DENSITY_OPTIONS: {
   label: string;
   icon: LucideIcon;
 }[] = [
-  { value: "compact", label: "低", icon: Rows2 },
-  { value: "comfortable", label: "中等", icon: Rows3 },
-  { value: "spacious", label: "高", icon: Rows4 },
+  {
+    value: "compact",
+    get label() {
+      return translate("低");
+    },
+    icon: Rows2,
+  },
+  {
+    value: "comfortable",
+    get label() {
+      return translate("中等");
+    },
+    icon: Rows3,
+  },
+  {
+    value: "spacious",
+    get label() {
+      return translate("高");
+    },
+    icon: Rows4,
+  },
 ];
 
 /**
@@ -189,6 +209,8 @@ export function TableToolbar({
   onFieldsChange,
   className,
 }: TableToolbarProps) {
+  const { t } = useI18n();
+
   const viewActions = useViewActions();
   const sortConditions = useMemo(
     () => activeSortConditions(config.sortState, fields),
@@ -223,7 +245,7 @@ export function TableToolbar({
 
   const densityLabel =
     DENSITY_OPTIONS.find((option) => option.value === config.density)?.label ??
-    "中等";
+    t("中等");
 
   const groupReadout = useMemo(
     () => conditionReadout(groupConditions, fields),
@@ -262,7 +284,7 @@ export function TableToolbar({
               onClick={onInsertRow}
             >
               <Plus className="size-3.5" />
-              添加记录
+              {t("添加记录")}{" "}
             </Button>
           )}
 
@@ -291,8 +313,8 @@ export function TableToolbar({
           {/* —— 分组 —— */}
           {config.groupable && (
             <ConditionMenu
-              label="分组"
-              title="设置分组条件"
+              label={t("分组")}
+              title={t("设置分组条件")}
               icon={Columns3}
               value={groupReadout}
               conditions={groupConditions}
@@ -305,8 +327,8 @@ export function TableToolbar({
           {/* —— 排序 —— */}
           {config.sortable && (
             <ConditionMenu
-              label="排序"
-              title="设置排序条件"
+              label={t("排序")}
+              title={t("设置排序条件")}
               icon={ArrowUpDown}
               value={sortReadout}
               conditions={sortConditions}
@@ -315,11 +337,11 @@ export function TableToolbar({
               onChange={writeSortConditions}
               headerExtra={
                 <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  自动排序
+                  {t("自动排序")}{" "}
                   <Switch
                     checked={config.autoSort ?? true}
                     disabled={!onConfigChange}
-                    aria-label="自动排序"
+                    aria-label={t("自动排序")}
                     onCheckedChange={(checked) =>
                       patchConfig({ autoSort: checked })
                     }
@@ -340,7 +362,7 @@ export function TableToolbar({
                 className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
               >
                 <Rows3 className="size-3.5" />
-                行高
+                {t("行高")}{" "}
                 <span className="text-foreground">{densityLabel}</span>
               </Button>
             </DropdownMenuTrigger>
@@ -398,11 +420,11 @@ export function TableToolbar({
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem onSelect={() => onExport("csv")}>
                 <FileText className="size-4" />
-                CSV 文件
+                {t("CSV 文件")}{" "}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onExport("excel")}>
                 <FileSpreadsheet className="size-4" />
-                Excel 工作簿
+                {t("Excel 工作簿")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

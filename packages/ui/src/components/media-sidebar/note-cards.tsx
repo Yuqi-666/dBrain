@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The 笔记 tab: the toolbar's 加笔记, and one card per note below it.
@@ -125,6 +128,8 @@ export function NoteCards({
   onOpenNode,
   className,
 }: NoteCardsProps) {
+  const { t } = useI18n();
+
   const notes = React.useMemo(() => notesOf(timestamps), [timestamps]);
   const sorted = React.useMemo(() => sortTimestamps(notes), [notes]);
 
@@ -206,9 +211,7 @@ export function NoteCards({
       deleteTokenRef.current += 1;
       setDeleted({ note, token: deleteTokenRef.current });
       write((items) =>
-        items.filter(
-          (item) => !(item.type === "note" && item.id === note.id),
-        ),
+        items.filter((item) => !(item.type === "note" && item.id === note.id)),
       );
     },
     [write],
@@ -391,11 +394,11 @@ export function NoteCards({
             if (!controller) return;
             addNote(controller.getCurrentTimeMs());
           }}
-          aria-label="在当前时间加一条笔记"
-          title="在当前时间加一条笔记（⌘/Ctrl + Enter）"
+          aria-label={t("在当前时间加一条笔记")}
+          title={t("在当前时间加一条笔记（⌘/Ctrl + Enter）")}
         >
           <Plus aria-hidden />
-          加笔记
+          {t("加笔记")}{" "}
         </Button>
       </div>
 
@@ -407,17 +410,21 @@ export function NoteCards({
           {/* The live region is the sentence, not the strip: the 撤销 button must
               stay a button, not become part of an announcement. */}
           <span role="status" className="truncate text-muted-foreground">
-            已删除 {formatTimeMs(deleted.note.timeMs)} 的笔记
+            {t("已删除 {time} 的笔记", {
+              time: formatTimeMs(deleted.note.timeMs),
+            })}{" "}
           </span>
           <Button
             type="button"
             variant="ghost"
             size="xs"
             onClick={undoDelete}
-            aria-label={`撤销删除 ${formatTimeMs(deleted.note.timeMs)} 的笔记`}
+            aria-label={translate("撤销删除 {value1} 的笔记", {
+              value1: formatTimeMs(deleted.note.timeMs),
+            })}
           >
             <Undo2 aria-hidden />
-            撤销
+            {t("撤销")}{" "}
           </Button>
         </div>
       ) : null}
@@ -427,10 +434,7 @@ export function NoteCards({
         data-slot="note-cards"
       >
         {sorted.length === 0 && !draft ? (
-          <MediaSidebarEmpty
-            icon={NotebookPen}
-            title="无笔记"
-          />
+          <MediaSidebarEmpty icon={NotebookPen} title={t("无笔记")} />
         ) : null}
 
         {entries.map(({ note, draft: isDraft }) => (

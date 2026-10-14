@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The unified record context menu.
@@ -102,7 +104,7 @@ export function buildRecordSections(
   const items: RecordMenuItem[] = [
     {
       id: RECORD_MENU_KEYS.open,
-      label: "打开记录",
+      label: translate("打开记录"),
       icon: PanelRightOpen,
       onSelect: () => openRecord(rowId, options),
     },
@@ -111,7 +113,7 @@ export function buildRecordSections(
   if (isCollection && onOpenNode && nodeId) {
     items.push({
       id: RECORD_MENU_KEYS.openNode,
-      label: "打开节点",
+      label: translate("打开节点"),
       icon: ExternalLink,
       onSelect: () => onOpenNode(nodeId),
     });
@@ -120,7 +122,7 @@ export function buildRecordSections(
   if (editable && onRowInsert) {
     items.push({
       id: RECORD_MENU_KEYS.duplicate,
-      label: "复制记录",
+      label: translate("复制记录"),
       icon: Copy,
       onSelect: () => duplicateRow(row, onRowInsert, index),
     });
@@ -129,7 +131,7 @@ export function buildRecordSections(
   if (editable && onRowDelete) {
     items.push({
       id: RECORD_MENU_KEYS.delete,
-      label: "删除记录",
+      label: translate("删除记录"),
       icon: Trash2,
       destructive: true,
       onSelect: () => onRowDelete([rowId]),
@@ -158,6 +160,8 @@ export function RecordContextMenu({
   disabled?: boolean;
   children: React.ReactNode;
 }) {
+  useI18n();
+
   const actions = useRecordActions();
   if (disabled) return <>{children}</>;
 
@@ -229,6 +233,8 @@ export function RecordMenuItems({
   /** Called after any item fires (a dropdown wants to close itself). */
   onDone?: () => void;
 }) {
+  useI18n();
+
   const actions = useRecordActions();
   const built = buildRecordSections(actions, rowId, {
     hiddenFieldIds,
@@ -317,6 +323,8 @@ export function RecordMenuAtPoint({
   sections?: readonly RecordMenuSection[];
   onClose: () => void;
 }) {
+  useI18n();
+
   return (
     <BodyLayer>
       <DropdownMenu

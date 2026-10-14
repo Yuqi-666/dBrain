@@ -17,6 +17,7 @@ export interface EdgeSemantic {
   name: string;
   category: EdgeType;
   color?: string;
+  icon?: string;
   description?: string;
   workspaceId?: string;
 }

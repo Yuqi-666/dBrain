@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -198,6 +199,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useCopyAnchorLink(config?: UseCopyAnchorLinkConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -258,7 +261,7 @@ export function useCopyAnchorLink(config?: UseCopyAnchorLinkConfig) {
     isVisible,
     handleCopyAnchorLink,
     canCopyAnchorLink: canCopyAnchor,
-    label: "Copy anchor link",
+    label: t("Copy anchor link"),
     shortcutKeys: COPY_ANCHOR_LINK_SHORTCUT_KEY,
     Icon: LinkIcon,
   };

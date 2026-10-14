@@ -19,6 +19,7 @@
     "@workspace/domain": "workspace:*",
     "@workspace/infrastructure": "workspace:*",
     "@workspace/interfaces": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "pocketbase": "^0.26.9"
   },
   "devDependencies": {

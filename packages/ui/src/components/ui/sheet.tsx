@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "radix-ui";
@@ -8,24 +9,32 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { XIcon } from "lucide-react";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  useI18n();
+
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
 function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+  useI18n();
+
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
 function SheetClose({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  useI18n();
+
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  useI18n();
+
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
@@ -33,6 +42,8 @@ function SheetOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+  useI18n();
+
   return (
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
@@ -55,6 +66,8 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -76,7 +89,7 @@ function SheetContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("Close")}</span>
             </Button>
           </SheetPrimitive.Close>
         )}
@@ -86,6 +99,8 @@ function SheetContent({
 }
 
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
+  useI18n();
+
   return (
     <div
       data-slot="sheet-header"
@@ -96,6 +111,8 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
+  useI18n();
+
   return (
     <div
       data-slot="sheet-footer"
@@ -109,6 +126,8 @@ function SheetTitle({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Title>) {
+  useI18n();
+
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
@@ -122,6 +141,8 @@ function SheetDescription({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Description>) {
+  useI18n();
+
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"

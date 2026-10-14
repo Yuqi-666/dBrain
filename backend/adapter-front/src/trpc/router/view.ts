@@ -23,11 +23,13 @@ const updateSchema = z.object({
     visualConfig: z
       .object({
         backgroundColor: z.string().optional(),
+        colorsSyncTheme: z.boolean().optional(),
         backgroundStyle: z.enum(["solid", "grid", "dots", "none"]).optional(),
         gridSpacing: z.number().optional(),
         gridColor: z.string().optional(),
         snapToGrid: z.boolean().optional(),
         showMinimap: z.boolean().optional(),
+        nodeDensity: z.number().positive().optional(),
       })
       .optional(),
     workspaceId: z.string().optional(),

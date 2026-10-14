@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useState } from "react";
 import { Code2, Eye, Pencil, UploadIcon } from "lucide-react";
@@ -75,6 +76,8 @@ export function WebpageNodeContent({
   node,
   className,
 }: WebpageNodeContentProps) {
+  const { t } = useI18n();
+
   const content = node.content;
   const [importing, setImporting] = useState(false);
   const [view, setView] = useState<"preview" | "edit">(
@@ -112,7 +115,7 @@ export function WebpageNodeContent({
           className="absolute right-2 top-2 h-7 px-2 text-xs"
           onClick={() => setImporting(false)}
         >
-          取消
+          {t("取消")}{" "}
         </Button>
       </div>
     );
@@ -127,13 +130,13 @@ export function WebpageNodeContent({
           <ViewTab
             active={view === "preview"}
             icon={Eye}
-            label="预览"
+            label={t("预览")}
             onClick={() => setView("preview")}
           />
           <ViewTab
             active={view === "edit"}
             icon={Pencil}
-            label="编辑"
+            label={t("编辑")}
             onClick={() => setView("edit")}
           />
         </div>
@@ -145,7 +148,7 @@ export function WebpageNodeContent({
           }
         >
           <SelectTrigger size="sm" className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="语言" />
+            <SelectValue placeholder={t("语言")} />
           </SelectTrigger>
           <SelectContent>
             {CODE_LANGUAGES.map(({ id, label }) => (
@@ -163,7 +166,7 @@ export function WebpageNodeContent({
           onClick={() => setImporting(true)}
         >
           <UploadIcon className="size-3.5" />
-          导入文件
+          {t("导入文件")}{" "}
         </Button>
       </div>
 
@@ -172,19 +175,23 @@ export function WebpageNodeContent({
           <CodeEditor
             value={content.code}
             language={content.language}
-            placeholder="在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…"
+            placeholder={t(
+              "在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…",
+            )}
             onChange={(code) => write({ code, language: content.language })}
             className="size-full"
           />
         ) : !hasSource ? (
           <EmptyHint
             icon={Code2}
-            title="还没有源码"
-            description="切到「编辑」直接编写，或点「导入文件」载入本地 HTML / 代码文件。"
+            title={t("还没有源码")}
+            description={t(
+              "切到「编辑」直接编写，或点「导入文件」载入本地 HTML / 代码文件。",
+            )}
           />
         ) : rendersAsPage ? (
           <iframe
-            title={node.title || "HTML 预览"}
+            title={node.title || t("HTML 预览")}
             srcDoc={content.code}
             sandbox="allow-scripts allow-popups allow-forms allow-modals"
             className="size-full border-0 bg-white"
@@ -214,6 +221,8 @@ function ViewTab({
   label: string;
   onClick: () => void;
 }) {
+  useI18n();
+
   return (
     <button
       type="button"

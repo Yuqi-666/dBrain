@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Chart data view — rows aggregated into a statistical picture (chart.md).
@@ -83,6 +85,8 @@ export function ChartDataView({
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<ChartViewConfig>) {
+  useI18n();
+
   const tokens = useDataViewThemeTokens(config.theme);
   const theme = useMemo(() => buildChartTheme(tokens), [tokens]);
 
@@ -102,7 +106,7 @@ export function ChartDataView({
     () => resolveChartType(config.chartType),
     [config.chartType],
   );
-  const resolved = useMemo(
+  const resolved = useLocaleMemo(
     () => resolveChartFields(source, meta, config),
     [source, meta, config],
   );
@@ -141,7 +145,7 @@ export function ChartDataView({
   const recordActions = useRecordActions();
   const instanceRef = useRef<IVChart | null>(null);
 
-  const bundle = useMemo<ChartBundle | null>(() => {
+  const bundle = useLocaleMemo<ChartBundle | null>(() => {
     const measures = resolved.measures;
     const shownFieldIds = new Set<string>();
     const mark = (field: DatabaseField | null | undefined) => {
@@ -266,7 +270,7 @@ export function ChartDataView({
     lookupNodeTitle,
   ]);
 
-  const spec = useMemo(
+  const spec = useLocaleMemo(
     () =>
       bundle
         ? buildChartSpec({ meta, config, theme, built: bundle.built })
@@ -351,7 +355,7 @@ export function ChartDataView({
     });
   }, [config.title, source.nodeTitle, source.kind]);
 
-  const guidance = useMemo(
+  const guidance = useLocaleMemo(
     () =>
       chartGuidance({
         fieldCount: source.fields.length,
@@ -468,14 +472,16 @@ function chartGuidance({
 }): { title: string; description?: string } | null {
   if (fieldCount === 0) {
     return {
-      title: "这张表还没有字段",
-      description: "先在表格视图中添加字段，再回来把它们的分布画成图表。",
+      title: translate("这张表还没有字段"),
+      description: translate(
+        "先在表格视图中添加字段，再回来把它们的分布画成图表。",
+      ),
     };
   }
   if (rowCount === 0) {
     return {
-      title: "还没有记录",
-      description: "图表按行统计；先添加几条记录，图形就有了数据。",
+      title: translate("还没有记录"),
+      description: translate("图表按行统计；先添加几条记录，图形就有了数据。"),
     };
   }
   if (meta.shape === "scatter") {
@@ -483,12 +489,14 @@ function chartGuidance({
       return {
         title:
           numberFieldCount < 2
-            ? "散点图需要两个「数字」字段"
-            : "还没有选择 X / Y 度量",
+            ? translate("散点图需要两个「数字」字段")
+            : translate("还没有选择 X / Y 度量"),
         description:
           numberFieldCount < 2
-            ? "散点图把两条数字列画成平面上的点。先用表格视图添加第二个「数字」字段。"
-            : "在上方工具条的「字段配置」里选择 X 轴与 Y 轴度量。",
+            ? translate(
+                "散点图把两条数字列画成平面上的点。先用表格视图添加第二个「数字」字段。",
+              )
+            : translate("在上方工具条的「字段配置」里选择 X 轴与 Y 轴度量。"),
       };
     }
     return null;
@@ -496,23 +504,26 @@ function chartGuidance({
   if (meta.shape === "sankey") {
     if (!flowReady || !sankeyBuilt) {
       return {
-        title: "桑基图需要两个字段表示流向",
-        description:
+        title: translate("桑基图需要两个字段表示流向"),
+        description: translate(
           "在「字段配置」里选择 来源 与 目标，记录就会连成带权重的流带。",
+        ),
       };
     }
     return null;
   }
   if (meta.shape === "hierarchy" && levelCount === 0) {
     return {
-      title: "矩形树图需要一个层级字段",
-      description: "在「字段配置」的「层级」里选择至少一个字段。",
+      title: translate("矩形树图需要一个层级字段"),
+      description: translate("在「字段配置」的「层级」里选择至少一个字段。"),
     };
   }
   if (meta.shape === "heatmap" && !hasSeries) {
     return {
-      title: "热力图需要两个维度",
-      description: "在「字段配置」里选择横轴与纵轴维度，颜色会表示度量的大小。",
+      title: translate("热力图需要两个维度"),
+      description: translate(
+        "在「字段配置」里选择横轴与纵轴维度，颜色会表示度量的大小。",
+      ),
     };
   }
   if (
@@ -522,16 +533,18 @@ function chartGuidance({
     !hasDimension
   ) {
     return {
-      title: "图表需要一个「维度」字段",
-      description:
+      title: translate("图表需要一个「维度」字段"),
+      description: translate(
         "维度决定图表怎么分组（分类轴、扇区或词条）。先用表格视图添加一个文本或单选字段。",
+      ),
     };
   }
   if (meta.maxMeasures === 2 && measureCount < 2) {
     return {
-      title: "区间图需要两个度量",
-      description:
+      title: translate("区间图需要两个度量"),
+      description: translate(
         "区间的上下界各来自一个「数字」字段。在「字段配置」的「度量」里再加一个。",
+      ),
     };
   }
   return null;

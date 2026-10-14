@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The task readout: the hover tooltip over a task bar or a task row.
@@ -56,6 +57,8 @@ function DetailRow({
   text: string;
   color?: string;
 }) {
+  useI18n();
+
   return (
     <span className="flex items-baseline gap-2 text-[11px]">
       <span className="shrink-0 text-background/60">{name}</span>
@@ -85,6 +88,8 @@ export function TaskHoverReadout({
   point: GanttPoint;
   readout: GanttTaskReadout;
 }) {
+  const { t } = useI18n();
+
   return (
     <BodyLayer>
       <TooltipProvider>
@@ -107,12 +112,12 @@ export function TaskHoverReadout({
               )}
               {readout.groupCount !== undefined ? (
                 <span className="text-[11px] text-background/70">
-                  {readout.groupCount} 个任务
+                  {readout.groupCount} {t("个任务")}{" "}
                 </span>
               ) : (
                 readout.progressText && (
                   <span className="text-[11px] text-background/70 tabular-nums">
-                    进度 {readout.progressText}
+                    {t("进度")} {readout.progressText}
                   </span>
                 )
               )}

@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The searchable field dropdown a condition row picks its field with
@@ -47,11 +50,13 @@ export function FieldPickerButton({
   fields,
   value,
   onValueChange,
-  placeholder = "选择字段",
+  placeholder = translate("选择字段"),
   disabled,
   className,
   triggerClassName,
 }: FieldPickerButtonProps) {
+  const { t } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = fields.find((field) => field.id === value);
@@ -99,12 +104,12 @@ export function FieldPickerButton({
         <Command shouldFilter={false}>
           <CommandInput
             value={query}
-            placeholder="搜索字段"
+            placeholder={t("搜索字段")}
             onValueChange={setQuery}
           />
           <CommandList>
             <CommandEmpty className="py-4 text-xs text-muted-foreground">
-              没有匹配的字段
+              {t("没有匹配的字段")}{" "}
             </CommandEmpty>
             {matches.map((field) => (
               <CommandItem

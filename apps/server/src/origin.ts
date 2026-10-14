@@ -25,7 +25,7 @@ export function isLoopbackHostname(hostname: string): boolean {
  * 1. **Proxied** (the container stack, and `DBRAIN_PUBLIC_ORIGIN` when set):
  *    nginx fronts web and API on one public host and forwards `$http_host`, so
  *    `Origin` and `Host` agree exactly.
- * 2. **Split development** (`pnpm dev:full`): the app is served by the web dev
+ * 2. **Split development** (`pnpm dev`): the app is served by the web dev
  *    server on `:3000` while this listener owns `:3001`, so the upgrade carries
  *    a different port by construction. The desktop gateway has the same problem
  *    and solves it the same way — an explicit origin allowlist in

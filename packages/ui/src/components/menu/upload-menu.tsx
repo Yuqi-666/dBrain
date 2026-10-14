@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -52,7 +55,7 @@ const MenuItemButton = ({
     className={cn(
       "group/menu-item relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none",
       "hover:bg-accent hover:text-accent-foreground",
-      "data-disabled:pointer-events-none data-disabled:opacity-50"
+      "data-disabled:pointer-events-none data-disabled:opacity-50",
     )}
   >
     {children}
@@ -65,11 +68,13 @@ export function UploadMenu({
   onClose,
   accept,
   allowPasteImage = false,
-  urlDialogTitle = "输入文件URL",
+  urlDialogTitle = translate("输入文件URL"),
   urlDialogPlaceholder = "https://example.com/file.pdf",
   onFilesSelected,
   onError,
 }: UploadMenuProps) {
+  const { t } = useI18n();
+
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
@@ -125,7 +130,7 @@ export function UploadMenu({
     setError(null);
 
     if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
-      reportError("当前浏览器不支持读取剪贴板，请改用「本地上传」");
+      reportError(t("当前浏览器不支持读取剪贴板，请改用「本地上传」"));
       return;
     }
 
@@ -145,7 +150,7 @@ export function UploadMenu({
       }
 
       if (!imageBlob) {
-        reportError("剪贴板中没有图片");
+        reportError(t("剪贴板中没有图片"));
         return;
       }
 
@@ -158,7 +163,7 @@ export function UploadMenu({
 
       onFilesSelected([file]);
     } catch (cause) {
-      reportError("粘贴图片失败（剪贴板权限被拒绝？）", cause);
+      reportError(t("粘贴图片失败（剪贴板权限被拒绝？）"), cause);
     }
   };
 
@@ -174,18 +179,23 @@ export function UploadMenu({
       try {
         response = await fetch(url, { mode: "cors" });
       } catch (cause) {
-        reportError("无法访问该 URL（可能是跨域限制或网络问题）", cause);
+        reportError(t("无法访问该 URL（可能是跨域限制或网络问题）"), cause);
         return;
       }
 
       if (!response.ok) {
-        reportError(`下载失败：${response.status} ${response.statusText}`);
+        reportError(
+          translate("下载失败：{value1} {value2}", {
+            value1: response.status,
+            value2: response.statusText,
+          }),
+        );
         return;
       }
 
       const blob = await response.blob();
       if (blob.size === 0) {
-        reportError("下载到的文件为空");
+        reportError(t("下载到的文件为空"));
         return;
       }
 
@@ -203,7 +213,7 @@ export function UploadMenu({
       setUrlInput("");
       setUrlDialogOpen(false);
     } catch (cause) {
-      reportError("URL 上传失败", cause);
+      reportError(t("URL 上传失败"), cause);
     } finally {
       setUrlLoading(false);
     }
@@ -217,7 +227,7 @@ export function UploadMenu({
 
   return (
     <>
-      <input
+      <Input
         ref={fileInputRef}
         type="file"
         accept={accept}
@@ -226,52 +236,54 @@ export function UploadMenu({
         className="hidden"
       />
 
-      {open && mounted && createPortal(
-        <div
-          className="relative z-[9999] pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {/* 透明遮罩，用于点击外部关闭菜单 */}
+      {open &&
+        mounted &&
+        createPortal(
           <div
-            className="fixed inset-0 z-[9998]"
-            onClick={closeMenu}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              closeMenu();
-            }}
-          />
-          <div
-            ref={menuRef}
-            className={cn(
-              "fixed z-[9999] min-w-[160px] origin-top-left rounded-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
-              "animate-in fade-in-0 zoom-in-95"
-            )}
-            style={{
-              left: position.x,
-              top: position.y,
-            }}
+            className="relative z-[9999] pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
-            <MenuItemButton onClick={handleLocalUpload}>
-              本地上传
-            </MenuItemButton>
-            {allowPasteImage && (
-              <MenuItemButton onClick={handlePasteUpload}>
-                粘贴图片
-              </MenuItemButton>
-            )}
-            <MenuItemButton
-              onClick={() => {
+            {/* 透明遮罩，用于点击外部关闭菜单 */}
+            <div
+              className="fixed inset-0 z-[9998]"
+              onClick={closeMenu}
+              onContextMenu={(e) => {
+                e.preventDefault();
                 closeMenu();
-                setUrlDialogOpen(true);
+              }}
+            />
+            <div
+              ref={menuRef}
+              className={cn(
+                "fixed z-[9999] min-w-[160px] origin-top-left rounded-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
+                "animate-in fade-in-0 zoom-in-95",
+              )}
+              style={{
+                left: position.x,
+                top: position.y,
               }}
             >
-              输入URL
-            </MenuItemButton>
-          </div>
-        </div>,
-        document.body
-      )}
+              <MenuItemButton onClick={handleLocalUpload}>
+                {t("本地上传")}{" "}
+              </MenuItemButton>
+              {allowPasteImage && (
+                <MenuItemButton onClick={handlePasteUpload}>
+                  {t("粘贴图片")}{" "}
+                </MenuItemButton>
+              )}
+              <MenuItemButton
+                onClick={() => {
+                  closeMenu();
+                  setUrlDialogOpen(true);
+                }}
+              >
+                {t("输入URL")}{" "}
+              </MenuItemButton>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
         <DialogContent>
@@ -293,9 +305,7 @@ export function UploadMenu({
                 }
               }}
             />
-            {error && (
-              <p className="mt-2 text-xs text-destructive">{error}</p>
-            )}
+            {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           </div>
           <DialogFooter>
             <Button
@@ -303,22 +313,23 @@ export function UploadMenu({
               onClick={handleUrlCancel}
               disabled={urlLoading}
             >
-              取消
+              {t("取消")}{" "}
             </Button>
             <Button onClick={handleUrlConfirm} disabled={urlLoading}>
-              {urlLoading ? "下载中…" : "确认"}
+              {urlLoading ? t("下载中…") : t("确认")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {error && !urlDialogOpen &&
+      {error &&
+        !urlDialogOpen &&
         mounted &&
         createPortal(
           <div className="fixed left-1/2 top-4 z-[10000] w-[min(24rem,90vw)] -translate-x-1/2 rounded-md border border-destructive/40 bg-popover px-3 py-2 text-xs text-destructive shadow-lg">
             {error}
           </div>,
-          document.body
+          document.body,
         )}
     </>
   );

@@ -9,7 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import PocketBase from "pocketbase";
 import { AppContainer, appRouter, createContext, createWSServer } from "@workspace/adapter-front";
-import { allowedFileRequest, allowedOrigin, rewriteLocalPlaylist, sessionPath } from "./security";
+import { allowedFileRequest, allowedOrigin, sessionPath } from "./security";
+import { handleUploadRequest, isUploadPath, startUploadSweeper } from "../upload/routes";
 
 const runtimeDir = dirname(fileURLToPath(import.meta.url));
 const dataDir = process.argv[2];
@@ -124,7 +125,15 @@ async function main() {
     session = await pb.collection("users").authWithPassword(identity.email, identity.password);
   }
   await AppContainer.initialize(pbUrl);
+  // The upload pipeline writes to the local PocketBase from this process with
+  // raw `node:http` (a 2 GiB multipart body cannot go through `fetch`), where
+  // the patched global fetch below cannot add the internal header. Handing the
+  // secret to the file store through the environment keeps the local database
+  // reachable while it stays unreachable to every other client.
+  process.env.DBRAIN_PB_INTERNAL_SECRET = databaseSecret;
+  startUploadSweeper(() => AppContainer.getInstance().uploadCommandService);
   const secret = randomBytes(32).toString("hex");
+  const localOwnerId = String(session.record?.id ?? "");
   const server = createServer((req, res) => {
     const origin = req.headers.origin;
     const path = sessionPath(req.url ?? "", secret);
@@ -132,7 +141,7 @@ async function main() {
     if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     if (req.method === "OPTIONS") {
-      res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Range");
       res.writeHead(204).end(); return;
     }
@@ -143,28 +152,26 @@ async function main() {
       }).catch(() => res.writeHead(503).end());
       return;
     }
+    if (isUploadPath(path)) {
+      // The `/session/<secret>` prefix is the admission ticket here, so there is
+      // no cookie to verify: this process owns the local identity.
+      void handleUploadRequest(req, res, path, {
+        service: () => AppContainer.getInstance().uploadCommandService,
+        authenticate: async () => ({ ownerId: localOwnerId, token: pb.authStore.token }),
+      });
+      return;
+    }
     if (!allowedFileRequest(path, req.method)) { res.writeHead(404).end(); return; }
     const headers = { ...req.headers, host: `127.0.0.1:${pbPort}`, authorization: pb.authStore.token, "x-dbrain-internal": databaseSecret };
     delete headers.origin;
     const upstream = httpRequest(new URL(path, pbUrl), { method: req.method, headers }, response => {
-      // Root-relative segment URLs otherwise escape /session/<secret> on playback.
-      if (path.split("?")[0]?.endsWith(".m3u8") && req.method === "GET" && response.statusCode === 200) {
-        const chunks: Buffer[] = [];
-        response.on("data", chunk => chunks.push(chunk));
-        response.on("end", () => {
-          const body = rewriteLocalPlaylist(Buffer.concat(chunks).toString("utf8"), secret);
-          res.writeHead(200, { "Content-Type": "application/vnd.apple.mpegurl", "Cache-Control": "no-store" });
-          res.end(body);
-        });
-      } else {
-        for (const key of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
-          const value = response.headers[key];
-          if (value !== undefined) res.setHeader(key, value);
-        }
-        res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
-        res.writeHead(response.statusCode ?? 502);
-        response.pipe(res);
+      for (const key of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
+        const value = response.headers[key];
+        if (value !== undefined) res.setHeader(key, value);
       }
+      res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
+      res.writeHead(response.statusCode ?? 502);
+      response.pipe(res);
       response.once("error", () => res.destroy());
     });
     upstream.once("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });

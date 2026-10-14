@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -101,6 +102,8 @@ export function shouldShowImproveDropdown(params: {
  * in this release, so nothing here executes a command any more.
  */
 export function useImproveDropdown(config?: UseImproveDropdownConfig) {
+  const { t } = useI18n();
+
   const { editor: providedEditor, hideWhenUnavailable = false } = config || {};
 
   const { editor } = useTiptapEditor(providedEditor);
@@ -143,7 +146,7 @@ export function useImproveDropdown(config?: UseImproveDropdownConfig) {
     isOpen,
     setIsOpen,
     handleOpenChange,
-    label: "Improve",
+    label: t("Improve"),
     Icon: AiSparklesIcon,
   };
 }

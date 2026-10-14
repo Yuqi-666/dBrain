@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { Component, type ReactNode } from "react";
 
@@ -35,10 +36,15 @@ export class ForceGraphErrorBoundary extends Component<
             fontSize: 14,
           }}
         >
-          ForceGraph render error: {this.state.error.message}
+          <GraphErrorLabel /> {this.state.error.message}
         </div>
       );
     }
     return this.props.children;
   }
+}
+
+function GraphErrorLabel() {
+  const { t } = useI18n();
+  return <>{t("ForceGraph render error:")}</>;
 }

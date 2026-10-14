@@ -304,21 +304,36 @@ try {
     fileUrl: `${serverUrl}/pb${videoPath}`,
   });
   assert.equal(transcode.reencoded, true);
-  const playlistResponse = await fetch(`${serverUrl}/pb${transcode.hlsUrl}`, {
+  const playlistUrl = `${serverUrl}/pb${transcode.hlsUrl}`;
+  const playlistResponse = await fetch(playlistUrl, {
     headers: { Cookie: `pb_token=${alice.token}` },
   });
   assert.equal(playlistResponse.status, 200);
+  // The playlist names each segment beside itself (`../<record>/<name>`), so one
+  // recording plays through every mount: PocketBase itself in split
+  // development, the `/pb` file gateway here and in the container, and
+  // `/session/<secret>` in the desktop. Resolving the URI against the playlist's
+  // own URL is what a player does, and it rejects the root-relative
+  // `/api/files/...` form, which this gateway answers with 404.
   const segment = (await playlistResponse.text())
     .split("\n")
-    .find((line) => line.startsWith("/pb/api/files/"));
-  assert.ok(segment, "production HLS retains gateway prefix");
+    .map((line) => line.trim())
+    .find((line) => line !== "" && !line.startsWith("#"));
+  assert.ok(segment, "production HLS names its media segment");
+  const segmentUrl = new URL(segment, playlistUrl);
+  assert.equal(
+    segmentUrl.origin,
+    new URL(playlistUrl).origin,
+    `HLS segment stays on the playlist origin: ${segment}`,
+  );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Cookie: `pb_token=${alice.token}` },
       })
     ).status,
     200,
+    `HLS segment resolves beside its playlist: ${segment}`,
   );
   console.log(
     "PASS production PDF/native canvas, FFmpeg transcoding and same-origin HLS",
@@ -407,7 +422,7 @@ try {
   );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Authorization: bob.token },
       })
     ).status,
@@ -453,7 +468,7 @@ try {
   );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Authorization: bob.token },
       })
     ).status,

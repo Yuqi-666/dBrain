@@ -1,85 +1,85 @@
-# 运维手册
+# Operations manual
 
-## 部署模式与账号
+## Deployment model and accounts
 
-Web 自托管由 PocketBase、Node Server、Web 与 nginx Gateway 组成。PocketBase 数据库和附件保存在 `pb_data` 卷；只有 Gateway 默认发布到宿主机 `127.0.0.1:3000`，其他服务保持在容器网络内。
+A web deployment has four parts: PocketBase, the Node server, the web app, and the nginx gateway. PocketBase stores the database and the attachments in the `pb_data` volume. Only the gateway publishes a host port, and the default is `127.0.0.1:3000`. The other services stay in the container network.
 
-`DBRAIN_ADMIN_EMAIL` 与密码是 PocketBase 运维超级管理员，不是用户登录账号。应用以终端用户令牌访问数据库。容器启动前会按配置 upsert 管理员，因此长期修改密码应修改部署配置，再重启服务。
+`DBRAIN_ADMIN_EMAIL` and the password belong to the PocketBase operator superuser. They are not a user login account. The app reads the database with an end-user token. The container creates or updates the operator account from the configuration before the start. To change the password for the long term, change the deployment configuration and restart the service.
 
-## 从源码构建内部测试环境
+## Build an internal test environment from the source
 
-在仓库根目录配置并启动：
+Configure and start the stack in the repository root.
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填写 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD
-# 私有、唯一的 Compose project 名需在后续命令中保持一致
+# Edit .env and set DBRAIN_ADMIN_EMAIL and DBRAIN_ADMIN_PASSWORD
+# Keep one private Compose project name in all later commands
 docker compose -p dbrain config --quiet
 docker compose -p dbrain up --build --wait
 docker compose -p dbrain ps
 ```
 
-本机 Docker 可复用同一 builder 的已有层；GitHub Actions 的 GHA 缓存只在远端工作流接入，本地 Compose 不会自动下载这些缓存。以上从当前源码构建，不等同于使用已验收发行镜像。访问 `http://localhost:3000`，确认页面、用户登录和文件功能。
+Local Docker reuses the layers of the same builder. The GHA cache belongs to the remote workflows, and the local Compose does not download it. This build uses the current source. It is not an accepted release image. Open `http://localhost:3000` and verify the pages, the user login, and the file functions.
 
-## 使用候选或发行镜像
+## Use a candidate or a release image
 
-从匹配候选 / Release 获取部署目录，确保以下文件同级：`docker-compose.yml`、`compose.release.yml`、`nginx.conf`、`.env.example`。**compose.release.yml 由候选组装生成，不是 deploy 目录中预先存在的文件。** 检查来源 commit、SHA256SUMS 和容器报告中的 digest。
+Get the deployment directory from the matching candidate or release. Keep these files in the same directory: `docker-compose.yml`, `compose.release.yml`, `nginx.conf`, and `.env.example`. **The candidate assembly creates `compose.release.yml`. The file does not exist in the `deploy` directory.** Verify the source commit, the `SHA256SUMS` file, and the digests in the container report.
 
-在该部署目录执行：
+Run these commands in that deployment directory.
 
 ```bash
 cp .env.example .env
-# 填写管理员邮箱与密码
-# 私有 GHCR 镜像需要先以具有读取包权限的账号 docker login ghcr.io
+# Set the operator email and password
+# For a private GHCR image, log in first: docker login ghcr.io
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml config --quiet
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-每次 pull / up 均带发行覆盖层，它固定已验证镜像 digest。不要只依赖可变版本标签。部署目录和 project 名保持稳定，防止误建新卷。当前无公开正式发行，内部候选也需完成部署验证后再承载重要数据。
+Add the release overlay to every pull and up command. The overlay pins the verified image digests. Do not rely on a mutable version tag only. Keep the deployment directory and the project name stable. A change creates a new volume by accident. No public release exists at this time. Complete a deployment verification before important data goes on an internal candidate.
 
-## 环境配置
+## Environment configuration
 
-| 变量 | 用途 |
+| Variable | Purpose |
 | --- | --- |
-| DBRAIN_ADMIN_EMAIL | 必填，运维管理员邮箱 |
-| DBRAIN_ADMIN_PASSWORD | 管理员密码，不提交到 Git |
-| DBRAIN_ADMIN_PASSWORD_FILE | 优先读取密码文件；容器中必须有相应文件挂载 |
-| DBRAIN_BIND_HOST | 默认 127.0.0.1，Gateway 宿主机监听地址 |
-| DBRAIN_PORT | 默认 3000，Gateway 宿主机端口 |
-| DBRAIN_PUBLIC_ORIGIN | 通常留空；前置代理改写 Host 时设为浏览器精确 Origin |
-| DBRAIN_IMAGE_PREFIX / DBRAIN_VERSION | 源码 Compose 镜像名与标签；发行以 digest 覆盖层为准 |
+| `DBRAIN_ADMIN_EMAIL` | Required. The operator email address. |
+| `DBRAIN_ADMIN_PASSWORD` | The operator password. Do not commit it to Git. |
+| `DBRAIN_ADMIN_PASSWORD_FILE` | The password file has priority. The container needs a mount for that file. |
+| `DBRAIN_BIND_HOST` | The gateway host address. The default is `127.0.0.1`. |
+| `DBRAIN_PORT` | The gateway host port. The default is `3000`. |
+| `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
+| `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | The image name and tag of the source Compose. A release uses the digest overlay. |
 
-选择密码文件时另加仅挂载 PocketBase 服务的 Compose override，将文件只读挂载到例如 `/run/secrets/pb-admin-password`，变量设置为该容器内路径；只设置宿主机路径不会自动挂载。限制 .env 和密码文件的读取权限。
+For a password file, add a Compose override that mounts the file into the PocketBase service only. Mount the file read-only at a path in the container, for example `/run/secrets/pb-admin-password`. Set the variable to that container path. A host path alone does not create a mount. Limit the read permission of `.env` and of the password file.
 
-## 指定部署端口
+## Select the deployment port
 
-支持指定 Gateway 的宿主机端口，在部署目录 .env 中设置：
+Set the gateway host port in the `.env` file of the deployment directory.
 
 ```dotenv
 DBRAIN_BIND_HOST=127.0.0.1
 DBRAIN_PORT=18080
 ```
 
-源码部署运行 `docker compose -p dbrain up --build --wait`；发行部署运行：
+For a source deployment, run `docker compose -p dbrain up --build --wait`. For a release deployment, run this command.
 
 ```bash
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-访问宿主机 `http://127.0.0.1:18080`，或让宿主机 HTTPS 反向代理转发到它。修改后需运行 up 重建端口映射，仅 restart 不会应用新映射。3001 / 8090 是容器内部端口，无需随宿主机端口修改或额外公开，浏览器通过 Gateway 的 `/trpc` 与 `/pb/` 访问 API 和文件。
+Open `http://127.0.0.1:18080` on the host. A host HTTPS reverse proxy can forward to that address. Run up again after a change to rebuild the port mapping. A restart does not apply a new mapping. The ports 3001 and 8090 are internal container ports. Do not change them with the host port and do not publish them. The browser uses `/trpc` and `/pb/` on the gateway for the API and the files.
 
-需要直接连接宿主机端口时，可按网络策略将 DBRAIN_BIND_HOST 设置为指定接口或 0.0.0.0；默认回环供同宿主机代理使用。shell 同名变量优先于 .env，端口占用时更换 DBRAIN_PORT 并重新 up。独立实例使用不同 project 名和端口，核对各自数据卷。
+To connect to a host port directly, set `DBRAIN_BIND_HOST` to a named interface or to `0.0.0.0` under your network policy. The default loopback serves a proxy on the same host. A shell variable of the same name has priority over `.env`. If a port is in use, change `DBRAIN_PORT` and run up again. Use a different project name and different ports for a separate instance. Verify the data volume of each instance.
 
-## 外部访问与 HTTPS
+## External access and HTTPS
 
-在宿主机或受控入口部署 TLS 反向代理，转发到 Gateway。保留原始 Host，支持 WebSocket，并按实际附件大小设置上传限制。默认只监听回环，远程浏览器不会直接访问到它。
+Deploy a TLS reverse proxy on the host or at a controlled entry point. Forward the traffic to the gateway. Keep the original Host header. Support WebSocket. Set the upload limit from the real attachment size. The gateway listens on loopback only, so a remote browser cannot reach it directly.
 
-只有代理改写 Host 时才设置 `DBRAIN_PUBLIC_ORIGIN`，如 `https://dbrain.example.com`，含 scheme 和非默认端口，无尾斜杠。该值是精确替换规则，填错会使 API / WebSocket 来源校验失败，常见表现是工作空间持续加载。
+Set `DBRAIN_PUBLIC_ORIGIN` only when a proxy rewrites the Host header. Use the exact browser origin, for example `https://dbrain.example.com`, with the scheme and a non-default port. Do not add a trailing slash. The value is an exact replacement rule. A wrong value fails the origin verification of the API and the WebSocket. The workspace then loads without an end.
 
-不要把 PocketBase 管理接口直接暴露到公网。临时管理访问可用额外 override 将 8090 映射到宿主机回环地址，再通过 SSH 隧道访问，操作后撤除端口映射。
+Do not publish the PocketBase admin interface to the internet. For temporary admin access, add an override that maps 8090 to a host loopback address. Use an SSH tunnel. Remove the port mapping after the operation.
 
-## 日常观察与故障排查
+## Daily observation and troubleshooting
 
 ```bash
 docker compose -p dbrain ps
@@ -87,24 +87,24 @@ docker compose -p dbrain logs --tail=100 pocketbase server web gateway
 curl -fsS http://127.0.0.1:3000/health
 ```
 
-发行部署下的这些命令也应带 `-f docker-compose.yml -f compose.release.yml`，以使用同一配置。健康接口仅说明服务可达，仍需验证登录、工作空间、附件和媒体。
+Add the two `-f` arguments to these commands in a release deployment. The same configuration must apply. The health endpoint shows only that the service is reachable. Verify the login, the workspace, the attachments, and the media too.
 
-| 现象 | 优先检查 |
+| Symptom | First verify |
 | --- | --- |
-| Compose 无法渲染 | .env 是否存在、管理员邮箱是否填写 |
-| PocketBase 循环重启 | 密码是否存在、密码文件挂载及权限、卷权限、启动日志 |
-| 页面打开但一直加载 / API 403 | 代理 Host、Origin、WebSocket 转发及 PUBLIC_ORIGIN |
-| pull 提示无权限 | 私有 GHCR 登录身份和包读取权限 |
-| 升级后像全新安装 | project 名、部署目录、实际 pb_data 卷是否变化 |
-| 视频 / PDF 失败 | 对应后端日志、附件访问权限与运行时依赖 |
+| Compose does not render | The `.env` file exists and the configuration holds the operator email. |
+| PocketBase restarts in a loop | The password, the mount of the password file and its permission, the volume permission, the start log. |
+| A page opens but loads without an end, or the API returns 403 | The proxy Host, the Origin, the WebSocket forwarding, and `DBRAIN_PUBLIC_ORIGIN`. |
+| pull reports a permission error | The private GHCR login and the package read permission. |
+| The upgrade looks like a new installation | The project name, the deployment directory, and the real `pb_data` volume. |
+| A video or a PDF fails | The related backend log, the attachment access permission, and the runtime dependencies. |
 
-日志可能包含业务信息，分享前脱敏。管理员 CLI 必须指定正确数据目录（容器为 `/pb_data`），否则可能误建一个空数据库。
+Logs can contain business information. Remove private data before you share a log. The admin CLI needs the correct data directory, `/pb_data` in the container. A wrong directory creates an empty database by accident.
 
-## 备份与恢复
+## Backup and restore
 
-先停止写入，并停止整组服务；在停止状态备份整个 `pb_data` 卷，包括 SQLite 数据库和附件。记录实际卷名，保存同版本部署配置、镜像 digest 和密钥配置。备份应限制访问并定期验证恢复。
+Stop the writes first, then stop the full service group. Back up the complete `pb_data` volume in the stopped state. The volume holds the SQLite database and the attachments. Record the real volume name. Keep the deployment configuration of the same version, the image digests, and the secret configuration. Limit the access to the backup. Verify a restore regularly.
 
-以下是仓库源码部署的文件备份示例，发行部署需在每条 Compose 命令中加入两个 -f 参数：
+The next example backs up the files of a source deployment. Add the two `-f` arguments to every Compose command in a release deployment.
 
 ```bash
 docker compose -p dbrain stop
@@ -113,55 +113,21 @@ mkdir -p "$backup_dir"
 pb_container=$(docker compose -p dbrain ps -aq pocketbase)
 test -n "$pb_container"
 docker cp "$pb_container:/pb_data/." "$backup_dir/"
-# 确认复制成功、数据库与附件完整，并另存部署配置后再启动
+# Verify the copy, the database, and the attachments. Save the deployment configuration, then start the stack.
 docker compose -p dbrain start
 ```
 
-目录名使用 UTC 时间。不要将备份放入 Git；将副本转移到受限的备份存储。恢复前核对源卷、目标卷与备份版本，在停机状态把完整备份恢复到专用目标卷；不要把旧备份混合覆盖到仍含新版本数据的目录。不要运行 `down -v`，它会删除数据卷。
+The directory name uses UTC time. Do not put a backup in Git. Move the copy to a backup storage with limited access. Before a restore, verify the source volume, the target volume, and the backup version. Restore the complete backup to a dedicated target volume in the stopped state. Do not mix an old backup with a directory that holds newer data. Do not run `down -v`. That command removes the data volume.
 
-升级流程：停止写入 → 完整备份 → 在隔离副本测试新版本迁移和权限 → 切换新发行覆盖层 → 启动并验证用户、附件、媒体 → 恢复流量。
+The upgrade sequence has six steps.
 
-回滚需要同时恢复旧数据和旧镜像 digest；仅换回旧镜像不能撤销数据库迁移。恢复演练使用独立 project / 卷，确认数据与附件完整后再操作生产。
+1. Stop the writes.
+2. Make a full backup.
+3. Test the migration and the permissions of the new version on an isolated copy.
+4. Switch to the new release overlay.
+5. Start the stack and verify the users, the attachments, and the media.
+6. Restore the traffic.
 
-桌面个人数据的备份与恢复见 [使用手册](usage.md)，发行与验收过程见 [构建与发布](release-workflow.md)。
+A rollback needs the old data and the old image digest. An old image alone does not undo a database migration. Run a restore test with a separate project and volume. Operate on the production data after the test verifies the data and the attachments.
 
-## yuqi 自动部署 main
-
-`yuqi` 已安装 host-side systemd 服务 `dbrain-auto-deploy.service` 和 timer `dbrain-auto-deploy.timer`。每次任务结束后 30 秒再次检查 `main`；没有新提交时跳过构建。构建在 yuqi 本地完成，不新增 GitHub Actions runner 任务。现有 GitHub CI 仍按仓库工作流独立运行，自动部署不会等待其结果。
-
-脚本源码为 `scripts/operations/auto-deploy.sh`，主机安装位置为 `/usr/local/libexec/dbrain-auto-deploy`。服务使用 `lyq`，通过现有 sudo 权限调用 Docker；配置位于 `/etc/dbrain/auto-deploy.env`，仅保存部署路径、仓库地址和代理地址。Git 凭据沿用 lyq 已配置的 credential store，不进入 Git、构建上下文或日志。独立 bare 仓库和任务锁位于 `/home/lyq/workspace/deployments/dbrain-auto`，不修改开发工作区。
-
-流程为：拉取 main → 检查是否为当前部署的后续提交 → 从 Git archive 构建三种镜像 → 再次检查是否出现更新提交 → 停止公网入口和服务 → 完整备份数据库与附件 → 更新源码与镜像 → 检查服务健康、实际数据卷及内网页面 → 恢复网关 → 验证公网 `/health`。构建期间旧服务继续运行；备份和切换期间有短暂不可用。主线被 force-push 到非后续提交时任务失败，需人工处理。
-
-服务切换失败且公网尚未开放时，恢复旧源码、配置、镜像和完整数据快照。恢复公网入口后不自动还原数据库，避免覆盖已恢复的用户写入；入口失败会留下 `needs-ingress`，下一次检查重试恢复入口。发生数据库恢复失败时立即查看日志和备份，暂停 timer 后人工处理。
-
-构建或切换失败的提交记录在状态目录 `failed-commit`，相同提交后续跳过；推送新修复提交后自动继续。若只是临时构建故障，可删除该标记后手动启动 service 重试。回滚失败会留下 `HALTED`，所有后续部署停止，人工恢复数据与服务并确认一致后才可移除该标记。
-
-备份保存在部署目录 `backups/auto-<UTC时间>-<提交前缀>`；旧镜像保留用于回滚。备份不会自动删除，需要按实际数据量管理磁盘与异地备份。更新脚本本身需要重新安装 host-side 脚本与 unit，拉取 main 不会自动替换正在运行的部署监督脚本。
-
-```bash
-# 查看运行与下一次检查时间
-sudo systemctl status dbrain-auto-deploy.timer dbrain-auto-deploy.service
-sudo journalctl -u dbrain-auto-deploy.service -n 100 --no-pager
-
-# 立即检查 main；已有任务运行时不会并发部署
-sudo systemctl start dbrain-auto-deploy.service
-
-# 暂停后续自动部署；不会停止已经运行的部署任务
-sudo systemctl disable --now dbrain-auto-deploy.timer
-
-# 恢复自动部署
-sudo systemctl enable --now dbrain-auto-deploy.timer
-```
-
-默认公网域名为 `https://dbrain.yuqi-666.cn`，Git 拉取使用主机现有 `http://127.0.0.1:7890` 代理。网络失败不切换服务，下一轮继续尝试。自动检查和切换的成功不替代桌面安装、数据升级与正式发行验收。
-
-### 自动部署权限故障与修复
-
-2026-10-11 UTC，部署 3a39160 时发生停机：监督脚本使用 `umask 077` 解包源码，使镜像中的 root 所有迁移/hook 文件为 0600，PocketBase 非 root 用户无法读取；回滚的 Docker copy 快照未保留原所有者，恢复后数据卷为 root 所有，导致数据库只读。服务先通过恢复 pocketbase 用户所有者及稳定镜像重新启动，自动部署暂停处理事故；随后经用户明确授权，安装修复监督脚本并重新验证部署。
-
-修复源码将源码解包限定在 `umask 022` 的子进程内，主机凭据与备份目录仍受 `umask 077` 保护。数据快照改为从已停止的卷使用 `tar --numeric-owner` 保存、恢复 UID/GID；不依赖 Docker copy 的所有者行为。每个候选版本在生产停机前先用无网络、tmpfs 数据库执行真实 PocketBase entrypoint 和健康检查。预检失败不会停止生产。
-
-真实容器验证使用唯一命名的隔离卷，确认新镜像可启动、快照恢复后非 root 用户可写文件。不得在测试或清理命令中使用生产卷名。主机 DNS 暂时失败时可通过 `PUBLIC_RESOLVE` 配置经过确认的域名和公网 IP 作为 TLS 验证保留的回退；地址变更时同步更新该配置。
-
-修复后 43 项回归测试通过；真实隔离卷冷备份、完整恢复和 PocketBase 重启通过。生产已成功部署主线 3a39160，HTTPS/WSS、Cookie 上传下载、Range、刷新令牌和边创建通过，测试数据已清理。四个服务健康，30 秒 timer 已恢复，并验证同一提交跳过构建。监督脚本安装版包含本轮权限修复；监督脚本不会被 main 拉取自动覆盖。
+For the backup and the restore of the desktop personal data, see the [usage manual](usage.md). For the release and the acceptance process, see the [CI/CD pipeline](ci-cd.md).

@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * A kanban card: the shared `DataCard`, and the draggable wrapper around it.
@@ -54,6 +57,8 @@ export function KanbanCardBody({
   onOpenNode,
   className,
 }: KanbanCardBodyProps) {
+  useI18n();
+
   return (
     <DataCard
       layout="board"
@@ -98,6 +103,8 @@ export function KanbanCardItem({
   onOpenNode,
   className,
 }: KanbanCardItemProps) {
+  const { t } = useI18n();
+
   const targets = moveTargets ?? [];
   /** The shell's record surface (the card opens it; the menu reads it). */
   const actions = useRecordActions();
@@ -117,7 +124,7 @@ export function KanbanCardItem({
             items: [
               {
                 id: "kanban.move",
-                label: "移动到",
+                label: t("移动到"),
                 icon: MoveRight,
                 items: targets.map((lane) => ({
                   id: `kanban.move.${lane.id}`,
@@ -189,7 +196,7 @@ export function KanbanCardItem({
       <KanbanItemHandle
         tabIndex={0}
         role="button"
-        aria-label={`拖动卡片：${card.title}`}
+        aria-label={translate("拖动卡片：{value1}", { value1: card.title })}
         className="block cursor-grab rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
       >
         {body}

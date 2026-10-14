@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The restricted **one-block** Tiptap editor behind a `text` node
@@ -94,7 +97,7 @@ const StaticLatexInline = LatexInline.extend({
 
 export interface SingleBlockExtensionOptions {
   /** Placeholder text; omit it and no `Placeholder` decoration is registered. */
-  placeholder?: string;
+  placeholder?: string | (() => string);
   /**
    * Static rendering (`SingleBlockRenderer`): node views cannot run, so the
    * formula is baked to HTML ({@link StaticLatexInline}) instead of mounted.
@@ -244,9 +247,12 @@ export interface SingleBlockEditorProps {
 export function SingleBlockEditor({
   initialContent,
   onContentChange,
-  placeholder = "写下这句话…",
+  placeholder = translate("写下这句话…"),
   className,
 }: SingleBlockEditorProps) {
+  const { locale } = useI18n();
+  const placeholderRef = useRef(placeholder);
+
   // Lazy `useState`, not `useRef`: the seed has to be read once, and reading a ref
   // during render is what `react-hooks/refs` forbids.
   const [initialDoc] = useState(() => toSingleBlockContent(initialContent));
@@ -256,8 +262,11 @@ export function SingleBlockEditor({
   }, [onContentChange]);
 
   const extensions = useMemo(
-    () => createSingleBlockExtensions({ placeholder }),
-    [placeholder],
+    () =>
+      createSingleBlockExtensions({
+        placeholder: () => placeholderRef.current,
+      }),
+    [],
   );
 
   const editor = useEditor(
@@ -284,6 +293,12 @@ export function SingleBlockEditor({
     [],
   );
 
+  useEffect(() => {
+    placeholderRef.current = placeholder;
+    if (editor)
+      editor.view.dispatch(editor.state.tr.setMeta("i18n.locale", locale));
+  }, [editor, placeholder, locale]);
+
   if (!editor) {
     return (
       <div className={cn("flex flex-col", className)} aria-hidden="true" />
@@ -292,10 +307,7 @@ export function SingleBlockEditor({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <EditorContent
-        editor={editor}
-        className="single-block-editor-content"
-      >
+      <EditorContent editor={editor} className="single-block-editor-content">
         <SingleBlockToolbar editor={editor} />
       </EditorContent>
     </div>

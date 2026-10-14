@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 // ─── React & External Libraries ──────────────────────────────────────────────
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -91,6 +92,8 @@ import { Repeat2Icon } from "@workspace/editor/components/tiptap-icons/repeat-2-
 import "./drag-context-menu.scss";
 
 const useNodeTransformActions = () => {
+  useI18n();
+
   const text = useText();
   const heading1 = useHeading({ level: 1 });
   const heading2 = useHeading({ level: 2 });
@@ -184,6 +187,8 @@ const SubMenuTrigger: React.FC<{
 );
 
 const TransformActionGroup: React.FC = () => {
+  const { t } = useI18n();
+
   const actions = useNodeTransformActions();
   const { canReset, handleResetFormatting, label, Icon } =
     useResetAllFormatting({
@@ -196,9 +201,9 @@ const TransformActionGroup: React.FC = () => {
   return (
     <>
       {actions && (
-        <SubMenuTrigger icon={Repeat2Icon} label="Turn Into">
+        <SubMenuTrigger icon={Repeat2Icon} label={t("Turn Into")}>
           <MenuGroup>
-            <MenuGroupLabel>Turn into</MenuGroupLabel>
+            <MenuGroupLabel>{t("Turn into")}</MenuGroupLabel>
             {actions.map((action) => (
               <BaseMenuItem key={action.label} {...action} />
             ))}
@@ -219,6 +224,8 @@ const TransformActionGroup: React.FC = () => {
 };
 
 const TableFitToWidth: React.FC = () => {
+  const { t } = useI18n();
+
   const { canFitToWidth, handleFitToWidth, label, Icon } = useTableFitToWidth({
     hideWhenUnavailable: true,
   });
@@ -238,7 +245,7 @@ const TableFitToWidth: React.FC = () => {
       {clearAllContents.canClearRowColumnContent && (
         <BaseMenuItem
           icon={clearAllContents.Icon}
-          label={"Clear all contents"}
+          label={t("Clear all contents")}
           disabled={!clearAllContents.canClearRowColumnContent}
           onClick={clearAllContents.handleClear}
         />
@@ -248,6 +255,8 @@ const TableFitToWidth: React.FC = () => {
 };
 
 const TocShowTitle: React.FC = () => {
+  useI18n();
+
   const { canToggle, handleToggle, label, Icon } = useTocShowTitle({
     hideWhenUnavailable: true,
   });
@@ -265,6 +274,8 @@ const TocShowTitle: React.FC = () => {
 };
 
 const ImageActionGroup: React.FC = () => {
+  useI18n();
+
   const { canDownload, handleDownload, label, Icon } = useImageDownload({
     hideWhenUnavailable: true,
   });
@@ -282,6 +293,8 @@ const ImageActionGroup: React.FC = () => {
 };
 
 const CoreActionGroup: React.FC = () => {
+  useI18n();
+
   const {
     handleDuplicate,
     canDuplicate,
@@ -335,6 +348,8 @@ const CoreActionGroup: React.FC = () => {
 };
 
 const AIActionGroup: React.FC = () => {
+  const { t } = useI18n();
+
   const { handleAiAsk, canAiAsk, Icon: AiAskIcon } = useAiAsk();
 
   if (!canAiAsk) return null;
@@ -345,7 +360,7 @@ const AIActionGroup: React.FC = () => {
         {canAiAsk && (
           <BaseMenuItem
             icon={AiAskIcon}
-            label="Ask AI"
+            label={t("Ask AI")}
             onClick={handleAiAsk}
             shortcutBadge={<AskAiShortcutBadge />}
           />
@@ -358,6 +373,8 @@ const AIActionGroup: React.FC = () => {
 };
 
 const DeleteActionGroup: React.FC = () => {
+  useI18n();
+
   const { handleDeleteNode, canDeleteNode, label, Icon } = useDeleteNode();
 
   return (
@@ -379,6 +396,8 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
   mobileBreakpoint = 768,
   ...props
 }) => {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const { aiGenerationActive, isDragging } = useUiEditorState(editor);
   const isMobile = useIsBreakpoint("max", mobileBreakpoint);
@@ -490,8 +509,8 @@ export const DragContextMenu: React.FC<DragContextMenuProps> = ({
                     tabIndex={-1}
                     tooltip={
                       <>
-                        <div>Click for options</div>
-                        <div>Hold for drag</div>
+                        <div>{t("Click for options")}</div>
+                        <div>{t("Hold for drag")}</div>
                       </>
                     }
                     data-weight="small"

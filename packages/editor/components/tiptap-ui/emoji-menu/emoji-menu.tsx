@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EmojiItem } from "@tiptap/extension-emoji";
@@ -35,6 +36,8 @@ export interface EmojiMenuItemProps<T extends EmojiItem> {
 export const EmojiMenuItem = <T extends EmojiItem>(
   props: EmojiMenuItemProps<T>,
 ) => {
+  useI18n();
+
   const { emoji, isSelected, onSelect, selector } = props;
   const itemRef = useRef<HTMLButtonElement>(null);
 
@@ -82,6 +85,8 @@ export interface EmojiMenuProps<T extends EmojiItem> {
 }
 
 export const EmojiMenu = <T extends EmojiItem>(props: EmojiMenuProps<T>) => {
+  const { t } = useI18n();
+
   const {
     emojis,
     onSelect,
@@ -128,7 +133,7 @@ export const EmojiMenu = <T extends EmojiItem>(props: EmojiMenuProps<T>) => {
           <Input
             ref={searchRef}
             type="text"
-            placeholder="Add a emoji reaction..."
+            placeholder={t("Add a emoji reaction...")}
             value={searchQuery}
             autoFocus
             onChange={(e) => setSearchQuery(e.target.value)}

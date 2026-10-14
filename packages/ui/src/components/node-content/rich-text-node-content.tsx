@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useRef } from "react";
 import type {
@@ -35,6 +36,8 @@ export function RichTextNodeContent({
   node,
   className,
 }: RichTextNodeContentProps) {
+  const { t } = useI18n();
+
   // The host renders the live node: the header's inputs are one-way (`node.title`
   // in, `patchNode` out) and `NodeService.upsert` updates the store synchronously,
   // so this subscription is what makes typing echo back.
@@ -101,7 +104,7 @@ export function RichTextNodeContent({
               variant="ghost"
               size="icon"
               className={cn("p-0", NODE_ICON_PLATE)}
-              aria-label={target.icon ? "更换节点图标" : "设置节点图标"}
+              aria-label={target.icon ? t("更换节点图标") : t("设置节点图标")}
             >
               <IconView
                 icon={target.icon ?? undefined}
@@ -122,7 +125,7 @@ export function RichTextNodeContent({
               onChange={(next) => onPick(next ?? null)}
               onRemove={() => onPick(null)}
               listNodes={listNodes}
-              label="添加封面"
+              label={t("添加封面")}
             />
           ) : (
             <CoverSelectorPopover
@@ -137,7 +140,7 @@ export function RichTextNodeContent({
               <button
                 type="button"
                 className="block h-60 w-full overflow-hidden rounded-lg"
-                aria-label="更换节点封面"
+                aria-label={t("更换节点封面")}
               >
                 <NodePreviewCover
                   node={target}
@@ -153,7 +156,7 @@ export function RichTextNodeContent({
       />
 
       <NotionEditor
-        placeholder="开始写作..."
+        placeholder={t("开始写作...")}
         onContentChange={handleBodyChange}
         getInitialContent={() =>
           useDataStore.getState().getNode(node.id)?.content ?? {}

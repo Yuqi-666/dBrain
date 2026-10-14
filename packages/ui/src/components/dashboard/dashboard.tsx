@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
@@ -52,6 +55,8 @@ import "react-grid-layout/css/styles.css";
 import "./dashboard.css";
 
 export function Dashboard() {
+  const { t } = useI18n();
+
   const { scope, workspace, ready, syncState, reload } = useDashboard();
   const canEdit = ready && !syncState?.loading;
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -114,7 +119,7 @@ export function Dashboard() {
           <div className="flex shrink-0 items-center gap-2">
             <LayoutDashboard className="size-4 text-muted-foreground" />
             <span className="hidden text-sm font-semibold sm:inline">
-              Dashboard
+              {t("Dashboard")}{" "}
             </span>
           </div>
           <span className="h-4 shrink-0 border-l" aria-hidden="true" />
@@ -136,23 +141,23 @@ export function Dashboard() {
             <CloudCheck className="size-3.5" />
           ) : null}
           {syncState?.error
-            ? "未同步"
+            ? t("未同步")
             : syncState?.loading
-              ? "正在同步…"
+              ? t("正在同步…")
               : syncState?.pending
-                ? "保存中…"
+                ? t("保存中…")
                 : ready
-                  ? "已保存"
+                  ? t("已保存")
                   : ""}
         </span>
       </header>
       <nav
-        aria-label="Dashboard 标签栏"
+        aria-label={t("Dashboard 标签栏")}
         className="flex min-w-0 shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 sm:px-8"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden">
           <TabsList
-            aria-label="Dashboard 页面"
+            aria-label={t("Dashboard 页面")}
             className="shrink-0 justify-start gap-1 rounded-none bg-transparent p-0"
           >
             {pages.map((item) => (
@@ -175,7 +180,7 @@ export function Dashboard() {
                     onSelect={() => openDialog("rename", item)}
                   >
                     <Pencil />
-                    重命名
+                    {t("重命名")}{" "}
                   </ContextMenuItem>
                   <ContextMenuItem
                     variant="destructive"
@@ -183,7 +188,7 @@ export function Dashboard() {
                     onSelect={() => openDialog("delete", item)}
                   >
                     <Trash2 />
-                    删除 Dashboard
+                    {t("删除 Dashboard")}{" "}
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -194,8 +199,8 @@ export function Dashboard() {
             size="icon"
             className="size-8 shrink-0 text-muted-foreground"
             disabled={!canEdit}
-            aria-label="新建 Dashboard"
-            title="新建 Dashboard"
+            aria-label={t("新建 Dashboard")}
+            title={t("新建 Dashboard")}
             onClick={() => openDialog("create")}
           >
             <Plus className="size-4" />
@@ -209,7 +214,7 @@ export function Dashboard() {
         >
           <span>{syncState.error}</span>
           <Button variant="outline" size="sm" onClick={reload}>
-            重新加载
+            {t("重新加载")}{" "}
           </Button>
         </div>
       )}
@@ -220,7 +225,7 @@ export function Dashboard() {
         <div
           className="order-2 min-h-0 min-w-0 flex-1 overflow-y-auto bg-muted/30 pb-[calc(var(--dynamic-island-height,48px)+32px)] lg:order-1"
           role="region"
-          aria-label={page?.name ?? "Dashboard 内容"}
+          aria-label={page?.name ?? t("Dashboard 内容")}
         >
           <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-8">
             {page && (
@@ -242,7 +247,7 @@ export function Dashboard() {
                     onClick={() => scope && store.arrangePage(scope, page.id)}
                   >
                     <WandSparkles className="size-4" />
-                    自动布局
+                    {t("自动布局")}{" "}
                   </Button>
                   <Button
                     disabled={!canEdit}
@@ -253,7 +258,7 @@ export function Dashboard() {
                     aria-controls="dashboard-library"
                   >
                     <Plus className="size-4" />
-                    添加组件
+                    {t("添加组件")}{" "}
                   </Button>
                 </div>
               </div>
@@ -264,10 +269,10 @@ export function Dashboard() {
                   <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" />
                 )}
                 {syncState?.error
-                  ? "暂时无法加载 Dashboard，请重新加载。"
+                  ? t("暂时无法加载 Dashboard，请重新加载。")
                   : scope
-                    ? "加载 Dashboard…"
-                    : "请选择工作空间"}
+                    ? t("加载 Dashboard…")
+                    : t("请选择工作空间")}
               </div>
             ) : !page ? (
               <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center text-center">
@@ -275,10 +280,12 @@ export function Dashboard() {
                   <LayoutDashboard className="size-7 text-muted-foreground" />
                 </div>
                 <h1 className="text-2xl font-semibold tracking-tight">
-                  为你的工作创建一个页面
+                  {t("为你的工作创建一个页面")}{" "}
                 </h1>
                 <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                  将笔记、任务和数据视图放在一起。每个页面，都可以有自己的用途。
+                  {t(
+                    "将笔记、任务和数据视图放在一起。每个页面，都可以有自己的用途。",
+                  )}{" "}
                 </p>
                 <Button
                   className="mt-6"
@@ -286,7 +293,7 @@ export function Dashboard() {
                   onClick={() => openDialog("create")}
                 >
                   <Plus className="size-4" />
-                  新建页面
+                  {t("新建页面")}{" "}
                 </Button>
               </div>
             ) : (
@@ -334,26 +341,29 @@ export function Dashboard() {
             <DialogHeader>
               <DialogTitle>
                 {dialog === "create"
-                  ? "新建页面"
+                  ? t("新建页面")
                   : dialog === "rename"
-                    ? "重命名页面"
-                    : "删除页面"}
+                    ? t("重命名页面")
+                    : t("删除页面")}
               </DialogTitle>
               <DialogDescription>
                 {dialog === "delete"
-                  ? `删除“${dialogPage?.name}”及其布局？节点内容和组件库会保留。`
-                  : "为这个工作页面取一个名称。"}
+                  ? translate(
+                      "删除“{value1}”及其布局？节点内容和组件库会保留。",
+                      { value1: dialogPage?.name ?? "" },
+                    )
+                  : t("为这个工作页面取一个名称。")}
               </DialogDescription>
             </DialogHeader>
             {dialog !== "delete" && (
               <Input
                 autoFocus
-                aria-label="页面名称"
+                aria-label={t("页面名称")}
                 maxLength={80}
                 className="mt-4"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="例如：项目进度"
+                placeholder={t("例如：项目进度")}
               />
             )}
             <DialogFooter className="mt-6">
@@ -362,7 +372,7 @@ export function Dashboard() {
                 variant="outline"
                 onClick={() => setDialog(null)}
               >
-                取消
+                {t("取消")}{" "}
               </Button>
               <Button
                 type="submit"
@@ -373,7 +383,7 @@ export function Dashboard() {
                   (dialog !== "delete" && !name.trim())
                 }
               >
-                {dialog === "delete" ? "删除" : "保存"}
+                {dialog === "delete" ? t("删除") : t("保存")}
               </Button>
             </DialogFooter>
           </form>
@@ -392,6 +402,8 @@ function DashboardTitle({
   enabled: boolean;
   onRename: (name: string) => void;
 }) {
+  const { t } = useI18n();
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const finished = useRef(false);
@@ -411,7 +423,7 @@ function DashboardTitle({
   return editing ? (
     <Input
       autoFocus
-      aria-label="Dashboard 标题"
+      aria-label={t("Dashboard 标题")}
       maxLength={80}
       value={draft}
       className="h-9 w-full max-w-xl text-2xl font-semibold tracking-tight md:text-2xl"
@@ -435,8 +447,10 @@ function DashboardTitle({
       <button
         type="button"
         disabled={!enabled}
-        title="双击重命名"
-        aria-label={`Dashboard 标题：${name}，双击或按回车重命名`}
+        title={t("双击重命名")}
+        aria-label={translate("Dashboard 标题：{value1}，双击或按回车重命名", {
+          value1: name,
+        })}
         className="max-w-full truncate rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onDoubleClick={start}
         onKeyDown={(event) => {
@@ -467,6 +481,8 @@ function DashboardGrid({
   onOpenLibrary: () => void;
   onDropNode: (nodeId: string, position: { x: number; y: number }) => void;
 }) {
+  const { t } = useI18n();
+
   const { width, containerRef, mounted } = useContainerWidth();
   const nodes = useDataStore((state) => state.nodes);
   const narrow = width < 640;
@@ -498,13 +514,13 @@ function DashboardGrid({
       {page.widgets.length === 0 && (
         <div className="absolute inset-x-0 flex min-h-96 flex-col items-center justify-center rounded-2xl border border-dashed bg-background/60 px-6 text-center">
           <Library className="mb-4 size-8 text-muted-foreground" />
-          <h2 className="text-lg font-medium">从一个节点开始</h2>
+          <h2 className="text-lg font-medium">{t("从一个节点开始")}</h2>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-            把常用节点添加到这个页面，再按你的工作方式安排它们。
+            {t("把常用节点添加到这个页面，再按你的工作方式安排它们。")}{" "}
           </p>
           <Button className="mt-6" disabled={!enabled} onClick={onOpenLibrary}>
             <Plus className="size-4" />
-            添加组件
+            {t("添加组件")}{" "}
           </Button>
         </div>
       )}
@@ -562,15 +578,17 @@ function DashboardGrid({
                     <GripVertical className="hidden size-4 shrink-0 text-muted-foreground @min-[200px]:block" />
                   )}
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {node?.title || "节点已删除或不可用"}
+                    {node?.title || t("节点已删除或不可用")}
                   </span>
                   {node && (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="size-7"
-                      aria-label={`打开节点 ${node.title}`}
-                      title="打开节点"
+                      aria-label={translate("打开节点 {value1}", {
+                        value1: node.title,
+                      })}
+                      title={t("打开节点")}
                       onClick={() =>
                         useUIStore.getState().handleNodeEdit(node.id)
                       }
@@ -583,7 +601,9 @@ function DashboardGrid({
                       variant="ghost"
                       size="icon"
                       className="size-7"
-                      aria-label={`移除组件 ${node?.title ?? ""}`}
+                      aria-label={translate("移除组件 {value1}", {
+                        value1: node?.title ?? "",
+                      })}
                       onClick={() =>
                         DashboardService.removeWidget(scope, page.id, widget.id)
                       }
@@ -597,7 +617,7 @@ function DashboardGrid({
                     <NodeContentEditor node={node} className="h-full min-h-0" />
                   ) : (
                     <p className="p-4 text-sm text-muted-foreground">
-                      原节点不可用，可以从页面移除此组件。
+                      {t("原节点不可用，可以从页面移除此组件。")}{" "}
                     </p>
                   )}
                 </div>

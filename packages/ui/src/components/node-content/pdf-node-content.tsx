@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * A `pdf` node: the self-drawn viewer, with the browser's own PDF plugin left in
@@ -46,6 +47,8 @@ interface PdfNodeContentProps {
 }
 
 export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
+  const { t } = useI18n();
+
   const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
   const [failure, setFailure] = useState<PdfLoadFailure | null>(null);
@@ -118,7 +121,7 @@ export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
             key={url}
             src={url}
             className="w-full h-full"
-            title={node.title || "PDF文档"}
+            title={node.title || t("PDF文档")}
           />
         ) : (
           <PdfViewer

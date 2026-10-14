@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * A note card's body: `packages/editor`'s one-paragraph rich-text editor, wired
@@ -47,9 +50,11 @@ export interface NoteBodyEditorProps {
 export function NoteBodyEditor({
   content,
   onCommit,
-  placeholder = "写点什么…",
+  placeholder = translate("写点什么…"),
   className,
 }: NoteBodyEditorProps) {
+  useI18n();
+
   const { schedule, flush } = useAutoCommit<NoteDoc>(onCommit);
 
   return (

@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -53,6 +56,8 @@ export function DataViewPlaceholder<C extends DataViewConfig>({
   onConfigChange,
   className,
 }: DataViewPlaceholderProps<C>) {
+  const { t } = useI18n();
+
   return (
     <div
       data-dataview-placeholder={type}
@@ -62,11 +67,12 @@ export function DataViewPlaceholder<C extends DataViewConfig>({
         actions={
           <>
             <Badge variant="muted" className="tabular-nums">
-              {source.rows.length} 行 · {source.fields.length} 字段
+              {source.rows.length} {t("行 ·")} {source.fields.length}{" "}
+              {t("字段")}{" "}
             </Badge>
-            {readOnly && <Badge variant="outline">只读</Badge>}
+            {readOnly && <Badge variant="outline">{t("只读")}</Badge>}
             <Badge variant="outline" className="border-dashed">
-              占位未实现
+              {t("占位未实现")}{" "}
             </Badge>
           </>
         }
@@ -89,12 +95,14 @@ export function DataViewPlaceholder<C extends DataViewConfig>({
           <Badge variant="secondary" className="font-medium">
             {label}
           </Badge>
-          <span>数据源 {source.kind}</span>
+          <span>
+            {t("数据源")} {source.kind}
+          </span>
         </header>
 
         <DataViewEmptyState
           icon={Icon}
-          title={`${label}尚未实现`}
+          title={translate("{value1}尚未实现", { value1: label })}
           description={description}
         />
 
@@ -113,7 +121,7 @@ export function DataViewPlaceholder<C extends DataViewConfig>({
 
         <details className="rounded-lg border border-border bg-card/40">
           <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-            当前视图配置（只读预览）
+            {t("当前视图配置（只读预览）")}{" "}
           </summary>
           <pre className="max-h-64 overflow-auto px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground">
             {JSON.stringify(config, null, 2)}

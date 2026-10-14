@@ -33,6 +33,7 @@ export interface CreateEdgeSemanticCommand {
   category: EdgeType;
   description?: string;
   color?: string;
+  icon?: string;
   workspaceId?: string;
   userId: string;
   sourceId?: string;
@@ -44,6 +45,7 @@ export interface UpdateEdgeSemanticCommand {
   category?: EdgeType;
   description?: string;
   color?: string;
+  icon?: string;
   userId: string;
   sourceId?: string;
 }

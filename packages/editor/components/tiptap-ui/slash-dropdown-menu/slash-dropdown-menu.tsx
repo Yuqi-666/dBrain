@@ -1,6 +1,7 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 // --- Lib ---
 import { getElementOverflowPosition } from "@workspace/editor/lib/tiptap-collab-utils";
@@ -38,6 +39,8 @@ type SlashDropdownMenuProps = Omit<
 };
 
 export const SlashDropdownMenu = (props: SlashDropdownMenuProps) => {
+  const { t } = useI18n();
+
   const { config, ...restProps } = props;
   const { getSlashMenuItems } = useSlashDropdownMenu(config);
 
@@ -46,7 +49,7 @@ export const SlashDropdownMenu = (props: SlashDropdownMenuProps) => {
       char="/"
       pluginKey="slashDropdownMenu"
       decorationClass="tiptap-slash-decoration"
-      decorationContent="Filter..."
+      decorationContent={t("Filter...")}
       selector="tiptap-slash-dropdown-menu"
       items={({ query, editor }) =>
         filterSuggestionItems(getSlashMenuItems(editor), query)
@@ -63,6 +66,8 @@ const Item = (props: {
   isSelected: boolean;
   onSelect: () => void;
 }) => {
+  useI18n();
+
   const { item, isSelected, onSelect } = props;
   const itemRef = useRef<HTMLButtonElement>(null);
 
@@ -102,7 +107,9 @@ const List = ({
   onSelect,
   config,
 }: SuggestionMenuRenderProps & { config?: SlashMenuConfig }) => {
-  const renderedItems = useMemo(() => {
+  useI18n();
+
+  const renderedItems = useLocaleMemo(() => {
     const rendered: React.ReactElement[] = [];
     const showGroups = config?.showGroups !== false;
 

@@ -183,6 +183,24 @@ export interface ForceConfig {
   linkDistance?: number;
   centerX?: number;
   centerY?: number;
+  /**
+   * Node density of the soft circular boundary, in nodes per px².
+   * The boundary radius is `r = sqrt(n / boundaryDensity)`, where `n` is
+   * the node count. `n = 150, density = 1e-5` gives `r ~= 3873px`.
+   *
+   * Only the node count and this parameter decide the radius: it never
+   * looks at node positions, so the boundary cannot be dragged outward
+   * by a drifting node, and no connectivity analysis is needed. Raise
+   * the density for a tighter boundary, lower it for a looser one.
+   */
+  boundaryDensity?: number;
+  /**
+   * Stiffness of the spring a node feels beyond the boundary, in
+   * px/tick² per px of overshoot:
+   * `v += -r̂ * boundaryStrength * (r - boundaryDensityRadius) * alpha`.
+   * A node inside the boundary feels nothing. `0` disables the boundary.
+   */
+  boundaryStrength?: number;
   alphaMin?: number;
   alphaDecay?: number;
   velocityDecay?: number;

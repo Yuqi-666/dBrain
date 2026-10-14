@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -38,6 +39,8 @@ export function EmojiTriggerShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -66,6 +69,8 @@ export const EmojiTriggerButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -105,7 +110,7 @@ export const EmojiTriggerButton = forwardRef<
         disabled={!canAddTrigger}
         data-disabled={!canAddTrigger}
         aria-label={label}
-        tooltip="Add emoji"
+        tooltip={t("Add emoji")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

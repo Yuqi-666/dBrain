@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   DropdownMenuItem,
@@ -25,7 +26,10 @@ function directionToFlags(direction: EdgeDirection): [boolean, boolean] {
   }
 }
 
-function flagsToDirection(showFromTo: boolean, showToFrom: boolean): EdgeDirection {
+function flagsToDirection(
+  showFromTo: boolean,
+  showToFrom: boolean,
+): EdgeDirection {
   if (showFromTo && showToFrom) return "bidirectional";
   if (showFromTo) return "forward";
   if (showToFrom) return "reverse";
@@ -47,6 +51,8 @@ export function GraphContextMenuEdge({
   onChangeEdgeSemantic,
   onClose,
 }: GraphContextMenuEdgeProps) {
+  const { t } = useI18n();
+
   const edge = useDataStore((state) => state.edges.get(edgeId));
   const edgeSemantics = useDataStore((state) => state.edgeSemantics);
   const openEdgeSemanticDialog = useUIStore(
@@ -54,7 +60,9 @@ export function GraphContextMenuEdge({
   );
   const currentDirection = edge?.direction ?? "forward";
   const [showFromTo, showToFrom] = directionToFlags(currentDirection);
-  const currentSemantic = edge?.semanticId ? edgeSemantics.get(edge.semanticId) : undefined;
+  const currentSemantic = edge?.semanticId
+    ? edgeSemantics.get(edge.semanticId)
+    : undefined;
 
   if (!edge) return null;
 
@@ -94,7 +102,9 @@ export function GraphContextMenuEdge({
                 </span>
               </>
             ) : (
-              <span className="text-xs text-muted-foreground">请选择类型</span>
+              <span className="text-xs text-muted-foreground">
+                {t("请选择类型")}
+              </span>
             )}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
@@ -108,22 +118,24 @@ export function GraphContextMenuEdge({
           <DropdownMenuItem
             onSelect={(e) => e.preventDefault()}
             onClick={toggleToFrom}
-            className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${showToFrom
-              ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-              : "hover:bg-accent hover:text-accent-foreground"
-              }`}
-            title="Toggle to ← from arrow"
+            className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${
+              showToFrom
+                ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                : "hover:bg-accent hover:text-accent-foreground"
+            }`}
+            title={t("Toggle to ← from arrow")}
           >
             <ArrowLeft className="size-4" />
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={(e) => e.preventDefault()}
             onClick={toggleFromTo}
-            className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${showFromTo
-              ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-              : "hover:bg-accent hover:text-accent-foreground"
-              }`}
-            title="Toggle from → to arrow"
+            className={`flex-1 flex items-center justify-center size-8 cursor-pointer rounded-md ${
+              showFromTo
+                ? "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                : "hover:bg-accent hover:text-accent-foreground"
+            }`}
+            title={t("Toggle from → to arrow")}
           >
             <ArrowRight className="size-4" />
           </DropdownMenuItem>
@@ -138,7 +150,7 @@ export function GraphContextMenuEdge({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
       >
         <Trash2 className="size-4" />
-        <span>Delete</span>
+        <span>{t("Delete")}</span>
       </DropdownMenuItem>
     </>
   );

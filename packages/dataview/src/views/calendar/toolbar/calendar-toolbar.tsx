@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The calendar view's toolbar — its one control strip.
@@ -91,9 +93,24 @@ import {
 
 /** Week-start choices; FullCalendar numbers days from Sunday. */
 const FIRST_DAY_OPTIONS = [
-  { value: 1, label: "周一" },
-  { value: 0, label: "周日" },
-  { value: 6, label: "周六" },
+  {
+    value: 1,
+    get label() {
+      return translate("周一");
+    },
+  },
+  {
+    value: 0,
+    get label() {
+      return translate("周日");
+    },
+  },
+  {
+    value: 6,
+    get label() {
+      return translate("周六");
+    },
+  },
 ];
 
 export interface CalendarToolbarProps {
@@ -118,6 +135,8 @@ export function CalendarToolbar({
   onFieldsChange,
   className,
 }: CalendarToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<CalendarViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -143,10 +162,10 @@ export function CalendarToolbar({
    * title), so the row states the strongest one in role order.
    */
   const roleBadge = (field: DatabaseField): string | undefined => {
-    if (field.id === startField?.id) return "开始";
-    if (field.id === endField?.id) return "结束";
-    if (field.id === titleField?.id) return "标题";
-    if (field.id === colorField?.id) return "颜色";
+    if (field.id === startField?.id) return t("开始");
+    if (field.id === endField?.id) return t("结束");
+    if (field.id === titleField?.id) return t("标题");
+    if (field.id === colorField?.id) return t("颜色");
     return undefined;
   };
 
@@ -234,23 +253,23 @@ export function CalendarToolbar({
     <ViewToolbar className={className}>
       {/* ——————— 字段配置 ——————— */}
       <SettingsPanel
-        label="字段配置"
+        label={t("字段配置")}
         icon={FolderTree}
         width="w-80"
         disabled={!canConfigure}
       >
         <PanelSection
-          label="开始日期"
+          label={t("开始日期")}
           hint={
             dateFields.length === 0
-              ? "这张表还没有「日期」字段，日历无法定位事件。"
+              ? t("这张表还没有「日期」字段，日历无法定位事件。")
               : undefined
           }
         >
           <FieldSelect
             fields={dateFields}
             value={startField?.id ?? ""}
-            placeholder="选择字段"
+            placeholder={t("选择字段")}
             disabled={!canConfigure || dateFields.length === 0}
             onValueChange={(fieldId) =>
               patch({
@@ -264,12 +283,12 @@ export function CalendarToolbar({
           />
         </PanelSection>
 
-        <PanelSection label="结束日期">
+        <PanelSection label={t("结束日期")}>
           <FieldSelect
             fields={dateFields.filter((field) => field.id !== startField?.id)}
             value={endField?.id ?? ""}
-            placeholder="不使用"
-            noneLabel="不使用"
+            placeholder={t("不使用")}
+            noneLabel={t("不使用")}
             disabled={!canConfigure || dateFields.length < 2}
             onValueChange={(fieldId) =>
               patch({ endField: fieldId || undefined })
@@ -279,11 +298,11 @@ export function CalendarToolbar({
 
         <Separator />
 
-        <PanelSection label="标题">
+        <PanelSection label={t("标题")}>
           <FieldSelect
             fields={source.fields}
             value={titleField?.id ?? ""}
-            placeholder="选择字段"
+            placeholder={t("选择字段")}
             disabled={!canConfigure}
             onValueChange={(fieldId) =>
               patch({ titleField: fieldId || undefined })
@@ -292,18 +311,18 @@ export function CalendarToolbar({
         </PanelSection>
 
         <PanelSection
-          label="颜色"
+          label={t("颜色")}
           hint={
             colorChoices.length === 0
-              ? "需要一个「单选」或「多选」字段，按它的选项颜色着色。"
+              ? t("需要一个「单选」或「多选」字段，按它的选项颜色着色。")
               : undefined
           }
         >
           <FieldSelect
             fields={colorChoices}
             value={colorField?.id ?? ""}
-            placeholder="不按字段着色"
-            noneLabel="不按字段着色"
+            placeholder={t("不按字段着色")}
+            noneLabel={t("不按字段着色")}
             disabled={!canConfigure || colorChoices.length === 0}
             onValueChange={(fieldId) =>
               patch({ colorField: fieldId || undefined })
@@ -313,11 +332,11 @@ export function CalendarToolbar({
 
         <Separator />
 
-        <PanelSection label="字段">
+        <PanelSection label={t("字段")}>
           <FieldConfigList
             fields={source.fields}
             rows={rows}
-            searchPlaceholder="搜索字段"
+            searchPlaceholder={t("搜索字段")}
             onToggleVisible={
               canConfigure
                 ? (field, visible) => {
@@ -338,7 +357,7 @@ export function CalendarToolbar({
 
       {/* ——————— 视图 ——————— */}
       <SettingsPanel
-        label="视图"
+        label={t("视图")}
         icon={CalendarDays}
         value={
           CALENDAR_VIEW_OPTIONS.find(
@@ -347,7 +366,7 @@ export function CalendarToolbar({
         }
         disabled={!canConfigure}
       >
-        <PanelSection label="打开视图">
+        <PanelSection label={t("打开视图")}>
           <ToggleGroup
             type="single"
             size="sm"
@@ -371,7 +390,7 @@ export function CalendarToolbar({
           </ToggleGroup>
         </PanelSection>
         <Separator />
-        <PanelSection label="工具栏按钮">
+        <PanelSection label={t("工具栏按钮")}>
           <CheckboxOptionList
             options={CALENDAR_VIEW_OPTIONS.map((option) => ({
               value: option.value,
@@ -383,7 +402,7 @@ export function CalendarToolbar({
           />
         </PanelSection>
         <Separator />
-        <PanelSection label="一周起始">
+        <PanelSection label={t("一周起始")}>
           <Select
             value={String(config.firstDay)}
             disabled={!canConfigure}
@@ -391,7 +410,7 @@ export function CalendarToolbar({
           >
             <SelectTrigger
               size="sm"
-              aria-label="一周起始"
+              aria-label={t("一周起始")}
               className="w-full text-xs"
             >
               <SelectValue />

@@ -27,12 +27,27 @@ export interface TranscodedArtifact {
   bytes: Uint8Array;
 }
 
-/** The source video handed to a transcode. */
-export interface HlsTranscodeSource {
-  /** Name of the uploaded file; drives the names of every artifact. */
-  fileName: string;
-  bytes: Uint8Array;
-}
+/**
+ * The source video handed to a transcode.
+ *
+ * Exactly one of the two bodies is present. `bytes` is the original in-memory
+ * form, kept for small inputs and for tests. `path` is the streaming form: a
+ * 2 GiB upload reaches FFmpeg through the file system, because reading it into
+ * the process heap would end the process instead of the upload.
+ */
+export type HlsTranscodeSource =
+  | {
+      /** Name of the uploaded file; drives the names of every artifact. */
+      fileName: string;
+      bytes: Uint8Array;
+      path?: undefined;
+    }
+  | {
+      fileName: string;
+      /** Absolute path of the downloaded source file. */
+      path: string;
+      bytes?: undefined;
+    };
 
 /**
  * An HLS package produced from one source video.

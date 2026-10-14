@@ -1,9 +1,12 @@
 name: Publish accepted release
+# The gate workflow creates the candidate on the main branch. A person tests the
+# candidate, writes the acceptance record, then starts this workflow with the
+# Gate run ID and the version tag.
 on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Successful Release candidate run ID
+        description: Successful Gate run ID on the main branch
         type: string
         required: true
       tag:
@@ -53,6 +56,7 @@ jobs:
           [ "$GITHUB_REF" = "refs/heads/$default_branch" ] || { echo "Run publication from the default branch"; exit 1; }
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" > candidate-run.json
           node scripts/release/validate-run.mjs candidate-run.json
+          [ "$(node -p "require('./candidate-run.json').head_branch")" = "$default_branch" ] || { echo "The candidate run is not on the default branch"; exit 1; }
           source_sha=$(node -p "require('./candidate-run.json').head_sha")
           attempt=$(node -p "require('./candidate-run.json').run_attempt")
           [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ] || { echo "Tag does not match the accepted candidate"; exit 1; }

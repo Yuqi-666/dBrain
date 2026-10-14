@@ -17,7 +17,7 @@
  *   stack, because a 320px sidebar next to a 320px player is useless.
  * - **The keyboard lives on this box.** `tabIndex={0}` + `onKeyDown` is where
  *   `Mod-Enter` is captured — never on `document` (plan §M6.2-④), so the node
- *   editor dialog and the quick panel keep their own keys.
+ *   editor dialog and the dynamic island keep their own keys.
  *
  * The three node-level intents (`转化为节点` / `打开节点` / `生成字幕`) are props
  * rather than calls into the store from the sidebar, so the panel stays a

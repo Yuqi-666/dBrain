@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Kanban data view — rows grouped into lanes by a 单选/多选 field, one card per
@@ -62,8 +63,10 @@ export function KanbanDataView({
   resolveNode,
   className,
 }: DataViewRendererProps<KanbanViewConfig>) {
+  useI18n();
+
   const recordActions = useRecordActions();
-  const model = useMemo(
+  const model = useLocaleMemo(
     () => buildKanbanBoard(source, config, resolveNodeTitle),
     [source, config, resolveNodeTitle],
   );
@@ -203,12 +206,16 @@ function KanbanGuidance({
   fieldCount: number;
   groupableCount: number;
 }) {
+  const { t } = useI18n();
+
   if (fieldCount === 0) {
     return (
       <DataViewEmptyState
         icon={SquareKanban}
-        title="这张表还没有字段"
-        description="先在表格视图中添加字段，再回来按某个「单选」字段分列。"
+        title={t("这张表还没有字段")}
+        description={t(
+          "先在表格视图中添加字段，再回来按某个「单选」字段分列。",
+        )}
       />
     );
   }
@@ -217,12 +224,18 @@ function KanbanGuidance({
     <DataViewEmptyState
       icon={SquareKanban}
       title={
-        groupableCount > 0 ? "还没有选择分组字段" : "看板需要一个单选或多选字段"
+        groupableCount > 0
+          ? t("还没有选择分组字段")
+          : t("看板需要一个单选或多选字段")
       }
       description={
         groupableCount > 0
-          ? "在上方工具条的「分组」里选择用于分列的字段，卡片就会按它的选项落到各列。"
-          : "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。"
+          ? t(
+              "在上方工具条的「分组」里选择用于分列的字段，卡片就会按它的选项落到各列。",
+            )
+          : t(
+              "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。",
+            )
       }
     />
   );

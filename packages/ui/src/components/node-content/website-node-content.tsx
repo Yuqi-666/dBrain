@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Globe } from "lucide-react";
@@ -60,6 +61,8 @@ export function WebsiteNodeContent({
   node,
   className,
 }: WebsiteNodeContentProps) {
+  const { t } = useI18n();
+
   // Local draft so the iframe is not re-navigated on every keystroke.
   const [draft, setDraft] = useState(node.content.url);
   const [committed, setCommitted] = useState(node.content.url);
@@ -124,7 +127,7 @@ export function WebsiteNodeContent({
           >
             <a href={previewUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="size-3.5" />
-              打开
+              {t("打开")}{" "}
             </a>
           </Button>
         )}
@@ -134,7 +137,7 @@ export function WebsiteNodeContent({
         {previewUrl ? (
           <iframe
             key={previewUrl}
-            title={node.title || "网站预览"}
+            title={node.title || t("网站预览")}
             src={previewUrl}
             referrerPolicy="no-referrer"
             sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
@@ -143,8 +146,10 @@ export function WebsiteNodeContent({
         ) : (
           <EmptyHint
             icon={Globe}
-            title="输入网址后在此嵌入预览"
-            description="部分站点禁止被嵌入，预览空白时可点「打开」在新标签页查看。"
+            title={t("输入网址后在此嵌入预览")}
+            description={t(
+              "部分站点禁止被嵌入，预览空白时可点「打开」在新标签页查看。",
+            )}
           />
         )}
       </div>

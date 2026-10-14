@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useDataStore } from "@workspace/store";
 import type { NodeCover, NodeData, NodeIcon } from "@workspace/interfaces";
@@ -91,6 +92,8 @@ function pillStyle(color?: string) {
  * @param commit the host's patch entry point, called on every keystroke
  */
 function useEchoSafeText(value: string, commit: (next: string) => void) {
+  useI18n();
+
   const [draft, setDraft] = useState(value);
   /** Values emitted here that the store has not echoed back yet, oldest first. */
   const pending = useRef<string[]>([]);
@@ -158,6 +161,8 @@ export function NodeContentHeader({
   readOnly = false,
   className,
 }: NodeContentHeaderProps) {
+  const { t } = useI18n();
+
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const semantic = nodeSemantics.get(node.semanticId);
   const TypeIcon = NODE_TYPE_ICONS[node.nodeType];
@@ -177,16 +182,16 @@ export function NodeContentHeader({
   const iconEntry = readOnly
     ? undefined
     : renderIconSelector?.({
-      node,
-      onPick: (next) => patchNode({ icon: next }),
-    });
+        node,
+        onPick: (next) => patchNode({ icon: next }),
+      });
 
   const coverEntry = readOnly
     ? undefined
     : renderCoverSelector?.({
-      node,
-      onPick: (next) => patchNode({ cover: next }),
-    });
+        node,
+        onPick: (next) => patchNode({ cover: next }),
+      });
 
   return (
     // `min-h-full` / scrolling belong to the host; this is only the page's two
@@ -247,8 +252,8 @@ export function NodeContentHeader({
               <Input
                 value={title}
                 onChange={onTitleChange}
-                placeholder="未命名页面"
-                aria-label="节点标题"
+                placeholder={t("未命名页面")}
+                aria-label={t("节点标题")}
                 // `text-4xl` alone loses to the `Input` base's `md:text-sm` (a
                 // media-query rule of the same specificity, emitted later), so
                 // the page title rendered at 14px from `md` up — the one class
@@ -275,8 +280,8 @@ export function NodeContentHeader({
             <Input
               value={summary}
               onChange={onSummaryChange}
-              placeholder="添加摘要…"
-              aria-label="节点摘要"
+              placeholder={t("添加摘要…")}
+              aria-label={t("节点摘要")}
               // Same `md:` pair rule as the title: the `Input` base's
               // `md:text-sm` would otherwise beat `text-lg`.
               className="mt-1.5 h-auto border-none bg-transparent px-0 py-0 text-lg text-muted-foreground shadow-none focus-visible:ring-0 md:text-lg dark:bg-transparent"
@@ -316,12 +321,14 @@ export function NodeContentHeader({
                       "cursor-pointer transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     )}
                     style={pillStyle(semantic?.color)}
-                    aria-label={semantic ? "切换语义" : "选择语义"}
+                    aria-label={semantic ? t("切换语义") : t("选择语义")}
                   >
                     {semantic ? (
                       semantic.name
                     ) : (
-                      <span className="text-muted-foreground">选择语义</span>
+                      <span className="text-muted-foreground">
+                        {t("选择语义")}
+                      </span>
                     )}
                   </button>
                 </DropdownMenuTrigger>

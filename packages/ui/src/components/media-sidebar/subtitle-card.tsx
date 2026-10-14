@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * One subtitle cue, as a card.
@@ -47,6 +50,8 @@ export function SubtitleCard({
   cardRef,
   className,
 }: SubtitleCardProps) {
+  const { t } = useI18n();
+
   const start = formatTimeMs(cue.timeMs);
   const end = cue.endMs === undefined ? null : formatTimeMs(cue.endMs);
   const empty = cue.content.length === 0;
@@ -60,7 +65,10 @@ export function SubtitleCard({
       // `aria-current` is the machine-readable half of the theme colour: a
       // screen reader has to hear "this is where playback is" too.
       aria-current={active ? "true" : undefined}
-      aria-label={`跳到 ${start}：${empty ? "空白字幕" : cue.content}`}
+      aria-label={translate("跳到 {value1}：{value2}", {
+        value1: start,
+        value2: empty ? t("空白字幕") : cue.content,
+      })}
       data-slot="subtitle-card"
       data-active={active ? "" : undefined}
       className={cn(
@@ -74,9 +82,7 @@ export function SubtitleCard({
     >
       <span className="flex items-baseline gap-1.5 text-[10px] leading-4 tabular-nums text-muted-foreground/70">
         {start}
-        {end ? (
-          <span className="text-muted-foreground/50">– {end}</span>
-        ) : null}
+        {end ? <span className="text-muted-foreground/50">– {end}</span> : null}
       </span>
       <span
         className={cn(
@@ -85,7 +91,7 @@ export function SubtitleCard({
           active && "font-medium text-primary",
         )}
       >
-        {empty ? "（空白字幕）" : cue.content}
+        {empty ? t("（空白字幕）") : cue.content}
       </span>
     </button>
   );

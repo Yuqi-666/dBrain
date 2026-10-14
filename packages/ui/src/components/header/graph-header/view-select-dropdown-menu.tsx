@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useDataStore, useUIStore } from "@workspace/store";
 import {
@@ -26,6 +27,8 @@ interface ViewSelectDropdownMenuProps {
 export function ViewSelectDropdownMenu({
   className,
 }: ViewSelectDropdownMenuProps) {
+  const { t } = useI18n();
+
   const views = useDataStore((state) => state.views);
   const currentViewId = useUIStore((state) => state.currentViewId);
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
@@ -38,7 +41,7 @@ export function ViewSelectDropdownMenu({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="lg" className={className}>
           <LayoutDashboardIcon className="size-4 mr-1" />
-          <span>{currentView?.name || "选择视图"}</span>
+          <span>{currentView?.name || t("选择视图")}</span>
           <div className="flex flex-col items-center ml-1 leading-none">
             <ChevronUpIcon className="size-3" />
             <ChevronDownIcon className="size-3 -mt-1" />
@@ -46,10 +49,10 @@ export function ViewSelectDropdownMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuLabel>视图列表</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("视图列表")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {viewList.length === 0 ? (
-          <DropdownMenuItem disabled>暂无视图</DropdownMenuItem>
+          <DropdownMenuItem disabled>{t("暂无视图")}</DropdownMenuItem>
         ) : (
           viewList.map((view) => (
             <DropdownMenuItem

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useDataStore } from "@workspace/store";
 import type { NodeData } from "@workspace/interfaces";
@@ -7,6 +8,8 @@ import { IconView } from "@workspace/ui/components/icon/icon-view";
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/icon/node-type-icons";
 
 export function PreviewHeader({ node }: { node: NodeData }) {
+  const { t } = useI18n();
+
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const semantic = nodeSemantics.get(node.semanticId);
   const Icon = NODE_TYPE_ICONS[node.nodeType] ?? FileText;
@@ -21,7 +24,7 @@ export function PreviewHeader({ node }: { node: NodeData }) {
         />
         <div className="min-w-0 flex-1">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">
-            {node.title || "未命名节点"}
+            {node.title || t("未命名节点")}
           </h3>
           {semantic && (
             <p className="mt-1 truncate text-xs text-muted-foreground">

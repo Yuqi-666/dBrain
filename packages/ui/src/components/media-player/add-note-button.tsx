@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The control bar's 「加笔记」 button — the timestamp feature's entry point.
@@ -31,6 +32,8 @@ export function AddNoteButton({
   onAddNote,
   className,
 }: AddNoteButtonProps) {
+  const { t } = useI18n();
+
   const handleClick = () => {
     if (!controller) return;
     onAddNote(controller.getCurrentTimeMs());
@@ -41,8 +44,8 @@ export function AddNoteButton({
       type="button"
       disabled={!controller}
       className={cn("media-button", "vjs-add-note-button", className)}
-      aria-label="在当前播放位置加一条笔记"
-      title="在当前播放位置加一条笔记（⌘/Ctrl + Enter）"
+      aria-label={t("在当前播放位置加一条笔记")}
+      title={t("在当前播放位置加一条笔记（⌘/Ctrl + Enter）")}
       onClick={handleClick}
     >
       <PenLine className="media-button-icon" aria-hidden />

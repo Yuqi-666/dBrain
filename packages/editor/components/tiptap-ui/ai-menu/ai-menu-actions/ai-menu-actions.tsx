@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -27,6 +28,8 @@ export function AiMenuActions({
   onAccept,
   onReject,
 }: AiMenuActionsProps) {
+  const { t } = useI18n();
+
   const { aiGenerationIsLoading } = useUiEditorState(editor);
 
   const handleRegenerate = useCallback(() => {
@@ -57,7 +60,7 @@ export function AiMenuActions({
           disabled={aiGenerationIsLoading}
         >
           <RefreshAiIcon className="tiptap-button-icon" />
-          Try again
+          {t("Try again")}{" "}
         </Button>
       </div>
 
@@ -70,7 +73,7 @@ export function AiMenuActions({
               onClick={handleDiscard}
             >
               <XIcon className="tiptap-button-icon" />
-              Discard
+              {t("Discard")}{" "}
             </Button>
           </ButtonGroup>
 
@@ -81,7 +84,7 @@ export function AiMenuActions({
               onClick={handleApply}
             >
               <CheckIcon className="tiptap-button-icon" />
-              Apply
+              {t("Apply")}{" "}
             </Button>
           </ButtonGroup>
         </ButtonGroup>

@@ -1,4 +1,6 @@
 "use client";
+import { useLocaleMemo } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useMemo } from "react";
 import type { Editor } from "@tiptap/react";
@@ -67,15 +69,29 @@ const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableAlignCellLabels = {
   text: {
-    left: "Align left",
-    center: "Align center",
-    right: "Align right",
-    justify: "Justify",
+    get left() {
+      return translate("Align left");
+    },
+    get center() {
+      return translate("Align center");
+    },
+    get right() {
+      return translate("Align right");
+    },
+    get justify() {
+      return translate("Justify");
+    },
   } as Record<TextAlignment, string>,
   vertical: {
-    top: "Align top",
-    middle: "Align middle",
-    bottom: "Align bottom",
+    get top() {
+      return translate("Align top");
+    },
+    get middle() {
+      return translate("Align middle");
+    },
+    get bottom() {
+      return translate("Align bottom");
+    },
   } as Record<VerticalAlignment, string>,
 };
 
@@ -520,7 +536,7 @@ export function useTableAlignCell(config: UseTableAlignCellConfig) {
     return success;
   }, [editor, alignmentType, alignment, index, orientation, onAligned]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     if (alignmentType === "text") {
       return tableAlignCellLabels.text[alignment as TextAlignment];
     } else {

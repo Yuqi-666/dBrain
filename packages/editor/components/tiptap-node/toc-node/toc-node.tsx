@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useMemo } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
@@ -18,6 +19,8 @@ type TocTreeNode = {
 };
 
 export function TocNodeComponent(props: NodeViewProps) {
+  const { t } = useI18n();
+
   const { node, extension } = props;
   const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc();
 
@@ -77,7 +80,7 @@ export function TocNodeComponent(props: NodeViewProps) {
     return (
       <NodeViewWrapper {...wrapperProps}>
         <div className="tiptap-table-of-contents-empty">
-          Add headings to create a table of contents.
+          {t("Add headings to create a table of contents.")}{" "}
         </div>
       </NodeViewWrapper>
     );
@@ -86,10 +89,12 @@ export function TocNodeComponent(props: NodeViewProps) {
   return (
     <NodeViewWrapper {...wrapperProps}>
       {showTitle && (
-        <div className="tiptap-table-of-contents-title">Table of contents</div>
+        <div className="tiptap-table-of-contents-title">
+          {t("Table of contents")}
+        </div>
       )}
       <nav
-        aria-label="Table of contents"
+        aria-label={t("Table of contents")}
         className="tiptap-table-of-contents-list"
       >
         {flatTocList.map((node, index) => (

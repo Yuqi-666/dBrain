@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   DropdownMenuSub,
@@ -12,7 +13,13 @@ export interface GraphContextMenuAddEdgeProps {
   targetId: string | null;
   x: number;
   y: number;
-  onCreateEdge: (from: string[], to: string | null, x: number, y: number, setContextMenu: (menu: any) => void) => Promise<string | null>;
+  onCreateEdge: (
+    from: string[],
+    to: string | null,
+    x: number,
+    y: number,
+    setContextMenu: (menu: any) => void,
+  ) => Promise<string | null>;
   onClose: () => void;
   setContextMenu: (menu: any) => void;
 }
@@ -26,6 +33,7 @@ export function GraphContextMenuAddEdge({
   onClose,
   setContextMenu,
 }: GraphContextMenuAddEdgeProps) {
+  const { t } = useI18n();
 
   if (targetId !== null) {
     return null;
@@ -42,7 +50,7 @@ export function GraphContextMenuAddEdge({
     <DropdownMenuSub>
       <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md">
         <Plus className="size-4" />
-        <span>Add Edge</span>
+        <span>{t("Add Edge")}</span>
       </DropdownMenuSubTrigger>
       <NodeSelector onSelect={handleNodeSelect} onClose={onClose} />
     </DropdownMenuSub>

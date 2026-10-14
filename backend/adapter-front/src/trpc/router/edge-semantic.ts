@@ -9,6 +9,7 @@ const addSchema = z.object({
   category: z.string() as z.ZodType<EdgeType>,
   description: z.string().optional(),
   color: z.string().optional(),
+  icon: z.string().optional(),
   workspaceId: z.string().optional(),
 });
 
@@ -19,6 +20,7 @@ const updateSchema = z.object({
     category: z.string().optional() as z.ZodType<EdgeType | undefined>,
     description: z.string().optional(),
     color: z.string().optional(),
+    icon: z.string().optional(),
   }),
 });
 

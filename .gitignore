@@ -20,6 +20,9 @@ coverage
 # Turbo
 .turbo
 
+# Push gate run report
+.gate/
+
 # docs/plan/baseline.sh 的原始输出（归一化快照已入库：docs/plan/baseline/）
 .baseline-raw/
 
@@ -32,7 +35,7 @@ out/
 build
 dist
 *.tsbuildinfo
-
+apps/web/next-env.d.ts
 
 # Debug
 npm-debug.log*

@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -44,8 +46,12 @@ export const UNDO_REDO_SHORTCUT_KEYS: Record<UndoRedoAction, string> = {
 };
 
 export const historyActionLabels: Record<UndoRedoAction, string> = {
-  undo: "Undo",
-  redo: "Redo",
+  get undo() {
+    return translate("Undo");
+  },
+  get redo() {
+    return translate("Redo");
+  },
 };
 
 export const historyIcons = {
@@ -142,6 +148,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useUndoRedo(config: UseUndoRedoConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     action,

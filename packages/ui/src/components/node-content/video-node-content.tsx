@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { VideoOff } from "lucide-react";
@@ -39,6 +40,8 @@ interface VideoNodeContentProps {
  * `loadeddata`).
  */
 export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
+  const { t } = useI18n();
+
   const [undecodable, setUndecodable] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -86,8 +89,8 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
         <VideoOff className="size-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           {undecodable
-            ? "当前浏览器无法解码该视频的编码，只有音轨可以播放。"
-            : "视频加载失败，可能是网络或文件本身的问题。"}
+            ? t("当前浏览器无法解码该视频的编码，只有音轨可以播放。")
+            : t("视频加载失败，可能是网络或文件本身的问题。")}
         </p>
         {url && (
           <a
@@ -95,7 +98,7 @@ export function VideoNodeContent({ node, className }: VideoNodeContentProps) {
             download
             className="text-sm text-primary underline underline-offset-4 hover:no-underline"
           >
-            下载原文件
+            {t("下载原文件")}{" "}
           </a>
         )}
       </div>

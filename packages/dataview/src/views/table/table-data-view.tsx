@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * The table data view — a VTable `ListTable` driven through React.
@@ -548,6 +551,8 @@ export function TableDataView({
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<TableViewConfig>) {
+  const { t } = useI18n();
+
   const tokens = useDataViewThemeTokens(config.theme);
   /** The shell's record surface: the table opens the editor / menu through it. */
   const recordActions = useRecordActions();
@@ -568,6 +573,7 @@ export function TableDataView({
   const appliedSortRef = useRef<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [tableContentHeight, setTableContentHeight] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchMatch, setSearchMatch] = useState({ count: 0, index: -1 });
   /**
@@ -584,7 +590,7 @@ export function TableDataView({
     [config.filterState, source.fields],
   );
 
-  const records = useMemo(
+  const records = useLocaleMemo(
     () => rowsToRecords(source, { resolveNodeTitle }),
     [source, resolveNodeTitle],
   );
@@ -612,7 +618,7 @@ export function TableDataView({
     [tokens],
   );
 
-  const columns = useMemo(
+  const columns = useLocaleMemo(
     () => visibleTableColumns(config, source.fields),
     [config, source.fields],
   );
@@ -956,14 +962,14 @@ export function TableDataView({
       ): TYPES.MenuListItem[] => {
         if (!fieldId || !fieldById.has(fieldId)) return [];
         return [
-          { text: "升序排列", menuKey: MENU.sortAsc },
-          { text: "降序排列", menuKey: MENU.sortDesc },
+          { text: t("升序排列"), menuKey: MENU.sortAsc },
+          { text: t("降序排列"), menuKey: MENU.sortDesc },
           { type: "split" },
-          { text: "隐藏该列", menuKey: MENU.hideColumn },
-          { text: "冻结到此列", menuKey: MENU.freezeTo },
-          { text: "取消冻结", menuKey: MENU.unfreeze },
+          { text: t("隐藏该列"), menuKey: MENU.hideColumn },
+          { text: t("冻结到此列"), menuKey: MENU.freezeTo },
+          { text: t("取消冻结"), menuKey: MENU.unfreeze },
           { type: "split" },
-          { text: "显示全部列", menuKey: MENU.showAll },
+          { text: t("显示全部列"), menuKey: MENU.showAll },
         ];
       };
 
@@ -993,13 +999,19 @@ export function TableDataView({
         const isCollection = latest.current.source.kind === "collection";
 
         const items: TYPES.MenuListItem[] = [
-          { text: "打开记录", menuKey: RECORD_MENU_KEYS.open },
+          { text: t("打开记录"), menuKey: RECORD_MENU_KEYS.open },
         ];
         if (isCollection && actions.onOpenNode) {
-          items.push({ text: "打开节点", menuKey: RECORD_MENU_KEYS.openNode });
+          items.push({
+            text: t("打开节点"),
+            menuKey: RECORD_MENU_KEYS.openNode,
+          });
         }
         if (!latest.current.readOnly && actions.onRowInsert) {
-          items.push({ text: "复制记录", menuKey: RECORD_MENU_KEYS.duplicate });
+          items.push({
+            text: t("复制记录"),
+            menuKey: RECORD_MENU_KEYS.duplicate,
+          });
         }
 
         const columnItems = columnMenu(fieldId);
@@ -1015,7 +1027,10 @@ export function TableDataView({
         items.push(
           { type: "split" },
           {
-            text: count > 1 ? `删除选中的 ${count} 行` : "删除此行",
+            text:
+              count > 1
+                ? translate("删除选中的 {value1} 行", { value1: count })
+                : t("删除此行"),
             menuKey: MENU.deleteRow,
           },
         );
@@ -1115,11 +1130,11 @@ export function TableDataView({
             columnMenu(fieldIdAt(asListTable(args.table), args.col, args.row)),
         },
         emptyTip: {
-          text: "暂无数据，点击「添加记录」开始录入",
+          text: t("暂无数据，点击「添加记录」开始录入"),
         },
       } as ListTableConstructorOptions;
     },
-    [isSelectCellActive, pillFont, tokens],
+    [isSelectCellActive, pillFont, tokens, t],
   );
 
   /** Persist the live sort state into the view config (group levels excluded). */
@@ -1555,6 +1570,7 @@ export function TableDataView({
       // 自动排序 off: keep VTable's own sort state instead of re-stamping ours.
       sortState: autoSort ? sortStateRef.current : undefined,
     });
+    setTableContentHeight(table.getAllRowsHeight());
   }, [filteredRecords, structureKey]);
 
   // —— sort ——
@@ -1697,6 +1713,8 @@ export function TableDataView({
   const fieldCount = source.fields.length;
   const noFields = fieldCount === 0;
   const noVisibleColumns = !noFields && columns.length === 0;
+  const canInsertRow = !readOnly && Boolean(onRowInsert) && fieldCount > 0;
+  const addRowHeight = TABLE_DENSITY_ROW_HEIGHT[config.density];
 
   return (
     /**
@@ -1727,9 +1745,7 @@ export function TableDataView({
         onFiltersChange={handleFiltersChange}
         visibleRowCount={filteredRecords.length}
         totalRowCount={records.length}
-        canInsertRow={
-          !readOnly && config.editable && Boolean(onRowInsert) && fieldCount > 0
-        }
+        canInsertRow={canInsertRow}
         onInsertRow={handleInsertRow}
         onExport={(format) => {
           void handleExport(format);
@@ -1743,8 +1759,8 @@ export function TableDataView({
       {noFields ? (
         <DataViewEmptyState
           icon={Table2}
-          title="这个数据表还没有字段"
-          description="添加第一个字段后，表格就会显示对应的列。"
+          title={t("这个数据表还没有字段")}
+          description={t("添加第一个字段后，表格就会显示对应的列。")}
           className="flex-1"
         >
           {canEditFields && (
@@ -1757,15 +1773,15 @@ export function TableDataView({
               }
             >
               <Plus className="size-3.5" />
-              新增字段
+              {t("新增字段")}{" "}
             </Button>
           )}
         </DataViewEmptyState>
       ) : noVisibleColumns ? (
         <DataViewEmptyState
           icon={Eye}
-          title="所有列都被隐藏了"
-          description="在字段配置里重新显示至少一列。"
+          title={t("所有列都被隐藏了")}
+          description={t("在字段配置里重新显示至少一列。")}
           className="flex-1"
         >
           <Button
@@ -1774,7 +1790,7 @@ export function TableDataView({
             variant="outline"
             onClick={handleShowAllColumns}
           >
-            显示全部列
+            {t("显示全部列")}{" "}
           </Button>
         </DataViewEmptyState>
       ) : (
@@ -1800,11 +1816,34 @@ export function TableDataView({
          * are confined to the same box by VTable itself (`confine: true`), and
          * every menu the view owns is a Radix portal on `document.body`.
          */
-        <div
-          ref={containerRef}
-          data-dataview-table-canvas
-          className="min-h-0 w-full flex-1 overflow-hidden"
-        />
+        <>
+          <div
+            ref={containerRef}
+            data-dataview-table-canvas
+            className="min-h-0 w-full shrink overflow-hidden"
+            style={{
+              height: tableContentHeight ?? "100%",
+              maxHeight: canInsertRow ? `calc(100% - ${addRowHeight}px)` : "100%",
+            }}
+          />
+          {canInsertRow && (
+            <div
+              data-dataview-table-add-row
+              className="flex w-full shrink-0 items-center border-t bg-background"
+              style={{ height: addRowHeight }}
+            >
+              <button
+                type="button"
+                aria-label={t("添加记录")}
+                title={t("添加记录")}
+                className="flex h-full w-11 items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+                onClick={handleInsertRow}
+              >
+                <span className="text-[13px] leading-none">+</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/**

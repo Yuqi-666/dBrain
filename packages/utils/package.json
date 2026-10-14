@@ -12,7 +12,8 @@
     "typescript": "^5.0.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./upload": "./src/upload.ts"
   },
   "dependencies": {
     "@workspace/interfaces": "workspace:*",

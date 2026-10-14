@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import "katex/dist/katex.min.css";
 import katex from "katex";
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -12,6 +13,8 @@ import { TextareaAutosize } from "@workspace/editor/components/tiptap-ui-primiti
 import { cn } from "@workspace/editor/lib/tiptap-utils";
 
 export default function LatexInlineView(props: NodeViewProps) {
+  const { t } = useI18n();
+
   const { node, updateAttributes, editor, getPos, selected } = props;
   const mathResultContainer = useRef<HTMLSpanElement>(null);
   const mathPreviewContainer = useRef<HTMLSpanElement>(null);
@@ -157,10 +160,12 @@ export default function LatexInlineView(props: NodeViewProps) {
           {((isEditing && !preview?.trim().length) ||
             (!isEditing && !node.attrs.text.trim().length)) && (
             <span className="text-muted-foreground/60 italic text-sm">
-              Empty
+              {t("Empty")}{" "}
             </span>
           )}
-          {error && <span className="text-red-500 text-sm">Invalid</span>}
+          {error && (
+            <span className="text-red-500 text-sm">{t("Invalid")}</span>
+          )}
         </NodeViewWrapper>
       </PopoverTrigger>
       <PopoverContent
@@ -179,7 +184,7 @@ export default function LatexInlineView(props: NodeViewProps) {
         <div className="flex flex-col">
           <div className="flex items-center px-3 py-1.5 border-b border-border bg-muted/30">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-              Inline Equation
+              {t("Inline Equation")}{" "}
             </span>
           </div>
 

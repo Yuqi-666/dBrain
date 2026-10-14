@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -145,6 +146,8 @@ export function shouldShowButton(props: {
  * Custom hook that provides move node functionality for Tiptap editor
  */
 export function useMoveNode(config: UseMoveNodeConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -201,7 +204,7 @@ export function useMoveNode(config: UseMoveNodeConfig) {
     [handleMoveNode, isVisible, canMoveNodeState, isMobile],
   );
 
-  const label = direction === "up" ? "Move Up" : "Move Down";
+  const label = direction === "up" ? t("Move Up") : t("Move Down");
   const Icon = direction === "up" ? AlignTopIcon : AlignBottomIcon;
 
   return {

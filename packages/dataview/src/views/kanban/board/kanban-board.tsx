@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The kanban board: ReUI's drag-and-drop primitives assembled into lanes of
@@ -102,13 +105,15 @@ function LaneHeader({
   onCreate,
   onOptionSave,
 }: LaneHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <div className="flex items-center gap-1 px-1.5 py-1.5">
       {canReorderLanes && (
         <KanbanColumnHandle
           tabIndex={0}
           role="button"
-          aria-label={`拖动泳道：${lane.name}`}
+          aria-label={translate("拖动泳道：{value1}", { value1: lane.name })}
           className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-40 hover:opacity-100 focus-visible:opacity-100"
         >
           <GripVertical className="size-3.5" />
@@ -123,7 +128,7 @@ function LaneHeader({
           <PopoverTrigger asChild>
             <button
               type="button"
-              title={`编辑选项：${lane.name}`}
+              title={translate("编辑选项：{value1}", { value1: lane.name })}
               className="min-w-0 flex-1 truncate rounded px-0.5 text-left text-xs font-medium hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             >
               {lane.name}
@@ -153,7 +158,9 @@ function LaneHeader({
           type="button"
           variant="ghost"
           size="icon"
-          aria-label={`在「${lane.name}」新建卡片`}
+          aria-label={translate("在「{value1}」新建卡片", {
+            value1: lane.name,
+          })}
           className="size-6 shrink-0 text-muted-foreground"
           onClick={onCreate}
         >
@@ -164,7 +171,7 @@ function LaneHeader({
         type="button"
         variant="ghost"
         size="icon"
-        aria-label="折叠泳道"
+        aria-label={t("折叠泳道")}
         className="size-6 shrink-0 text-muted-foreground"
         onClick={onToggle}
       >
@@ -189,6 +196,8 @@ export function KanbanBoard({
   canDragCards,
   canReorderLanes,
 }: KanbanBoardProps) {
+  const { t } = useI18n();
+
   const [collapsedLaneIds, setCollapsedLaneIds] = useState<readonly string[]>(
     [],
   );
@@ -270,7 +279,9 @@ export function KanbanBoard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={`展开泳道：${lane.name}`}
+                  aria-label={translate("展开泳道：{value1}", {
+                    value1: lane.name,
+                  })}
                   className="size-6 shrink-0 text-muted-foreground"
                   onClick={() => toggleLane(laneId)}
                 >
@@ -330,7 +341,7 @@ export function KanbanBoard({
                 ))}
                 {cards.length === 0 && (
                   <div className="flex h-16 items-center justify-center rounded-lg border border-dashed border-border/70 px-2 text-center text-[11px] text-muted-foreground/80">
-                    {canDragCards ? "拖动卡片到此泳道" : "暂无卡片"}
+                    {canDragCards ? t("拖动卡片到此泳道") : t("暂无卡片")}
                   </div>
                 )}
               </KanbanColumnContent>

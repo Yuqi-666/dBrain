@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useDataStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -11,13 +12,15 @@ export function IslandNodePreview({
   nodeId: string;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
+
   const node = useDataStore((s) => s.nodes.get(nodeId));
   if (!node)
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        节点已不存在
+        {t("节点已不存在")}{" "}
         <Button variant="ghost" onClick={onClose}>
-          收起
+          {t("收起")}{" "}
         </Button>
       </div>
     );

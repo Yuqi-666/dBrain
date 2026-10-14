@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -9,6 +10,8 @@ interface FullscreenButtonProps {
 }
 
 export function FullscreenButton({ className }: FullscreenButtonProps) {
+  const { t } = useI18n();
+
   const mainViewType = useUIStore((state) => state.mainViewType);
   const setMainViewType = useUIStore((state) => state.setMainViewType);
 
@@ -26,7 +29,7 @@ export function FullscreenButton({ className }: FullscreenButtonProps) {
       size="icon"
       onClick={toggleFullscreen}
       className={className}
-      aria-label={mainViewType === "editor" ? "退出全屏" : "进入全屏"}
+      aria-label={mainViewType === "editor" ? t("退出全屏") : t("进入全屏")}
     >
       {mainViewType === "editor" ? <Minimize2 /> : <Maximize2 />}
     </Button>

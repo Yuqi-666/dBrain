@@ -3,7 +3,6 @@ import type {
   IDocumentAnalyzer,
   IFileStore,
   IVideoTranscoder,
-  TranscodedArtifact,
 } from "@workspace/domain";
 import type {
   AnalyzePdfCommand,
@@ -11,6 +10,7 @@ import type {
   TranscodeVideoCommand,
   TranscodedVideoDTO,
 } from "./command";
+import { rewriteSegmentUrls } from "./hls-playlist";
 
 /**
  * File upload use cases.
@@ -21,12 +21,23 @@ import type {
  * store the results — while parsing, transcoding and blob I/O stay behind the
  * {@link IDocumentAnalyzer}, {@link IVideoTranscoder} and {@link IFileStore}
  * ports.
+ *
+ * Both use cases pull the blob through a temporary file rather than through
+ * `download()`: an upload may be 2 GiB, and a video has to reach FFmpeg as a
+ * path either way. The temp directory is always removed, on success and on
+ * failure.
  */
 export class FileCommandService {
   constructor(
     private readonly analyzer: IDocumentAnalyzer,
     private readonly fileStore: IFileStore,
     private readonly videoTranscoder: IVideoTranscoder,
+    /**
+     * Largest PDF the analyzer is allowed to open, in bytes. Injected from the
+     * shared upload contract by the composition root so the client's "skip
+     * analysis" rule and this guard can never disagree.
+     */
+    private readonly pdfAnalyzeMaxBytes: number,
   ) {}
 
   /**
@@ -35,9 +46,19 @@ export class FileCommandService {
    * Cover failures are absorbed (logged, `coverUrl: ""`): a missing thumbnail
    * degrades the node to its placeholder, whereas failing the whole call would
    * throw away perfectly good metadata. The call rejects only when the document
-   * cannot be fetched or opened.
+   * cannot be fetched, is larger than {@link pdfAnalyzeMaxBytes}, or cannot be
+   * opened.
    */
   async analyzePdf(cmd: AnalyzePdfCommand): Promise<AnalyzedPdfDTO> {
+    // Size first: the parser needs the whole document in memory, so a file the
+    // parser may not open is never downloaded at all.
+    const size = await this.fileStore.stat(cmd.fileUrl);
+    if (size > this.pdfAnalyzeMaxBytes) {
+      throw new Error(
+        `PDF is ${size} bytes; analysis is limited to ${this.pdfAnalyzeMaxBytes} bytes`,
+      );
+    }
+
     const bytes = await this.fileStore.download(cmd.fileUrl);
     const analysis = await this.analyzer.analyzePdf(bytes);
     const coverUrl = await this.storeCover(analysis.cover);
@@ -66,34 +87,48 @@ export class FileCommandService {
   async transcodeVideo(
     cmd: TranscodeVideoCommand,
   ): Promise<TranscodedVideoDTO> {
-    const bytes = await this.fileStore.download(cmd.fileUrl);
-    const result = await this.videoTranscoder.transcodeToHls({
-      fileName: fileNameFromUrl(cmd.fileUrl),
-      bytes,
-    });
+    const fileName = fileNameFromUrl(cmd.fileUrl);
+    // The store owns the temporary location: this layer decides what happens to
+    // a file, never where it lives. The suffix keeps the extension FFmpeg picks
+    // its demuxer by.
+    const source = await this.fileStore.downloadToTempFile(
+      cmd.fileUrl,
+      sourceSuffix(fileName),
+    );
 
-    const storedSegments: { fileName: string; url: string }[] = [];
-    for (const segment of result.segments) {
-      storedSegments.push({
-        fileName: segment.fileName,
-        url: await this.fileStore.upload(segment),
+    try {
+      // FFmpeg reads the downloaded path directly, so a 2 GiB source is written
+      // exactly once and never materialised on the heap.
+      const result = await this.videoTranscoder.transcodeToHls({
+        fileName,
+        path: source.path,
       });
+
+      const storedSegments: { fileName: string; url: string }[] = [];
+      for (const segment of result.segments) {
+        storedSegments.push({
+          fileName: segment.fileName,
+          url: await this.fileStore.upload(segment),
+        });
+      }
+
+      const playlist = rewriteSegmentUrls(result.playlist, storedSegments);
+      const hlsUrl = await this.fileStore.upload(playlist);
+      const coverUrl = await this.storeCover(result.cover);
+
+      return {
+        hlsUrl,
+        coverUrl,
+        duration: result.duration,
+        width: result.width,
+        height: result.height,
+        videoCodec: result.videoCodec,
+        audioCodec: result.audioCodec,
+        reencoded: result.reencoded,
+      };
+    } finally {
+      await source.cleanup();
     }
-
-    const playlist = rewriteSegmentUrls(result.playlist, storedSegments);
-    const hlsUrl = await this.fileStore.upload(playlist);
-    const coverUrl = await this.storeCover(result.cover);
-
-    return {
-      hlsUrl,
-      coverUrl,
-      duration: result.duration,
-      width: result.width,
-      height: result.height,
-      videoCodec: result.videoCodec,
-      audioCodec: result.audioCodec,
-      reencoded: result.reencoded,
-    };
   }
 
   private async storeCover(cover?: DocumentCover): Promise<string> {
@@ -125,46 +160,27 @@ function fileNameFromUrl(fileUrl: string): string {
 }
 
 /**
- * Rewrites a playlist's bare segment file names into the paths the store handed
- * back, so each `#EXTINF` line points at the blob that was just written.
+ * Turns a stored name into one safe path segment.
  *
- * The rewrite keeps the path root-relative (`/api/files/…`) rather than the
- * absolute URL: a playlist is always fetched from the same origin as its
- * segments, so the stored file keeps working when the PocketBase address
- * changes — the same reason the client has `resolveFileUrl`.
- *
- * Unmapped lines are left untouched: a stray URI in the playlist (an fMP4 init
- * map, say) is passed through rather than silently dropped.
+ * The name only ever comes from this project's own file store, but it is joined
+ * into a temporary path, so anything that could climb out of that directory is
+ * replaced rather than trusted. The extension survives, which is the part the
+ * demuxer is chosen by.
  */
-function rewriteSegmentUrls(
-  playlist: TranscodedArtifact,
-  segments: { fileName: string; url: string }[],
-): TranscodedArtifact {
-  if (segments.length === 0) return playlist;
-
-  const pathsByName = new Map(
-    segments.map((segment) => [segment.fileName, toStorePath(segment.url)]),
-  );
-
-  const decoded = new TextDecoder().decode(playlist.bytes);
-  const lines = decoded.split("\n").map((line) => {
-    const uri = line.trim();
-    return pathsByName.get(uri) ?? line;
-  });
-
-  return {
-    ...playlist,
-    bytes: new TextEncoder().encode(lines.join("\n")),
-  };
+function safeSegment(name: string): string {
+  const cleaned = name.replace(/[^A-Za-z0-9._-]/g, "_").replace(/^\.+/, "_");
+  return cleaned || "video";
 }
 
-/** Turns an absolute store URL into a root-relative path, leaving others alone. */
-function toStorePath(url: string): string {
-  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return url;
-
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url;
-  }
+/**
+ * The suffix of the temporary download, taken from the stored name.
+ *
+ * FFmpeg probes by content, but some demuxers are only picked by extension, and
+ * the stored name is the only place the original extension survives.
+ */
+function sourceSuffix(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0 || dot === fileName.length - 1) return ".bin";
+  const suffix = safeSegment(fileName.slice(dot));
+  return suffix.startsWith(".") && suffix.length > 1 ? suffix.slice(0, 12) : ".bin";
 }

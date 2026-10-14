@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The unified 单选 / 多选 editor.
@@ -56,9 +59,11 @@ export function OptionPicker({
   onChange,
   onCreateOption,
   disabled,
-  placeholder = "选择选项",
+  placeholder = translate("选择选项"),
   className,
 }: OptionPickerProps) {
+  const { t } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const options = field.options ?? [];
@@ -134,7 +139,7 @@ export function OptionPicker({
         <Command shouldFilter>
           <CommandInput
             autoFocus
-            placeholder="查找或创建选项"
+            placeholder={t("查找或创建选项")}
             value={query}
             onValueChange={setQuery}
             onKeyDown={(event) => {
@@ -145,7 +150,7 @@ export function OptionPicker({
             }}
           />
           <CommandList>
-            {!canCreate && <CommandEmpty>没有匹配的选项</CommandEmpty>}
+            {!canCreate && <CommandEmpty>{t("没有匹配的选项")}</CommandEmpty>}
             <CommandGroup>
               {options.map((option, index) => (
                 <CommandItem
@@ -170,14 +175,15 @@ export function OptionPicker({
               ))}
               {canCreate && (
                 <CommandItem
-                  value={`创建 ${trimmedQuery}`}
+                  value={translate("创建 {value1}", { value1: trimmedQuery })}
                   forceMount
                   onSelect={create}
                   className="text-xs"
                 >
                   <Plus className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">
-                    创建「{trimmedQuery}」
+                    {t("创建「")}
+                    {trimmedQuery}」
                   </span>
                 </CommandItem>
               )}

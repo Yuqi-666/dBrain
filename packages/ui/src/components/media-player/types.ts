@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The media layer's contract — what `<VideoPlayer>`, `<AudioPlayer>`, the
  * progress-bar note ticks and the timestamp sidebar all agree on.
@@ -531,7 +532,7 @@ export function noteTitle(note: TimestampNoteData): string {
   if (stored.length > 0) return stored;
 
   const body = docToPlainText(note.content).replace(/\s+/g, " ").trim();
-  if (body.length === 0) return UNTITLED_NOTE;
+  if (body.length === 0) return translate(UNTITLED_NOTE);
   return body.length > TITLE_FALLBACK_CHARS
     ? `${body.slice(0, TITLE_FALLBACK_CHARS)}…`
     : body;

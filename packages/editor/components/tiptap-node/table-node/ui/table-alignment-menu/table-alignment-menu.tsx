@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 // --- Lib ---
 import type { Orientation } from "@workspace/editor/components/tiptap-node/table-node/lib/tiptap-table-utils";
@@ -42,6 +43,8 @@ export const TableAlignMenu = ({
   index?: number;
   orientation?: Orientation;
 }) => {
+  const { t } = useI18n();
+
   const textAlign = {
     left: useTableAlignCell({
       alignmentType: "text",
@@ -98,7 +101,7 @@ export const TableAlignMenu = ({
               render={
                 <Button variant="ghost">
                   <AlignmentIcon className="tiptap-button-icon" />
-                  <span className="tiptap-button-text">Alignment</span>
+                  <span className="tiptap-button-text">{t("Alignment")}</span>
                   <MenuButtonArrow render={<ChevronRightIcon />} />
                 </Button>
               }

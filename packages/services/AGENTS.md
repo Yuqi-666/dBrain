@@ -1,0 +1,65 @@
+# packages/services/AGENTS.md
+
+Scope: the `packages/services` package.
+Parent map: [../AGENTS.md](../AGENTS.md).
+
+This package holds the client-side services.
+A service changes the local store and calls the server through tRPC.
+It is the single owner of that sequence.
+`api-client`, `graph`, `hooks`, `ui`, and the two client apps import it.
+
+## Public surface
+
+| Export | Content |
+| --- | --- |
+| `.` | Re-exports `./graph` |
+| `./graph` | The eight services and the view-enumeration helpers |
+| `./graph/*` | A direct service module |
+
+## Map
+
+| Path | Content |
+| --- | --- |
+| `src/graph/node.service.ts` | `NodeService`. It can debounce an update call. |
+| `src/graph/edge.service.ts` | `EdgeService` |
+| `src/graph/view.service.ts` | `ViewService` |
+| `src/graph/workspace.service.ts` | `WorkspaceService`. It calls the other services. |
+| `src/graph/node-semantic.service.ts` | `NodeSemanticService` |
+| `src/graph/edge-semantic.service.ts` | `EdgeSemanticService` |
+| `src/graph/node-tag.service.ts` | `NodeTagService` |
+| `src/graph/dashboard.service.ts` | `DashboardService` |
+| `src/graph/view-enum-sync.ts` | Keeps a view enumeration equal to the data |
+| `src/graph/index.ts` | The aggregate barrel |
+
+## Mechanisms
+
+An update and a delete write the store first.
+Then the service calls `trpcClient`, and on an error it restores the previous store value.
+
+A create calls the server first, because the server supplies the record id.
+The service then writes the result into the store and updates the view enumeration.
+
+`NodeService` can debounce the network call through `DebounceScheduler`.
+The store update stays synchronous. The default delay is 500 milliseconds.
+The scheduler also rolls back to the snapshot from before the debounce window.
+
+A service can read as well as write.
+`sync` and `syncByWorkspace` call a query and load the result into the store.
+
+`WorkspaceService` calls the other services, so a workspace change cascades.
+
+`view-enum-sync.ts` holds the view rule: a view shows `filter(workspace)` plus its enumeration.
+When a new node does not match the active filter, the helper adds the node to `selectedNodes`.
+A global view has an empty filter and an empty enumeration, and the helper never touches it.
+
+The service modules import `trpcClient` from `@workspace/api-client`.
+That import and `graph-handler.ts` form the known `api-client` and `services` cycle.
+
+## Rules
+
+1. Keep the order: store first, then network, then restore on an error.
+2. Keep the store update synchronous. Debounce the network call only.
+3. Add a service for a new aggregate and export it from `src/graph/index.ts`.
+4. Call `syncViewEnumerationOnCreate` or `syncViewEnumerationOnDelete` after a node create or delete.
+5. Do not import `@workspace/api-client` from a new module without a check on the known cycle.
+6. Check the router before you trust a comment. A service comment can call a procedure pending when the router already defines it.

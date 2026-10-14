@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useState } from "react";
 import {
@@ -16,6 +18,8 @@ import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import {
+  MAX_UPLOAD_BYTES,
+  PDF_ANALYZE_MAX_BYTES,
   matchesAccept,
   useFileUpload,
   uploadFile,
@@ -83,17 +87,23 @@ interface VariantConfig {
 const VARIANT_CONFIG = {
   audio: {
     icon: MusicIcon,
-    label: "音频",
+    get label() {
+      return translate("音频");
+    },
     minHeight: "min-h-[100px]",
   },
   video: {
     icon: VideoIcon,
-    label: "视频",
+    get label() {
+      return translate("视频");
+    },
     minHeight: "min-h-[100px]",
   },
   image: {
     icon: ImageIcon,
-    label: "图片",
+    get label() {
+      return translate("图片");
+    },
     minHeight: "min-h-[100px]",
   },
   pdf: {
@@ -103,17 +113,23 @@ const VARIANT_CONFIG = {
   },
   "webpage-source": {
     icon: FileCode2Icon,
-    label: "HTML / 代码文件",
+    get label() {
+      return translate("HTML / 代码文件");
+    },
     minHeight: "min-h-[300px]",
   },
   icon: {
     icon: SmileIcon,
-    label: "图标",
+    get label() {
+      return translate("图标");
+    },
     minHeight: "min-h-[100px]",
   },
   cover: {
     icon: ImagePlusIcon,
-    label: "封面",
+    get label() {
+      return translate("封面");
+    },
     minHeight: "min-h-[160px]",
   },
 } as const satisfies Record<Variant, VariantConfig>;
@@ -274,6 +290,10 @@ function buildNodeUpdates(
  * cannot parse (password protected, corrupt) must still leave the node pointing
  * at its file — it just keeps `pageCount: 0` and no cover, which is what the
  * node renders before any metadata arrives.
+ *
+ * A document past the analysis cap is skipped without asking: the server would
+ * have to stream the whole file to disk only to refuse it, and the node is
+ * perfectly usable with the blob alone.
  */
 async function analyzePdfUpload(
   url: string,
@@ -283,13 +303,20 @@ async function analyzePdfUpload(
   let pageCount = 0;
   let fileSize = file.size;
 
-  try {
-    const analysis = await analyzePdf(url);
-    coverUrl = analysis.coverUrl;
-    pageCount = analysis.pageCount;
-    fileSize = analysis.fileSize;
-  } catch (error) {
-    console.warn("[FileDropZone] PDF analysis failed", error);
+  if (file.size > PDF_ANALYZE_MAX_BYTES) {
+    console.warn(
+      "[FileDropZone] PDF is larger than the analysis cap; keeping the file without parsing it",
+      file.size,
+    );
+  } else {
+    try {
+      const analysis = await analyzePdf(url);
+      coverUrl = analysis.coverUrl;
+      pageCount = analysis.pageCount;
+      fileSize = analysis.fileSize;
+    } catch (error) {
+      console.warn("[FileDropZone] PDF analysis failed", error);
+    }
   }
 
   return {
@@ -352,6 +379,8 @@ function UploadDropZone({
   onUploadError,
   className,
 }: FileDropZoneProps & { variant: UploadVariant }) {
+  const { t } = useI18n();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   /** Set while the backend is packaging an uploaded video as HLS. */
@@ -374,7 +403,10 @@ function UploadDropZone({
   );
 
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
-    maxSize: 100 * 1024 * 1024,
+    // The pipeline's own ceiling, not a UI preference: above it the server
+    // rejects the file, and below it the client would refuse a file the
+    // resumable path could have delivered.
+    maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
     upload: uploadFile,
@@ -450,7 +482,8 @@ function UploadDropZone({
         >
           <Icon className="size-12 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            点击添加{config.label}
+            {t("点击添加")}
+            {config.label}
           </span>
         </div>
 
@@ -487,11 +520,16 @@ function UploadDropZone({
             </button>
           </div>
           <Progress value={packaging ? 100 : item.progress} />
-          <span className="text-xs text-muted-foreground">
+          <span
+            className="text-xs text-muted-foreground break-words"
+            title={item.status === "error" ? item.error : undefined}
+          >
             {item.status === "error"
-              ? "上传失败"
+              ? translate("上传失败：{value1}", {
+                  value1: item.error ?? t("未知原因"),
+                })
               : packaging
-                ? "正在转码为 HLS…"
+                ? t("正在转码为 HLS…")
                 : `${item.progress}%`}
           </span>
         </div>
@@ -514,6 +552,8 @@ function LocalTextDropZone({
   onUploadError,
   className,
 }: FileDropZoneProps) {
+  const { t } = useI18n();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [reading, setReading] = useState<string | null>(null);
@@ -527,14 +567,21 @@ function LocalTextDropZone({
 
     if (!matchesAccept(file, accept)) {
       onUploadError?.(
-        new Error(`不支持的文件类型：${file.name}（期望 ${accept}）`),
+        new Error(
+          translate("不支持的文件类型：{value1}（期望 {value2}）", {
+            value1: file.name,
+            value2: accept,
+          }),
+        ),
       );
       return;
     }
     if (file.size > MAX_SOURCE_BYTES) {
       onUploadError?.(
         new Error(
-          `源码文件超过 ${MAX_SOURCE_BYTES / 1024 / 1024}MB，无法载入编辑器`,
+          translate("源码文件超过 {value1}MB，无法载入编辑器", {
+            value1: MAX_SOURCE_BYTES / 1024 / 1024,
+          }),
         ),
       );
       return;
@@ -543,7 +590,7 @@ function LocalTextDropZone({
     setReading(file.name);
     try {
       const code = await file.text();
-      if (!code.trim()) throw new Error("文件内容为空");
+      if (!code.trim()) throw new Error(t("文件内容为空"));
 
       await NodeService.upsert(nodeId, {
         content: {
@@ -554,7 +601,7 @@ function LocalTextDropZone({
       onUploaded?.();
     } catch (error) {
       onUploadError?.(
-        error instanceof Error ? error : new Error("读取文件失败"),
+        error instanceof Error ? error : new Error(t("读取文件失败")),
       );
     } finally {
       setReading(null);
@@ -572,7 +619,7 @@ function LocalTextDropZone({
       >
         <Icon className="size-10 text-muted-foreground" />
         <span className="text-sm text-muted-foreground">
-          正在读取 {reading}…
+          {t("正在读取")} {reading}…
         </span>
       </div>
     );
@@ -595,10 +642,11 @@ function LocalTextDropZone({
       >
         <Icon className="size-12 text-muted-foreground" />
         <span className="text-sm text-muted-foreground">
-          点击导入{config.label}
+          {t("点击导入")}
+          {config.label}
         </span>
         <span className="text-xs text-muted-foreground/70">
-          上传 .html 或代码文件，内容会载入源码编辑器
+          {t("上传 .html 或代码文件，内容会载入源码编辑器")}{" "}
         </span>
       </div>
 
@@ -607,7 +655,7 @@ function LocalTextDropZone({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         accept={accept}
-        urlDialogTitle="输入源码文件 URL"
+        urlDialogTitle={t("输入源码文件 URL")}
         urlDialogPlaceholder="https://example.com/index.html"
         onFilesSelected={handleFilesSelected}
         onError={onUploadError}
@@ -617,6 +665,8 @@ function LocalTextDropZone({
 }
 
 export function FileDropZone(props: FileDropZoneProps) {
+  useI18n();
+
   if (props.variant === "webpage-source") {
     return <LocalTextDropZone {...props} />;
   }
@@ -652,6 +702,8 @@ function DisplayFieldDropZone({
   onUploadError,
   className,
 }: FileDropZoneProps & { variant: DisplayVariant }) {
+  const { t } = useI18n();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -659,7 +711,7 @@ function DisplayFieldDropZone({
   const Icon = config.icon;
 
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
-    maxSize: 100 * 1024 * 1024,
+    maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
     upload: uploadFile,
@@ -718,7 +770,8 @@ function DisplayFieldDropZone({
         >
           <Icon className="size-12 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            点击添加{config.label}
+            {t("点击添加")}
+            {config.label}
           </span>
         </div>
 
@@ -757,8 +810,15 @@ function DisplayFieldDropZone({
             </button>
           </div>
           <Progress value={item.progress} />
-          <span className="text-xs text-muted-foreground">
-            {item.status === "error" ? "上传失败" : `${item.progress}%`}
+          <span
+            className="text-xs text-muted-foreground break-words"
+            title={item.status === "error" ? item.error : undefined}
+          >
+            {item.status === "error"
+              ? translate("上传失败：{value1}", {
+                  value1: item.error ?? t("未知原因"),
+                })
+              : `${item.progress}%`}
           </span>
         </div>
       ))}

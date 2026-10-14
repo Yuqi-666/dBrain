@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { useDataStore } from "@workspace/store";
@@ -28,6 +29,8 @@ export function NodeTagSelector({
   onDeleteTag,
   onCreateTag,
 }: NodeTagSelectorProps) {
+  const { t } = useI18n();
+
   const [search, setSearch] = React.useState("");
   const nodeTagsMap = useDataStore((state) => state.nodeTags);
   const allTags = React.useMemo(
@@ -60,20 +63,23 @@ export function NodeTagSelector({
     <PopoverContent className="w-64 p-0" align="start">
       <Command>
         <CommandInput
-          placeholder="搜索或创建标签..."
+          placeholder={t("搜索或创建标签...")}
           value={search}
           onValueChange={setSearch}
         />
         <CommandList>
           <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
             {search ? (
-              <span>按 Enter 创建 "{search}"</span>
+              <span>
+                {t('按 Enter 创建 "')}
+                {search}"
+              </span>
             ) : (
-              <span>无匹配标签</span>
+              <span>{t("无匹配标签")}</span>
             )}
           </CommandEmpty>
           {filteredTags.length > 0 && (
-            <CommandGroup heading="可用标签">
+            <CommandGroup heading={t("可用标签")}>
               {filteredTags.map((tag) => (
                 <CommandItem
                   key={tag.id}
@@ -106,14 +112,17 @@ export function NodeTagSelector({
             </CommandGroup>
           )}
           {search && !exactMatch && (
-            <CommandGroup heading="创建">
+            <CommandGroup heading={t("创建")}>
               <CommandItem
                 value={`__create__${search}`}
                 onSelect={handleCreateAndApply}
                 className="flex items-center gap-2"
               >
                 <Plus className="size-3" />
-                <span>创建 "{search}"</span>
+                <span>
+                  {t('创建 "')}
+                  {search}"
+                </span>
               </CommandItem>
             </CommandGroup>
           )}

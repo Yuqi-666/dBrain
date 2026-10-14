@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -208,6 +209,8 @@ function shouldShowButton({
  * }
  */
 export function useTableFitToWidth(config: UseTableFitToWidthConfig = {}) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -229,7 +232,7 @@ export function useTableFitToWidth(config: UseTableFitToWidthConfig = {}) {
     return success;
   }, [editor, onWidthAdjusted]);
 
-  const label = "Fit to width";
+  const label = t("Fit to width");
   const Icon = MoveHorizontalIcon;
 
   return {

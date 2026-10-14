@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
@@ -76,12 +78,20 @@ const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableAddRowColumnLabels = {
   row: {
-    above: "Insert row above",
-    below: "Insert row below",
+    get above() {
+      return translate("Insert row above");
+    },
+    get below() {
+      return translate("Insert row below");
+    },
   } as Record<RowSide, string>,
   column: {
-    left: "Insert column left",
-    right: "Insert column right",
+    get left() {
+      return translate("Insert column left");
+    },
+    get right() {
+      return translate("Insert column right");
+    },
   } as Record<ColSide, string>,
 } as const;
 
@@ -281,6 +291,8 @@ function shouldShowButton({
  * functionality for the Tiptap editor.
  */
 export function useTableAddRowColumn(config: UseTableAddRowColumnConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,

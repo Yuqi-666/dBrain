@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * A 文本笔记 card: a title, the 定位 / 更多 actions, and a rich-text body that is
@@ -80,6 +81,8 @@ export function NoteTextCard({
   onFocusLeave,
   cardRef,
 }: NoteTextCardProps) {
+  const { t } = useI18n();
+
   const { schedule: scheduleTitle, flush: flushTitle } = useAutoCommit<string>(
     (value: string) => onPatch({ title: value }),
   );
@@ -109,8 +112,8 @@ export function NoteTextCard({
             event.preventDefault();
             flushTitle();
           }}
-          placeholder="标题"
-          aria-label="笔记标题"
+          placeholder={t("标题")}
+          aria-label={t("笔记标题")}
           autoFocus={autoFocusTitle}
           className="h-7 min-w-0 flex-1 border-transparent bg-transparent px-1 text-sm font-medium shadow-none focus-visible:border-ring dark:bg-transparent"
         />
@@ -124,7 +127,7 @@ export function NoteTextCard({
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                aria-label="更多操作"
+                aria-label={t("更多操作")}
               >
                 <MoreHorizontal aria-hidden />
               </Button>
@@ -132,12 +135,12 @@ export function NoteTextCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onConvert}>
                 <FileInput aria-hidden />
-                转化为节点
+                {t("转化为节点")}{" "}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={onDelete}>
                 <Trash2 aria-hidden />
-                删除
+                {t("删除")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

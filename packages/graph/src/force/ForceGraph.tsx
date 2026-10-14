@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * ForceGraph — main-thread orchestrator for the d3-force + OffscreenCanvas
@@ -147,12 +150,29 @@ function buildForceStyle(view: View): ForceStyle {
   };
 }
 
+/**
+ * The view's persisted boundary node density, or the renderer default.
+ *
+ * `visualConfig.nodeDensity` is a user preference (the graph header's
+ * slider) and may be absent, `0`, or garbage in an old record; the force
+ * layer must still run, so an unusable value falls back rather than
+ * disabling the boundary.
+ */
+function resolveBoundaryDensity(view: View): number {
+  const value = view.visualConfig?.nodeDensity;
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_FORCE_CONFIG.boundaryDensity;
+}
+
 // -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
 
 export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
   function ForceGraph(props, ref) {
+    useI18n();
+
     const {
       view,
       viewId,
@@ -354,6 +374,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         ...DEFAULT_FORCE_CONFIG,
         centerX: dims.width / 2,
         centerY: dims.height / 2,
+        boundaryDensity: resolveBoundaryDensity(view),
       };
       await api.updateConfig(cfg);
       await api.setViewport(
@@ -660,7 +681,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
 
           // ★ Re-check cancelled BEFORE subscribing (fixes 0.4 leak)
           if (cancelled) {
-            api.setEventHandler(null).catch(() => { });
+            api.setEventHandler(null).catch(() => {});
             worker.terminate();
             return;
           }
@@ -686,7 +707,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
           },
           onViewportChange: (x, y, scale) => {
             // best-effort: rejections during worker teardown races are expected and harmless
-            api?.setViewport(x, y, scale).catch(() => { });
+            api?.setViewport(x, y, scale).catch(() => {});
           },
         },
         dprRef.current,
@@ -736,6 +757,25 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
         console.error("[ForceGraph] updateStyle failed:", err);
       });
     }, [view?.visualConfig]);
+
+    // ---- Effect: node-density change → push config to worker ---------
+    // The settings menu's density slider writes `visualConfig`, and the
+    // boundary has to move on the running simulation — a full re-init
+    // would restart it and throw the layout away. `updateConfig` merges
+    // into the worker's cached config and reheats, so dragging the slider
+    // previews live. Only the boundary fields are sent: the centre axes
+    // are already in the cached config.
+    useEffect(() => {
+      const api = apiRef.current;
+      if (!api) return;
+      api
+        .updateConfig({
+          boundaryDensity: resolveBoundaryDensity(viewRef.current),
+        })
+        .catch((err) => {
+          console.error("[ForceGraph] boundary updateConfig failed:", err);
+        });
+    }, [view?.visualConfig?.nodeDensity]);
 
     // ---- Imperative handle ------------------------------------------
     useImperativeHandle(
@@ -863,7 +903,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               fontSize: 12,
             }}
           >
-            Worker init failed: {error.message}
+            {translate("Worker init failed:")} {error.message}
           </div>
         ) : null}
         {!isReady && !error ? (
@@ -876,7 +916,7 @@ export const ForceGraph = forwardRef<ForceGraphHandle, ForceGraphProps>(
               color: "#9ca3af",
             }}
           >
-            Initializing…
+            {translate("Initializing…")}{" "}
           </div>
         ) : null}
         {contextMenuState && contextMenuState.visible ? (

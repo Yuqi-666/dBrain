@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The workspace's field vocabulary: type labels and icons, the palettes behind
@@ -29,14 +31,30 @@ import type {
 } from "@workspace/interfaces";
 
 export const FIELD_TYPE_LABELS: Record<DatabaseFieldType, string> = {
-  text: "文本",
-  number: "数字",
-  select: "单选",
-  multiSelect: "多选",
-  date: "日期",
-  checkbox: "勾选",
-  url: "链接",
-  relation: "关联",
+  get text() {
+    return translate("文本");
+  },
+  get number() {
+    return translate("数字");
+  },
+  get select() {
+    return translate("单选");
+  },
+  get multiSelect() {
+    return translate("多选");
+  },
+  get date() {
+    return translate("日期");
+  },
+  get checkbox() {
+    return translate("勾选");
+  },
+  get url() {
+    return translate("链接");
+  },
+  get relation() {
+    return translate("关联");
+  },
 };
 
 export const FIELD_TYPE_ICONS: Record<DatabaseFieldType, LucideIcon> = {
@@ -58,6 +76,8 @@ export function FieldTypeIcon({
   type: DatabaseFieldType;
   className?: string;
 }) {
+  useI18n();
+
   const Icon = FIELD_TYPE_ICONS[type] ?? Type;
   return <Icon className={className} />;
 }

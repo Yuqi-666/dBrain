@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback } from "react";
 
@@ -31,6 +32,8 @@ export function LatexBlockShortcutBadge({
 }: {
   shortcutKeys?: string;
 }) {
+  useI18n();
+
   return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
@@ -54,6 +57,8 @@ export const LatexBlockButton = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useI18n();
+
     const { editor } = useTiptapEditor(providedEditor);
     const {
       isVisible,
@@ -93,7 +98,7 @@ export const LatexBlockButton = forwardRef<
         tabIndex={-1}
         aria-label={label}
         aria-pressed={isActive}
-        tooltip="Math Block"
+        tooltip={t("Math Block")}
         onClick={handleClick}
         {...buttonProps}
         ref={ref}

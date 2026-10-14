@@ -1,4 +1,5 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /**
  * The data view registry — the single place a view type is declared.
@@ -85,7 +86,9 @@ function defineRenderer<T extends DataViewType>(
 export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   table: {
     type: "table",
-    label: "表格",
+    get label() {
+      return translate("表格");
+    },
     icon: Table2,
     nodeTypes: ["database", "collection"],
     renderer: defineRenderer<"table">(() =>
@@ -98,7 +101,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   kanban: {
     type: "kanban",
-    label: "看板",
+    get label() {
+      return translate("看板");
+    },
     icon: SquareKanban,
     nodeTypes: ["database", "collection"],
     renderer: defineRenderer<"kanban">(() =>
@@ -112,7 +117,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   calendar: {
     type: "calendar",
-    label: "日历",
+    get label() {
+      return translate("日历");
+    },
     icon: CalendarDays,
     nodeTypes: ["database", "collection"],
     renderer: defineRenderer<"calendar">(() =>
@@ -126,7 +133,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   gantt: {
     type: "gantt",
-    label: "甘特图",
+    get label() {
+      return translate("甘特图");
+    },
     icon: ChartGantt,
     // Gantt needs a start/end date pair; collection exposes created/updated.
     nodeTypes: ["database", "collection"],
@@ -143,7 +152,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   gallery: {
     type: "gallery",
-    label: "画廊",
+    get label() {
+      return translate("画廊");
+    },
     icon: Images,
     nodeTypes: ["database", "collection"],
     renderer: defineRenderer<"gallery">(() =>
@@ -157,7 +168,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   chart: {
     type: "chart",
-    label: "图表",
+    get label() {
+      return translate("图表");
+    },
     icon: ChartPie,
     nodeTypes: ["database", "collection"],
     renderer: defineRenderer<"chart">(() =>
@@ -173,7 +186,9 @@ export const DATA_VIEW_REGISTRY: Record<DataViewType, DataViewDescriptor> = {
   },
   graph: {
     type: "graph",
-    label: "节点图",
+    get label() {
+      return translate("节点图");
+    },
     icon: Network,
     // Database rows are not graph nodes, so there is nothing to draw.
     nodeTypes: ["collection"],

@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useRef, useState } from "react";
 import type { NodeViewProps } from "@tiptap/react";
@@ -93,6 +95,8 @@ const ImageUploadDragArea: React.FC<ImageUploadDragAreaProps> = ({
   onFile,
   children,
 }) => {
+  useI18n();
+
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -160,6 +164,8 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
   fileItem,
   onRemove,
 }) => {
+  useI18n();
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -228,17 +234,21 @@ const DropZoneContent: React.FC<{ maxSize: number; limit: number }> = ({
 
     <div className="tiptap-image-upload-content">
       <span className="tiptap-image-upload-text">
-        <em>Click to upload</em> or drag and drop
+        <em>{translate("Click to upload")}</em>{" "}
+        {translate("or drag and drop")}{" "}
       </span>
       <span className="tiptap-image-upload-subtext">
-        Maximum {limit} file{limit === 1 ? "" : "s"}, {maxSize / 1024 / 1024}MB
-        each.
+        {translate("Maximum")} {limit} {translate("file")}
+        {limit === 1 ? "" : "s"}, {maxSize / 1024 / 1024}
+        {translate("MB each.")}{" "}
       </span>
     </div>
   </>
 );
 
 export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
+  const { t } = useI18n();
+
   const { accept, limit, maxSize } = props.node.attrs;
   const inputRef = useRef<HTMLInputElement>(null);
   const extension = props.extension;
@@ -322,7 +332,9 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
         <div className="tiptap-image-upload-previews">
           {fileItems.length > 1 && (
             <div className="tiptap-image-upload-header">
-              <span>Uploading {fileItems.length} files</span>
+              <span>
+                {t("Uploading")} {fileItems.length} {t("files")}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -331,7 +343,7 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
                   clearAllFiles();
                 }}
               >
-                Clear All
+                {t("Clear All")}{" "}
               </Button>
             </div>
           )}
@@ -347,9 +359,9 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
 
       <input
         ref={inputRef}
-        name="file"
+        name={t("file")}
         accept={accept}
-        type="file"
+        type={t("file")}
         multiple={limit > 1}
         onChange={handleChange}
         onClick={(e: React.MouseEvent<HTMLInputElement>) => e.stopPropagation()}

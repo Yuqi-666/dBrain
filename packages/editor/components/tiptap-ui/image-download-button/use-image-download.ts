@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { resolveFileUrl as resolveAttachmentUrl } from "@workspace/api-client";
 
@@ -301,6 +302,8 @@ export function shouldShowDownloadButton(props: {
  * Custom hook that provides image download functionality for Tiptap editor
  */
 export function useImageDownload(config?: UseImageDownloadConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -365,7 +368,7 @@ export function useImageDownload(config?: UseImageDownloadConfig) {
     isVisible,
     canDownload,
     handleDownload,
-    label: "Download image",
+    label: t("Download image"),
     shortcutKeys: IMAGE_DOWNLOAD_SHORTCUT_KEY,
     Icon: ArrowDownToLineIcon,
   };

@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -21,52 +23,72 @@ import { TextColorSmallIcon } from "@workspace/editor/components/tiptap-icons/te
 export const COLOR_TEXT_SHORTCUT_KEY = "mod+shift+t";
 export const TEXT_COLORS = [
   {
-    label: "Default text",
+    get label() {
+      return translate("Default text");
+    },
     value: "var(--tt-color-text)",
     border: "var(--tt-color-text-contrast)",
   },
   {
-    label: "Gray text",
+    get label() {
+      return translate("Gray text");
+    },
     value: "var(--tt-color-text-gray)",
     border: "var(--tt-color-text-gray-contrast)",
   },
   {
-    label: "Brown text",
+    get label() {
+      return translate("Brown text");
+    },
     value: "var(--tt-color-text-brown)",
     border: "var(--tt-color-text-brown-contrast)",
   },
   {
-    label: "Orange text",
+    get label() {
+      return translate("Orange text");
+    },
     value: "var(--tt-color-text-orange)",
     border: "var(--tt-color-text-orange-contrast)",
   },
   {
-    label: "Yellow text",
+    get label() {
+      return translate("Yellow text");
+    },
     value: "var(--tt-color-text-yellow)",
     border: "var(--tt-color-text-yellow-contrast)",
   },
   {
-    label: "Green text",
+    get label() {
+      return translate("Green text");
+    },
     value: "var(--tt-color-text-green)",
     border: "var(--tt-color-text-green-contrast)",
   },
   {
-    label: "Blue text",
+    get label() {
+      return translate("Blue text");
+    },
     value: "var(--tt-color-text-blue)",
     border: "var(--tt-color-text-blue-contrast)",
   },
   {
-    label: "Purple text",
+    get label() {
+      return translate("Purple text");
+    },
     value: "var(--tt-color-text-purple)",
     border: "var(--tt-color-text-purple-contrast)",
   },
   {
-    label: "Pink text",
+    get label() {
+      return translate("Pink text");
+    },
     value: "var(--tt-color-text-pink)",
     border: "var(--tt-color-text-pink-contrast)",
   },
   {
-    label: "Red text",
+    get label() {
+      return translate("Red text");
+    },
     value: "var(--tt-color-text-red)",
     border: "var(--tt-color-text-red-contrast)",
   },
@@ -204,6 +226,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useColorText(config: UseColorTextConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     label,

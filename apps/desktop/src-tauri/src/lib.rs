@@ -3,17 +3,34 @@ use local_backend::{LocalBackend, start_local_backend};
 use std::sync::Mutex;
 use tauri::Manager;
 
+fn themed_icon(theme: tauri::Theme) -> tauri::image::Image<'static> {
+  match theme {
+    tauri::Theme::Dark => tauri::include_image!("icons/logo-dark.png"),
+    _ => tauri::include_image!("icons/logo-light.png"),
+  }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   let app = tauri::Builder::default()
     .setup(|app| {
       app.manage(Mutex::new(LocalBackend::new(app.handle())?));
+      for window in app.webview_windows().values() {
+        window.set_icon(themed_icon(window.theme().unwrap_or(tauri::Theme::Light)))?;
+      }
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build(),
         )?;
       }
       Ok(())
+    })
+    .on_window_event(|window, event| {
+      if let tauri::WindowEvent::ThemeChanged(theme) = event {
+        if let Err(error) = window.set_icon(themed_icon(*theme)) {
+          log::warn!("Could not update the window icon: {error}");
+        }
+      }
     })
     .invoke_handler(tauri::generate_handler![start_local_backend])
     .build(tauri::generate_context!())

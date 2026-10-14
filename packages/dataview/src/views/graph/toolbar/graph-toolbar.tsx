@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The graph view's toolbar — its one control strip.
@@ -49,6 +50,8 @@ export function GraphToolbar({
   onConfigChange,
   className,
 }: GraphToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<GraphViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -59,14 +62,17 @@ export function GraphToolbar({
     <ViewToolbar className={className}>
       {/* ——————— 布局 ——————— */}
       <SettingsPanel
-        label="布局"
+        label={t("布局")}
         icon={Waypoints}
         value={
           GRAPH_LAYOUT_MODES.find((mode) => mode.value === viewType)?.label
         }
         disabled={!canConfigure}
       >
-        <PanelSection label="布局模式" hint={GRAPH_FLOW_UNAVAILABLE_HINT}>
+        <PanelSection
+          label={t("布局模式")}
+          hint={t(GRAPH_FLOW_UNAVAILABLE_HINT)}
+        >
           <ToggleGroup
             type="single"
             size="sm"
@@ -94,7 +100,7 @@ export function GraphToolbar({
 
       {/* ——————— 视图 ——————— */}
       <SettingsPanel
-        label="视图"
+        label={t("视图")}
         icon={LayoutGrid}
         value={
           GRAPH_BACKGROUND_STYLES.find(
@@ -103,7 +109,7 @@ export function GraphToolbar({
         }
         disabled={!canConfigure}
       >
-        <PanelSection label="背景">
+        <PanelSection label={t("背景")}>
           <ToggleGroup
             type="single"
             size="sm"

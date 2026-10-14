@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { readAuthSessionToken } from "../../packages/api-client/src/auth/session.ts";
+import * as uploadContract from "../../packages/utils/src/upload.ts";
 
 function uploader(platform, cookie) {
   const requests = [];
@@ -34,6 +35,9 @@ function uploader(platform, cookie) {
     process: { env: { NEXT_PUBLIC_DBRAIN_PLATFORM: platform } },
     require(id) {
       if (id === "@workspace/store") return { useWorkspaceStore: { getState: () => ({ currentWorkspaceId: "workspace" }) } };
+      // The size limits are re-exported by `upload.ts`; none of the direct-path
+      // assertions depend on them, but the module has to load.
+      if (id === "@workspace/utils/upload") return uploadContract;
       if (id === "react") return {};
       if (id === "./pocketbase-client") return { getPocketbaseClient: () => sdk };
       if (id === "./auth/session") return { readAuthSessionToken: () => {

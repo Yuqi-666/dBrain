@@ -14,6 +14,8 @@ import {
 
 import { cn } from "@workspace/ui/lib/utils";
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button";
+import { zhCN, enUS } from "react-day-picker/locale";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 function Calendar({
   className,
@@ -27,10 +29,12 @@ function Calendar({
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
+  const { locale } = useI18n();
   const defaultClassNames = getDefaultClassNames();
 
   return (
     <DayPicker
+      locale={locale === "zh-CN" ? zhCN : enUS}
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
@@ -41,7 +45,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString(locale, { month: "short" }),
         ...formatters,
       }}
       classNames={{

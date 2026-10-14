@@ -44,6 +44,8 @@ export interface DatabaseField {
    * 其中的 `id` 唯一性同样会校验。
    */
   options?: DatabaseFieldOption[];
+  /** 日期字段是否包含小时和分钟；省略时仅显示日期。 */
+  includeTime?: boolean;
 }
 
 export type DatabaseCell =

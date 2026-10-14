@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -278,6 +279,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useMentionTrigger(config?: UseMentionTriggerConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     node,
@@ -337,7 +340,7 @@ export function useMentionTrigger(config?: UseMentionTriggerConfig) {
     isVisible,
     handleMention,
     canInsert,
-    label: "Add mention",
+    label: t("Add mention"),
     shortcutKeys: MENTION_TRIGGER_SHORTCUT_KEY,
     trigger,
     Icon: AtSignIcon,

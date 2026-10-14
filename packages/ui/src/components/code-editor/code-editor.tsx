@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
@@ -31,7 +33,12 @@ export const CODE_LANGUAGES = [
   { id: "xml", label: "XML" },
   { id: "sql", label: "SQL" },
   { id: "python", label: "Python" },
-  { id: "text", label: "纯文本" },
+  {
+    id: "text",
+    get label() {
+      return translate("纯文本");
+    },
+  },
 ] as const;
 
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number]["id"];
@@ -128,6 +135,8 @@ export function CodeEditor({
   readOnly = false,
   className,
 }: CodeEditorProps) {
+  useI18n();
+
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 

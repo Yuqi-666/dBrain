@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useMemo } from "react";
 import type { NodeData } from "@workspace/interfaces";
@@ -24,6 +25,8 @@ interface NodeContentEditorProps {
 
 /** Router component that switches between different node type content editors */
 export function NodeContentEditor({ node, className }: NodeContentEditorProps) {
+  const { t } = useI18n();
+
   const nodeType = node?.nodeType;
 
   const contentComponent = useMemo(() => {
@@ -55,11 +58,11 @@ export function NodeContentEditor({ node, className }: NodeContentEditorProps) {
               "p-4 text-muted-foreground" + (className ? ` ${className}` : "")
             }
           >
-            Unsupported node type: {nodeType}
+            {t("Unsupported node type:")} {nodeType}
           </div>
         );
     }
-  }, [nodeType, node, className]);
+  }, [nodeType, node, className, t]);
 
   return <>{contentComponent}</>;
 }

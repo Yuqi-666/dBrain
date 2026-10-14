@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 import { Fragment, useCallback, useMemo } from "react";
 import { type Editor } from "@tiptap/react";
@@ -64,13 +66,13 @@ function initializeEditorMenuActions(): Record<
       filterItems: true,
       icon: <MicAiIcon className="tiptap-button-icon" />,
       items: SUPPORTED_TONES,
-      label: "Adjust tone",
+      label: translate("Adjust tone"),
       value: "adjustTone",
     },
     aiFixSpellingAndGrammar: {
       type: "executable",
       icon: <CheckAiIcon className="tiptap-button-icon" />,
-      label: "Fix spelling & grammar",
+      label: translate("Fix spelling & grammar"),
       value: "aiFixSpellingAndGrammar",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -93,7 +95,7 @@ function initializeEditorMenuActions(): Record<
     aiExtend: {
       type: "executable",
       icon: <TextExtendIcon className="tiptap-button-icon" />,
-      label: "Make longer",
+      label: translate("Make longer"),
       value: "aiExtend",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -116,7 +118,7 @@ function initializeEditorMenuActions(): Record<
     aiShorten: {
       type: "executable",
       icon: <TextReduceIcon className="tiptap-button-icon" />,
-      label: "Make shorter",
+      label: translate("Make shorter"),
       value: "aiShorten",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -139,7 +141,7 @@ function initializeEditorMenuActions(): Record<
     simplifyLanguage: {
       type: "executable",
       icon: <Simplify2Icon className="tiptap-button-icon" />,
-      label: "Simplify language",
+      label: translate("Simplify language"),
       value: "simplifyLanguage",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -162,7 +164,7 @@ function initializeEditorMenuActions(): Record<
     improveWriting: {
       type: "executable",
       icon: <SmileAiIcon className="tiptap-button-icon" />,
-      label: "Improve writing",
+      label: translate("Improve writing"),
       value: "improveWriting",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -185,7 +187,7 @@ function initializeEditorMenuActions(): Record<
     emojify: {
       type: "executable",
       icon: <SmileAiIcon className="tiptap-button-icon" />,
-      label: "Emojify",
+      label: translate("Emojify"),
       value: "emojify",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -208,7 +210,7 @@ function initializeEditorMenuActions(): Record<
     continueWriting: {
       type: "executable",
       icon: <CompleteSentenceIcon className="tiptap-button-icon" />,
-      label: "Continue writing",
+      label: translate("Continue writing"),
       value: "continueWriting",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -231,7 +233,7 @@ function initializeEditorMenuActions(): Record<
     summarize: {
       type: "executable",
       icon: <SummarizeTextIcon className="tiptap-button-icon" />,
-      label: "Add a summary",
+      label: translate("Add a summary"),
       value: "summarize",
       onSelect: ({ editor, options }) => {
         if (!editor) return;
@@ -257,7 +259,7 @@ function initializeEditorMenuActions(): Record<
       filterItems: true,
       icon: <LanguagesIcon className="tiptap-button-icon" />,
       items: SUPPORTED_LANGUAGES,
-      label: "Languages",
+      label: translate("Languages"),
       value: "translateTo",
     },
   };
@@ -275,7 +277,7 @@ function mapInteractionContextToActions(
 
   const grouped: Action[] = [
     {
-      label: "Edit",
+      label: translate("Edit"),
       items: Object.values([
         menuActions.adjustTone,
         menuActions.aiFixSpellingAndGrammar,
@@ -287,7 +289,7 @@ function mapInteractionContextToActions(
       ]).map(convertToMenuAction),
     },
     {
-      label: "Write",
+      label: translate("Write"),
       items: Object.values([
         menuActions.continueWriting,
         menuActions.summarize,
@@ -314,10 +316,12 @@ export function LanguageSelectionSubmenu({
 }: {
   editor: Editor | null;
 }) {
+  const { t } = useI18n();
+
   const [searchValue] = useComboboxValueState();
   const { state, updateState } = useAiMenuState();
 
-  const availableLanguages = useMemo(() => {
+  const availableLanguages = useLocaleMemo(() => {
     const translationAction = initializeEditorMenuActions()
       .translateTo as NestedMenuAction;
     const languageOptions = { items: translationAction.items || [] };
@@ -355,7 +359,7 @@ export function LanguageSelectionSubmenu({
   const languageMenuItems = (
     <>
       {availableLanguages.length > 0 && (
-        <MenuGroupLabel>Languages</MenuGroupLabel>
+        <MenuGroupLabel>{t("Languages")}</MenuGroupLabel>
       )}
       {availableLanguages.map((language) => (
         <MenuItem
@@ -389,7 +393,7 @@ export function LanguageSelectionSubmenu({
               render={
                 <Button variant="ghost">
                   <LanguagesIcon className="tiptap-button-icon" />
-                  <span className="tiptap-button-text">Languages</span>
+                  <span className="tiptap-button-text">{t("Languages")}</span>
                   <MenuButtonArrow render={<ChevronRightIcon />} />
                 </Button>
               }
@@ -408,10 +412,12 @@ export function LanguageSelectionSubmenu({
 }
 
 export function ToneSelectionSubmenu({ editor }: { editor: Editor | null }) {
+  const { t } = useI18n();
+
   const [searchValue] = useComboboxValueState();
   const { state, updateState } = useAiMenuState();
 
-  const availableTones = useMemo(() => {
+  const availableTones = useLocaleMemo(() => {
     const toneAction = initializeEditorMenuActions()
       .adjustTone as NestedMenuAction;
     const toneOptions = { items: toneAction.items || [] };
@@ -474,7 +480,7 @@ export function ToneSelectionSubmenu({ editor }: { editor: Editor | null }) {
               render={
                 <Button variant="ghost">
                   <MicAiIcon className="tiptap-button-icon" />
-                  <span className="tiptap-button-text">Adjust Tone</span>
+                  <span className="tiptap-button-text">{t("Adjust Tone")}</span>
                   <MenuButtonArrow render={<ChevronRightIcon />} />
                 </Button>
               }
@@ -497,6 +503,8 @@ export function MenuActionRenderer({
   availableActions,
   editor,
 }: MenuActionRendererProps) {
+  useI18n();
+
   const { state } = useAiMenuState();
 
   if (!menuItem.value) {
@@ -551,16 +559,21 @@ export function AiMenuItems({
 }: {
   editor?: Editor | null;
 }) {
+  useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const [searchValue] = useComboboxValueState();
 
-  const availableMenuActions = useMemo(() => initializeEditorMenuActions(), []);
+  const availableMenuActions = useLocaleMemo(
+    () => initializeEditorMenuActions(),
+    [],
+  );
   const contextualActionGroups = useMemo(
     () => mapInteractionContextToActions(availableMenuActions),
     [availableMenuActions],
   );
 
-  const filteredActionGroups = useMemo(() => {
+  const filteredActionGroups = useLocaleMemo(() => {
     return (
       filterMenuGroups(contextualActionGroups, searchValue) ||
       contextualActionGroups

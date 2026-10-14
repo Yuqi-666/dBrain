@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import * as uploadContract from "../../packages/utils/src/upload.ts";
 
 const requireClient = createRequire(new URL("../../packages/api-client/package.json", import.meta.url));
 const sdk = requireClient("pocketbase");
@@ -77,6 +78,7 @@ test("stored file paths resolve once through the current web or desktop gateway"
   for (const baseUrl of ["https://example.test/pb", "http://127.0.0.1:1111/session/def"]) {
     const upload = load("packages/api-client/src/upload.ts", {}, {
       "@workspace/store": {}, react: {}, "./auth/session": {},
+      "@workspace/utils/upload": uploadContract,
       "./pocketbase-client": { getPocketbaseClient: () => ({ baseUrl }) },
     });
     for (const path of ["/api/files/files/id/file.png", "/pb/api/files/files/id/file.png", "/session/abc/api/files/files/id/file.png"]) {

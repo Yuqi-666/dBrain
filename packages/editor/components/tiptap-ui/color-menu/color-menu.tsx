@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { Editor } from "@tiptap/react";
 
@@ -42,6 +43,8 @@ interface ColorMenuItemProps {
 }
 
 const TextColorMenuItem: React.FC<ColorMenuItemProps> = ({ color }) => {
+  useI18n();
+
   const { addRecentColor } = useRecentColors();
   const { isActive, handleColorText, label } = useColorText({
     label: color.label,
@@ -69,6 +72,8 @@ const TextColorMenuItem: React.FC<ColorMenuItemProps> = ({ color }) => {
 };
 
 const HighlightColorMenuItem: React.FC<ColorMenuItemProps> = ({ color }) => {
+  useI18n();
+
   const { addRecentColor } = useRecentColors();
   const { isActive, handleColorHighlight, label } = useColorHighlight({
     label: color.label,
@@ -97,6 +102,8 @@ const HighlightColorMenuItem: React.FC<ColorMenuItemProps> = ({ color }) => {
 const RecentColorMenuItem: React.FC<{
   colorObj: RecentColor;
 }> = ({ colorObj }) => {
+  useI18n();
+
   const colorSet = colorObj.type === "text" ? TEXT_COLORS : HIGHLIGHT_COLORS;
   const color = getColorByValue(colorObj.value, colorSet);
 
@@ -134,6 +141,8 @@ export const ColorMenu: React.FC<ColorMenuProps> = ({
   label = "Color",
   placement = "right",
 }) => {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const { recentColors, isInitialized } = useRecentColors();
 
@@ -171,7 +180,7 @@ export const ColorMenu: React.FC<ColorMenuProps> = ({
           {/* Recent Colors */}
           {isInitialized && recentColors.length > 0 && (
             <MenuGroup>
-              <MenuGroupLabel>Recent colors</MenuGroupLabel>
+              <MenuGroupLabel>{t("Recent colors")}</MenuGroupLabel>
               {recentColors.map((colorObj) => (
                 <RecentColorMenuItem key={colorObj.value} colorObj={colorObj} />
               ))}
@@ -181,7 +190,7 @@ export const ColorMenu: React.FC<ColorMenuProps> = ({
 
           {/* Text Colors */}
           <MenuGroup>
-            <MenuGroupLabel>Text color</MenuGroupLabel>
+            <MenuGroupLabel>{t("Text color")}</MenuGroupLabel>
             {TEXT_COLORS.map((textColor) => (
               <TextColorMenuItem key={textColor.value} color={textColor} />
             ))}
@@ -191,7 +200,7 @@ export const ColorMenu: React.FC<ColorMenuProps> = ({
 
           {/* Background Colors */}
           <MenuGroup>
-            <MenuGroupLabel>Background color</MenuGroupLabel>
+            <MenuGroupLabel>{t("Background color")}</MenuGroupLabel>
             {HIGHLIGHT_COLORS.map((highlightColor) => (
               <HighlightColorMenuItem
                 key={highlightColor.value}

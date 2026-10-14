@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The imperative VTable-Gantt surface.
@@ -234,6 +236,8 @@ function GanttSurfaceImpl({
   onToggleGroup,
   className,
 }: GanttSurfaceProps) {
+  useI18n();
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const ganttRef = useRef<Gantt | null>(null);
   /** The record array the live instance already has (identity comparison). */
@@ -401,7 +405,7 @@ function GanttSurfaceImpl({
       markLine: showTodayLine
         ? {
             date: today,
-            content: "今天",
+            content: translate("今天"),
             contentStyle: {
               color: theme.markLineTextColor,
               backgroundColor: theme.markLineColor,

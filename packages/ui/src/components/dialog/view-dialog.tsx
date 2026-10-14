@@ -1,6 +1,8 @@
 "use client";
+import { buildNodeFilterFields } from "@workspace/ui/lib/node-filter-fields";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +19,6 @@ import { NodeSelectionList } from "./node-selection-list";
 import { useDataStore, useUIStore, useWorkspaceStore } from "@workspace/store";
 import { ViewService } from "@workspace/services";
 import {
-  buildNodeFilterFields,
   type FilterConfig,
   type NodeData,
   type NodeId,
@@ -50,6 +51,8 @@ const EMPTY_RULE_GROUP: RuleGroupType = { combinator: "and", rules: [] };
  * 已勾选节点 ∪ 命中筛选条件的节点；两者都为空则为全局视图，显示全部节点。
  */
 export function ViewDialog() {
+  useI18n();
+
   const { open, editingView } = useUIStore((state) => state.viewDialog);
   const closeDialog = useUIStore((state) => state.closeViewDialog);
   const setCurrentViewId = useUIStore((state) => state.setCurrentViewId);
@@ -126,6 +129,8 @@ export function ViewDialogContent({
   nodeSemantics,
   onSubmit,
 }: ViewDialogContentProps) {
+  const { t } = useI18n();
+
   const isEditing = editingView !== null;
   const [name, setName] = useState("");
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<NodeId>>(
@@ -145,7 +150,7 @@ export function ViewDialogContent({
     setError(null);
   }, [open, editingView]);
 
-  const filterFields = useMemo(
+  const filterFields = useLocaleMemo(
     () => buildNodeFilterFields(nodeSemantics),
     [nodeSemantics],
   );
@@ -170,7 +175,7 @@ export function ViewDialogContent({
   const handleSubmit = useCallback(async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("请输入视图名称");
+      setError(t("请输入视图名称"));
       return;
     }
 
@@ -181,21 +186,25 @@ export function ViewDialogContent({
       onOpenChange(false);
     } catch (err) {
       console.error("Failed to save view:", err);
-      setError(isEditing ? "保存失败，请稍后重试" : "创建失败，请稍后重试");
+      setError(
+        isEditing ? t("保存失败，请稍后重试") : t("创建失败，请稍后重试"),
+      );
     } finally {
       setIsSubmitting(false);
     }
-  }, [name, buildFilterConfig, onSubmit, onOpenChange, isEditing]);
+  }, [name, buildFilterConfig, onSubmit, onOpenChange, isEditing, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "编辑视图" : "创建新视图"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t("编辑视图") : t("创建新视图")}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "修改视图名称与筛选配置，保存后立即生效。"
-              : "视图按筛选配置决定显示哪些节点，可随时在侧边栏切换。"}
+              ? t("修改视图名称与筛选配置，保存后立即生效。")
+              : t("视图按筛选配置决定显示哪些节点，可随时在侧边栏切换。")}
           </DialogDescription>
         </DialogHeader>
 
@@ -206,14 +215,14 @@ export function ViewDialogContent({
         */}
         <div className="flex flex-col gap-5 py-2">
           <div className="grid gap-2">
-            <Label htmlFor="view-name">名称</Label>
+            <Label htmlFor="view-name">{t("名称")}</Label>
             <Input
               id="view-name"
               name="name"
               autoFocus
               value={name}
               maxLength={VIEW_NAME_MAX_LENGTH}
-              placeholder="例如：待办事项"
+              placeholder={t("例如：待办事项")}
               disabled={isSubmitting}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -238,7 +247,7 @@ export function ViewDialogContent({
           />
 
           <div className="grid gap-2">
-            <Label>筛选条件</Label>
+            <Label>{t("筛选条件")}</Label>
             <FilterQueryBuilder
               fields={filterFields}
               query={ruleGroup}
@@ -247,7 +256,9 @@ export function ViewDialogContent({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。
+            {t(
+              "视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。",
+            )}{" "}
           </p>
 
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -260,7 +271,7 @@ export function ViewDialogContent({
             disabled={isSubmitting}
             onClick={() => onOpenChange(false)}
           >
-            取消
+            {t("取消")}{" "}
           </Button>
           <Button
             type="button"
@@ -269,11 +280,11 @@ export function ViewDialogContent({
           >
             {isSubmitting
               ? isEditing
-                ? "保存中…"
-                : "创建中…"
+                ? t("保存中…")
+                : t("创建中…")
               : isEditing
-                ? "保存"
-                : "创建"}
+                ? t("保存")
+                : t("创建")}
           </Button>
         </DialogFooter>
       </DialogContent>
