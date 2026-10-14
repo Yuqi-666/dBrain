@@ -6,7 +6,6 @@ name: Gate
 #   verify    A pull request proves that the author used the local entry.
 #   merged    A push to main proves that the change arrived as a merge of
 #             gated commits.
-#   build     The main branch builds and tests the container stack once.
 #   tag       A version without a tag becomes a tag.
 #   release   A new tag starts the release candidate build.
 #
@@ -120,100 +119,6 @@ jobs:
             --head="$GATE_HEAD_SHA" \
             --merge \
             --require-signature
-
-  build:
-    needs: merged
-    if: github.event_name == 'push'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 40
-    env:
-      # `docker-compose.yml` treats the PocketBase operator account as required
-      # configuration, so every compose invocation in this job (up, logs, down)
-      # needs it. The account is upserted by the image entrypoint on start; the
-      # stack and its data are throwaway.
-      DBRAIN_ADMIN_EMAIL: ci@dbrain.invalid
-      DBRAIN_ADMIN_PASSWORD: ci-operator-password
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
-        with:
-          version: 9.0.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Configure isolated CI image names
-        shell: bash
-        run: |
-          echo "DBRAIN_IMAGE_PREFIX=dbrain-ci" >> "$GITHUB_ENV"
-          echo "DBRAIN_VERSION=main" >> "$GITHUB_ENV"
-          echo "DBRAIN_PORT=13080" >> "$GITHUB_ENV"
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-      - name: Build cached pocketbase image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: deploy/pocketbase/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-pocketbase:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-pocketbase-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-pocketbase-amd64
-      - name: Build cached server image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: apps/server/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-server:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-server-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-server-amd64
-      - name: Build cached web image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-web:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-web-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-web-amd64
-      - name: Start the cached images for integration checks
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml up --no-build --wait --wait-timeout 180
-      - name: Install media fixture dependency
-        # The smoke client creates media fixtures outside the containers.
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Verify container runtime and browser endpoints
-        run: node scripts/release/server-smoke.mjs
-        env:
-          DBRAIN_SMOKE_SERVER_URL: http://127.0.0.1:13081
-          DBRAIN_SMOKE_PB_URL: http://127.0.0.1:13090
-          DBRAIN_SMOKE_WEB_URL: http://127.0.0.1:13080
-          # Same credentials as the job env above: the smoke run then proves the
-          # operator account the image entrypoint upserted actually authenticates.
-          DBRAIN_SMOKE_ADMIN_EMAIL: ci@dbrain.invalid
-          DBRAIN_SMOKE_ADMIN_PASSWORD: ci-operator-password
-      - if: failure()
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml logs --tail=60
-      - if: always()
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml down -v
 
   tag:
     needs: merged

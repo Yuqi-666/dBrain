@@ -15,6 +15,14 @@ on:
         description: Verify Windows/macOS signatures and macOS notarization
         type: boolean
         default: true
+      desktop_targets:
+        description: A comma-separated desktop target list from release.json, or all
+        type: string
+        default: all
+      container_platforms:
+        description: A comma-separated container platform list from release.json, or all
+        type: string
+        default: all
   workflow_call:
     inputs:
       tag:
@@ -23,6 +31,12 @@ on:
       signed:
         type: boolean
         default: true
+      desktop_targets:
+        type: string
+        default: all
+      container_platforms:
+        type: string
+        default: all
 
 permissions:
   contents: read
@@ -64,10 +78,13 @@ jobs:
     uses: ./.github/workflows/desktop-build.yml
     with:
       signed: ${{ inputs.signed }}
+      targets: ${{ inputs.desktop_targets }}
 
   containers:
     needs: verify-tag
     uses: ./.github/workflows/container-build.yml
+    with:
+      platforms: ${{ inputs.container_platforms }}
 
   assemble:
     needs: [desktop, containers]
@@ -84,14 +101,16 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DESKTOP_TARGETS: ${{ inputs.desktop_targets }}
+          CONTAINER_PLATFORMS: ${{ inputs.container_platforms }}
         run: |
           set -euo pipefail
-          for target in $(node -p "require('./scripts/release/release.json').desktopTargets.join(' ')"); do
+          for target in $(node scripts/release/platforms.mjs desktop "$DESKTOP_TARGETS"); do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
           done
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
-          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate
-          echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
+          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="$DESKTOP_TARGETS" --containers="$CONTAINER_PLATFORMS"
+          echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Platforms: desktop=$DESKTOP_TARGETS containers=$CONTAINER_PLATFORMS. Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-${{ github.run_id }}-${{ github.run_attempt }}

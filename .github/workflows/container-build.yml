@@ -1,20 +1,41 @@
 name: Container candidate build
 on:
   workflow_call:
+    inputs:
+      platforms:
+        type: string
+        default: all
 permissions:
   contents: read
   packages: write
   actions: read
 jobs:
+  plan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Resolve the selected platforms
+        id: resolve
+        shell: bash
+        env:
+          CONTAINER_PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          echo "matrix=$(node scripts/release/platforms.mjs containers "$CONTAINER_PLATFORMS" --matrix)" >> "$GITHUB_OUTPUT"
   build:
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            arch: amd64
-          - os: ubuntu-24.04-arm
-            arch: arm64
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     environment: candidate

@@ -120,14 +120,13 @@ The file `scripts/gate/checks.mjs` holds every check. It is the single source of
 | `unit`          | Local  | The release and library tests pass.                  |
 | `build`         | Local  | The server and the web app build.                    |
 | `smoke-server`  | Local  | The server answers against an isolated database.     |
-| `container`     | GitHub | The container stack builds and answers on `main`.    |
-| `desktop`       | GitHub | The desktop installers build on `main` and a tag.    |
+| `desktop`       | GitHub | The desktop installers build for a version tag.      |
 
 Each check has a path scope. The gate runs a local check only when the change touches its scope. The option `--full` runs every local check.
 
 The check `workflow-lint` caches the actionlint binary under `.gate/tools`. It verifies two pinned SHA256 values, so a changed cache is refused. A cold cache downloads the release one time. The variable `DBRAIN_GATE_TOOLS` moves the cache.
 
-A check with the runner `GitHub` never enters the trailer. Only a clean GitHub runner can run it. The job `build` of `gate.yml` and the release candidate are those checks.
+A check with the runner `GitHub` never enters the trailer. Only a clean GitHub runner can run it, and the release candidate runs it.
 
 ### The verifier
 
@@ -169,28 +168,13 @@ A push that is not a merge commit fails. A direct push to `main` cannot pass the
 | ---------- | ----------------------------------------------- | -------------------------- | ------------------------------------------------------ |
 | Verify     | `gate.yml`, job `verify`                        | A pull request to `main`   | The gate verdict on the trailer                        |
 | Merge      | `gate.yml`, job `merged`                        | A push to `main`           | The gate verdict on the merge                          |
-| Main build | `gate.yml`, job `build`                         | A push to `main`           | Three images and the container smoke test               |
 | Tag        | `gate.yml`, job `tag`                           | A push to `main`           | The version tag, for a new version                      |
-| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | A new tag              | Four installers, two architectures, and one candidate   |
+| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | A new tag              | The products of the selected platforms, and one candidate |
 | Publication| `release.yml`                                   | A manual start             | A draft release, or a published release                 |
 
-The old workflows `ci.yml` and `release-candidate.yml` retired with this design. The job `containers` of `ci.yml` became the job `build` of `gate.yml`. A pull request therefore builds no container.
+A pull request builds no product. The merge to `main` builds no product either. The release candidate is the only clean-machine build, so an ordinary merge costs one runner of about 30 seconds.
 
-The job `build` has a limit of 40 minutes. It builds three images for `linux/amd64`: PocketBase, server, and web. Each build reads a Docker cache and writes it.
-
-The job then starts the stack with the CI overlay `deploy/compose.test.yml`. The overlay publishes three loopback ports.
-
-| Port  | Service    |
-| ----- | ---------- |
-| 13080 | Gateway    |
-| 13081 | Server     |
-| 13090 | PocketBase |
-
-The job runs `scripts/release/server-smoke.mjs` against these ports. On a failure, the job prints the last 60 log lines. The job always removes the stack and its volumes.
-
-The stack uses a disposable operator account. The account email is `ci@dbrain.invalid`. The password is a fixed test value. The stack and its data are throwaway.
-
-The job `build` is the last quality check on a clean machine. A change that a contaminated workspace hid fails here.
+The product build reads the platform selection of the start. The next section describes the selection.
 
 ### The tag
 
@@ -206,17 +190,27 @@ The job `release` then calls `release-candidate.yml` when the tag is new. A manu
 
 `release-candidate.yml` starts from the job `release` of `gate.yml`. It also starts from a manual start.
 
-| Input    | Meaning                                              | Default |
-| -------- | ---------------------------------------------------- | ------- |
-| `tag`    | The version tag, for example `v0.1.1`                | None    |
-| `signed` | Verify Windows and macOS signatures and notarization | `true`  |
+| Input                 | Meaning                                              | Default |
+| --------------------- | ---------------------------------------------------- | ------- |
+| `tag`                 | The version tag, for example `v0.1.1`                | None    |
+| `signed`              | Verify Windows and macOS signatures and notarization | `true`  |
+| `desktop_targets`     | The desktop targets to build, or `all`               | `all`   |
+| `container_platforms` | The container platforms to build, or `all`           | `all`   |
 
 The job `verify-tag` accepts the tag or rejects it. It checks these items.
 
 1. The version in the release files equals the tag. The script `scripts/release/check.mjs` makes this decision.
 2. The commit of the tag is on the default branch.
 
-The job `desktop` then builds four targets. Each matrix job has a limit of 90 minutes.
+### The platform selection
+
+A start selects the platforms. The text `all` selects every platform in `release.json`. A comma-separated list selects those names, for example `linux-x64,darwin-arm64`.
+
+The script `scripts/release/platforms.mjs` resolves the text and holds the runner of each platform. A name outside `release.json` stops the job before a runner starts. A name that the script does not know stops it as well.
+
+The candidate then holds the selected platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers. `release.json` holds the names that a release may hold.
+
+The job `desktop` then builds the selected targets. Each matrix job has a limit of 90 minutes.
 
 | Runner             | Target        |
 | ------------------ | ------------- |
@@ -361,7 +355,7 @@ Two items are manual.
 
 ## Security controls
 
-Every workflow limits its permissions. The jobs `verify`, `merged`, and `build` request read access only. The job `tag` adds `contents: write` to push the tag. The release candidate adds `packages: write`. The publish job adds `contents: write` to create the release.
+Every workflow limits its permissions. The jobs `verify` and `merged` request read access only. The job `tag` adds `contents: write` to push the tag. The release candidate adds `packages: write`. The publish job adds `contents: write` to create the release.
 
 The checkout step of a read-only job does not keep the credentials. Each action step uses a full commit SHA, not a version tag.
 
@@ -378,7 +372,7 @@ The release job uses the environment `release`. The container candidate jobs and
 | Rust            | Target, signing mode, compiler, lock file, environment | Default branch only        |
 | Docker          | Service and architecture                             | Default branch only          |
 
-The job `build` of `gate.yml` writes the amd64 Docker cache. The release candidate restores that cache and writes the arm64 cache. A pull request writes no cache.
+The release candidate writes the Docker cache of every architecture that it builds. A pull request writes no cache.
 
 A cold build runs every step. A failed Docker cache export does not fail the build.
 
@@ -433,6 +427,13 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
+A manual start selects the platforms. The text `all` builds every platform of `release.json`.
+
+```bash
+gh workflow run gate.yml --ref main -f release=true
+gh workflow run release-candidate.yml --ref main -f tag=v0.1.1 -f signed=true -f desktop_targets=linux-x64 -f container_platforms=linux/amd64
+```
+
 ## Rules for the pipeline
 
 1. Put reusable logic in `scripts/release/` or `scripts/gate/` and call it from a workflow. Keep a workflow step short.
@@ -443,6 +444,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 
 6. Keep the check list in `scripts/gate/checks.mjs`. Never add a check to a workflow only. The verifier reads the list at the base commit.
 7. Change `scripts/gate/**` with the label `gate-change` and a review. The verifier rejects a change to the judge without one.
 8. Keep `scripts/gate/hooks/pre-push`. It is the brake of a repository without a ruleset.
+9. Keep the platform lists in `scripts/release/release.json` and the runner table in `scripts/release/platforms.mjs` in step. The test `platforms.test.mjs` makes this decision.
 
 ## Related manuals
 

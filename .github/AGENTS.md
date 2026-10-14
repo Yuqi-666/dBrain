@@ -10,10 +10,10 @@ The workflows call the scripts in `scripts/release/` and `scripts/gate/`.
 
 | Workflow | Trigger | Product |
 | --- | --- | --- |
-| `workflows/gate.yml` | A pull request to `main`, a push to `main`, or a manual start | The gate verdict, the main container build, and the version tag |
-| `workflows/release-candidate.yml` | A call from `gate.yml`, or a manual start | Four installers, two architectures, and one candidate |
-| `workflows/container-build.yml` | A call from another workflow | Multi-architecture images in GHCR and a digest report |
-| `workflows/desktop-build.yml` | A call from another workflow, or a manual start | Desktop installers for four targets and their hashes |
+| `workflows/gate.yml` | A pull request to `main`, a push to `main`, or a manual start | The gate verdict and the version tag |
+| `workflows/release-candidate.yml` | A call from `gate.yml`, or a manual start | The products of the selected platforms, and one candidate |
+| `workflows/container-build.yml` | A call from another workflow | Images in GHCR for the selected platforms and a digest report |
+| `workflows/desktop-build.yml` | A call from another workflow, or a manual start | Desktop installers for the selected targets and their hashes |
 | `workflows/release.yml` | Manual start | A draft GitHub release from an accepted candidate |
 
 `gate.yml` holds the whole push gate.
@@ -22,7 +22,6 @@ The workflows call the scripts in `scripts/release/` and `scripts/gate/`.
 | --- | --- |
 | `verify` | Reads the trailer of a pull request head. It runs on a pull request. |
 | `merged` | Reads the parents of a merge commit on `main`. |
-| `build` | Builds the container stack on `main` and runs the smoke test. |
 | `tag` | Creates the version tag when a merge changes the version in `release.json`. |
 | `release` | Calls `release-candidate.yml` for a new tag. |
 
@@ -30,12 +29,13 @@ The jobs `verify` and `merged` copy the verifier from a trusted commit and run t
 A change therefore cannot weaken its own judge.
 
 `release-candidate.yml` is a reusable workflow now. The job `release` of `gate.yml`
-calls it. A manual start repeats a failed platform build for an existing tag.
+calls it. A manual start repeats a failed platform build for an existing tag, and it
+selects the platforms of that start.
 
 `release.yml` reads a Gate run, compares the tag with the version, and creates a draft release.
 A person publishes the draft.
 
-A pull request builds no container. The main build is the last clean-machine check.
+A pull request builds no product. The release candidate is the only clean-machine build.
 
 ## Auxiliary files
 
@@ -54,3 +54,4 @@ A pull request builds no container. The main build is the last clean-machine che
 7. Read the verifier inputs from a trusted commit in `gate.yml`. A step that reads the head copy lets a change weaken its own judge.
 8. Keep the name of the job `verify`. The branch ruleset requires that status check.
 9. Keep the branch ruleset and the repository settings in `scripts/gate/apply-ruleset.mjs`. Do not change them in the GitHub interface only.
+10. Select a platform through `scripts/release/platforms.mjs`. Keep its runner table in step with the lists in `scripts/release/release.json`.

@@ -35,5 +35,5 @@ test('every local check runs the workspace through a pnpm or node command', () =
 test('the full run covers every local check', () => {
   assert.deepEqual(allLocalCheckIds(definition), localChecks(definition).map(check => check.id));
   assert.ok(allLocalCheckIds(definition).includes('build'));
-  assert.ok(!allLocalCheckIds(definition).includes('container'), 'a main check never runs locally');
+  assert.ok(!allLocalCheckIds(definition).includes('desktop'), 'a main check never runs locally');
 });

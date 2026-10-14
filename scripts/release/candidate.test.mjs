@@ -21,12 +21,12 @@ const expected = {
   desktopTargets: ["linux-x64", "win32-x64", "darwin-x64", "darwin-arm64"],
   containerPlatforms: ["linux/amd64", "linux/arm64"],
 };
-async function fixture(signed = true) {
+async function fixture(signed = true, plan = expected) {
   const dir = await mkdtemp(join(tmpdir(), "dbrain-candidate-test-"));
   const incoming = join(dir, "incoming"),
     output = join(dir, "candidate");
   await mkdir(incoming);
-  for (const target of expected.desktopTargets) {
+  for (const target of plan.desktopTargets) {
     const path = join(incoming, target);
     await mkdir(path);
     const [platform, arch] = target.split("-");
@@ -43,11 +43,11 @@ async function fixture(signed = true) {
     files["runtime-manifest.json"] = JSON.stringify({
       platform,
       arch,
-      version: expected.version,
-      commit: expected.commit,
+      version: plan.version,
+      commit: plan.commit,
     });
     files["build-report.json"] = JSON.stringify({
-      ...expected,
+      ...plan,
       target,
       signed,
       signingVerified: signed,
@@ -66,13 +66,13 @@ async function fixture(signed = true) {
   await writeFile(
     join(incoming, "containers/container-report.json"),
     JSON.stringify({
-      ...expected,
+      ...plan,
       images: Object.fromEntries(
         services.map((service) => [
           service,
           {
-            reference: `${expected.imagePrefix}-${service}@sha256:${"b".repeat(64)}`,
-            platforms: expected.containerPlatforms,
+            reference: `${plan.imagePrefix}-${service}@sha256:${"b".repeat(64)}`,
+            platforms: plan.containerPlatforms,
             smokePassed: true,
           },
         ]),
@@ -81,13 +81,13 @@ async function fixture(signed = true) {
   );
   return { dir, incoming, output };
 }
-async function accepted(output) {
+async function accepted(output, plan = expected) {
   const acceptance = JSON.parse(
     await readFile(join(output, "acceptance-template.json")),
   );
   acceptance.reviewer = "release-reviewer";
   acceptance.reviewedAt = "2026-10-11T00:00:00Z";
-  for (const key of acceptanceChecks(expected.desktopTargets))
+  for (const key of acceptanceChecks(plan.desktopTargets))
     acceptance.checks[key] = {
       status: "passed",
       evidence: "Recorded platform acceptance with screenshots and logs",
@@ -169,6 +169,30 @@ test("unsigned candidates may be inspected but cannot be approved for release", 
       approveCandidate(f.output, await accepted(f.output), expected),
       /unsigned/,
     );
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("a subset candidate carries only the selected platforms", async () => {
+  const subset = {
+    ...expected,
+    desktopTargets: ["linux-x64"],
+    containerPlatforms: ["linux/arm64"],
+  };
+  const f = await fixture(true, subset);
+  try {
+    const index = await assembleCandidate(f.incoming, f.output, subset);
+    assert.deepEqual(index.desktopTargets, ["linux-x64"]);
+    assert.deepEqual(index.containerPlatforms, ["linux/arm64"]);
+    const template = JSON.parse(
+      await readFile(join(f.output, "acceptance-template.json")),
+    );
+    assert.deepEqual(
+      Object.keys(template.checks),
+      acceptanceChecks(["linux-x64"]),
+    );
+    await approveCandidate(f.output, await accepted(f.output, subset), subset);
   } finally {
     await rm(f.dir, { recursive: true, force: true });
   }

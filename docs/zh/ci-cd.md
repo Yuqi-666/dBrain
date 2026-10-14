@@ -122,14 +122,13 @@ Gate-Run: 2026-05-05T09:12:44Z
 | `unit` | 本地 | 发布测试与库测试通过。 |
 | `build` | 本地 | Server 与 Web 应用构建成功。 |
 | `smoke-server` | 本地 | Server 在隔离数据库上应答。 |
-| `container` | GitHub | 容器栈在 `main` 上构建并应答。 |
-| `desktop` | GitHub | 桌面安装包在 `main` 和标签上构建。 |
+| `desktop` | GitHub | 桌面安装包在版本标签上构建。 |
 
 每个检查有路径范围。只有改动触及其范围时，门控才运行对应的本地检查。选项 `--full` 运行全部本地检查。
 
 检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它校验两个固定的 SHA256 值，因此缓存被改就会拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
 
-执行者为 `GitHub` 的检查永远不进入 trailer。只有干净的 GitHub runner 能运行它。`gate.yml` 的作业 `build` 和发布候选就是这些检查。
+执行者为 `GitHub` 的检查永远不进入 trailer。只有干净的 GitHub runner 能运行它，且由发布候选来运行。
 
 ### 验证器
 
@@ -171,28 +170,13 @@ Gate-Run: 2026-05-05T09:12:44Z
 | --- | --- | --- | --- |
 | 校验 | `gate.yml`，作业 `verify` | 面向 `main` 的 PR | trailer 的门控结论 |
 | 合并 | `gate.yml`，作业 `merged` | 推送到 `main` | 合并的门控结论 |
-| 主线构建 | `gate.yml`，作业 `build` | 推送到 `main` | 三个镜像与容器 smoke 测试 |
 | 打标签 | `gate.yml`，作业 `tag` | 推送到 `main` | 版本标签（版本变化时） |
-| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 新标签 | 四个安装包、两个架构、一个候选 |
+| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 新标签 | 所选平台的产物，以及一个候选 |
 | 发布 | `release.yml` | 手工启动 | 草稿 Release，或已发布的 Release |
 
-旧工作流 `ci.yml` 与 `release-candidate.yml` 随本设计退役。`ci.yml` 的作业 `containers` 变成 `gate.yml` 的作业 `build`。因此 PR 不再构建容器。
+PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是唯一的干净机器构建，因此一次普通合并只花约 30 秒的 runner 时间。
 
-作业 `build` 的时限为 40 分钟。它为 `linux/amd64` 构建三个镜像：PocketBase、server 和 web。每次构建读取 Docker 缓存并写入缓存。
-
-作业随后用 CI 覆盖文件 `deploy/compose.test.yml` 启动容器栈。该覆盖文件发布三个回环端口。
-
-| 端口 | 服务 |
-| --- | --- |
-| 13080 | 网关 |
-| 13081 | Server |
-| 13090 | PocketBase |
-
-作业对这些端口运行 `scripts/release/server-smoke.mjs`。失败时作业打印最后 60 行日志。作业总是移除容器栈及其卷。
-
-容器栈使用一次性的运维账号。账号邮箱是 `ci@dbrain.invalid`。密码是固定测试值。容器栈及其数据都是一次性的。
-
-作业 `build` 是干净机器上的最后一道质量检查。被污染的工作区掩盖的问题会在这里失败。
+产物构建读取本次启动的平台选择。下一节说明该选择。
 
 ### 标签
 
@@ -212,13 +196,23 @@ Gate-Run: 2026-05-05T09:12:44Z
 | --- | --- | --- |
 | `tag` | 版本标签，例如 `v0.1.1` | 无 |
 | `signed` | 验证 Windows 与 macOS 签名及公证 | `true` |
+| `desktop_targets` | 要构建的桌面目标，或 `all` | `all` |
+| `container_platforms` | 要构建的容器平台，或 `all` | `all` |
 
 作业 `verify-tag` 接受或拒绝该标签。它检查以下内容。
 
 1. 发布文件中的版本等于标签。脚本 `scripts/release/check.mjs` 做此判定。
 2. 标签所在的提交在默认分支上。
 
-随后作业 `desktop` 构建四个目标。每个矩阵作业的时限为 90 分钟。
+### 平台选择
+
+一次启动可以选择平台。文本 `all` 选择 `release.json` 中的全部平台。逗号分隔的列表选择其中的若干名称，例如 `linux-x64,darwin-arm64`。
+
+脚本 `scripts/release/platforms.mjs` 解析该文本，并保存每个平台对应的 runner。名称不在 `release.json` 中时，作业在 runner 启动之前就停止。脚本不认识的名称同样会停止。
+
+候选随后只保存所选平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。`release.json` 保存一次发布允许包含的名称。
+
+随后作业 `desktop` 构建所选目标。每个矩阵作业的时限为 90 分钟。
 
 | Runner | 目标 |
 | --- | --- |
@@ -363,7 +357,7 @@ GitHub API 此时返回 `403`。
 
 ## 安全控制
 
-每个工作流都限制权限。作业 `verify`、`merged` 和 `build` 只申请读权限。作业 `tag` 增加 `contents: write` 以推送标签。发布候选增加 `packages: write`。发布作业增加 `contents: write` 以创建 Release。
+每个工作流都限制权限。作业 `verify` 和 `merged` 只申请读权限。作业 `tag` 增加 `contents: write` 以推送标签。发布候选增加 `packages: write`。发布作业增加 `contents: write` 以创建 Release。
 
 只读作业的 checkout 步骤不保留凭据。每个 action 步骤使用完整提交 SHA，而不是版本标签。
 
@@ -380,7 +374,7 @@ GitHub API 此时返回 `403`。
 | Rust | 目标、签名模式、编译器、锁文件、环境 | 仅默认分支 |
 | Docker | 服务与架构 | 仅默认分支 |
 
-`gate.yml` 的作业 `build` 写入 amd64 的 Docker 缓存。发布候选恢复该缓存并写入 arm64 缓存。PR 不写入缓存。
+发布候选为它构建的每个架构写入 Docker 缓存。PR 不写入缓存。
 
 冷构建会执行每一步。Docker 缓存导出失败不会让构建失败。
 
@@ -435,6 +429,13 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
+手工启动可以选择平台。文本 `all` 构建 `release.json` 中的全部平台。
+
+```bash
+gh workflow run gate.yml --ref main -f release=true
+gh workflow run release-candidate.yml --ref main -f tag=v0.1.1 -f signed=true -f desktop_targets=linux-x64 -f container_platforms=linux/amd64
+```
+
 ## 流水线规则
 
 1. 把可复用逻辑放在 `scripts/release/` 或 `scripts/gate/`，由工作流调用。保持工作流步骤简短。
@@ -445,6 +446,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 
 6. 检查清单只放在 `scripts/gate/checks.mjs`。绝不要只把检查加到工作流里。验证器读取基线提交上的清单。
 7. 改动 `scripts/gate/**` 需要标签 `gate-change` 和一次复核。没有复核时验证器会拒绝改动判卷标准的提交。
 8. 保留 `scripts/gate/hooks/pre-push`。没有 ruleset 的仓库靠它刹车。
+9. 让 `scripts/release/release.json` 的平台列表与 `scripts/release/platforms.mjs` 的 runner 表保持一致。测试 `platforms.test.mjs` 做此判定。
 
 ## 相关手册
 
