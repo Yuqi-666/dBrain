@@ -7,12 +7,15 @@
 //      the second parent of that commit.
 //   3. A pull request is required, so a direct push to the main branch fails.
 //   4. The status check `verify` is required, and the branch must be current.
+//   5. The label `gate-change` exists, so a person can approve a change to the
+//      gate itself. A label must exist before a pull request can carry it.
 //
 // The default is a dry run. Pass --apply to change the repository.
 
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gateChangeLabel } from './checks.mjs';
 
 export const rulesetName = 'dBrain main gate';
 export const requiredCheck = 'verify';
@@ -58,6 +61,17 @@ export function repoSettings() {
     allow_squash_merge: false,
     allow_rebase_merge: false,
     delete_branch_on_merge: true,
+  };
+}
+
+// The label that records the human approval of a change to the gate itself.
+// The verifier reads it, and the repository must hold the label before a pull
+// request can carry it.
+export function labelPayload() {
+  return {
+    name: gateChangeLabel,
+    color: 'fbca04',
+    description: 'A change to the push gate. The verifier asks for a review.',
   };
 }
 
@@ -118,6 +132,9 @@ export function describe(payload, settings, plan) {
   }
   lines.push('Repository settings:');
   for (const [key, value] of Object.entries(settings)) lines.push(`    - ${key}=${value}`);
+  const label = labelPayload();
+  lines.push('Label:');
+  lines.push(`    - ${label.name}: ${label.description}`);
   lines.push(
     plan.action === 'create'
       ? 'The ruleset does not exist. The script creates it.'
@@ -214,6 +231,25 @@ export async function main(argv, deps = {}) {
     return 1;
   }
   io.log(`The ruleset is ${plan.action === 'create' ? 'created' : 'updated'}.`);
+
+  const label = labelPayload();
+  const labelled = run('gh', [
+    'label',
+    'create',
+    label.name,
+    '--repo',
+    repository,
+    '--color',
+    label.color,
+    '--description',
+    label.description,
+    '--force',
+  ]);
+  if (labelled.status !== 0) {
+    io.log(`The label failed: ${describeFailure(labelled)}`);
+    return 1;
+  }
+  io.log(`The label ${label.name} is ready.`);
   return 0;
 }
 

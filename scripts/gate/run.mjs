@@ -9,7 +9,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { arch, platform } from 'node:os';
 import { resolve } from 'node:path';
 import { buildMessage, buildTrailers, parseTrailers, reportDigest } from './attest.mjs';
-import { checks, protocol, protectedPaths, trackedDeny } from './checks.mjs';
+import {
+  checks,
+  gateChangeLabel,
+  protocol,
+  protectedPaths,
+  trackedDeny,
+} from './checks.mjs';
 import {
   allLocalCheckIds,
   findDeniedTracked,
@@ -357,9 +363,40 @@ export async function runGate(argv, deps = {}) {
   }
   io.log(`Pushed ${branch} to origin.`);
 
-  const pullRequest = openPullRequest({ run, io, root, options, branch, subject, body, trailer });
+  const autoMerge = options.autoMerge
+    ? autoMergeDecision({
+        run,
+        paths,
+        repository: repositorySlug({ run, root }),
+        branch: options.base,
+      })
+    : { arm: false, reason: null };
+  if (autoMerge.reason) io.log(`Auto-merge skipped. ${autoMerge.reason}`);
+
+  const pullRequest = openPullRequest({
+    run,
+    io,
+    root,
+    options,
+    branch,
+    subject,
+    body,
+    trailer,
+    autoMerge,
+  });
   if (pullRequest.url) io.log(`Pull request ${pullRequest.url}`);
   return 0;
+}
+
+/** The `OWNER/NAME` of the repository the gate talks to. */
+function repositorySlug({ run, root }) {
+  if (process.env.GITHUB_REPOSITORY) return process.env.GITHUB_REPOSITORY;
+  const viewed = run(
+    'gh',
+    ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'],
+    { cwd: root },
+  );
+  return viewed.status === 0 ? viewed.stdout.trim() : '';
 }
 
 function sameIds(left, right) {
@@ -380,7 +417,7 @@ function writeReport(root, report) {
   writeFileSync(resolve(directory, 'last-run.json'), `${JSON.stringify(report, null, 2)}\n`);
 }
 
-function openPullRequest({ run, io, root, options, branch, subject, body, trailer }) {
+function openPullRequest({ run, io, root, options, branch, subject, body, trailer, autoMerge }) {
   if (!subject) {
     io.log('No commit subject is set. Skipped the pull request.');
     return {};
@@ -414,7 +451,7 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
       { cwd: root, input: pullRequestBody },
     );
     if (edited.status !== 0) io.log(describeFailure(edited));
-    if (options.autoMerge) askForMerge({ run, io, root, number: info.number });
+    if (autoMerge?.arm) askForMerge({ run, io, root, number: info.number });
     return { url: info.url };
   }
 
@@ -440,7 +477,7 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     return {};
   }
   const url = created.stdout.trim().split('\n').pop();
-  if (options.autoMerge) askForMerge({ run, io, root, number: url });
+  if (autoMerge?.arm) askForMerge({ run, io, root, number: url });
   return { url };
 }
 
@@ -449,6 +486,91 @@ function askForMerge({ run, io, root, number }) {
   if (merged.status !== 0) {
     io.log(describeFailure(merged));
     io.log('GitHub did not accept the auto-merge request. Enable auto-merge in the repository.');
+  }
+}
+
+/**
+ * Decides whether the gate hands the merge to GitHub.
+ *
+ * The gate arms auto-merge only when GitHub can hold the merge back. Two cases
+ * keep the merge with the operator:
+ *
+ * - The change edits the gate itself. The verifier asks for the label
+ *   `gate-change` and a review, and an automatic merge would land the change
+ *   before anyone read it.
+ * - The repository does not require the `verify` check. GitHub then merges an
+ *   auto-merge request at once, a red check included, so arming it would skip
+ *   the gate instead of waiting for it.
+ */
+export function autoMergeDecision({
+  run,
+  definition: passed = definition,
+  paths,
+  repository,
+  branch = 'main',
+  check = 'verify',
+}) {
+  const edited = findProtected(paths, passed);
+  if (edited.length > 0) {
+    return {
+      arm: false,
+      reason:
+        `The change edits the gate itself (${edited.join(', ')}). ` +
+        `Add the label ${gateChangeLabel} and get a review, then merge by hand.`,
+    };
+  }
+  if (!requiresCheck(run, { repository, branch, check })) {
+    return {
+      arm: false,
+      reason:
+        `The repository does not require the ${check} check, so GitHub would ` +
+        'merge an auto-merge request at once. Merge the pull request by hand ' +
+        'after the check is green.',
+    };
+  }
+  return { arm: true, reason: null };
+}
+
+/**
+ * True when the branch requires the named status check, through branch
+ * protection or through a ruleset.
+ *
+ * Every failure to read the settings answers false. A merge that waits for
+ * nothing is worse than a merge a person performs.
+ */
+export function requiresCheck(run, { repository, branch = 'main', check = 'verify' }) {
+  if (!repository) return false;
+  const protection = run('gh', ['api', `repos/${repository}/branches/${branch}/protection`]);
+  if (protection.status === 0) {
+    const contexts = parsedJson(protection.stdout)?.required_status_checks?.contexts ?? [];
+    if (contexts.includes(check)) return true;
+  }
+  const listed = run('gh', ['api', `repos/${repository}/rulesets`]);
+  if (listed.status !== 0) return false;
+  const entries = parsedJson(listed.stdout);
+  if (!Array.isArray(entries)) return false;
+  for (const entry of entries) {
+    if (entry.enforcement && entry.enforcement !== 'active') continue;
+    const detail = run('gh', ['api', `repos/${repository}/rulesets/${entry.id}`]);
+    if (detail.status !== 0) continue;
+    const ruleset = parsedJson(detail.stdout);
+    if (!ruleset) continue;
+    const refs = ruleset.conditions?.ref_name?.include ?? [];
+    if (!refs.some(ref => ref === `refs/heads/${branch}` || ref === '~ALL' || ref === '~DEFAULT_BRANCH')) {
+      continue;
+    }
+    const rule = (ruleset.rules ?? []).find(item => item.type === 'required_status_checks');
+    const required = rule?.parameters?.required_status_checks ?? [];
+    if (required.some(item => item.context === check)) return true;
+  }
+  return false;
+}
+
+function parsedJson(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
   }
 }
 

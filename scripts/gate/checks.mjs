@@ -161,6 +161,11 @@ export const protectedPaths = [
   '.github/workflows/gate.yml',
 ];
 
+// The label that records the human approval of a protected-path change. The
+// verifier asks for it, the local gate never merges such a change by itself,
+// and `pnpm gate:policy --apply` creates it in the repository.
+export const gateChangeLabel = 'gate-change';
+
 // Tracked files that must never exist. The verifier and the local gate read
 // this list. A `pattern` is a JavaScript regular expression source.
 // The committed templates `.env.example` and `deploy/.env.example` are legal.

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { collectEnvironment, changedPaths, parseArgs, runGate, usage } from './run.mjs';
+import {
+  autoMergeDecision,
+  collectEnvironment,
+  changedPaths,
+  parseArgs,
+  requiresCheck,
+  runGate,
+  usage,
+} from './run.mjs';
 import { commitAll, createRepo, git, write } from './test-helpers.mjs';
 import { createGit } from './verify.mjs';
 
@@ -174,4 +182,99 @@ test('a dirty run on a protected branch is allowed when asked', async t => {
     io: quietIo(output),
   });
   assert.equal(code, 0);
+});
+
+const requiresVerify = () => ({
+  status: 0,
+  stdout: '{"required_status_checks":{"contexts":["verify"]}}',
+});
+
+test('a change to the gate itself never arms auto-merge', () => {
+  const decision = autoMergeDecision({
+    run: requiresVerify,
+    paths: ['scripts/gate/run.mjs', 'docs/ci-cd.md'],
+    repository: 'o/r',
+    branch: 'main',
+  });
+  assert.equal(decision.arm, false);
+  assert.ok(decision.reason.includes('gate-change'), 'the reason names the label');
+  assert.ok(decision.reason.includes('scripts/gate/run.mjs'), 'the reason names the file');
+});
+
+test('a repository that cannot require the check never arms auto-merge', () => {
+  const refused = () => ({ status: 1, stdout: '', stderr: 'Upgrade to GitHub Pro' });
+  const decision = autoMergeDecision({
+    run: refused,
+    paths: ['backend/domain/src/node.ts'],
+    repository: 'o/r',
+    branch: 'main',
+  });
+  assert.equal(decision.arm, false);
+  assert.ok(decision.reason.includes('by hand'));
+});
+
+test('a plain change arms auto-merge when the check is required', () => {
+  const decision = autoMergeDecision({
+    run: requiresVerify,
+    paths: ['backend/domain/src/node.ts'],
+    repository: 'o/r',
+    branch: 'main',
+  });
+  assert.deepEqual(decision, { arm: true, reason: null });
+});
+
+test('a change under the gate paths is found through the pattern list', () => {
+  const decision = autoMergeDecision({
+    run: requiresVerify,
+    definition: { protectedPaths: ['scripts/gate/**'] },
+    paths: ['backend/domain/src/node.ts', '.github/workflows/gate.yml'],
+    repository: 'o/r',
+  });
+  assert.deepEqual(decision, { arm: true, reason: null }, 'the custom list does not hold that file');
+  const caught = autoMergeDecision({
+    run: requiresVerify,
+    definition: { protectedPaths: ['.github/workflows/gate.yml'] },
+    paths: ['.github/workflows/gate.yml'],
+    repository: 'o/r',
+  });
+  assert.equal(caught.arm, false);
+});
+
+test('the required check is read from branch protection', () => {
+  assert.equal(requiresCheck(requiresVerify, { repository: 'o/r' }), true);
+  assert.equal(requiresCheck(() => ({ status: 1, stderr: 'no' }), { repository: 'o/r' }), false);
+  assert.equal(requiresCheck(() => ({ status: 0, stdout: '[]' }), { repository: 'o/r' }), false);
+  assert.equal(
+    requiresCheck(
+      () => ({ status: 0, stdout: '{"required_status_checks":{"contexts":["other"]}}' }),
+      { repository: 'o/r' },
+    ),
+    false,
+    'another check does not count',
+  );
+  assert.equal(requiresCheck(requiresVerify, { repository: '' }), false, 'no repository, no answer');
+});
+
+test('the required check is read from a ruleset that covers the branch', () => {
+  const ruleset = {
+    conditions: { ref_name: { include: ['refs/heads/main'] } },
+    rules: [
+      {
+        type: 'required_status_checks',
+        parameters: { required_status_checks: [{ context: 'verify', integration_id: 15368 }] },
+      },
+    ],
+  };
+  const run = (command, args) => {
+    const target = args[1];
+    if (target.endsWith('/protection')) return { status: 1, stderr: 'Resource not accessible' };
+    if (target.endsWith('/rulesets')) return { status: 0, stdout: '[{"id":9,"enforcement":"active"}]' };
+    if (target.endsWith('/rulesets/9')) return { status: 0, stdout: JSON.stringify(ruleset) };
+    return { status: 1, stdout: '' };
+  };
+  assert.equal(requiresCheck(run, { repository: 'o/r' }), true);
+  assert.equal(requiresCheck(run, { repository: 'o/r', branch: 'develop' }), false);
+  const inactive = (command, args) =>
+    args[1].endsWith('/rulesets') ? { status: 0, stdout: '[{"id":9,"enforcement":"disabled"}]' } : run(command, args);
+  assert.equal(requiresCheck(inactive, { repository: 'o/r' }), false, 'a disabled ruleset enforces nothing');
 });

@@ -126,6 +126,9 @@ importers:
       '@workspace/interfaces':
         specifier: workspace:*
         version: link:../../packages/interfaces
+      '@workspace/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       pocketbase:
         specifier: ^0.26.9
         version: 0.26.9
@@ -248,6 +251,9 @@ importers:
       '@workspace/infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
+      '@workspace/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       superjson:
         specifier: ^2.2.1
         version: 2.2.6
@@ -341,6 +347,9 @@ importers:
       '@workspace/services':
         specifier: workspace:*
         version: link:../services
+      '@workspace/utils':
+        specifier: workspace:*
+        version: link:../utils
       pocketbase:
         specifier: ^0.21.0
         version: 0.21.5
