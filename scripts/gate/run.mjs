@@ -22,6 +22,7 @@ import {
   findProtected,
   requiredCheckIds,
 } from './scope.mjs';
+import { installHooks } from './hook.mjs';
 
 const definition = { protocol, checks, protectedPaths, trackedDeny };
 const protectedBranches = new Set(['main', 'develop']);
@@ -40,6 +41,7 @@ Options:
       --no-sign          Do not sign the commit. The verifier rejects an unsigned commit.
       --no-auto-merge    Do not ask GitHub to merge the pull request.
       --allow-protected  Allow a local run on ${[...protectedBranches].join(' or ')}.
+      --no-hooks         Do not install the local pre-push hook.
       --dry-run          Print the plan and the trailer. Change nothing.
   -h, --help             Print this text.
 `;
@@ -53,6 +55,7 @@ export function parseArgs(argv) {
     sign: true,
     autoMerge: true,
     allowProtected: false,
+    hooks: true,
     dryRun: false,
     help: false,
   };
@@ -77,6 +80,7 @@ export function parseArgs(argv) {
     else if (arg === '--auto-merge') options.autoMerge = true;
     else if (arg === '--no-auto-merge') options.autoMerge = false;
     else if (arg === '--allow-protected') options.allowProtected = true;
+    else if (arg === '--no-hooks') options.hooks = false;
     else if (arg === '--dry-run') {
       options.dryRun = true;
       options.push = false;
@@ -205,6 +209,19 @@ export function changedPaths({ git, base }) {
   return [...set].sort();
 }
 
+// The local brake is a hook. The gate installs the hook again on every push,
+// because a missing hook is a gate that fails without a message.
+function installLocalHook({ root, git, io }) {
+  const result = installHooks({ root, git });
+  if (!result.ok) {
+    return [
+      `${result.reason} Run \`pnpm gate:hooks\`, or pass --no-hooks to push without the local brake.`,
+    ];
+  }
+  if (result.installed) io.log(`Local push gate installed at ${result.path}.`);
+  return [];
+}
+
 export async function runGate(argv, deps = {}) {
   const io = deps.io ?? defaultIo;
   const options = deps.options ?? parseArgs(argv);
@@ -224,6 +241,9 @@ export async function runGate(argv, deps = {}) {
   const checkEnv = { ...env, GATE_PNPM_VERSION: pnpmVersion.status === 0 ? pnpmVersion.stdout.trim() : '' };
 
   const problems = preflight({ root, git, options, io, env: checkEnv });
+  if (problems.length === 0 && options.push && options.hooks) {
+    problems.push(...installLocalHook({ root, git, io }));
+  }
   if (problems.length > 0) {
     io.step('The push gate stopped before the checks');
     for (const problem of problems) io.log(`- ${problem}`);
@@ -422,7 +442,20 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     io.log('No commit subject is set. Skipped the pull request.');
     return {};
   }
-  const looked = run('gh', ['pr', 'view', '--json', 'number,url'], { cwd: root });
+  const looked = run('gh', ['pr', 'view', '--json', 'number,url,state'], { cwd: root });
+  // `gh pr view` resolves the current branch. It also answers for a branch whose
+  // pull request is already merged or closed. The gate edits an open pull
+  // request only. A closed one leaves the branch free for a new pull request.
+  let open = null;
+  if (looked.status === 0) {
+    try {
+      const info = JSON.parse(looked.stdout);
+      if (info.state === 'OPEN') open = info;
+      else io.log(`Pull request ${info.number} is ${info.state}. The gate opens a new one.`);
+    } catch {
+      open = null;
+    }
+  }
   const pullRequestBody = [
     body,
     '',
@@ -443,16 +476,19 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     .filter(part => part !== '')
     .join('\n');
 
-  if (looked.status === 0) {
-    const info = JSON.parse(looked.stdout);
+  if (open) {
+    // The command `gh pr edit` reads the project cards of the pull request over
+    // GraphQL. That query fails on a repository that uses the retired Projects
+    // classic. The REST endpoint keeps the title and the body in step without
+    // it.
     const edited = run(
       'gh',
-      ['pr', 'edit', String(info.number), '--title', subject, '--body-file', '-'],
-      { cwd: root, input: pullRequestBody },
+      ['api', '--method', 'PATCH', `repos/{owner}/{repo}/pulls/${open.number}`, '--input', '-'],
+      { cwd: root, input: JSON.stringify({ title: subject, body: pullRequestBody }) },
     );
     if (edited.status !== 0) io.log(describeFailure(edited));
-    if (autoMerge?.arm) askForMerge({ run, io, root, number: info.number });
-    return { url: info.url };
+    if (autoMerge?.arm) askForMerge({ run, io, root, number: open.number });
+    return { url: open.url };
   }
 
   const created = run(

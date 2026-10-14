@@ -6,7 +6,7 @@
 
 流水线有三道门。
 
-1. 本地门控在工作区运行。一条命令检查改动、提交并推送分支。
+1. 本地门控在工作区运行。一条命令检查改动、提交并推送分支。一个本地钩子拒绝绕过该命令的推送。
 2. GitHub 门控读取该提交的 trailer。它不重跑任何检查。它接受或拒绝该提交。
 3. 构建门控在干净的 runner 上产出产物，并发布已验收的发行。
 
@@ -36,6 +36,7 @@ pnpm gate -m "feat(graph): 添加密度滑块"
 | `--no-sign` | 不对提交签名。验证器会拒绝未签名的提交。 |
 | `--no-auto-merge` | 不请 GitHub 合并该 PR。 |
 | `--allow-protected` | 允许在 `main` 或 `develop` 上本地运行。 |
+| `--no-hooks` | 不安装本地 pre-push 钩子。 |
 | `--dry-run` | 打印检查计划与 trailer，不做任何改动。 |
 
 检查失败时命令在提交之前停止。它绝不 force-push。
@@ -55,6 +56,38 @@ GitHub 会把 auto-merge 请求挂起，直到每一个必需检查通过。
 仓库如果没有必需的 `verify` 检查，就立即合并该请求，检查是红的也照合。
 这种情况下命令会打印跳过 auto-merge 的原因，并把合并留给你。
 受保护路径下的改动永不请求 auto-merge，因为验证器先要标签 `gate-change` 和一次复核。
+
+### 本地刹车
+
+入口需要一个本地仓库里的钩子。该钩子拒绝不是由门控产生的推送。它是机器刹车。权威仍然是作业 `verify`。
+
+```bash
+pnpm gate:hooks
+```
+
+命令把一个小文件写入 `.git/hooks/pre-push`。该文件调用运行推送的那个检出里的 `scripts/gate/hooks/pre-push`。该文件留在 `.git/hooks`，所以切换分支不会无声地移除刹车。脚本缺失是拒绝，而不是静默跳过。
+
+文件缺失时，命令 `pnpm gate` 会重新安装它。无法安装时，门控在检查之前停止。选项 `--no-hooks` 跳过安装。
+
+钩子做以下判定。
+
+| 推送 | 判定 |
+| --- | --- |
+| `main` | 拒绝。`main` 只能通过合并 PR 推进。 |
+| 分支 | 顶端提交必须通过与作业 `verify` 相同的验证器。 |
+| 标签 | 标签必须指向已过门控的提交，或指向合并提交。 |
+| 删除 | 接受。 |
+
+钩子用本地 Git 读取顶端提交的签名。没有签名的提交被拒绝。本检出没有签名者名单时，钩子只报告签名，由作业 `verify` 判定。
+
+有两条应急路径。
+
+| 路径 | 作用 |
+| --- | --- |
+| `git push --no-verify` | Git 跳过全部钩子。 |
+| `DBRAIN_GATE_BYPASS=1 git push ...` | 钩子接受全部 ref，并打印警告。 |
+
+两条路径之后，作业 `verify` 依然是红的。刹车只是尽早拦住事故，不替代 GitHub 检查。
 
 ### Trailer
 
@@ -93,6 +126,8 @@ Gate-Run: 2026-05-05T09:12:44Z
 | `desktop` | GitHub | 桌面安装包在 `main` 和标签上构建。 |
 
 每个检查有路径范围。只有改动触及其范围时，门控才运行对应的本地检查。选项 `--full` 运行全部本地检查。
+
+检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它校验两个固定的 SHA256 值，因此缓存被改就会拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
 
 执行者为 `GitHub` 的检查永远不进入 trailer。只有干净的 GitHub runner 能运行它。`gate.yml` 的作业 `build` 和发布候选就是这些检查。
 
@@ -319,6 +354,8 @@ GitHub API 此时返回 `403`。
 升级到 GitHub Pro 或把仓库改为公开之后，请再次应用策略。
 在此之前必需检查无法存在，门控也永不请求合并。
 
+此时由本地刹车承担入口。它拒绝直接推送 `main`、拒绝没有 trailer 的提交、拒绝没有签名的提交。GitHub 报告判定结果，本地机器拒绝推送。
+
 另外两项需要手工完成。
 
 1. 在每个作者账号上注册 SSH 签名密钥。验证器拒绝未签名的提交。
@@ -407,6 +444,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 
 5. 新增发布门禁时更新 `.github/pull_request_template.md`。
 6. 检查清单只放在 `scripts/gate/checks.mjs`。绝不要只把检查加到工作流里。验证器读取基线提交上的清单。
 7. 改动 `scripts/gate/**` 需要标签 `gate-change` 和一次复核。没有复核时验证器会拒绝改动判卷标准的提交。
+8. 保留 `scripts/gate/hooks/pre-push`。没有 ruleset 的仓库靠它刹车。
 
 ## 相关手册
 

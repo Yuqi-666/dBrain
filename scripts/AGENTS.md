@@ -15,7 +15,7 @@ The JavaScript files use the `.mjs` suffix and run directly, so no build step ex
 | `dev-run.mjs` | Starts the development stack from the root `.env`. The root scripts `pnpm dev` and `pnpm dev:remote` call it. |
 | `dev-gateway.mjs` | One-port entry for remote development. It routes `/trpc` and `/pb/api/*` to the backends, `/pb/upload/*` to the API, and everything else to Next, and forwards the browser Host unchanged. The root script `pnpm dev:remote` calls it. |
 | `gate.mjs` | The one entry of the push gate. The root script `pnpm gate` calls it. |
-| `gate/` | The push gate. `checks.mjs` holds the check list, `scope.mjs` holds the path policy, `attest.mjs` holds the trailer, `run.mjs` is the local runner, `verify.mjs` is the CI verifier, and `apply-ruleset.mjs` holds the GitHub policy. |
+| `gate/` | The push gate. `checks.mjs` holds the check list, `scope.mjs` holds the path policy, `attest.mjs` holds the trailer, `run.mjs` is the local runner, `verify.mjs` is the CI verifier, `hook.mjs` is the local pre-push brake, `hooks/` holds the hook script, and `apply-ruleset.mjs` holds the GitHub policy. |
 | `lib/` | Shared modules. Examples: PocketBase download and checksum checks, runtime bundling, development port resolution, development gateway routing, child-process shutdown, macOS library rewriting, Windows signing. |
 | `release/` | Version, check, build, signing, and release scripts. Many scripts have a `.test.mjs` neighbour. |
 
@@ -42,6 +42,8 @@ Several scripts publish images or change a live host.
 `gate/run.mjs` runs the checks, the commit, and the push.
 `gate/verify.mjs` is the CI verifier. The workflow copies the base-commit file and runs the copy.
 `gate/apply-ruleset.mjs` prints the GitHub policy of the gate. The flag `--apply` writes it.
+`gate/hook.mjs` is the local brake. It runs as a `pre-push` hook. The root script `pnpm gate:hooks` installs the hook into `.git/hooks`.
+`gate/hooks/pre-push` is the tracked hook script. It keeps the executable bit. Git skips a hook without it.
 
 The gate writes its report to `.gate/last-run.json`. The file stays out of Git.
 

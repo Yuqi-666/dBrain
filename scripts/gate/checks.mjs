@@ -32,7 +32,7 @@ export const checks = [
     required: true,
     scope: ['scripts/**', 'apps/*/scripts/**'],
     command:
-      'for file in scripts/lib/*.mjs scripts/release/*.mjs scripts/gate/*.mjs scripts/gate.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do node --check "$file"; done',
+      'for file in scripts/lib/*.mjs scripts/release/*.mjs scripts/gate/*.mjs scripts/gate.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do node --check "$file"; done && bash -n scripts/gate/hooks/pre-push scripts/release/check-workflows.sh',
     description: 'Every automation script parses.',
   },
   {

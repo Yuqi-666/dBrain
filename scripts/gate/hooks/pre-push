@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The local push gate. `pnpm gate` installs this file as the pre-push hook.
+#
+# Git writes the ref list of the push to standard input. The file passes the
+# input and the exit code through to `hook.mjs`.
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+exec node "$here/../hook.mjs"

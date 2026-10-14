@@ -121,7 +121,9 @@ export async function verifyGate(options, deps = {}) {
     notes.push(`The commit signature is valid (${signature.login ?? 'unknown account'}).`);
   } else if (options.requireSignature === true) {
     failures.push(`The commit signature is not valid: ${signature.reason}.`);
-  } else {
+  } else if (options.signatureNotes !== false) {
+    // The local hook reads the signature itself and turns this note off, so
+    // one run of the hook prints one message about the signature.
     notes.push(`The commit signature is not enforced here: ${signature.reason}.`);
   }
 
