@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checks, protocol, protectedPaths, trackedDeny } from './checks.mjs';
-import { allLocalCheckIds, globToRegExp, localChecks, requiredCheckIds } from './scope.mjs';
+import { allLocalCheckIds, globToRegExp, localChecks } from './scope.mjs';
 
 const definition = { checks, protocol, protectedPaths, trackedDeny };
 
@@ -11,12 +11,11 @@ test('the definition is well formed', () => {
   assert.equal(new Set(ids).size, ids.length, 'check ids are unique');
   for (const check of checks) {
     assert.match(check.id, /^[a-z][a-z0-9-]*$/);
-    assert.ok(['local', 'main'].includes(check.runner), `${check.id} runner`);
+    assert.equal(check.runner, 'local', `${check.id} runner`);
     assert.equal(typeof check.required, 'boolean', `${check.id} required`);
     assert.ok(Array.isArray(check.scope) && check.scope.length > 0, `${check.id} scope`);
     assert.ok(check.description.length > 0, `${check.id} description`);
-    if (check.runner === 'local') assert.equal(typeof check.command, 'string', `${check.id} command`);
-    else assert.equal(check.command, null, `${check.id} has no local command`);
+    assert.equal(typeof check.command, 'string', `${check.id} command`);
     for (const glob of check.scope) assert.doesNotThrow(() => globToRegExp(glob), `${check.id} ${glob}`);
   }
   for (const rule of trackedDeny) {
@@ -32,8 +31,9 @@ test('every local check runs the workspace through a pnpm or node command', () =
   }
 });
 
-test('the full run covers every local check', () => {
+test('the full run covers every check', () => {
   assert.deepEqual(allLocalCheckIds(definition), localChecks(definition).map(check => check.id));
   assert.ok(allLocalCheckIds(definition).includes('build'));
-  assert.ok(!allLocalCheckIds(definition).includes('desktop'), 'a main check never runs locally');
+  // No declared check waits for a clean runner.
+  assert.equal(allLocalCheckIds(definition).length, checks.length);
 });

@@ -110,23 +110,22 @@ The gate writes the complete report to `.gate/last-run.json`. The file stays out
 
 The file `scripts/gate/checks.mjs` holds every check. It is the single source of truth.
 
-| Check           | Runner | Content                                              |
-| --------------- | ------ | ---------------------------------------------------- |
-| `release-check` | Local  | The version and the lock files agree.                |
-| `syntax`        | Local  | Every automation script parses.                      |
-| `workflow-lint` | Local  | actionlint accepts every workflow file.              |
-| `typecheck`     | Local  | The TypeScript type checker accepts the workspace.   |
-| `lint-gate`     | Local  | No new lint diagnostic appears.                      |
-| `unit`          | Local  | The release and library tests pass.                  |
-| `build`         | Local  | The server and the web app build.                    |
-| `smoke-server`  | Local  | The server answers against an isolated database.     |
-| `desktop`       | GitHub | The desktop installers build for a version tag.      |
+| Check           | Content                                              |
+| --------------- | ---------------------------------------------------- |
+| `release-check` | The version and the lock files agree.                |
+| `syntax`        | Every automation script parses.                      |
+| `workflow-lint` | actionlint accepts every workflow file.              |
+| `typecheck`     | The TypeScript type checker accepts the workspace.   |
+| `lint-gate`     | No new lint diagnostic appears.                      |
+| `unit`          | The release and library tests pass.                  |
+| `build`         | The server and the web app build.                    |
+| `smoke-server`  | The server answers against an isolated database.     |
 
-Each check has a path scope. The gate runs a local check only when the change touches its scope. The option `--full` runs every local check.
+Each check has a path scope. The gate runs a check only when the change touches its scope. The option `--full` runs every check.
 
 The check `workflow-lint` caches the actionlint binary under `.gate/tools`. It verifies two pinned SHA256 values, so a changed cache is refused. A cold cache downloads the release one time. The variable `DBRAIN_GATE_TOOLS` moves the cache.
 
-A check with the runner `GitHub` never enters the trailer. Only a clean GitHub runner can run it, and the release candidate runs it.
+Every check runs in the local gate, and every check id enters the trailer. The list holds no check for a clean runner. The release candidate builds and verifies the products instead.
 
 ### The verifier
 

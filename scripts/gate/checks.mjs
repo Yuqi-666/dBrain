@@ -5,11 +5,9 @@
 // reads the copy at the base commit. A pull request therefore cannot weaken
 // the checks that judge it.
 //
-// `runner: 'local'`  The local gate runs the check, and the trailer must list
-//                    the check id.
-// `runner: 'main'`   Only a clean GitHub runner can run the check, and it runs
-//                    for a version tag. The verifier does not demand it in the
-//                    trailer.
+// `runner: 'local'`  Every check runs in the local gate, and the trailer must
+//                    list the check id. The gate holds no check for a clean
+//                    runner. The release candidate builds the products.
 //
 // `scope` is a list of path globs. A check is required when the change touches
 // a matching path. The glob `*` matches every path. Documentation paths are
@@ -123,14 +121,6 @@ export const checks = [
     ],
     command: 'pnpm smoke:server',
     description: 'The server answers against an isolated database.',
-  },
-  {
-    id: 'desktop',
-    runner: 'main',
-    required: true,
-    scope: ['apps/desktop/**', 'rust-toolchain.toml', 'pnpm-lock.yaml'],
-    command: null,
-    description: 'The desktop installers build for a version tag.',
   },
 ];
 

@@ -112,23 +112,22 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 文件 `scripts/gate/checks.mjs` 保存全部检查。它是唯一真源。
 
-| 检查 | 执行者 | 内容 |
-| --- | --- | --- |
-| `release-check` | 本地 | 版本与锁文件一致。 |
-| `syntax` | 本地 | 每个自动化脚本都能解析。 |
-| `workflow-lint` | 本地 | actionlint 接受每个工作流文件。 |
-| `typecheck` | 本地 | TypeScript 类型检查器接受整个工作区。 |
-| `lint-gate` | 本地 | 不出现新的 lint 诊断。 |
-| `unit` | 本地 | 发布测试与库测试通过。 |
-| `build` | 本地 | Server 与 Web 应用构建成功。 |
-| `smoke-server` | 本地 | Server 在隔离数据库上应答。 |
-| `desktop` | GitHub | 桌面安装包在版本标签上构建。 |
+| 检查 | 内容 |
+| --- | --- |
+| `release-check` | 版本与锁文件一致。 |
+| `syntax` | 每个自动化脚本都能解析。 |
+| `workflow-lint` | actionlint 接受每个工作流文件。 |
+| `typecheck` | TypeScript 类型检查器接受整个工作区。 |
+| `lint-gate` | 不出现新的 lint 诊断。 |
+| `unit` | 发布测试与库测试通过。 |
+| `build` | Server 与 Web 应用构建成功。 |
+| `smoke-server` | Server 在隔离数据库上应答。 |
 
-每个检查有路径范围。只有改动触及其范围时，门控才运行对应的本地检查。选项 `--full` 运行全部本地检查。
+每个检查有路径范围。只有改动触及其范围时，门控才运行该检查。选项 `--full` 运行全部检查。
 
 检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它校验两个固定的 SHA256 值，因此缓存被改就会拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
 
-执行者为 `GitHub` 的检查永远不进入 trailer。只有干净的 GitHub runner 能运行它，且由发布候选来运行。
+每个检查都在本地门控中运行，每个检查 id 都进入 trailer。清单里没有为干净 runner 准备的检查。产物由发布候选构建并验证。
 
 ### 验证器
 

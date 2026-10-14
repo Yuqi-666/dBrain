@@ -75,12 +75,6 @@ test('a change selects the checks in its scope', () => {
   ]);
 });
 
-test('a main check never enters the local plan', () => {
-  const ids = requiredCheckIds(['deploy/nginx.conf', 'apps/desktop/src-tauri/src/main.rs'], definition);
-  assert.ok(!ids.includes('container'));
-  assert.ok(!ids.includes('desktop'));
-});
-
 test('the deny list and the protected list are exact', () => {
   const denied = findDeniedTracked(
     ['.env', 'node_modules/a/index.js', 'pb/pb_data/data.db', 'apps/web/.next/BUILD_ID', 'apps/server/dist/index.mjs', 'key.pem', 'docs/a.md'],
