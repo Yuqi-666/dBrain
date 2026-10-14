@@ -3,8 +3,9 @@ on:
   workflow_call:
     inputs:
       platforms:
+        description: A comma-separated part of the declared platforms, or empty for all of them
         type: string
-        default: all
+        default: ""
 permissions:
   contents: read
   packages: write
@@ -29,7 +30,8 @@ jobs:
           CONTAINER_PLATFORMS: ${{ inputs.platforms }}
         run: |
           set -euo pipefail
-          echo "matrix=$(node scripts/release/platforms.mjs containers "$CONTAINER_PLATFORMS" --matrix)" >> "$GITHUB_OUTPUT"
+          platforms="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
+          echo "matrix=$(node scripts/release/platforms.mjs matrix containers "$platforms")" >> "$GITHUB_OUTPUT"
   build:
     needs: plan
     strategy:
@@ -157,10 +159,15 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CONTAINER_PLATFORMS: ${{ inputs.platforms }}
         run: |
           set -euo pipefail
           export DBRAIN_IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY,,}"
-          for arch in amd64 arm64; do
+          # The arches of this candidate, not a fixed pair.
+          platforms="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
+          export DBRAIN_CONTAINER_PLATFORMS="$platforms"
+          archs="$(node scripts/release/platforms.mjs matrix containers "$platforms" --archs)"
+          for arch in $archs; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "container-$arch-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming
           done
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

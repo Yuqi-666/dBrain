@@ -11,7 +11,7 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashFile } from "../lib/runtime-manifest.mjs";
-import { selectTargets } from "./platforms.mjs";
+import { loadDeclaration, selectTargets } from "./platforms.mjs";
 export const services = ["pocketbase", "server", "web"];
 const readJSON = async (path) => JSON.parse(await readFile(path, "utf8"));
 const safeName = (name) =>
@@ -363,17 +363,17 @@ export async function prepareReleaseAssets(
   );
   return index;
 }
-/** Reads `--name=text`. The default text `all` selects every allowed name. */
+/** Reads `--name=text`. An absent text keeps the declared platforms. */
 function option(args, name) {
   const prefix = `--${name}=`;
   const found = args.find((arg) => arg.startsWith(prefix));
-  return found ? found.slice(prefix.length) : "all";
+  return found ? found.slice(prefix.length) : "";
 }
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  const release = await readJSON("scripts/release/release.json");
+  const release = await loadDeclaration();
   const args = process.argv.slice(2);
   const [mode, ...positional] = args.filter((arg) => !arg.startsWith("--"));
   const expected = {
@@ -387,7 +387,8 @@ if (
     imagePrefix: `ghcr.io/${process.env.GITHUB_REPOSITORY.toLowerCase()}`,
   };
   if (mode === "assemble") {
-    // The candidate holds the platforms that this start selected.
+    // The candidate holds the platforms of this start. A start may narrow the
+    // declaration of release.json, and it cannot add a platform.
     expected.desktopTargets = selectTargets(
       option(args, "desktop"),
       release.desktopTargets,
@@ -402,8 +403,8 @@ if (
   } else if (mode === "approve") {
     // The candidate index names the platforms of the run that a person tested.
     // A release therefore publishes what the acceptance record covers. The
-    // list must still stay inside `release.json`, so an edited index cannot
-    // invent a platform.
+    // list must still stay inside the declaration of release.json, so an
+    // edited index cannot invent a platform.
     const index = await readJSON(
       join(positional[0], "candidate-index.json"),
     );

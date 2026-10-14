@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: A comma-separated target list from release.json, or all
+        description: A comma-separated part of the declared targets, or empty for all of them
         type: string
-        default: all
+        default: ""
       signed:
         description: Build signed candidates using release environment secrets
         type: boolean
@@ -14,14 +14,14 @@ on:
     inputs:
       targets:
         type: string
-        default: all
+        default: ""
       signed:
         type: boolean
         default: false
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.targets || 'all' }}
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.targets || 'declared' }}
   cancel-in-progress: ${{ github.workflow == 'Desktop candidate build' }}
 jobs:
   plan:
@@ -43,7 +43,8 @@ jobs:
           DESKTOP_TARGETS: ${{ inputs.targets }}
         run: |
           set -euo pipefail
-          echo "matrix=$(node scripts/release/platforms.mjs desktop "$DESKTOP_TARGETS" --matrix)" >> "$GITHUB_OUTPUT"
+          targets="$(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS")"
+          echo "matrix=$(node scripts/release/platforms.mjs matrix desktop "$targets")" >> "$GITHUB_OUTPUT"
   build:
     needs: plan
     strategy:

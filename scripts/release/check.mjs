@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { declarationOf } from "./platforms.mjs";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const read = (path) => readFile(resolve(root, path), "utf8");
 const json = async (path) => JSON.parse(await read(path));
@@ -16,6 +17,10 @@ export async function checkRelease(tag) {
     release.version,
     /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/,
   );
+  // The declaration of the release: the version above and the platforms of the
+  // next candidate. This check runs in the local gate, so a bad name fails
+  // before a tag exists.
+  declarationOf(release);
   for (const file of [
     "apps/desktop/package.json",
     "apps/desktop/src-tauri/tauri.conf.json",

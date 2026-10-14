@@ -171,12 +171,12 @@ Gate-Run: 2026-05-05T09:12:44Z
 | 校验 | `gate.yml`，作业 `verify` | 面向 `main` 的 PR | trailer 的门控结论 |
 | 合并 | `gate.yml`，作业 `merged` | 推送到 `main` | 合并的门控结论 |
 | 打标签 | `gate.yml`，作业 `tag` | 推送到 `main` | 版本标签（版本变化时） |
-| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 新标签 | 所选平台的产物，以及一个候选 |
+| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 新标签 | 已声明平台的产物，以及一个候选 |
 | 发布 | `release.yml` | 手工启动 | 草稿 Release，或已发布的 Release |
 
 PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是唯一的干净机器构建，因此一次普通合并只花约 30 秒的 runner 时间。
 
-产物构建读取本次启动的平台选择。下一节说明该选择。
+产物构建读取 `scripts/release/release.json` 中的声明。下一节说明该声明。
 
 ### 标签
 
@@ -196,23 +196,35 @@ PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是
 | --- | --- | --- |
 | `tag` | 版本标签，例如 `v0.1.1` | 无 |
 | `signed` | 验证 Windows 与 macOS 签名及公证 | `true` |
-| `desktop_targets` | 要构建的桌面目标，或 `all` | `all` |
-| `container_platforms` | 要构建的容器平台，或 `all` | `all` |
+| `desktop_targets` | 已声明桌面目标中的一部分 | 空 |
+| `container_platforms` | 已声明容器平台中的一部分 | 空 |
 
-作业 `verify-tag` 接受或拒绝该标签。它检查以下内容。
+输入为空时构建整份声明。作业 `verify-tag` 接受或拒绝该标签。它检查以下内容。
 
 1. 发布文件中的版本等于标签。脚本 `scripts/release/check.mjs` 做此判定。
 2. 标签所在的提交在默认分支上。
 
-### 平台选择
+### 已声明的平台
 
-一次启动可以选择平台。文本 `all` 选择 `release.json` 中的全部平台。逗号分隔的列表选择其中的若干名称，例如 `linux-x64,darwin-arm64`。
+发布由一个文件声明。`scripts/release/release.json` 保存版本和两张平台表。
 
-脚本 `scripts/release/platforms.mjs` 解析该文本，并保存每个平台对应的 runner。名称不在 `release.json` 中时，作业在 runner 启动之前就停止。脚本不认识的名称同样会停止。
+```json
+{
+  "version": "0.1.1",
+  "desktopTargets": ["linux-x64"],
+  "containerPlatforms": ["linux/amd64"]
+}
+```
 
-候选随后只保存所选平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。`release.json` 保存一次发布允许包含的名称。
+人编辑该文件。本地门控检查它，合并携带它，版本标签钉住它。候选随后只构建标签处文件里写的平台。上例只发布 Linux。
 
-随后作业 `desktop` 构建所选目标。每个矩阵作业的时限为 90 分钟。
+脚本 `scripts/release/platforms.mjs` 保存每个平台对应的 runner。该表是全集。声明的名称不在其中时，本地门控和作业 `verify-tag` 都会在 runner 启动之前停止。
+
+输入 `desktop_targets` 与 `container_platforms` 只用于收窄声明，例如某个平台构建失败后的重试。名称不在声明中时会被拒绝。runner 表不包含的名称同样会被拒绝。
+
+候选随后只保存已声明的平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。
+
+随后作业 `desktop` 构建已声明的目标。每个矩阵作业的时限为 90 分钟。
 
 | Runner | 目标 |
 | --- | --- |
@@ -240,7 +252,7 @@ PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是
 
 签名构建使用环境 `release`。未签名构建使用环境 `candidate`。签名作业在结束时删除临时签名密钥。
 
-作业 `containers` 构建两个架构。
+作业 `containers` 构建已声明的架构。
 
 | Runner | 架构 |
 | --- | --- |
@@ -251,7 +263,7 @@ PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是
 
 每个作业上传名为 `container-ARCH-RUN_ID-ATTEMPT` 的制品。该制品保存一个架构的 digest 报告。
 
-作业 `merge` 下载两份报告。然后它为每个服务创建一个多架构 digest。最终制品 `containers-RUN_ID-ATTEMPT` 保存 `container-report.json`。
+作业 `merge` 下载每个已声明架构的报告。然后它为每个服务创建一个多架构 digest。最终制品 `containers-RUN_ID-ATTEMPT` 保存 `container-report.json`。
 
 这些作业的环境是 `candidate`。
 
@@ -270,7 +282,7 @@ PR 不构建任何产物。合并到 `main` 也不构建产物。发布候选是
 | 路径 | 内容 |
 | --- | --- |
 | `linux-x64/`、`win32-x64/`、`darwin-x64/`、`darwin-arm64/` | 安装包、构建报告、运行时清单、哈希 |
-| `containers/container-report.json` | 三个服务、两个架构的镜像 digest |
+| `containers/container-report.json` | 三个服务、每个已声明架构的镜像 digest |
 | `deployment/` | `docker-compose.yml`、`nginx.conf` 和 `.env.example` |
 | `candidate-index.json` | 候选身份以及每个文件的 SHA256 |
 | `acceptance-template.json` | 空的验收记录 |
@@ -429,7 +441,7 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
-手工启动可以选择平台。文本 `all` 构建 `release.json` 中的全部平台。
+手工启动可以重跑已存在标签的候选。平台输入留空即构建整份声明。填入某个输入只重跑其中一部分，例如某个平台构建失败之后。
 
 ```bash
 gh workflow run gate.yml --ref main -f release=true
@@ -446,7 +458,7 @@ gh workflow run release-candidate.yml --ref main -f tag=v0.1.1 -f signed=true -f
 6. 检查清单只放在 `scripts/gate/checks.mjs`。绝不要只把检查加到工作流里。验证器读取基线提交上的清单。
 7. 改动 `scripts/gate/**` 需要标签 `gate-change` 和一次复核。没有复核时验证器会拒绝改动判卷标准的提交。
 8. 保留 `scripts/gate/hooks/pre-push`。没有 ruleset 的仓库靠它刹车。
-9. 让 `scripts/release/release.json` 的平台列表与 `scripts/release/platforms.mjs` 的 runner 表保持一致。测试 `platforms.test.mjs` 做此判定。
+9. 在 `scripts/release/release.json` 中声明一次发布的平台。`scripts/release/platforms.mjs` 的 runner 表保存所有存在的名称。测试 `platforms.test.mjs` 做此判定。
 
 ## 相关手册
 

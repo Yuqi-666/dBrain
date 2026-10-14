@@ -169,12 +169,12 @@ A push that is not a merge commit fails. A direct push to `main` cannot pass the
 | Verify     | `gate.yml`, job `verify`                        | A pull request to `main`   | The gate verdict on the trailer                        |
 | Merge      | `gate.yml`, job `merged`                        | A push to `main`           | The gate verdict on the merge                          |
 | Tag        | `gate.yml`, job `tag`                           | A push to `main`           | The version tag, for a new version                      |
-| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | A new tag              | The products of the selected platforms, and one candidate |
+| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | A new tag              | The products of the declared platforms, and one candidate |
 | Publication| `release.yml`                                   | A manual start             | A draft release, or a published release                 |
 
 A pull request builds no product. The merge to `main` builds no product either. The release candidate is the only clean-machine build, so an ordinary merge costs one runner of about 30 seconds.
 
-The product build reads the platform selection of the start. The next section describes the selection.
+The product build reads the declaration in `scripts/release/release.json`. The next section describes the declaration.
 
 ### The tag
 
@@ -194,23 +194,35 @@ The job `release` then calls `release-candidate.yml` when the tag is new. A manu
 | --------------------- | ---------------------------------------------------- | ------- |
 | `tag`                 | The version tag, for example `v0.1.1`                | None    |
 | `signed`              | Verify Windows and macOS signatures and notarization | `true`  |
-| `desktop_targets`     | The desktop targets to build, or `all`               | `all`   |
-| `container_platforms` | The container platforms to build, or `all`           | `all`   |
+| `desktop_targets`     | A part of the declared desktop targets               | Empty   |
+| `container_platforms` | A part of the declared container platforms           | Empty   |
 
-The job `verify-tag` accepts the tag or rejects it. It checks these items.
+An empty input builds the whole declaration. The job `verify-tag` accepts the tag or rejects it. It checks these items.
 
 1. The version in the release files equals the tag. The script `scripts/release/check.mjs` makes this decision.
 2. The commit of the tag is on the default branch.
 
-### The platform selection
+### The declared platforms
 
-A start selects the platforms. The text `all` selects every platform in `release.json`. A comma-separated list selects those names, for example `linux-x64,darwin-arm64`.
+One file declares the release. `scripts/release/release.json` holds the version and the two platform lists.
 
-The script `scripts/release/platforms.mjs` resolves the text and holds the runner of each platform. A name outside `release.json` stops the job before a runner starts. A name that the script does not know stops it as well.
+```json
+{
+  "version": "0.1.1",
+  "desktopTargets": ["linux-x64"],
+  "containerPlatforms": ["linux/amd64"]
+}
+```
 
-The candidate then holds the selected platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers. `release.json` holds the names that a release may hold.
+A person edits that file. The local gate checks it, the merge carries it, and the version tag pins it. The candidate then builds exactly the platforms in the file at the tag. This example releases Linux only.
 
-The job `desktop` then builds the selected targets. Each matrix job has a limit of 90 minutes.
+The script `scripts/release/platforms.mjs` holds the runner of each platform. That table is the universe. A declared name outside it stops the local gate and the job `verify-tag`, before a runner starts.
+
+The inputs `desktop_targets` and `container_platforms` only narrow the declaration, for a repeat after a failed platform build. A name outside the declaration is refused. A name that the runner table does not hold is refused as well.
+
+The candidate then holds the declared platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers.
+
+The job `desktop` then builds the declared targets. Each matrix job has a limit of 90 minutes.
 
 | Runner             | Target        |
 | ------------------ | ------------- |
@@ -238,7 +250,7 @@ Steps 9 and 10 run only when the input `signed` is `true`.
 
 A signed build uses the environment `release`. An unsigned build uses the environment `candidate`. A signed job removes the temporary signing key at the end.
 
-The job `containers` builds the two architectures.
+The job `containers` builds the declared architectures.
 
 | Runner             | Architecture |
 | ------------------ | ------------ |
@@ -249,7 +261,7 @@ Each matrix job has a limit of 60 minutes. It builds the three images, starts th
 
 Each job uploads an artifact with the name `container-ARCH-RUN_ID-ATTEMPT`. The artifact holds the digest report of one architecture.
 
-The job `merge` downloads both reports. It then creates one multi-architecture digest for each service. The final artifact `containers-RUN_ID-ATTEMPT` holds `container-report.json`.
+The job `merge` downloads the report of every declared architecture. It then creates one multi-architecture digest for each service. The final artifact `containers-RUN_ID-ATTEMPT` holds `container-report.json`.
 
 The environment of the jobs is `candidate`.
 
@@ -268,7 +280,7 @@ The candidate artifact has the name `candidate-RUN_ID-ATTEMPT`. The retention pe
 | Path                                                       | Content                                                  |
 | ---------------------------------------------------------- | -------------------------------------------------------- |
 | `linux-x64/`, `win32-x64/`, `darwin-x64/`, `darwin-arm64/` | Installers, build report, runtime manifest, hashes       |
-| `containers/container-report.json`                         | Image digests for three services and two architectures   |
+| `containers/container-report.json`                         | Image digests for three services and each declared architecture |
 | `deployment/`                                              | `docker-compose.yml`, `nginx.conf`, and `.env.example`   |
 | `candidate-index.json`                                     | The identity of the candidate and a SHA256 for each file |
 | `acceptance-template.json`                                 | The empty acceptance record                              |
@@ -427,7 +439,7 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
-A manual start selects the platforms. The text `all` builds every platform of `release.json`.
+A manual start repeats the candidate of an existing tag. Leave the platform inputs empty to build the whole declaration. Set one input to repeat a part of it, for example after a failed platform build.
 
 ```bash
 gh workflow run gate.yml --ref main -f release=true
@@ -444,7 +456,7 @@ gh workflow run release-candidate.yml --ref main -f tag=v0.1.1 -f signed=true -f
 6. Keep the check list in `scripts/gate/checks.mjs`. Never add a check to a workflow only. The verifier reads the list at the base commit.
 7. Change `scripts/gate/**` with the label `gate-change` and a review. The verifier rejects a change to the judge without one.
 8. Keep `scripts/gate/hooks/pre-push`. It is the brake of a repository without a ruleset.
-9. Keep the platform lists in `scripts/release/release.json` and the runner table in `scripts/release/platforms.mjs` in step. The test `platforms.test.mjs` makes this decision.
+9. Declare the platforms of a release in `scripts/release/release.json`. The runner table in `scripts/release/platforms.mjs` holds the names that exist. The test `platforms.test.mjs` makes this decision.
 
 ## Related manuals
 
