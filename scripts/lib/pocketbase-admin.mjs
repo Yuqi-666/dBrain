@@ -9,7 +9,7 @@
  * The account is **required configuration**, not an optional nicety: `.env` is
  * the single source of truth, and a missing or incomplete one is a hard error, so
  * neither a developer machine nor a deployment can quietly end up with only the
- * placeholder account. See `.env.example` and `docs/release-workflow.md`.
+ * placeholder account. See `.env.example` and `docs/operations.md`.
  */
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";

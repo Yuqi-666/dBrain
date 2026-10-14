@@ -345,7 +345,7 @@ export async function prepareReleaseAssets(
   const acceptance = await readJSON(acceptancePath);
   await writeFile(
     join(out, "RELEASE-NOTES.md"),
-    `dBrain ${index.version}\n\nSource: ${index.commit}\nCandidate: ${index.runId}, attempt ${index.runAttempt}\n\nThird-party license and source materials: ${acceptance.thirdPartyMaterials.url}\nMaterials SHA256: ${acceptance.thirdPartyMaterials.sha256}\n\nInstall and upgrade instructions: docs/release-workflow.md at source commit.\n`,
+    `dBrain ${index.version}\n\nSource: ${index.commit}\nCandidate: ${index.runId}, attempt ${index.runAttempt}\n\nThird-party license and source materials: ${acceptance.thirdPartyMaterials.url}\nMaterials SHA256: ${acceptance.thirdPartyMaterials.sha256}\n\nInstall and upgrade instructions: docs/usage.md at source commit.\n`,
   );
   const files = Object.fromEntries(
     await Promise.all(

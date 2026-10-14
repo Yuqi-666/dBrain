@@ -17,13 +17,12 @@ dBrain 是一个知识工作空间：用节点记录内容，用关系连接知�
 
 | 我想做什么 | 阅读入口 |
 | --- | --- |
-| 安装、开始使用、备份个人数据 | [使用手册](docs/usage.md) |
-| 配置开发环境、理解目录、修改和检查代码 | [开发手册](docs/development.md) |
-| 部署容器、监控、升级、备份和恢复 | [运维手册](docs/operations.md) |
-| 了解 CI、四端构建、签名和发布门禁 | [构建与发布](docs/release-workflow.md) |
-| 确认哪些已验证、哪些仍待验收 | [发布状态](docs/release-readiness.md) |
+| 安装、开始使用、备份个人数据 | [使用手册](docs/zh/usage.md) |
+| 配置开发环境、理解目录、修改和检查代码 | [开发手册](docs/zh/development.md) |
+| 部署容器、监控、升级、备份和恢复 | [运维手册](docs/zh/operations.md) |
+| 了解 CI/CD、四端构建、签名和发布门禁 | [CI/CD 流水线](docs/zh/ci-cd.md) |
 
-完整索引见 [docs](docs/README.md)。CI 按改动范围运行，并缓存 pnpm、Next.js、Rust 依赖及 Docker 构建层；四端安装包与完整候选仍手动触发。
+完整索引见 [docs](docs/README.md)（英文）与 [docs/zh](docs/zh/README.md)（中文）。CI 按改动范围运行，并缓存 pnpm、Next.js、Rust 依赖及 Docker 构建层；四端安装包与完整候选仍手动触发。
 
 ## 开发快速开始
 
@@ -37,7 +36,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-打开 `http://localhost:3000`。端口在 `.env` 里配；远程域名开发用 `pnpm dev:remote`，见 [docs/development.md](docs/development.md)。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
+打开 `http://localhost:3000`。端口在 `.env` 里配；远程域名开发用 `pnpm dev:remote`，见 [docs/zh/development.md](docs/zh/development.md)。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
 
 桌面开发还需要 Rust 和对应平台原生依赖，然后运行 `pnpm dev:desktop`。详细前提见开发手册。
 

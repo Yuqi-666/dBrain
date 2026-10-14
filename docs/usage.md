@@ -1,28 +1,28 @@
-# 使用手册
+# Usage manual
 
-## 选择桌面版还是 Web 版
+## Desktop or web
 
-| 模式 | 账号与数据 |
+| Mode | Account and data |
 | --- | --- |
-| 桌面版 | 首次启动自动创建本地身份，核心内容在本设备保存，无需云端账号 |
-| Web 版 | 使用服务地址注册 / 登录，内容与附件保存在该服务端 |
+| Desktop | The first start creates a local identity. The core content stays on this device. No cloud account is necessary. |
+| Web | You register or log in with the service address. The service stores the content and the attachments. |
 
-两种模式复用工作空间界面，但当前不自动同步数据。桌面本地身份也不等同于 Web 账号。离线模式不保证外部网站或网络链接在断网时可用。
+Both modes use the same workspace interface. They do not synchronize data automatically. A desktop identity is not a web account. Offline mode does not guarantee that an external website or a network link works without a network.
 
-## 安装桌面版
+## Install the desktop app
 
-由维护者提供当前私有内部测试 Release 或候选产物。草稿只对有草稿访问权限的人可见。选择系统与 CPU 对应包，解压平台 ZIP 后核对附带 SHA256SUMS，不要混用不同架构安装器。
+A maintainer provides the current private internal-test release or candidate. A draft is visible only to a person with draft access. Choose the package for your system and CPU. Unpack the platform ZIP and verify the included `SHA256SUMS`. Do not mix installers of different architectures.
 
-| 平台 | 安装格式与步骤 |
+| Platform | Install format and steps |
 | --- | --- |
-| Linux x64 | DEB 使用发行版包管理器；RPM 用对应发行版包管理器；AppImage 赋予执行权限后运行 |
-| Windows x64 | 运行 EXE 或 MSI，按安装器提示完成 |
-| macOS Intel | 打开 darwin-x64 DMG，把应用复制到 Applications |
-| macOS Apple Silicon | 打开 darwin-arm64 DMG，把应用复制到 Applications |
+| Linux x64 | Install the DEB or the RPM with the package manager of your distribution. Give the AppImage the execute permission, then run it. |
+| Windows x64 | Run the EXE or the MSI. Follow the steps of the installer. |
+| macOS Intel | Open the `darwin-x64` DMG. Copy the app to Applications. |
+| macOS Apple Silicon | Open the `darwin-arm64` DMG. Copy the app to Applications. |
 
-安装包携带 Node、PocketBase 与媒体处理运行时，使用者无需安装 pnpm、Rust 或这些开发依赖。Linux 的 WebView、系统库和媒体解码依赖仍需满足目标发行版要求；当前没有宣称支持所有 Linux 发行版。
+The installers contain Node, PocketBase, and the media runtime. The user does not install pnpm, Rust, or the other development dependencies. Linux still needs a WebView, system libraries, and media decoders for the target distribution. dBrain does not claim support for every Linux distribution.
 
-示例命令中的文件名应替换为实际下载文件：
+Replace the file names in these examples with the downloaded files.
 
 ```bash
 # Linux AppImage
@@ -32,59 +32,59 @@ chmod +x dBrain.AppImage
 # Debian / Ubuntu
 sudo apt install ./dBrain.deb
 
-# Fedora 等 RPM 系统
+# Fedora and other RPM systems
 sudo dnf install ./dBrain.rpm
 ```
 
-当前内部候选未做正式签名 / 公证。Windows 可能显示未知发布者或 SmartScreen 提示；macOS 可能要求在“系统设置 → 隐私与安全性”中确认“仍要打开”。只对来源已确认的包操作；设备管理策略可能禁止继续。[Apple 说明](https://support.apple.com/en-lamr/102445)、[Microsoft 说明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)。
+The current internal candidates have no formal signature or notarization. Windows can show an unknown publisher or a SmartScreen warning. macOS can ask for a confirmation in "System Settings → Privacy & Security" with "Open Anyway". Operate only on a package from a verified source. A device management policy can stop the installation. See the [Apple note](https://support.apple.com/en-lamr/102445) and the [Microsoft note](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
 
-## 第一次进入
+## First start
 
-桌面启动时会初始化本地数据、后端与身份，然后显示工作空间。等待初始化完成；出现连接错误时使用界面的重试入口，同一数据目录不要同时运行多个实例。
+The desktop app initializes the local data, the backend, and the identity at the start. Then it shows the workspace. Wait until the initialization completes. Use the retry entry in the interface after a connection error. Do not run more than one instance on the same data directory.
 
-Web 用户打开管理员提供的服务地址，在注册页创建应用用户，再登录。PocketBase 运维超级管理员不是应用登录账号。页面一直加载时先联系部署维护者，检查服务与代理配置。
+A web user opens the service address from the maintainer. The user creates an app user on the registration page and logs in. The PocketBase operator superuser is not an app login account. If a page loads without an end, contact the deployment maintainer first. The maintainer verifies the service and the proxy configuration.
 
-## 工作空间与内容
+## Workspace and content
 
-1. 从工作空间选择器选择现有空间，或使用新建入口创建空间。
-2. 在图谱中选择视图；右键空白画布使用添加节点菜单。
-3. 为内容选择节点类型，打开编辑入口填写内容或上传附件。
-4. 通过节点 / 关系菜单调整内容语义与连接；利用视图配置与筛选控制显示范围。
-5. 切换 Dashboard，以工作空间中的组件和数据视图组织工作。
+1. Select an existing space in the workspace selector, or create a space with the create entry.
+2. Select a view in the graph. Right-click the empty canvas to open the add-node menu.
+3. Select a node type for the content. Open the editor and write the content or upload an attachment.
+4. Change the semantics and the connections with the node and relation menus. Use the view configuration and the filters to control the visible range.
+5. Switch to the Dashboard and organize your work with the workspace components and the data views.
 
-节点类型包括文本、富文本、图片、PDF、视频、音频、网页、网站、集合、数据库。关系用于连接节点；标签与语义用于分类。工作空间是内容所属范围，视图是内容的展示方式。删除内容前确认菜单作用于节点、关系还是选中集合，重要资料先备份。
+The node types are text, rich text, image, PDF, video, audio, web page, website, collection, and database. A relation connects two nodes. A tag and a semantic classify a node. A workspace is the scope of the content. A view is the way that the app shows the content. Before you remove content, verify whether the menu applies to a node, a relation, or the selected collection. Back up important data first.
 
-图谱和 Dashboard 使用同一工作空间的数据。数据库内容可使用表格、看板、日历、图表等数据视图；可用配置以当前界面入口和内容类型为准。媒体上传后的解析、封面和转码需要时间，失败时保留报错及文件类型供维护者排查。
+The graph and the Dashboard use the data of the same workspace. Database content supports table, kanban, calendar, and chart data views. The available configuration follows the interface entry and the content type. The analysis, the cover, and the transcode of media take time. On a failure, keep the error and the file type for the maintainer.
 
-### 附件上传
+### Attachment upload
 
-单个附件最大 2 GiB。上传方式按大小自动选择，使用者无需设置：
+The largest single attachment is 2 GiB. The app selects the upload method from the size. The user does not configure it.
 
-- 32 MiB 以内的文件一次上传完成。
-- 大于 32 MiB 的文件按 8 MiB 分片上传，客户端只补传缺失的分片。网络中断、刷新页面或重启后端后重新选择同一文件，会从已完成的分片继续，而不是从零开始。
-- 分片传完后由服务端在本机拼装并存入文件库。这一阶段可能持续较长时间，页面会显示进度；此时关闭页面不会丢失文件，重新打开后仍可看到上传结果。
-- 取消上传不会删除已上传的分片，再次上传同一文件可继续。
+- A file of 32 MiB or less uploads in one request.
+- A file larger than 32 MiB uploads in 8 MiB chunks. The client sends only the missing chunks. After a network break, a page refresh, or a backend restart, select the same file again. The upload continues from the completed chunks.
+- The server assembles the chunks on the local disk and stores the file in the file library. This step can take a long time. The page shows the progress. A page close during this step does not lose the file. The result is visible after the page opens again.
+- If you cancel the upload, the chunks stay on the server. Upload the same file again to continue.
 
-超过 2 GiB 的文件在开始上传前即被拒绝。编辑器内图片与网页源码文本仍保留各自更小的上限（5 MiB），与节点附件上限不同。
+The server rejects a file larger than 2 GiB before the upload starts. An image in the editor and the source text of a web page keep their own smaller limits (5 MiB). These limits are different from the node attachment limit.
 
-PDF 超过 256 MiB 时跳过解析，只保存文件：仍然可以下载和打开，但没有页数与封面。视频按磁盘流式转码，大小不影响 HLS 生成。
+A PDF larger than 256 MiB skips the analysis. The app stores the file only. You can still download and open it, but it has no page count and no cover. A video transcodes as a disk stream. The size does not affect the HLS generation.
 
-打开 PDF 节点时，预览器只按需读取当前页面用到的部分，不会先把整个文件下载完：大体积扫描件的第一页同样可以很快出现，后续页面在滚动到时再读取。
+The PDF viewer reads only the parts of the current page. It does not download the whole file first. The first page of a large scan therefore appears fast. The viewer reads the later pages when you scroll to them.
 
-## 数据保存与备份
+## Data location and backup
 
-桌面数据库、附件、本地身份和日志在系统应用数据目录保存，通常可从 `cn.dbrain.desktop` 标识定位；实际目录以平台接口和运行日志为准。Linux 常见路径为 `$XDG_DATA_HOME/cn.dbrain.desktop`，未设置时为 `~/.local/share/cn.dbrain.desktop`。
+The desktop app keeps the database, the attachments, the local identity, and the logs in the system application data directory. Locate it usually by the identifier `cn.dbrain.desktop`. The platform interface and the log give the real directory. On Linux, the common path is `$XDG_DATA_HOME/cn.dbrain.desktop`. Without that variable, the path is `~/.local/share/cn.dbrain.desktop`.
 
-备份前完全退出程序，确认后台进程结束，复制**整个应用数据目录**到安全位置。不要只复制数据库文件，附件和本地身份也需要保留。恢复时先保留当前目录副本，再在程序关闭状态下恢复匹配版本的完整数据。
+Exit the app completely before a backup. Verify that the background process stopped. Copy the **complete application data directory** to a safe location. Do not copy the database file only. Keep the attachments and the local identity too. Before a restore, keep a copy of the current directory. Then close the app and restore the complete data of the matching version.
 
-Web 用户的数据由服务端维护者备份，浏览器缓存不等同于服务端备份。当前不承诺有通用的一键跨端迁移流程；迁移需求应由维护者验证。
+The maintainer backs up the data of a web user. A browser cache is not a server backup. dBrain does not promise a general one-step migration between devices. A maintainer must verify a migration requirement.
 
-## 升级与卸载
+## Upgrade and uninstall
 
-应用内自动更新尚未接入，由维护者提供新安装包。升级前备份数据，退出旧版本，再按新安装器步骤操作；程序升级不替换应用数据目录。桌面运行时在版本迁移前具有备份逻辑，但不能替代自己的外部备份。
+The app does not yet update itself. The maintainer provides a new installer. Back up the data before an upgrade. Exit the old version. Then follow the steps of the new installer. An upgrade does not replace the application data directory. The desktop runtime backs up the data before a version migration. That backup does not replace your external backup.
 
-卸载程序与删除个人数据是两件事，不要默认卸载器会移除数据。确需清除时，在程序退出后核对应用数据目录，先备份再手动处理。回滚旧版时需匹配旧版数据备份，不能保证旧版直接打开已迁移的新库。
+Uninstall and data removal are two different operations. Do not assume that the uninstaller removes the data. To remove the data, exit the app, inspect the application data directory, back it up, and remove it by hand. For a rollback, use the data backup of the old version. An old version cannot always open a migrated database.
 
-## 反馈问题
+## Report a problem
 
-提供产品版本、OS 与架构、安装格式、复现步骤、期望与实际结果，附脱敏报错或截图。媒体问题注明文件格式与操作；升级问题注明原版本和备份情况。不要发送密码、本地身份凭据或完整私有数据库。
+Give the product version, the OS and architecture, the install format, the reproduction steps, the expected result, and the actual result. Attach the error text or a screenshot without private data. For a media problem, state the file format and the operation. For an upgrade problem, state the old version and the backup state. Do not send a password, a local identity credential, or a complete private database.
