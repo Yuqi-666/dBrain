@@ -28,7 +28,7 @@ The product version is 0.1.0 and the project is in internal test.
 | `scripts/` | Development and release automation | [scripts/AGENTS.md](scripts/AGENTS.md) |
 | `pb/` | PocketBase hooks and migrations | [pb/AGENTS.md](pb/AGENTS.md) |
 | `deploy/` | Container, gateway, and deployment templates | [deploy/AGENTS.md](deploy/AGENTS.md) |
-| `docs/` | User, developer, and operator manuals, in Chinese | [docs/AGENTS.md](docs/AGENTS.md) |
+| `docs/` | User, developer, and operator manuals: English in the tree root, Chinese in `docs/zh/` | [docs/AGENTS.md](docs/AGENTS.md) |
 | `.github/` | CI, desktop, container, and release workflows | [.github/AGENTS.md](.github/AGENTS.md) |
 
 ## How the parts connect
@@ -64,6 +64,8 @@ pnpm check-types
 pnpm lint:gate
 pnpm test:release
 pnpm build                    # builds the server and the web app
+pnpm gate --dry-run -m "chore: check"   # runs the checks and writes the push gate trailer
+pnpm gate:policy              # prints the GitHub policy of the push gate
 pnpm dev:desktop              # needs Rust and the native libraries
 ```
 
@@ -73,7 +75,7 @@ pnpm dev:desktop              # needs Rust and the native libraries
 2. Do not edit a released PocketBase migration. Add a new migration file instead.
 3. Change business behavior in `backend/domain` or `backend/application` first. Then update the adapters and the UI.
 4. Add a JavaScript dependency in the correct workspace package and update `pnpm-lock.yaml`. Add a Rust dependency and update `Cargo.lock`.
-5. Write user-facing documentation in Chinese. Match the language of the file that you edit.
+5. Write a user-facing manual in `docs/` and its Chinese version in `docs/zh/`. Keep the two files in step.
 6. Use Conventional Commits. Example: `fix(server): reject a stale token`.
 7. Do not point a smoke test at a live service. The server smoke test needs an isolated test database.
 
@@ -85,3 +87,4 @@ pnpm dev:desktop              # needs Rust and the native libraries
 4. Run `pnpm test:release`.
 5. Run `pnpm build`.
 6. If you changed the desktop app, also run the desktop checks in [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md).
+7. To push the work, run `pnpm gate -m "type(scope): subject"`. It runs the checks, commits the change, and pushes it. Read [docs/ci-cd.md](docs/ci-cd.md) first.

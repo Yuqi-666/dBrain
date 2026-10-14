@@ -1,29 +1,74 @@
 name: Release candidate
+
+# Builds the products of one version tag. The gate workflow calls this workflow
+# when a new tag appears on the main branch. A manual start repeats a failed
+# platform build, because the tag then already exists.
+
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: The version tag, for example v0.1.1
+        type: string
+        required: true
       signed:
         description: Verify Windows/macOS signatures and macOS notarization
         type: boolean
-        default: false
+        default: true
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      signed:
+        type: boolean
+        default: true
+
 permissions:
   contents: read
   actions: read
   packages: write
+
 concurrency:
-  group: release-candidate-${{ github.ref }}
+  group: release-candidate-${{ inputs.tag }}
   cancel-in-progress: false
+
 jobs:
-  quality:
-    uses: ./.github/workflows/ci.yml
+  verify-tag:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Verify the tag and the main branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          node scripts/release/check.mjs --tag="$RELEASE_TAG"
+          default_branch=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef --jq '.defaultBranchRef.name')
+          git fetch --quiet --no-tags origin "+refs/heads/$default_branch:refs/remotes/origin/$default_branch"
+          git merge-base --is-ancestor HEAD "origin/$default_branch"
+          echo "The tag $RELEASE_TAG is on the main branch." >> "$GITHUB_STEP_SUMMARY"
+
   desktop:
-    needs: quality
+    needs: verify-tag
     uses: ./.github/workflows/desktop-build.yml
     with:
       signed: ${{ inputs.signed }}
+
   containers:
-    needs: quality
+    needs: verify-tag
     uses: ./.github/workflows/container-build.yml
+
   assemble:
     needs: [desktop, containers]
     runs-on: ubuntu-22.04
