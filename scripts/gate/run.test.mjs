@@ -335,3 +335,52 @@ test('the option --no-hooks runs without the local brake', async t => {
   assert.match(text, /Check plan/);
   assert.doesNotMatch(text, /is missing/);
 });
+
+test('a merged pull request on the branch leaves a new pull request to the gate', async t => {
+  const root = createRepo(t);
+  write(root, 'README.md', '# dBrain\n');
+  commitAll(root, 'docs: start');
+  git(root, ['checkout', '--quiet', '-b', 'topic']);
+  const output = [];
+  const calls = [];
+  const run = (command, args) => {
+    calls.push([command, ...args].join(' '));
+    if (command === 'pnpm' && args[0] === '--version') return { status: 0, stdout: '9.0.0\n' };
+    if (command === 'gh' && args[1] === 'view') {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          number: 21,
+          url: 'https://github.com/o/r/pull/21',
+          state: 'MERGED',
+        }),
+      };
+    }
+    if (command === 'gh' && args[1] === 'create') {
+      return { status: 0, stdout: 'https://github.com/o/r/pull/22\n' };
+    }
+    return { status: 0, stdout: '' };
+  };
+
+  const code = await runGate([], {
+    cwd: root,
+    options: parseArgs(['-m', 'docs: change', '--no-hooks', '--no-sign', '--no-auto-merge']),
+    git: createGit(root),
+    run,
+    runCheck: async () => ({ status: 'passed', exitCode: 0, durationMs: 1 }),
+    io: quietIo(output),
+    env: { GITHUB_REPOSITORY: 'o/r' },
+  });
+
+  const text = output.join('\n');
+  assert.equal(code, 0, text);
+  assert.ok(
+    calls.some(call => call.startsWith('gh pr create')),
+    'the gate opens a new pull request',
+  );
+  assert.ok(
+    !calls.some(call => call.startsWith('gh pr edit')),
+    'the gate does not edit the merged pull request',
+  );
+  assert.match(text, /Pull request https:\/\/github\.com\/o\/r\/pull\/22/);
+});

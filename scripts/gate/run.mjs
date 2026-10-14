@@ -442,7 +442,20 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     io.log('No commit subject is set. Skipped the pull request.');
     return {};
   }
-  const looked = run('gh', ['pr', 'view', '--json', 'number,url'], { cwd: root });
+  const looked = run('gh', ['pr', 'view', '--json', 'number,url,state'], { cwd: root });
+  // `gh pr view` resolves the current branch. It also answers for a branch whose
+  // pull request is already merged or closed. The gate edits an open pull
+  // request only. A closed one leaves the branch free for a new pull request.
+  let open = null;
+  if (looked.status === 0) {
+    try {
+      const info = JSON.parse(looked.stdout);
+      if (info.state === 'OPEN') open = info;
+      else io.log(`Pull request ${info.number} is ${info.state}. The gate opens a new one.`);
+    } catch {
+      open = null;
+    }
+  }
   const pullRequestBody = [
     body,
     '',
@@ -463,16 +476,15 @@ function openPullRequest({ run, io, root, options, branch, subject, body, traile
     .filter(part => part !== '')
     .join('\n');
 
-  if (looked.status === 0) {
-    const info = JSON.parse(looked.stdout);
+  if (open) {
     const edited = run(
       'gh',
-      ['pr', 'edit', String(info.number), '--title', subject, '--body-file', '-'],
+      ['pr', 'edit', String(open.number), '--title', subject, '--body-file', '-'],
       { cwd: root, input: pullRequestBody },
     );
     if (edited.status !== 0) io.log(describeFailure(edited));
-    if (autoMerge?.arm) askForMerge({ run, io, root, number: info.number });
-    return { url: info.url };
+    if (autoMerge?.arm) askForMerge({ run, io, root, number: open.number });
+    return { url: open.url };
   }
 
   const created = run(
