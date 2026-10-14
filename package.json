@@ -9,6 +9,7 @@
     "gate": "node scripts/gate.mjs",
     "gate:verify": "node scripts/gate.mjs --verify",
     "gate:policy": "node scripts/gate/apply-ruleset.mjs",
+    "gate:hooks": "node scripts/gate/hook.mjs --install",
     "pb:admin": "node scripts/dev-pocketbase-admin.mjs",
     "lint": "pnpm -r --no-bail --workspace-concurrency=2 --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

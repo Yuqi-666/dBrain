@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
 import test from 'node:test';
 import {
   autoMergeDecision,
@@ -35,6 +36,7 @@ test('the argument parser follows the usage text', () => {
     sign: true,
     autoMerge: true,
     allowProtected: false,
+    hooks: true,
     dryRun: false,
     help: false,
   });
@@ -277,4 +279,59 @@ test('the required check is read from a ruleset that covers the branch', () => {
   const inactive = (command, args) =>
     args[1].endsWith('/rulesets') ? { status: 0, stdout: '[{"id":9,"enforcement":"disabled"}]' } : run(command, args);
   assert.equal(requiresCheck(inactive, { repository: 'o/r' }), false, 'a disabled ruleset enforces nothing');
+});
+
+test('a push without the local brake stops before the checks', async t => {
+  const root = createRepo(t);
+  write(root, 'README.md', '# dBrain\n');
+  commitAll(root, 'docs: start');
+  git(root, ['checkout', '--quiet', '-b', 'topic']);
+  git(root, ['config', 'gpg.format', 'ssh']);
+  git(root, ['config', 'user.signingkey', join(root, 'absent.pub')]);
+  const output = [];
+
+  const code = await runGate([], {
+    cwd: root,
+    options: parseArgs(['-m', 'docs: change']),
+    git: createGit(root),
+    run: stubRun(),
+    io: quietIo(output),
+    env: {},
+  });
+
+  const text = output.join('\n');
+  assert.equal(code, 1);
+  assert.match(text, /stopped before the checks/);
+  assert.match(text, /scripts\/gate\/hooks\/pre-push is missing/);
+});
+
+test('the option --no-hooks runs without the local brake', async t => {
+  const root = createRepo(t);
+  write(root, 'README.md', '# dBrain\n');
+  commitAll(root, 'docs: start');
+  git(root, ['checkout', '--quiet', '-b', 'topic']);
+  const output = [];
+  const run = (command, args) => {
+    if (command === 'pnpm' && args[0] === '--version') return { status: 0, stdout: '9.0.0\n' };
+    if (command === 'gh' && args[1] === 'view') return { status: 1, stderr: 'no pull requests found' };
+    if (command === 'gh' && args[1] === 'create') {
+      return { status: 0, stdout: 'https://github.com/o/r/pull/1\n' };
+    }
+    return { status: 0, stdout: '' };
+  };
+
+  const code = await runGate([], {
+    cwd: root,
+    options: parseArgs(['-m', 'docs: change', '--no-hooks', '--no-sign', '--no-auto-merge']),
+    git: createGit(root),
+    run,
+    runCheck: async () => ({ status: 'passed', exitCode: 0, durationMs: 1 }),
+    io: quietIo(output),
+    env: { GITHUB_REPOSITORY: 'o/r' },
+  });
+
+  const text = output.join('\n');
+  assert.equal(code, 0, text);
+  assert.match(text, /Check plan/);
+  assert.doesNotMatch(text, /is missing/);
 });

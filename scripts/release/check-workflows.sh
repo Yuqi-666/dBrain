@@ -1,10 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Version and digest come from the official rhysd/actionlint release assets.
+# Version and digests come from the official rhysd/actionlint release assets.
 # Linux amd64 validation tool; container arm64 jobs do not invoke it.
-tools=$(mktemp -d)
-trap 'rm -rf "$tools"' EXIT
-curl -fsSL --retry 3 https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$tools/actionlint.tar.gz"
-printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 "$tools/actionlint.tar.gz" | sha256sum --check --status
-tar -xzf "$tools/actionlint.tar.gz" -C "$tools" actionlint
-"$tools/actionlint" -shellcheck="" .github/workflows/*.yml
+#
+# The script caches the binary under .gate/tools. The gate runs this check on
+# every push that touches a workflow file, and a download takes minutes on a
+# slow network. Both digests are pinned, so a changed cache is refused and
+# replaced. The variable DBRAIN_GATE_TOOLS moves the cache.
+version=1.7.12
+archive_digest=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+binary_digest=c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4
+cache="${DBRAIN_GATE_TOOLS:-.gate/tools}"
+binary="$cache/actionlint-$version-linux-amd64"
+
+check() {
+  printf '%s  %s\n' "$1" "$2" | sha256sum --check --status 2>/dev/null
+}
+
+if ! check "$binary_digest" "$binary"; then
+  mkdir -p "$cache"
+  tools=$(mktemp -d)
+  trap 'rm -rf "$tools"' EXIT
+  url="https://github.com/rhysd/actionlint/releases/download/v$version/actionlint_${version}_linux_amd64.tar.gz"
+  curl -fsSL --retry 3 "$url" -o "$tools/actionlint.tar.gz"
+  check "$archive_digest" "$tools/actionlint.tar.gz"
+  tar -xzf "$tools/actionlint.tar.gz" -C "$tools" actionlint
+  check "$binary_digest" "$tools/actionlint"
+  install -m 0755 "$tools/actionlint" "$binary"
+fi
+
+"$binary" -shellcheck="" .github/workflows/*.yml

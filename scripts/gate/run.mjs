@@ -22,6 +22,7 @@ import {
   findProtected,
   requiredCheckIds,
 } from './scope.mjs';
+import { installHooks } from './hook.mjs';
 
 const definition = { protocol, checks, protectedPaths, trackedDeny };
 const protectedBranches = new Set(['main', 'develop']);
@@ -40,6 +41,7 @@ Options:
       --no-sign          Do not sign the commit. The verifier rejects an unsigned commit.
       --no-auto-merge    Do not ask GitHub to merge the pull request.
       --allow-protected  Allow a local run on ${[...protectedBranches].join(' or ')}.
+      --no-hooks         Do not install the local pre-push hook.
       --dry-run          Print the plan and the trailer. Change nothing.
   -h, --help             Print this text.
 `;
@@ -53,6 +55,7 @@ export function parseArgs(argv) {
     sign: true,
     autoMerge: true,
     allowProtected: false,
+    hooks: true,
     dryRun: false,
     help: false,
   };
@@ -77,6 +80,7 @@ export function parseArgs(argv) {
     else if (arg === '--auto-merge') options.autoMerge = true;
     else if (arg === '--no-auto-merge') options.autoMerge = false;
     else if (arg === '--allow-protected') options.allowProtected = true;
+    else if (arg === '--no-hooks') options.hooks = false;
     else if (arg === '--dry-run') {
       options.dryRun = true;
       options.push = false;
@@ -205,6 +209,19 @@ export function changedPaths({ git, base }) {
   return [...set].sort();
 }
 
+// The local brake is a hook. The gate installs the hook again on every push,
+// because a missing hook is a gate that fails without a message.
+function installLocalHook({ root, git, io }) {
+  const result = installHooks({ root, git });
+  if (!result.ok) {
+    return [
+      `${result.reason} Run \`pnpm gate:hooks\`, or pass --no-hooks to push without the local brake.`,
+    ];
+  }
+  if (result.installed) io.log(`Local push gate installed at ${result.path}.`);
+  return [];
+}
+
 export async function runGate(argv, deps = {}) {
   const io = deps.io ?? defaultIo;
   const options = deps.options ?? parseArgs(argv);
@@ -224,6 +241,9 @@ export async function runGate(argv, deps = {}) {
   const checkEnv = { ...env, GATE_PNPM_VERSION: pnpmVersion.status === 0 ? pnpmVersion.stdout.trim() : '' };
 
   const problems = preflight({ root, git, options, io, env: checkEnv });
+  if (problems.length === 0 && options.push && options.hooks) {
+    problems.push(...installLocalHook({ root, git, io }));
+  }
   if (problems.length > 0) {
     io.step('The push gate stopped before the checks');
     for (const problem of problems) io.log(`- ${problem}`);

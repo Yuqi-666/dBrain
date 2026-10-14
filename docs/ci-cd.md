@@ -4,7 +4,7 @@ The pipeline runs in two places. The local workspace checks a change and pushes 
 
 The pipeline has three gates.
 
-1. The local gate runs in the workspace. One command checks the change, commits it, and pushes the branch.
+1. The local gate runs in the workspace. One command checks the change, commits it, and pushes the branch. A local hook refuses a push that skipped the command.
 2. The GitHub gate reads the trailer of that commit. It runs no check again. It accepts the commit or rejects it.
 3. The build gates make the products on a clean runner and publish an accepted release.
 
@@ -34,6 +34,7 @@ The workflow `gate.yml` is the second gate. It answers one question. Did the aut
 | `--no-sign`        | Do not sign the commit. The verifier rejects an unsigned commit.     |
 | `--no-auto-merge`  | Do not ask GitHub to merge the pull request.                         |
 | `--allow-protected`| Allow a local run on `main` or `develop`.                            |
+| `--no-hooks`       | Do not install the local pre-push hook.                              |
 | `--dry-run`        | Print the check plan and the trailer. Change nothing.                |
 
 The command stops before the commit when a check fails. It never forces a push.
@@ -53,6 +54,38 @@ git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
 git config --global commit.gpgsign true
 ```
+
+### The local brake
+
+The entry needs a hook in the local clone. The hook refuses a push that the gate did not produce. It is a machine brake. The job `verify` stays the authority.
+
+```bash
+pnpm gate:hooks
+```
+
+The command writes a small file into `.git/hooks/pre-push`. That file calls `scripts/gate/hooks/pre-push` in the checkout that runs the push. The file stays in `.git/hooks`, so a checkout cannot remove the brake without a message. A missing script is a refusal, not a silent skip.
+
+The command `pnpm gate` installs the file again when it is missing. The gate stops before the checks when it cannot install the file. The option `--no-hooks` skips the installation.
+
+The hook makes these decisions.
+
+| Push            | Decision                                                            |
+| --------------- | ------------------------------------------------------------------- |
+| `main`          | Refused. `main` moves through a merge of a pull request.             |
+| A branch        | The tip commit must pass the same verifier as the job `verify`.      |
+| A tag           | The tag must point at a gated commit, or at a merge commit.          |
+| A deletion      | Accepted.                                                            |
+
+The hook reads the signature of the tip commit with the local Git. A commit without a signature is refused. When this clone holds no signer list, the hook reports the signature and the job `verify` decides.
+
+Two emergency paths exist.
+
+| Path                                 | Effect                                              |
+| ------------------------------------ | --------------------------------------------------- |
+| `git push --no-verify`               | Git skips every hook.                               |
+| `DBRAIN_GATE_BYPASS=1 git push ...`  | The hook accepts every ref and prints a warning.     |
+
+The job `verify` stays red after either path. The brake stops an accident early. It does not replace the GitHub check.
 
 ### The trailer
 
@@ -91,6 +124,8 @@ The file `scripts/gate/checks.mjs` holds every check. It is the single source of
 | `desktop`       | GitHub | The desktop installers build on `main` and a tag.    |
 
 Each check has a path scope. The gate runs a local check only when the change touches its scope. The option `--full` runs every local check.
+
+The check `workflow-lint` caches the actionlint binary under `.gate/tools`. It verifies two pinned SHA256 values, so a changed cache is refused. A cold cache downloads the release one time. The variable `DBRAIN_GATE_TOOLS` moves the cache.
 
 A check with the runner `GitHub` never enters the trailer. Only a clean GitHub runner can run it. The job `build` of `gate.yml` and the release candidate are those checks.
 
@@ -317,6 +352,8 @@ The gate prints the plan and reports the refusal.
 Apply the policy again after an upgrade to GitHub Pro, or make the repository public.
 Until then the required check cannot exist, and the gate never asks for a merge.
 
+The local brake then carries the entry. It refuses a direct push to `main`, a commit without a trailer, and a commit without a signature. GitHub reports the verdict. The local machine refuses the push.
+
 Two items are manual.
 
 1. Register an SSH signing key on each author account. The verifier rejects an unsigned commit.
@@ -405,6 +442,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 
 5. Update `.github/pull_request_template.md` when a new release gate appears.
 6. Keep the check list in `scripts/gate/checks.mjs`. Never add a check to a workflow only. The verifier reads the list at the base commit.
 7. Change `scripts/gate/**` with the label `gate-change` and a review. The verifier rejects a change to the judge without one.
+8. Keep `scripts/gate/hooks/pre-push`. It is the brake of a repository without a ruleset.
 
 ## Related manuals
 

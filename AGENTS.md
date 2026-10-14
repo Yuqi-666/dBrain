@@ -66,6 +66,7 @@ pnpm test:release
 pnpm build                    # builds the server and the web app
 pnpm gate --dry-run -m "chore: check"   # runs the checks and writes the push gate trailer
 pnpm gate:policy              # prints the GitHub policy of the push gate
+pnpm gate:hooks               # installs the local pre-push brake. `pnpm gate` does it too.
 pnpm dev:desktop              # needs Rust and the native libraries
 ```
 
