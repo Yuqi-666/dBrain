@@ -44,10 +44,12 @@ jobs:
     # The verifier reads the labels of the pull request to decide a
     # protected-path change. The workflow sets `contents: read` for every job,
     # which leaves every other scope at `none`, so the label read needs its own
-    # grant.
+    # grant. The labels of a pull request answer to both scopes, so the job
+    # asks for both.
     permissions:
       contents: read
       issues: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
