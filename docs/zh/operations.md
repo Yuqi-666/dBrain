@@ -49,7 +49,7 @@ sh update.sh vVERSION
 
 参数精确选择一组已测试的镜像。脚本拉取三个镜像并解析仓库 digest，停止服务，把完整的 PocketBase 数据卷复制到 `backups/`，写入 `compose.current.yml`，启动服务并等待健康检查。PocketBase 在打开数据库前准备迁移运行目录。后续手动运行 Compose 时保留并使用 `compose.current.yml`。若启动失败，脚本保持服务停止并输出备份位置。启动旧镜像前必须恢复匹配的数据库备份；旧镜像不能撤销迁移。脚本固定使用 Compose project `dbrain`。
 
-官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
+官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path [ssh-port]`；省略端口时使用 22。例如 `lyq@yuqi-666.cn /opt/dbrain 22000`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。非标准端口的 known_hosts 条目使用 `[host]:port`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
 
 ## PocketBase 结构更新
 
