@@ -5,38 +5,34 @@ run_dir="$data_dir/pb_migrations"
 state_file="$run_dir/.dbrain-migration-origin"
 mkdir -p "$run_dir"
 if [ ! -f "$state_file" ]; then
-  if [ -f "$data_dir/data.db" ]; then
-    origin=legacy
-    cutoff=0
-    base_file=-
-    base_sha=-
-  else
-    origin=base
-    cutoff=0
-    for file in /pb_migrations_changes/*.js; do
-      [ -f "$file" ] || continue
-      name="${file##*/}"
-      number="${name%%_*}"
-      [ "$number" -gt "$cutoff" ] && cutoff="$number"
-    done
-    set -- /pb_migrations_base/*.js
-    [ "$#" -eq 1 ] && [ -f "$1" ] || { echo '[migrations] expected one base script' >&2; exit 1; }
-    base_file="${1##*/}"
-    base_sha="$(sha256sum "$1" | cut -d ' ' -f 1)"
-    if [ -f "$run_dir/$base_file" ]; then
-      [ "$(sha256sum "$run_dir/$base_file" | cut -d ' ' -f 1)" = "$base_sha" ] || exit 1
-    else
-      cp "$1" "$run_dir/$base_file"
-    fi
+  if [ -f "$data_dir/data.db" ] || find "$run_dir" -maxdepth 1 -name '*.js' -print -quit | grep -q .; then
+    echo '[migrations] existing data predates the migration baseline; restore or migrate it explicitly' >&2
+    exit 1
   fi
+  origin=base
+  cutoff=0
+  for file in /pb_migrations_changes/*.js; do
+    [ -f "$file" ] || continue
+    name="${file##*/}"
+    number="${name%%_*}"
+    [ "$number" -gt "$cutoff" ] && cutoff="$number"
+  done
+  set -- /pb_migrations_base/*.js
+  [ "$#" -eq 1 ] && [ -f "$1" ] || { echo '[migrations] expected one base script' >&2; exit 1; }
+  base_file="${1##*/}"
+  base_sha="$(sha256sum "$1" | cut -d ' ' -f 1)"
+  cp "$1" "$run_dir/$base_file"
   printf '%s %s %s %s\n' "$origin" "$cutoff" "$base_file" "$base_sha" > "$state_file.tmp"
   mv "$state_file.tmp" "$state_file"
 fi
 read -r origin cutoff base_file base_sha < "$state_file"
-case "$origin" in base|legacy) ;; *) echo '[migrations] invalid origin' >&2; exit 1 ;; esac
-if [ "$origin" = base ]; then
-  [ "$(sha256sum "$run_dir/$base_file" | cut -d ' ' -f 1)" = "$base_sha" ] || { echo '[migrations] installed base changed' >&2; exit 1; }
+set -- /pb_migrations_base/*.js
+[ "$#" -eq 1 ] && [ -f "$1" ] || { echo '[migrations] expected one base script' >&2; exit 1; }
+if [ "$origin" != base ] || [ "$base_file" != "${1##*/}" ]; then
+  echo '[migrations] data predates the migration baseline; restore or migrate it explicitly' >&2
+  exit 1
 fi
+[ "$(sha256sum "$run_dir/$base_file" | cut -d ' ' -f 1)" = "$base_sha" ] || { echo '[migrations] installed base changed' >&2; exit 1; }
 added=0
 for file in /pb_migrations_changes/*.js; do
   [ -f "$file" ] || continue

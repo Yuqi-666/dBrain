@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve, join } from "node:path";
-import { applyAdminConfig } from "./lib/pocketbase-admin.mjs";
+import { requireAdminConfig, upsertSuperuser } from "./lib/pocketbase-admin.mjs";
 import { prepareMigrations } from "./lib/pocketbase-migrations.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const binary = join(
@@ -19,14 +19,21 @@ const binary = join(
 // so a missing or incomplete `.env` stops the whole stack here (`concurrently -k`
 // takes the other processes down with it) instead of leaving the developer on a
 // placeholder account they cannot use.
-if (applyAdminConfig() !== 0) process.exit(1);
+const admin = requireAdminConfig();
 const dataDir = resolve(process.env.DBRAIN_PB_DATA_DIR ?? join(root, "pb/pb_data"));
+const runDir = join(dataDir, "pb_migrations");
 await prepareMigrations({
   dataDir,
   baseDir: join(root, "pb/pb_migrations_base"),
   changesDir: join(root, "pb/pb_migrations_changes"),
-  runDir: join(root, "pb/pb_migrations"),
+  runDir,
 });
+const adminResult = upsertSuperuser({ ...admin, directory: dataDir });
+if (adminResult.error || adminResult.status !== 0) {
+  console.error(`[pocketbase] could not ensure the operator account: ${adminResult.error?.message ?? `exit ${adminResult.status}`}`);
+  process.exit(1);
+}
+console.log(`[pocketbase] operator account ensured in ${dataDir}`);
 
 const child = spawn(
   binary,
@@ -34,7 +41,7 @@ const child = spawn(
     "serve",
     `--http=${process.env.DBRAIN_PB_HTTP ?? "127.0.0.1:8090"}`,
     `--dir=${dataDir}`,
-    `--migrationsDir=${join(root, "pb/pb_migrations")}`,
+    `--migrationsDir=${runDir}`,
     `--hooksDir=${join(root, "pb/pb_hooks")}`,
     "--automigrate=0",
   ],

@@ -8,32 +8,31 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
-test("new databases run their base and only later changes; legacy databases run change history", async () => {
+test("new databases run the genesis base and later changes; older databases are rejected", async () => {
   const root = await mkdtemp(join(tmpdir(), "dbrain-migrations-"));
   const baseDir = join(root, "base"), changesDir = join(root, "changes");
   await mkdir(baseDir); await mkdir(changesDir);
-  await writeFile(join(baseDir, "2100000000_base.js"), "base v1");
-  await writeFile(join(changesDir, "1700000000_initial.js"), "initial");
+  await writeFile(join(baseDir, "0000000001_base.js"), "base v1");
   const fresh = { dataDir: join(root, "fresh"), baseDir, changesDir, runDir: join(root, "fresh-run") };
   const old = { dataDir: join(root, "old"), baseDir, changesDir, runDir: join(root, "old-run") };
   try {
     await prepareMigrations(fresh);
-    assert.deepEqual((await readdir(fresh.runDir)).filter((name) => name.endsWith(".js")), ["2100000000_base.js"]);
-    await writeFile(join(baseDir, "2100000000_base.js"), "base v2");
+    assert.deepEqual((await readdir(fresh.runDir)).filter((name) => name.endsWith(".js")), ["0000000001_base.js"]);
+    await writeFile(join(baseDir, "0000000001_base.js"), "base v2");
     await writeFile(join(changesDir, "2200000000_next.js"), "next");
     await prepareMigrations(fresh);
-    assert.equal(await readFile(join(fresh.runDir, "2100000000_base.js"), "utf8"), "base v1");
+    assert.equal(await readFile(join(fresh.runDir, "0000000001_base.js"), "utf8"), "base v1");
     assert.ok((await readdir(fresh.runDir)).includes("2200000000_next.js"));
     await mkdir(old.dataDir);
     await writeFile(join(old.dataDir, "data.db"), "existing database marker");
-    await prepareMigrations(old);
-    assert.deepEqual((await readdir(old.runDir)).filter((name) => name.endsWith(".js")).sort(), ["1700000000_initial.js", "2200000000_next.js"]);
+    await assert.rejects(prepareMigrations(old), /predates the migration baseline/);
+    assert.deepEqual(await readdir(old.runDir), []);
     await writeFile(join(changesDir, "2200000000_next.js"), "rewritten history");
-    await assert.rejects(prepareMigrations(old), /Installed migration changed/);
+    await assert.rejects(prepareMigrations(fresh), /Installed migration changed/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("PocketBase opens both the current base and an upgraded historical database", async () => {
+test("PocketBase creates the current schema from the genesis base", async () => {
   const repo = fileURLToPath(new URL("../../", import.meta.url));
   const root = await mkdtemp(join(tmpdir(), "dbrain-pb-upgrade-"));
   const binary = join(repo, "pb", process.platform === "win32" ? "pocketbase.exe" : "pocketbase");
@@ -46,33 +45,12 @@ test("PocketBase opens both the current base and an upgraded historical database
     const fresh = { dataDir: join(root, "fresh"), runDir: join(root, "fresh-run"), baseDir, changesDir };
     await prepareMigrations(fresh);
     migrate(fresh.dataDir, fresh.runDir);
-    const old = { dataDir: join(root, "old"), runDir: join(root, "old-run"), baseDir, changesDir };
-    migrate(old.dataDir, changesDir);
-    const before = new DatabaseSync(join(old.dataDir, "data.db"), { readOnly: true });
-    const oldCount = before.prepare("select count(*) as count from _migrations").get().count;
-    before.close();
-    await prepareMigrations(old);
-    migrate(old.dataDir, old.runDir);
-    const database = new DatabaseSync(join(old.dataDir, "data.db"), { readOnly: true });
-    const after = database.prepare("select count(*) as count from _migrations").get().count;
-    assert.equal(after, oldCount);
     const freshDb = new DatabaseSync(join(fresh.dataDir, "data.db"), { readOnly: true });
-    const schema = (db) => {
-      const rows = db.prepare("select id, name, type, fields, indexes, listRule, viewRule, createRule, updateRule, deleteRule from _collections order by name").all();
-      const names = new Map(rows.map((row) => [row.id, row.name]));
-      return rows.filter((row) => !row.name.startsWith("_")).map(({ id, ...row }) => ({
-        ...row,
-        fields: JSON.parse(row.fields).map(({ id: fieldId, ...field }) => ({
-          ...field,
-          ...(field.collectionId ? { collectionId: names.get(field.collectionId) } : {}),
-        })),
-      }));
-    };
-    assert.deepEqual(schema(freshDb), schema(database));
+    const applied = freshDb.prepare("select file from _migrations").all().map((row) => row.file);
+    assert.ok(applied.includes("0000000001_base.js") || applied.includes("0000000001_base_schema.js"));
     const names = freshDb.prepare("select name from _collections").all().map((row) => row.name);
     assert.ok(names.includes("dashboard_configs"));
     assert.ok(names.includes("edge_semantics"));
     freshDb.close();
-    database.close();
   } finally { await rm(root, { recursive: true, force: true }); }
 });

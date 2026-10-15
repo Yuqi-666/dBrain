@@ -27,27 +27,26 @@ export async function prepareMigrations({ dataDir, baseDir, changesDir, runDir }
     let existing = false;
     try { existing = (await stat(join(dataDir, "data.db"))).isFile(); }
     catch (error) { if (error.code !== "ENOENT") throw error; }
-    state = existing
-      ? { origin: "legacy", cutoff: 0 }
-      : { origin: "base", cutoff: Math.max(0, ...changes.map((name) => Number(migrationName.exec(name)[1]))) };
-    if (state.origin === "base") {
-      const name = bases[0];
-      const bytes = await readFile(join(baseDir, name));
-      state.baseFile = name;
-      state.baseSha256 = digest(bytes);
-      try { await copyFile(join(baseDir, name), join(runDir, name), 1); }
-      catch (error) {
-        if (error.code !== "EEXIST" || digest(await readFile(join(runDir, name))) !== state.baseSha256) throw error;
-      }
+    if (existing || (await files(runDir)).length) {
+      throw new Error("Existing PocketBase data predates the migration baseline; restore or migrate it explicitly");
+    }
+    state = { origin: "base", cutoff: Math.max(0, ...changes.map((name) => Number(migrationName.exec(name)[1]))) };
+    const name = bases[0];
+    const bytes = await readFile(join(baseDir, name));
+    state.baseFile = name;
+    state.baseSha256 = digest(bytes);
+    try { await copyFile(join(baseDir, name), join(runDir, name), 1); }
+    catch (error) {
+      if (error.code !== "EEXIST" || digest(await readFile(join(runDir, name))) !== state.baseSha256) throw error;
     }
     await writeFile(`${statePath}.tmp`, `${state.origin} ${state.cutoff} ${state.baseFile ?? "-"} ${state.baseSha256 ?? "-"}\n`, { mode: 0o600 });
     await rename(`${statePath}.tmp`, statePath);
   }
-  if ((state.origin !== "base" && state.origin !== "legacy") || !Number.isSafeInteger(state.cutoff)) throw new Error("Invalid migration origin");
-  if (state.origin === "base") {
-    const bytes = await readFile(join(runDir, state.baseFile));
-    if (digest(bytes) !== state.baseSha256) throw new Error("Installed base migration changed");
+  if (state.origin !== "base" || state.baseFile !== bases[0] || !Number.isSafeInteger(state.cutoff)) {
+    throw new Error("PocketBase data predates the migration baseline; restore or migrate it explicitly");
   }
+  const bytes = await readFile(join(runDir, state.baseFile));
+  if (digest(bytes) !== state.baseSha256) throw new Error("Installed base migration changed");
   let copied = 0;
   for (const name of changes) {
     if (Number(migrationName.exec(name)[1]) <= state.cutoff) continue;

@@ -53,7 +53,7 @@ For an official server, register one `user@host /absolute/deployment/path` line 
 
 ## PocketBase schema updates
 
-`pb/pb_migrations_base/` contains one full current schema for a new database. `pb/pb_migrations_changes/` contains immutable changes for existing databases. `pb_migrations/` beside the database is the durable run directory. On first start, a new database receives the base script only. An existing database receives change scripts; PocketBase skips those already recorded as applied. On later starts, only changes newer than the new database's starting point are copied into its run directory. Keep that directory with the database and attachments in every backup. For each schema change, edit the base script and add a new higher numbered change script. Test both a new database and an upgrade of old data.
+`pb/pb_migrations_base/0000000001_base_schema.js` is the genesis schema for a new database. The change directory starts empty; future scripts there are immutable upgrades for databases created from this baseline. `pb_migrations/` beside the database is the durable run directory. On first start, a new database receives only the base script. On later starts, only changes newer than that database's starting point are copied into its run directory. Keep that directory with the database and attachments in every backup. Databases predating this baseline are unsupported and startup refuses them; preserve a backup if you need to migrate their data separately. For each future schema change, edit the base script and add a new higher numbered change script. Test both a new database and an upgrade from the previous supported version.
 
 ## Environment configuration
 
