@@ -58,7 +58,9 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-The updater checks the latest successful `main` Gate push every five minutes. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed; remove that marker only after recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. Stop it with `docker compose -f compose.updater.yml down`.
+The updater checks the latest successful `main` Gate push every 15 seconds. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed; remove that marker only after recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. The GitHub API allows 60 requests per hour without authentication. Set `DBRAIN_GITHUB_TOKEN` in `.env` to a GitHub token to raise that limit to 5000. The updater sends a conditional request, so an unchanged result costs no body. It waits for the hourly reset when the limit is reached. The interval and the token handling live in the updater image. Rebuild that container after a change to `deploy/updater/watch.sh`: `docker compose -f compose.updater.yml up -d --build`. Stop it with `docker compose -f compose.updater.yml down`.
+
+The updater calls Compose inside a container that mounts the deployment directory at `/deployment`. Compose resolves a relative path of a Compose file against its project directory. `update.sh` therefore passes the host path of the deployment directory as that project directory, so the `nginx.conf` bind mount stays on the host. It reads the path from the mount table of its own container. Set `DBRAIN_DEPLOYMENT_DIR` in `.env` to an absolute path only when that detection has no answer, for example with a named volume. A project directory inside the container makes the daemon create an empty directory on the host and the gateway then fails to start.
 
 ## PocketBase schema updates
 
@@ -74,6 +76,8 @@ The updater checks the latest successful `main` Gate push every five minutes. It
 | `DBRAIN_BIND_HOST` | The gateway host address. The default is `127.0.0.1`. |
 | `DBRAIN_PORT` | The gateway host port. The default is `3000`. |
 | `DBRAIN_AUTO_UPDATE` | `true` enables the separate updater; `false` pauses it. The default is `false`. |
+| `DBRAIN_GITHUB_TOKEN` | Optional token for the updater. It raises the GitHub API limit from 60 to 5000 requests per hour. A token for this public repository needs no scope. |
+| `DBRAIN_DEPLOYMENT_DIR` | The absolute host path of the deployment directory. It overrides the path that the updater detects. Usually empty. |
 | `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | The image name and tag of the source Compose. A release uses the digest overlay. |
 
@@ -123,6 +127,7 @@ For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.c
 | A page opens but loads without an end, or the API returns 403 | The proxy Host, the Origin, the WebSocket forwarding, and `DBRAIN_PUBLIC_ORIGIN`. |
 | pull reports a permission error | The private GHCR login and the package read permission. |
 | The upgrade looks like a new installation | The project name, the deployment directory, and the real `pb_data` volume. |
+| An automatic update stops the gateway | The project directory of the updater and a stray `/deployment` path on the host. |
 | A video or a PDF fails | The related backend log, the attachment access permission, and the runtime dependencies. |
 
 Logs can contain business information. Remove private data before you share a log. The admin CLI needs the correct data directory, `/pb_data` in the container. A wrong directory creates an empty database by accident.
