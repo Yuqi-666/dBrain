@@ -36,6 +36,7 @@ it may narrow the declaration of that file.
 
 `release.yml` reads a Gate run, compares the tag with the version, and creates a draft release.
 A person publishes the draft.
+After container candidates pass, `release-candidate.yml` runs `deploy/update.sh` over SSH for registered production targets. `release.yml` tags accepted images when a release is published.
 
 A pull request builds no product. The release candidate is the only clean-machine build.
 

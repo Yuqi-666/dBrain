@@ -15,7 +15,10 @@ apps/desktop/src-tauri/runtime
 **/.env*
 !deploy/.env.example
 pb/pb_data
+pb/pb_migrations
 pb/pocketbase*
+backups
+compose.current.yml
 **/*.pem
 **/*.key
 

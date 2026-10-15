@@ -23,9 +23,9 @@ Local Docker reuses the layers of the same builder. The GHA cache belongs to the
 
 ## Use a candidate or a release image
 
-Get the deployment directory from the matching candidate or release. Keep these files in the same directory: `docker-compose.yml`, `compose.release.yml`, `nginx.conf`, and `.env.example`. **The candidate assembly creates `compose.release.yml`. The file does not exist in the `deploy` directory.** Verify the source commit, the `SHA256SUMS` file, and the digests in the container report.
+Get the deployment directory from the matching candidate or release. Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env.example` in the same directory. A published release also contains `compose.release.yml`; a candidate does not. Verify the source commit, the `SHA256SUMS` file, and the digests in the container report.
 
-Run these commands in that deployment directory.
+For a published release, the following manual commands use its fixed digest overlay. Run them in that deployment directory.
 
 ```bash
 cp .env.example .env
@@ -36,7 +36,24 @@ docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-Add the release overlay to every pull and up command. The overlay pins the verified image digests. Do not rely on a mutable version tag only. Keep the deployment directory and the project name stable. A change creates a new volume by accident. No public release exists at this time. Complete a deployment verification before important data goes on an internal candidate.
+Use the same digest overlay for later Compose commands: `compose.release.yml` for this manual release setup, or `compose.current.yml` after running `update.sh`. Keep the deployment directory and the project name stable. A change creates a new volume by accident. No public release exists at this time. Complete a deployment verification before important data goes on an internal candidate.
+
+## Update with one command
+
+Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env` in one deployment directory. The candidate and release assets include the first three files. Run the script from that directory. For a private GHCR package, log in to `ghcr.io` first with a token that can read packages.
+
+```bash
+sh update.sh candidate-RUN_ID-ATTEMPT
+sh update.sh vVERSION
+```
+
+The argument selects exactly one tested image set. The script pulls the three images, resolves their registry digests, stops the stack, copies the complete PocketBase volume to `backups/`, writes `compose.current.yml`, starts the stack, and waits for health checks. PocketBase prepares its migration run directory before opening the database. Keep `compose.current.yml` with the deployment; use it for later manual Compose commands. If startup fails, the script leaves the stack stopped and prints the backup location. Restore the matching database backup before starting an older image; an old image alone cannot reverse a migration. The script uses the fixed Compose project `dbrain`.
+
+For an official server, register one `user@host /absolute/deployment/path` line in the repository variable `DBRAIN_DEPLOY_TARGETS`. Set `DBRAIN_DEPLOY_SSH_KEY` and `DBRAIN_DEPLOY_KNOWN_HOSTS` in the `production` environment. Give the SSH account Docker access and provision that directory with the deployment files and `.env`. After the main CI pushes the tested container candidate, it sends the current `deploy/update.sh` over SSH and passes `candidate-RUN_ID-ATTEMPT` to each registered host. A desktop signing failure does not block this container deployment.
+
+## PocketBase schema updates
+
+`pb/pb_migrations_base/` contains one full current schema for a new database. `pb/pb_migrations_changes/` contains immutable changes for existing databases. `pb_migrations/` beside the database is the durable run directory. On first start, a new database receives the base script only. An existing database receives change scripts; PocketBase skips those already recorded as applied. On later starts, only changes newer than the new database's starting point are copied into its run directory. Keep that directory with the database and attachments in every backup. For each schema change, edit the base script and add a new higher numbered change script. Test both a new database and an upgrade of old data.
 
 ## Environment configuration
 
@@ -61,7 +78,7 @@ DBRAIN_BIND_HOST=127.0.0.1
 DBRAIN_PORT=18080
 ```
 
-For a source deployment, run `docker compose -p dbrain up --build --wait`. For a release deployment, run this command.
+For a source deployment, run `docker compose -p dbrain up --build --wait`. For a manually installed release, run this command. After `update.sh`, replace `compose.release.yml` with `compose.current.yml`.
 
 ```bash
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
@@ -87,7 +104,7 @@ docker compose -p dbrain logs --tail=100 pocketbase server web gateway
 curl -fsS http://127.0.0.1:3000/health
 ```
 
-Add the two `-f` arguments to these commands in a release deployment. The same configuration must apply. The health endpoint shows only that the service is reachable. Verify the login, the workspace, the attachments, and the media too.
+For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.current.yml` to these commands. For a manually installed release, use `compose.release.yml` as the second file. The same configuration must apply. The health endpoint shows only that the service is reachable. Verify the login, the workspace, the attachments, and the media too.
 
 | Symptom | First verify |
 | --- | --- |
@@ -104,7 +121,7 @@ Logs can contain business information. Remove private data before you share a lo
 
 Stop the writes first, then stop the full service group. Back up the complete `pb_data` volume in the stopped state. The volume holds the SQLite database and the attachments. Record the real volume name. Keep the deployment configuration of the same version, the image digests, and the secret configuration. Limit the access to the backup. Verify a restore regularly.
 
-The next example backs up the files of a source deployment. Add the two `-f` arguments to every Compose command in a release deployment.
+The next example backs up the files of a source deployment. For an image deployment, add `-f docker-compose.yml` and the matching digest overlay to every Compose command.
 
 ```bash
 docker compose -p dbrain stop

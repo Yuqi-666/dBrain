@@ -23,9 +23,9 @@ docker compose -p dbrain ps
 
 ## 使用候选或发行镜像
 
-从匹配的候选或 Release 获取部署目录。确保以下文件同级：`docker-compose.yml`、`compose.release.yml`、`nginx.conf`、`.env.example`。**`compose.release.yml` 由候选组装生成。`deploy` 目录中没有该文件。** 验证来源 commit、`SHA256SUMS` 和容器报告中的 digest。
+从匹配的候选或 Release 获取部署目录。确保 `docker-compose.yml`、`nginx.conf`、`update.sh`、`.env.example` 同级。已发布的 Release 还包含 `compose.release.yml`，候选没有。验证来源 commit、`SHA256SUMS` 和容器报告中的 digest。
 
-在该部署目录执行：
+已发布 Release 可手动使用其固定 digest 的覆盖层。在该部署目录执行：
 
 ```bash
 cp .env.example .env
@@ -36,7 +36,24 @@ docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-每次 pull 和 up 都带发行覆盖层。覆盖层固定已验证的镜像 digest。不要只依赖可变版本标签。部署目录和 project 名保持稳定。改动会误建新卷。当前没有公开正式发行。内部候选完成部署验证后才能承载重要数据。
+后续 Compose 命令使用同一个 digest 覆盖层：此处手动部署使用 `compose.release.yml`，运行 `update.sh` 后使用 `compose.current.yml`。部署目录和 project 名保持稳定。改动会误建新卷。当前没有公开正式发行。内部候选完成部署验证后才能承载重要数据。
+
+## 一条命令更新
+
+在同一个部署目录保留 `docker-compose.yml`、`nginx.conf`、`update.sh` 和 `.env`。候选与 Release 资产包含前三个文件。在该目录运行脚本。若 GHCR 包是私有的，先使用有读取包权限的令牌登录 `ghcr.io`。
+
+```bash
+sh update.sh candidate-RUN_ID-ATTEMPT
+sh update.sh vVERSION
+```
+
+参数精确选择一组已测试的镜像。脚本拉取三个镜像并解析仓库 digest，停止服务，把完整的 PocketBase 数据卷复制到 `backups/`，写入 `compose.current.yml`，启动服务并等待健康检查。PocketBase 在打开数据库前准备迁移运行目录。后续手动运行 Compose 时保留并使用 `compose.current.yml`。若启动失败，脚本保持服务停止并输出备份位置。启动旧镜像前必须恢复匹配的数据库备份；旧镜像不能撤销迁移。脚本固定使用 Compose project `dbrain`。
+
+官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
+
+## PocketBase 结构更新
+
+`pb/pb_migrations_base/` 保存新数据库使用的完整当前结构。`pb/pb_migrations_changes/` 保存现有数据库使用的不可改写变更。数据库旁的 `pb_migrations/` 是持久运行目录。首次启动时，新数据库只接收基线脚本。现有数据库接收变更脚本；PocketBase 跳过已记录为执行过的脚本。后续启动仅把晚于新库起点的变更复制到运行目录。备份时将该目录与数据库、附件一起保留。每次结构变更，都要修改基线脚本并增加一个编号更大的变更脚本。分别测试新库和旧数据升级。
 
 ## 环境配置
 
@@ -61,7 +78,7 @@ DBRAIN_BIND_HOST=127.0.0.1
 DBRAIN_PORT=18080
 ```
 
-源码部署运行 `docker compose -p dbrain up --build --wait`。发行部署运行：
+源码部署运行 `docker compose -p dbrain up --build --wait`。手动安装的 Release 运行下列命令；运行 `update.sh` 后，将 `compose.release.yml` 换成 `compose.current.yml`。
 
 ```bash
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
@@ -87,7 +104,7 @@ docker compose -p dbrain logs --tail=100 pocketbase server web gateway
 curl -fsS http://127.0.0.1:3000/health
 ```
 
-发行部署下这些命令要加两个 `-f` 参数。必须应用同一配置。健康接口只说明服务可达。还要验证登录、工作空间、附件和媒体。
+由 `update.sh` 管理的部署，给这些命令加上 `-f docker-compose.yml -f compose.current.yml`；手动安装的 Release 使用 `compose.release.yml` 作为第二个文件。必须应用同一配置。健康接口只说明服务可达。还要验证登录、工作空间、附件和媒体。
 
 | 现象 | 优先验证 |
 | --- | --- |
@@ -104,7 +121,7 @@ curl -fsS http://127.0.0.1:3000/health
 
 先停止写入，再停止整组服务。在停止状态备份完整的 `pb_data` 卷。该卷保存 SQLite 数据库和附件。记录实际卷名。保存同版本部署配置、镜像 digest 和密钥配置。限制备份的访问权限。定期验证恢复。
 
-下一个例子备份源码部署的文件。发行部署下每条 Compose 命令都要加两个 `-f` 参数。
+下一个例子备份源码部署的文件。镜像部署的每条 Compose 命令都要加上 `-f docker-compose.yml` 和相应的 digest 覆盖层。
 
 ```bash
 docker compose -p dbrain stop

@@ -79,6 +79,12 @@ jobs:
           key: next-v1-${{ runner.os }}-${{ matrix.target }}-desktop-${{ hashFiles('.node-version', 'pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mjs', 'apps/**/*.js', 'apps/**/*.json', 'packages/**/*.ts', 'packages/**/*.tsx', 'packages/**/*.js', 'packages/**/*.mjs', 'packages/**/*.json', 'backend/**/*.ts', 'backend/**/*.json', 'scripts/**/*.mjs', 'apps/**/*.css', 'packages/**/*.css', 'packages/**/*.scss', 'apps/*/public/**', 'packages/*/public/**', '*.json', '*.yaml', '!**/node_modules/**', '!**/.next/**', '!**/dist/**', '!**/target/**', '!**/runtime/**') }}
           restore-keys: next-v1-${{ runner.os }}-${{ matrix.target }}-desktop-${{ hashFiles('.node-version', 'pnpm-lock.yaml') }}-
       - run: pnpm release:check
+      - name: Require updater signing key
+        if: inputs.signed
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -135,15 +141,16 @@ jobs:
           fi
           verbosity=()
           if [ "$RUNNER_OS" = "Linux" ]; then verbosity=(--verbose); fi
-          if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then
-            pnpm --filter desktop tauri build --ci "${verbosity[@]}" --config "$DBRAIN_TAURI_SIGNING_CONFIG" -- --locked
-          else
-            pnpm --filter desktop tauri build --ci "${verbosity[@]}" -- --locked
-          fi
+          configs=()
+          if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then configs+=(--config "$DBRAIN_TAURI_SIGNING_CONFIG"); fi
+          if [ "$DBRAIN_BUILD_SIGNED" = "true" ]; then configs+=(--config '{"bundle":{"createUpdaterArtifacts":true}}'); fi
+          pnpm --filter desktop tauri build --ci "${verbosity[@]}" "${configs[@]}" -- --locked
         env:
           APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
           APPLE_API_KEY: ${{ inputs.signed && secrets.APPLE_API_KEY || '' }}
           APPLE_API_ISSUER: ${{ inputs.signed && secrets.APPLE_API_ISSUER || '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signed && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signed && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
       - if: runner.os == 'Linux'
         run: node scripts/release/verify-linux-package.mjs
       - if: inputs.signed && runner.os == 'macOS'

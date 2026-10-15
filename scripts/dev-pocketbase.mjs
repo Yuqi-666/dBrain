@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve, join } from "node:path";
 import { applyAdminConfig } from "./lib/pocketbase-admin.mjs";
+import { prepareMigrations } from "./lib/pocketbase-migrations.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const binary = join(
   root,
@@ -19,13 +20,20 @@ const binary = join(
 // takes the other processes down with it) instead of leaving the developer on a
 // placeholder account they cannot use.
 if (applyAdminConfig() !== 0) process.exit(1);
+const dataDir = resolve(process.env.DBRAIN_PB_DATA_DIR ?? join(root, "pb/pb_data"));
+await prepareMigrations({
+  dataDir,
+  baseDir: join(root, "pb/pb_migrations_base"),
+  changesDir: join(root, "pb/pb_migrations_changes"),
+  runDir: join(root, "pb/pb_migrations"),
+});
 
 const child = spawn(
   binary,
   [
     "serve",
     `--http=${process.env.DBRAIN_PB_HTTP ?? "127.0.0.1:8090"}`,
-    `--dir=${resolve(process.env.DBRAIN_PB_DATA_DIR ?? join(root, "pb/pb_data"))}`,
+    `--dir=${dataDir}`,
     `--migrationsDir=${join(root, "pb/pb_migrations")}`,
     `--hooksDir=${join(root, "pb/pb_hooks")}`,
     "--automigrate=0",

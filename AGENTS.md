@@ -73,7 +73,7 @@ pnpm dev:desktop              # needs Rust and the native libraries
 ## Repository rules
 
 1. Do not commit `node_modules`, build output, runtime resources, a real `.env`, or a local database.
-2. Do not edit a released PocketBase migration. Add a new migration file instead.
+2. For a schema change, update the PocketBase base migration and add a new change migration. Never edit a released change migration.
 3. Change business behavior in `backend/domain` or `backend/application` first. Then update the adapters and the UI.
 4. Add a JavaScript dependency in the correct workspace package and update `pnpm-lock.yaml`. Add a Rust dependency and update `Cargo.lock`.
 5. Write a user-facing manual in `docs/` and its Chinese version in `docs/zh/`. Keep the two files in step.
