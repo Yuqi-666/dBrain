@@ -157,16 +157,15 @@ Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) expl
 | Promote develop to main | On a clean, current `develop`, run `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The lists must match `release.json`. The main CI tags and builds the candidate. |
 | Repeat a publishable candidate build for an existing tag | Manually start `gate.yml` with `release=true`. Publication requires its Gate run ID. |
 | Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
-| Accept a candidate | Download and test the candidate. Fill `docs/release-acceptance/vVERSION.json` and merge the record. |
 | Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
-| Publish an accepted release in the same run | Manually start `release.yml` with the same inputs and `publish=true`. |
+| Publish a verified release directly | Manually start `release.yml` with the same inputs and `publish=true`. |
 | Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect; an administrator runs `pnpm gate:policy --apply` to apply. |
 
 `pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.
 
 ## Daily maintenance
 
-Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Before a promotion, sync the current `main` tip into `develop` through a gated PR if necessary. A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
+Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Promotion checks the planned merge. It needs a sync PR only if `main` has content missing from `develop` or the merge conflicts. A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
 
 When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and verify the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, verify the runtime, the installers, and the backup-restore of the affected platforms again.
 

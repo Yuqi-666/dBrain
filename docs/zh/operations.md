@@ -19,7 +19,7 @@ docker compose -p dbrain up --build --wait
 docker compose -p dbrain ps
 ```
 
-本机 Docker 复用同一 builder 的已有层。GHA 缓存属于远端工作流，本地 Compose 不下载它。该构建使用当前源码，不是已验收发行镜像。打开 `http://localhost:3000`，验证页面、用户登录和文件功能。
+本机 Docker 复用同一 builder 的已有层。GHA 缓存属于远端工作流，本地 Compose 不下载它。该构建使用当前源码，不是已发布的发行镜像。打开 `http://localhost:3000`，验证页面、用户登录和文件功能。
 
 ## 使用候选或发行镜像
 

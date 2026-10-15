@@ -157,16 +157,15 @@ Cargo 验证前准备 Tauri 配置要求的运行时和前端资源。Server smo
 | 将 develop 晋升到 main | 在干净且已更新的 `develop` 上运行 `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`。列表必须与 `release.json` 一致。main 的 CI 打标签并构建候选。 |
 | 重跑现有标签的可发布候选构建 | 手动启动 `gate.yml` 并设置 `release=true`。发布需要这次 Gate 的 run ID。 |
 | 诊断候选的部分平台 | 手动启动 `release-candidate.yml`，用 `desktop_targets` 或 `container_platforms` 选择已声明平台的子集。这次独立运行不能传给 `release.yml`。 |
-| 验收候选 | 下载并测试候选。填写 `docs/release-acceptance/vVERSION.json`，然后合并记录。 |
 | 创建发布草稿 | 从 `main` 手动启动 `release.yml`，提供候选 Gate run ID、标签和 `publish=false`。 |
-| 在同次运行中发布已验收版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
+| 直接发布已验证版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
 | 查看或应用仓库门控策略 | 用 `pnpm gate:policy` 查看；管理员用 `pnpm gate:policy --apply` 应用。 |
 
 `pnpm gate` 会提交工作区中的全部改动。运行前先提交或暂存无关工作。
 
 ## 日常维护
 
-从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升前，如有需要，先通过受门控的 PR 把当前 `main` 顶端同步进 `develop`。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
+从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升会检查计划中的合并结果。只有 `main` 有 `develop` 缺少的内容，或合并发生冲突时，才需要同步 PR。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
 
 新增 JavaScript 依赖时，更新对应 workspace 包和 `pnpm-lock.yaml`。新增 Rust 依赖时，更新 `Cargo.lock`。不要修改已发行迁移。新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台。验证运行时、安装包和备份恢复。
 

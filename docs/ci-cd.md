@@ -1,12 +1,12 @@
 # CI/CD pipeline
 
-The pipeline runs in two places. The local workspace checks a change and pushes it. GitHub verifies the work, builds the products, and publishes an accepted release.
+The pipeline runs in two places. The local workspace checks a change and pushes it. GitHub verifies the work, builds the products, and publishes a verified release.
 
 The pipeline has three gates.
 
 1. The local gate runs in the workspace. One command checks the change, commits it, and pushes the branch. A local hook refuses a push that skipped the command.
 2. The GitHub gate reads the trailer of that commit. It runs no check again. It accepts the commit or rejects it.
-3. The build gates make the products on a clean runner and publish an accepted release.
+3. The build gates make the products on a clean runner and publish a verified release.
 
 The manual has two parts. The section "Push gate" describes the local entry and the verifier. The sections from "The stages after the merge" describe the build and the release.
 
@@ -34,14 +34,13 @@ flowchart TD
     J --> K["Verify tag and declared platforms"]
     K --> L["Build desktop installers and container images in parallel"]
     L --> M["Assemble candidate artifact"]
-    M --> N["Person tests candidate and commits acceptance record"]
-    N --> O["Manually start release.yml"]
-    O --> P["Verify run, tag, acceptance, signatures, and image digests"]
+    M --> O["Manually start release.yml with run ID and tag"]
+    O --> P["Verify run, tag, candidate files, signatures, and image digests"]
     P -->|Fail| Q["Refuse publication"]
     P -->|Pass| R["Create GitHub Release draft"]
-    R --> S{"publish input true?"}
+    R --> S{"publish input true? Default: true"}
     S -->|Yes| T["Publish in the same run"]
-    S -->|No| U["Person publishes draft later"]
+    S -->|No| U["Keep draft"]
 ```
 
 A manual start of `gate.yml` with `release=true` repeats a publishable candidate build. A direct start of `release-candidate.yml` can diagnose selected platforms, but `release.yml` accepts only a Gate run ID. The publication workflow always starts manually.
@@ -199,7 +198,7 @@ Rule 6 keeps the identity of the author. A signature proves a claim. It does not
 
 ### The merge gate
 
-Every change reaches `main` or `develop` as a merge commit. The job `merged` reads that commit. A promotion PR verifies each merge on the first-parent history of `develop` since the `main` tip.
+Every change reaches `main` or `develop` as a merge commit. The job `merged` reads that commit. A promotion PR verifies each new merge on the first-parent history of `develop`. The gate also checks that merging `main` with `develop` produces exactly the `develop` file tree. A previous promotion merge on `main` does not require a sync PR. If `main` has independent content or the merge conflicts, sync or resolve it before promotion.
 
 The commit must have two parents. The first parent is the previous tip of `main`, which an earlier run accepted. The second parent is the head of the pull request. The job makes these decisions about every parent after the first.
 
@@ -267,7 +266,7 @@ The script `scripts/release/platforms.mjs` holds the runner of each platform. Th
 
 The inputs `desktop_targets` and `container_platforms` only narrow the declaration, for a repeat after a failed platform build. A name outside the declaration is refused. A name that the runner table does not hold is refused as well.
 
-The candidate then holds the declared platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers.
+The candidate then holds the declared platforms only. The publication gate publishes only the platforms in that candidate.
 
 The job `desktop` builds the enabled targets. Each matrix job has a limit of 90 minutes. A disabled family is skipped, including its assembly and publication assets.
 
@@ -320,9 +319,9 @@ Encode each certificate file as one-line Base64 before adding it as a secret. On
 
 After the secrets are set, start a signed candidate for an existing tag from `main` with `gh workflow run gate.yml --ref main -f release=true`. Check that the macOS and Windows jobs pass signing verification and that `assemble` uploads `candidate-RUN_ID-ATTEMPT`. An unsigned diagnostic run cannot pass the publication gate. [GitHub's environment secret guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) shows where to add the secrets.
 
-The desktop updater uses a separate Tauri signing key. Generate it with `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key`. Put only the `.pub` file contents in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Store the private key as `TAURI_SIGNING_PRIVATE_KEY` in the `release` environment; set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` there if the key has a password. Never commit the private key. Signed desktop candidates include the updater bundle and `.sig` file. After acceptance, `release.yml` generates `latest.json` and publishes it with the signed bundles. Installed apps check the latest published release at startup. [Tauri's updater guide](https://v2.tauri.app/plugin/updater/) defines the signature and metadata formats. The updater downloads a complete bundle; it does not implement byte-level delta patches.
+The desktop updater uses a separate Tauri signing key. Generate it with `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key`. Put only the `.pub` file contents in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Store the private key as `TAURI_SIGNING_PRIVATE_KEY` in the `release` environment; set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` there if the key has a password. Never commit the private key. Signed desktop candidates include the updater bundle and `.sig` file. When published, `release.yml` generates `latest.json` and publishes it with the signed bundles. Installed apps check the latest published release at startup. [Tauri's updater guide](https://v2.tauri.app/plugin/updater/) defines the signature and metadata formats. The updater downloads a complete bundle; it does not implement byte-level delta patches.
 
-The container build pushes `candidate-RUN_ID-ATTEMPT` images after smoke tests. If `DBRAIN_DEPLOY_TARGETS` is set, the candidate workflow sends `deploy/update.sh` to each registered SSH server and selects that exact candidate. See [Operations](operations.md) for target registration and the self-hosted command. The desktop build can fail independently without blocking container deployment. Publishing an accepted release also gives the verified container digests a `vVERSION` tag, so the same update script can select a release.
+The container build pushes `candidate-RUN_ID-ATTEMPT` images after smoke tests. If `DBRAIN_DEPLOY_TARGETS` is set, the candidate workflow sends `deploy/update.sh` to each registered SSH server and selects that exact candidate. See [Operations](operations.md) for target registration and the self-hosted command. The desktop build can fail independently without blocking container deployment. Publishing a release also gives the verified container digests a `vVERSION` tag, so the same update script can select a release.
 
 The job `containers` builds the declared architectures.
 
@@ -357,30 +356,8 @@ The candidate artifact has the name `candidate-RUN_ID-ATTEMPT`. The retention pe
 | `containers/container-report.json`                         | Image digests for three services and each declared architecture |
 | `deployment/`                                              | `docker-compose.yml`, `nginx.conf`, and `.env.example`   |
 | `candidate-index.json`                                     | The identity of the candidate and a SHA256 for each file |
-| `acceptance-template.json`                                 | The empty acceptance record                              |
 
 Do not mix artifacts from different attempts. After a failure, use "Re-run all jobs". A re-run of one job only creates a new attempt, and the assembler then rejects the mix.
-
-## Acceptance gate
-
-A person downloads the candidate and tests it. The person then copies `acceptance-template.json` to `docs/release-acceptance/vVERSION.json`. Create the directory on the first record.
-
-The record must contain these values.
-
-- `reviewer`: a non-empty name.
-- `reviewedAt`: a date that the parser accepts.
-- `checks`: every item has the status `passed` and at least 10 characters of evidence.
-- `thirdPartyMaterials`: a public HTTPS address and a SHA256 value.
-- `candidateIndexSha256`: the hash of the candidate index.
-
-The acceptance items are these.
-
-| Group               | Items                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| Each desktop target | `installation`, `uninstall`, `csp`, `media`, `upgrade`, `process-exit`                    |
-| The product         | `third-party-materials`, `historical-data-migration`, `backup-restore`, `known-lint-debt` |
-
-The gate rejects a pending item, an empty evidence field, and a changed candidate. The value `candidateIndexSha256` binds the record to one candidate.
 
 ## Publication gate
 
@@ -394,12 +371,11 @@ The job verifies the run and the tag in this order.
 4. The candidate run is a successful run of `gate.yml` in this repository, on the default branch. The script `scripts/release/validate-run.mjs` makes this decision.
 5. The commit of the tag equals the head SHA of the candidate run.
 6. The head SHA is an ancestor of the current commit.
-7. The version is equal in the release files and the tag. The script `scripts/release/check.mjs` makes this decision. The version at the source commit is also equal to the tag.
-8. Every acceptance item passed. The script `scripts/release/candidate.mjs approve` makes this decision.
-9. A signed build with a verified signature exists for `win32-x64`, `darwin-x64`, and `darwin-arm64`.
-10. Every image digest in the report is valid. The script `scripts/release/verify-images.mjs` makes this decision.
+7. The version in `release.json` at the tagged source commit equals the tag. A newer version on the current default branch does not block an older candidate.
+8. `scripts/release/candidate.mjs publish` verifies the candidate identity, file inventory, build reports, and signed desktop updater artifacts.
+9. Every image digest in the report is valid. The script `scripts/release/verify-images.mjs` makes this decision.
 
-The job refuses to replace an existing release. It creates a draft, and a person publishes the draft. The input `publish` can publish the release in the same run.
+The job refuses to replace an existing release. It creates a draft and publishes it in the same run by default. Set `publish=false` to keep a draft. No acceptance file or manual test record is required.
 
 A tag with a suffix, for example `v0.1.0-rc.1`, creates a prerelease.
 
@@ -511,7 +487,7 @@ gh workflow run gate.yml --ref main -f release=true
 gh run list --workflow gate.yml
 gh run watch RUN_ID
 gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
-gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
+gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1
 ```
 
 A manual start of `gate.yml` repeats a publishable candidate for an existing tag. A direct start of `release-candidate.yml` can diagnose a subset of declared platforms, for example after a failed platform build. That standalone run cannot be passed to `release.yml`.

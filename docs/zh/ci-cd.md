@@ -2,13 +2,13 @@
 
 本手册是 [CI/CD 流水线（英文）](../ci-cd.md) 的中文版本。它保留 ASD-STE100 的结构规则。中文手册索引见 [README](README.md)。
 
-流水线在两个地方运行。本地工作区检查改动并推送。GitHub 验证工作、构建产物并发布已验收的发行。
+流水线在两个地方运行。本地工作区检查改动并推送。GitHub 验证工作、构建产物并发布已验证的发行。
 
 流水线有三道门。
 
 1. 本地门控在工作区运行。一条命令检查改动、提交并推送分支。一个本地钩子拒绝绕过该命令的推送。
 2. GitHub 门控读取该提交的 trailer。它不重跑任何检查。它接受或拒绝该提交。
-3. 构建门控在干净的 runner 上产出产物，并发布已验收的发行。
+3. 构建门控在干净的 runner 上产出产物，并发布已验证的发行。
 
 本手册分两部分。「推送门控」章节说明本地入口和验证器。「合并之后」及其后的章节说明构建与发布。
 
@@ -36,14 +36,13 @@ flowchart TD
     J --> K["验证标签和已声明的平台"]
     K --> L["并行构建桌面安装包与容器镜像"]
     L --> M["组装候选工件"]
-    M --> N["人工测试候选并提交验收记录"]
-    N --> O["手动启动 release.yml"]
-    O --> P["验证运行、标签、验收、签名和镜像摘要"]
+    M --> O["输入 run ID 和标签，手动启动 release.yml"]
+    O --> P["验证运行、标签、候选文件、签名和镜像摘要"]
     P -->|失败| Q["拒绝发布"]
     P -->|通过| R["创建 GitHub Release 草稿"]
-    R --> S{"publish 输入为 true？"}
+    R --> S{"publish 为 true？默认 true"}
     S -->|是| T["同次运行发布"]
-    S -->|否| U["人员稍后发布草稿"]
+    S -->|否| U["保留草稿"]
 ```
 
 手动启动 `gate.yml` 并设置 `release=true`，可以重跑可发布的候选构建。直接启动 `release-candidate.yml` 可以诊断指定平台，但 `release.yml` 只接受 Gate run ID。发布工作流始终手动启动。
@@ -201,7 +200,7 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 ### 合并门
 
-每个改动都以 merge commit 进入 `main` 或 `develop`。作业 `merged` 读取该提交。晋升 PR 会验证从 `main` 顶端到 `develop` 顶端的每个第一父提交合并。
+每个改动都以 merge commit 进入 `main` 或 `develop`。作业 `merged` 读取该提交。晋升 PR 会验证 `develop` 第一父历史中的每个新增合并。门控还会确认 `main` 与 `develop` 的合并结果恰好等于 `develop` 的文件树。`main` 上次晋升产生的合并提交不再需要同步 PR。如果 `main` 有独立内容，或合并发生冲突，需要先同步或解决差异。
 
 该提交必须有两个父提交。第一个父提交是 `main` 的上一个顶端提交，它已由更早的一次运行接受。第二个父提交是 PR 的头部。作业对第一个之后的每个父提交做以下判定。
 
@@ -269,7 +268,7 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 
 输入 `desktop_targets` 与 `container_platforms` 只用于收窄声明，例如某个平台构建失败后的重试。名称不在声明中时会被拒绝。runner 表不包含的名称同样会被拒绝。
 
-候选随后只保存已声明的平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。
+候选随后只保存已声明的平台。发布闸门只发布该候选包含的平台。
 
 随后作业 `desktop` 构建已启用的目标。每个矩阵作业的时限为 90 分钟。未启用的类别及其组装、发布资产都会跳过。
 
@@ -322,9 +321,9 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 配置机密后，在 `main` 上为已有标签启动签名候选：`gh workflow run gate.yml --ref main -f release=true`。确认 macOS 和 Windows 作业通过签名验证，且 `assemble` 上传 `candidate-RUN_ID-ATTEMPT`。未签名的诊断构建不能通过发布闸门。[GitHub 环境机密指南](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)说明了添加位置。
 
-桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`；若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。已签名桌面候选包含更新包和 `.sig` 文件。验收后，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包；它不支持按字节差异传输的补丁。
+桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`；若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。已签名桌面候选包含更新包和 `.sig` 文件。发布时，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包；它不支持按字节差异传输的补丁。
 
-容器构建通过冒烟测试后推送 `candidate-RUN_ID-ATTEMPT` 镜像。设置 `DBRAIN_DEPLOY_TARGETS` 后，候选工作流通过 SSH 向每台登记服务器发送 `deploy/update.sh` 并选择该候选。目标登记与个人自部署命令见[运维手册](operations.md)。桌面构建单独失败不会阻止容器部署。发布已验收的 Release 时，已验证的容器 digest 也会获得 `vVERSION` 标签，因此同一更新脚本可以选择 Release。
+容器构建通过冒烟测试后推送 `candidate-RUN_ID-ATTEMPT` 镜像。设置 `DBRAIN_DEPLOY_TARGETS` 后，候选工作流通过 SSH 向每台登记服务器发送 `deploy/update.sh` 并选择该候选。目标登记与个人自部署命令见[运维手册](operations.md)。桌面构建单独失败不会阻止容器部署。发布 Release 时，已验证的容器 digest 也会获得 `vVERSION` 标签，因此同一更新脚本可以选择 Release。
 
 作业 `containers` 构建已声明的架构。
 
@@ -359,30 +358,8 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 | `containers/container-report.json` | 三个服务、每个已声明架构的镜像 digest |
 | `deployment/` | `docker-compose.yml`、`nginx.conf` 和 `.env.example` |
 | `candidate-index.json` | 候选身份以及每个文件的 SHA256 |
-| `acceptance-template.json` | 空的验收记录 |
 
 不要混用不同 attempt 的制品。失败后请使用「Re-run all jobs」。只重跑一个作业会产生新的 attempt，组装程序会拒绝混用。
-
-## 验收门禁
-
-由人下载候选并测试。然后该人把 `acceptance-template.json` 复制为 `docs/release-acceptance/vVERSION.json`。首次记录时创建该目录。
-
-记录必须包含以下值。
-
-- `reviewer`：非空姓名。
-- `reviewedAt`：解析器接受的日期。
-- `checks`：每一项状态为 `passed`，且证据至少 10 个字符。
-- `thirdPartyMaterials`：公开 HTTPS 地址和 SHA256 值。
-- `candidateIndexSha256`：候选索引的哈希。
-
-验收项如下。
-
-| 分组 | 项目 |
-| --- | --- |
-| 每个桌面目标 | `installation`、`uninstall`、`csp`、`media`、`upgrade`、`process-exit` |
-| 产品 | `third-party-materials`、`historical-data-migration`、`backup-restore`、`known-lint-debt` |
-
-门禁拒绝待办项、空证据字段和被改动的候选。值 `candidateIndexSha256` 把记录绑定到一个候选。
 
 ## 发布门禁
 
@@ -396,12 +373,11 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 4. 候选运行是本仓库中 `gate.yml` 的一次成功运行，且在默认分支上。脚本 `scripts/release/validate-run.mjs` 做此判定。
 5. 标签所在的提交等于候选运行的 head SHA。
 6. head SHA 是当前提交的祖先。
-7. 发布文件中的版本等于标签。脚本 `scripts/release/check.mjs` 做此判定。源提交上的版本也等于标签。
-8. 所有验收项都通过。脚本 `scripts/release/candidate.mjs approve` 做此判定。
-9. `win32-x64`、`darwin-x64` 和 `darwin-arm64` 都有签名且签名已验证的构建。
-10. 报告中的每个镜像 digest 都有效。脚本 `scripts/release/verify-images.mjs` 做此判定。
+7. 标签指向的源提交中，`release.json` 的版本等于标签。当前默认分支已进入新版本时，旧候选仍可发布。
+8. `scripts/release/candidate.mjs publish` 验证候选身份、文件清单、构建报告和桌面更新包签名。
+9. 报告中的每个镜像 digest 都有效。脚本 `scripts/release/verify-images.mjs` 做此判定。
 
-作业拒绝覆盖已存在的 Release。它创建草稿，由人发布该草稿。输入 `publish` 可以在同一次运行中发布 Release。
+作业拒绝覆盖已存在的 Release。默认在同次运行中创建草稿并发布；设置 `publish=false` 可仅保留草稿。无需验收文件或人工测试记录。
 
 带后缀的标签（例如 `v0.1.0-rc.1`）创建预发布。
 
@@ -513,7 +489,7 @@ gh workflow run gate.yml --ref main -f release=true
 gh run list --workflow gate.yml
 gh run watch RUN_ID
 gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
-gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
+gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1
 ```
 
 手动启动 `gate.yml` 可以重跑现有标签的可发布候选。直接启动 `release-candidate.yml` 可以诊断已声明平台的子集，例如某个平台构建失败后。这次独立运行不能传给 `release.yml`。
