@@ -114,6 +114,8 @@ Tauri 的 `beforeDevCommand` 和 `beforeBuildCommand` 先准备运行时，再�
 
 ## 提交前检查
 
+人在终端运行 `pnpm gate`，按提示填写。自动化可用 `pnpm gate --until=plan` 查看改动路径选出的检查。后续阶段会在提交前运行这些检查。下面的命令用于定位某项检查的问题，或准备全量发布检查。
+
 ```bash
 pnpm release:check
 pnpm check-types
@@ -134,10 +136,38 @@ Cargo 验证前准备 Tauri 配置要求的运行时和前端资源。Server smo
 
 `pnpm lint:gate` 与已有基线比较。它阻止新增诊断。这不代表仓库零警告。修复旧诊断后，用 `node scripts/release/lint-gate.mjs --update-baseline` 缩减基线。扩大基线要在代码审查中说明原因。
 
+## 选择 CI/CD 操作
+
+从仓库根目录运行这些命令。[CI/CD 流水线](ci-cd.md)说明门控和发布证据。
+
+| 意图 | 操作 |
+| --- | --- |
+| 预览本次改动的检查 | `pnpm gate --until=plan` |
+| 定位某项检查的问题 | 运行对应命令，例如 `pnpm check-types`、`pnpm lint:gate`、`pnpm test:release` 或 `pnpm build`。 |
+| 只运行检查，不提交 | `pnpm gate --until=check` |
+| 检查并提交，但暂不推送 | `pnpm gate --until=commit -m "type(scope): subject"` |
+| 检查、提交并推送 | `pnpm gate --until=push -m "type(scope): subject"` |
+| 创建 PR，但不请求自动合并 | `pnpm gate --until=pr -m "type(scope): subject"` |
+| 创建 PR 后请求自动合并 | `pnpm gate --until=merge -m "type(scope): subject"` |
+| 运行全部本地检查 | 在所选阶段添加 `--full`。 |
+| 修改门控脚本或工作流 | 用 `--until=pr` 或 `--until=merge`。PR 还需要 `gate-change` 标签和人工复核。 |
+| 开发功能或修复 | 从 `develop` 创建分支，然后运行 `pnpm gate --until=merge -m "type(scope): subject"`。PR 进入 `develop`。 |
+| 紧急修复生产问题 | 从 `main` 创建 `hotfix/NAME` 分支，然后运行 `pnpm gate --until=merge -m "fix(scope): subject" --version=VERSION`。Gate 同步版本，并同时创建面向 `main` 和 `develop` 的 PR。 |
+| 准备新版本和平台 | 从 `develop` 创建 `release/VERSION` 分支。运行 `pnpm gate --until=merge -m "chore(release): prepare VERSION" --version=VERSION --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`。PR 进入 `develop`。 |
+| 将 develop 晋升到 main | 在干净且已更新的 `develop` 上运行 `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`。列表必须与 `release.json` 一致。main 的 CI 打标签并构建候选。 |
+| 重跑现有标签的可发布候选构建 | 手动启动 `gate.yml` 并设置 `release=true`。发布需要这次 Gate 的 run ID。 |
+| 诊断候选的部分平台 | 手动启动 `release-candidate.yml`，用 `desktop_targets` 或 `container_platforms` 选择已声明平台的子集。这次独立运行不能传给 `release.yml`。 |
+| 验收候选 | 下载并测试候选。填写 `docs/release-acceptance/vVERSION.json`，然后合并记录。 |
+| 创建发布草稿 | 从 `main` 手动启动 `release.yml`，提供候选 Gate run ID、标签和 `publish=false`。 |
+| 在同次运行中发布已验收版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
+| 查看或应用仓库门控策略 | 用 `pnpm gate:policy` 查看；管理员用 `pnpm gate:policy --apply` 应用。 |
+
+`pnpm gate` 会提交工作区中的全部改动。运行前先提交或暂存无关工作。
+
 ## 日常维护
 
-从 `main` 创建短期开发分支。向 `main` 或 `develop` 发起 PR。非草稿 PR 运行按路径选择的 CI。推送到 `main` 也运行 CI。普通开发分支和推送到 `develop` 不额外运行一轮。
+从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升前，如有需要，先通过受门控的 PR 把当前 `main` 顶端同步进 `develop`。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
 
 新增 JavaScript 依赖时，更新对应 workspace 包和 `pnpm-lock.yaml`。新增 Rust 依赖时，更新 `Cargo.lock`。不要修改已发行迁移。新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台。验证运行时、安装包和备份恢复。
 
-用 `pnpm release:version VERSION` 同步版本，然后运行 `pnpm release:check`。构建和发布入口见 [CI/CD 流水线](ci-cd.md)。远端 CI 保存 Next.js、Rust 依赖和 Docker 层缓存。缓存只保存中间数据，不跳过验证。冷构建或被淘汰的缓存仍执行每一步。命中和维护方法见该手册的缓存章节。
+在 `release/*` 分支用 `pnpm gate` 选择版本和平台；需要诊断版本文件时再运行 `pnpm release:check`。构建和发布入口见 [CI/CD 流水线](ci-cd.md)。远端 CI 保存 Next.js、Rust 依赖和 Docker 层缓存。缓存只保存中间数据，不跳过验证。冷构建或被淘汰的缓存仍执行每一步。命中和维护方法见该手册的缓存章节。

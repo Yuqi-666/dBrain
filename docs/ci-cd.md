@@ -10,32 +10,79 @@ The pipeline has three gates.
 
 The manual has two parts. The section "Push gate" describes the local entry and the verifier. The sections from "The stages after the merge" describe the build and the release.
 
-## Push gate
+## Pipeline overview
 
-The pipeline starts in the local workspace. One command runs the checks, commits the change, and pushes the branch.
-
-```bash
-pnpm gate -m "feat(graph): add a density slider"
+```mermaid
+flowchart TD
+    A["Developer runs pnpm gate"] --> B["Run local checks for changed paths"]
+    B -->|Fail| X["Stop before commit and push"]
+    B -->|Pass| C["Sign commit and write Gate trailer"]
+    C --> D["Pre-push hook checks commit; push branch and open PR"]
+    D --> E{"Branch route"}
+    E -->|feature, fix, release| E1["PR to develop"]
+    E -->|hotfix| E2["PRs to main and develop"]
+    E1 --> V["gate.yml verify"]
+    E2 --> V
+    V -->|Pass| P["Merge into develop"]
+    P --> R["pnpm gate on develop: select declared platforms and open promotion PR"]
+    R --> F["Merge develop into main"]
+    E2 --> F
+    V -->|Fail| Y["Required check blocks merge"]
+    F --> G["gate.yml merged: verify merge and gated parents"]
+    G -->|Fail| Z["Merge verification fails"]
+    G -->|Pass| J["Create vVERSION tag at the main commit"]
+    J --> K["Verify tag and declared platforms"]
+    K --> L["Build desktop installers and container images in parallel"]
+    L --> M["Assemble candidate artifact"]
+    M --> N["Person tests candidate and commits acceptance record"]
+    N --> O["Manually start release.yml"]
+    O --> P["Verify run, tag, acceptance, signatures, and image digests"]
+    P -->|Fail| Q["Refuse publication"]
+    P -->|Pass| R["Create GitHub Release draft"]
+    R --> S{"publish input true?"}
+    S -->|Yes| T["Publish in the same run"]
+    S -->|No| U["Person publishes draft later"]
 ```
 
-This command is the only entry. It reads the check list from `scripts/gate/checks.mjs`. It writes a trailer into the commit message. Then it pushes the branch and opens a pull request.
+A manual start of `gate.yml` with `release=true` repeats a publishable candidate build. A direct start of `release-candidate.yml` can diagnose selected platforms, but `release.yml` accepts only a Gate run ID. The publication workflow always starts manually.
+
+## Push gate
+
+The pipeline starts in the local workspace. A person runs `pnpm gate` and answers the prompts. Automation supplies the last stage and the commit subject directly.
+
+```bash
+pnpm gate
+pnpm gate --until=pr -m "feat(graph): add a density slider"
+```
+
+Both forms use one straight path: `plan → check → commit → push → pr → merge`. `--until` stops after the named stage. The branch selects the route. Normal branches target `develop`; `hotfix/*` opens PRs to both `main` and `develop`; running on clean `develop` opens its promotion PR to `main`. The promotion path uses the existing merge history, so its commit and push stages report that no new commit or direct push is needed.
+
+Prepare a release on a `release/*` branch. The gate accepts `--version`, `--desktop-targets`, and `--container-platforms`, synchronizes the version files, and writes the platform declaration before checks. Merge that branch into `develop`, then run the gate on `develop` with the same platform lists to open the promotion PR. Every `main` merge needs a new version. The `main` CI creates its tag and immediately builds the candidate.
+
+Before writing a release or hotfix version, gate checks that it is newer than the target branch version and that `vVERSION` is free on `origin`. Promotion repeats this check against `main`. Do not create a version tag in advance; the main CI creates it at the tested main commit.
+
+The first rollout is a one-time bootstrap. While the trusted `main` commit lacks `scripts/gate/branches.mjs`, pass `--base=main` on the gate change branch to land the new verifier on `main`. Then bring the gate into `develop` through a PR. Until `develop` holds its own verifier, its CI reads the trusted verifier on `main`. It never reads the PR head copy. After both branches hold the new verifier, ordinary development branches route only to `develop`.
+
+`plan` changes no files. On a working branch, `check` stages the workspace and writes `.gate/last-run.json`; stopping there leaves the files staged. On `develop`, promotion requires a clean workspace and stages nothing. Stages from `commit` onward require a subject. Every stage prints a short result before the next one starts.
 
 The workflow `gate.yml` is the second gate. It answers one question. Did the author use the local entry on the tree that the change merges? It does not run a check again.
 
 ### The gate command
 
-| Option             | Effect                                                              |
-| ------------------ | ------------------------------------------------------------------- |
-| `-m "text"`        | The commit subject. Repeat the option for a body paragraph.          |
-| `--base BRANCH`    | The pull request base branch. The default is `main`.                 |
-| `--full`           | Run every local check, not only the checks in scope.                 |
-| `--release`        | The same full run, before a release tag.                             |
-| `--no-push`        | Check and commit, but do not push.                                   |
-| `--no-sign`        | Do not sign the commit. The verifier rejects an unsigned commit.     |
-| `--no-auto-merge`  | Do not ask GitHub to merge the pull request.                         |
-| `--allow-protected`| Allow a local run on `main` or `develop`.                            |
-| `--no-hooks`       | Do not install the local pre-push hook.                              |
-| `--dry-run`        | Print the check plan and the trailer. Change nothing.                |
+| Option | Effect |
+| --- | --- |
+| `--until STAGE` | Stop after `plan`, `check`, `commit`, `push`, `pr`, or `merge`. |
+| `-m "text"` | Commit subject. Required from `commit` onward. Repeat for a body paragraph. |
+| `--base BRANCH` | Assert a target selected by the branch route. |
+| `--version VERSION` | Synchronize the version on a `release/*` or `hotfix/*` branch. |
+| `--desktop-targets LIST` | Select declared desktop targets on a `release/*` branch; confirm them on `develop`. |
+| `--container-platforms LIST` | Select declared container platforms on a `release/*` branch; confirm them on `develop`. |
+| `--full` | Run every local check, not only the checks in scope. |
+| `--no-sign` | Do not sign the commit. The verifier rejects an unsigned commit. |
+| `--allow-protected` | Allow a local run on `main` or `develop`. |
+| `--no-hooks` | Do not install the local pre-push hook. |
+
+The `--until` option is the only way to select the stopping stage. `--full` controls check scope.
 
 The command stops before the commit when a check fails. It never forces a push.
 
@@ -71,7 +118,7 @@ The hook makes these decisions.
 
 | Push            | Decision                                                            |
 | --------------- | ------------------------------------------------------------------- |
-| `main`          | Refused. `main` moves through a merge of a pull request.             |
+| `main` or `develop` | Refused. Protected branches move through pull requests.         |
 | A branch        | The tip commit must pass the same verifier as the job `verify`.      |
 | A tag           | The tag must point at a gated commit, or at a merge commit.          |
 | A deletion      | Accepted.                                                            |
@@ -115,6 +162,7 @@ The file `scripts/gate/checks.mjs` holds every check. It is the single source of
 | `release-check` | The version and the lock files agree.                |
 | `syntax`        | Every automation script parses.                      |
 | `workflow-lint` | actionlint accepts every workflow file.              |
+| `repository-yaml` | The Dependabot and issue-template YAML files parse. |
 | `typecheck`     | The TypeScript type checker accepts the workspace.   |
 | `lint-gate`     | No new lint diagnostic appears.                      |
 | `unit`          | The release and library tests pass.                  |
@@ -129,10 +177,10 @@ Every check runs in the local gate, and every check id enters the trailer. The l
 
 ### The verifier
 
-The jobs `verify` and `merged` copy `checks.mjs`, `scope.mjs`, `attest.mjs`, and `verify.mjs` from a trusted commit and run that copy. A change therefore cannot weaken the judge that reads it.
+The jobs `verify` and `merged` copy the gate verifier and its sibling modules from a trusted commit and run that copy. They fail if no trusted verifier exists. A change cannot weaken the judge that reads it.
 
 - The job `verify` reads the base commit of the pull request.
-- The job `merged` reads the previous tip of `main`.
+- The job `merged` reads the previous tip of `main` or `develop`. Before develop receives its first verifier, both jobs may read the protected main tip.
 
 The verifier takes about 30 seconds. It installs no dependency. It makes these decisions.
 
@@ -151,7 +199,7 @@ Rule 6 keeps the identity of the author. A signature proves a claim. It does not
 
 ### The merge gate
 
-Every change reaches `main` as a merge commit. The job `merged` reads that commit.
+Every change reaches `main` or `develop` as a merge commit. The job `merged` reads that commit. A promotion PR verifies each merge on the first-parent history of `develop` since the `main` tip.
 
 The commit must have two parents. The first parent is the previous tip of `main`, which an earlier run accepted. The second parent is the head of the pull request. The job makes these decisions about every parent after the first.
 
@@ -159,31 +207,31 @@ The commit must have two parents. The first parent is the previous tip of `main`
 2. The tree of the parent equals `Gate-Tree`.
 3. The commit signature is valid.
 
-A push that is not a merge commit fails. A direct push to `main` cannot pass the ruleset.
+A push that is not a merge commit fails. A direct push to either protected branch cannot pass the ruleset.
 
 ## The stages after the merge
 
 | Stage      | Workflow and job                                | Trigger                    | Product                                                |
 | ---------- | ----------------------------------------------- | -------------------------- | ------------------------------------------------------ |
-| Verify     | `gate.yml`, job `verify`                        | A pull request to `main`   | The gate verdict on the trailer                        |
-| Merge      | `gate.yml`, job `merged`                        | A push to `main`           | The gate verdict on the merge                          |
-| Tag        | `gate.yml`, job `tag`                           | A push to `main`           | The version tag, for a new version                      |
-| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | A new tag              | The products of the declared platforms, and one candidate |
+| Verify     | `gate.yml`, job `verify`                        | A PR to `main` or `develop` | The gate verdict on the branch route and commits      |
+| Merge      | `gate.yml`, job `merged`                        | A push to `main` or `develop` | The gate verdict on the merge                       |
+| Tag        | `gate.yml`, job `tag`                           | A push to `main`           | The version tag at this main commit                     |
+| Candidate  | `gate.yml`, job `release` → `release-candidate.yml` | Every main push        | The declared products and one candidate                |
 | Publication| `release.yml`                                   | A manual start             | A draft release, or a published release                 |
 
-A pull request builds no product. The merge to `main` builds no product either. The release candidate is the only clean-machine build, so an ordinary merge costs one runner of about 30 seconds.
+A pull request builds no product. Every successful merge to `main` starts a clean-machine candidate build.
 
 The product build reads the declaration in `scripts/release/release.json`. The next section describes the declaration.
 
 ### The tag
 
-The job `tag` reads the version from `scripts/release/release.json`. A version bump is the release signal.
+The job `tag` reads the version from `scripts/release/release.json` on every main push.
 
-- The version did not change in this merge: the job stops. No release starts.
-- The tag exists: the job reports it and stops.
+- The tag exists at another commit: the job fails. Increase the version before the merge.
+- The tag exists at this commit: the job uses it for a repeated candidate run.
 - The tag is missing: the job creates `vVERSION` at the pushed commit and pushes the tag.
 
-The job `release` then calls `release-candidate.yml` when the tag is new. A manual start of `gate.yml` with `release=true` repeats the candidate for an existing tag, for example after a failed platform build.
+The job `release` then calls `release-candidate.yml` on every main push. A manual start of `gate.yml` with `release=true` repeats the candidate for an existing tag, for example after a failed platform build.
 
 ## Release candidate
 
@@ -213,7 +261,7 @@ One file declares the release. `scripts/release/release.json` holds the version 
 }
 ```
 
-A person edits that file. The local gate checks it, the merge carries it, and the version tag pins it. The candidate then builds exactly the platforms in the file at the tag. This example releases Linux only.
+The gate writes that file from the platform options on a `release/*` branch. The local checks verify it, the merge into `develop` carries it, and the main tag pins it. The candidate builds exactly the platforms in the file at the tag. This example releases Linux only.
 
 The script `scripts/release/platforms.mjs` holds the runner of each platform. That table is the universe. A declared name outside it stops the local gate and the job `verify-tag`, before a runner starts.
 
@@ -342,7 +390,8 @@ pnpm gate:policy --apply
 | Auto-merge                     | On                                                       | The local gate asks GitHub to merge the pull request.        |
 | Auto-merge, effective          | Only when `verify` is a required check                    | Without the required check, GitHub merges the request at once. The gate then leaves the merge to you. |
 | Merge methods                  | Merge commit only                                        | The job `merged` reads the second parent of the merge commit.|
-| Pull request                   | Required for `main`                                      | A direct push to `main` cannot bypass the gate.              |
+| Delete merged source branch    | Off                                                      | A hotfix branch must remain for its second PR.                |
+| Pull request                   | Required for `main` and `develop`                        | A direct push cannot bypass the gate.                        |
 | Status checks                  | `verify`, from GitHub Actions, and the branch must be current | The gate must pass before the merge.                    |
 | Force push and branch deletion | Blocked                                                  | A gated commit cannot leave the history.                     |
 | Label                          | `gate-change` exists                                     | A person attaches it to approve a change to the gate itself. A label must exist before a pull request can carry it. |
@@ -357,7 +406,7 @@ The gate prints the plan and reports the refusal.
 Apply the policy again after an upgrade to GitHub Pro, or make the repository public.
 Until then the required check cannot exist, and the gate never asks for a merge.
 
-The local brake then carries the entry. It refuses a direct push to `main`, a commit without a trailer, and a commit without a signature. GitHub reports the verdict. The local machine refuses the push.
+The local brake then carries the entry. It refuses a direct push to `main` or `develop`, a commit without a trailer, and a commit without a signature. GitHub reports the verdict. The local machine refuses the push.
 
 Two items are manual.
 
@@ -389,10 +438,10 @@ A cold build runs every step. A failed Docker cache export does not fail the bui
 
 ## Reproduce the pipeline locally
 
-The push gate reproduces the checks in one command. It writes the trailer and commits the change. The option `--dry-run` changes nothing.
+The push gate runs stages in order. `--until=plan` prints the check plan without staging files or running checks.
 
 ```bash
-pnpm gate --dry-run -m "chore: inspect the gate"
+pnpm gate --until=plan
 ```
 
 Run these commands from the repository root. Use them for a diagnosis of one check.
@@ -438,7 +487,7 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
-A manual start repeats the candidate of an existing tag. Leave the platform inputs empty to build the whole declaration. Set one input to repeat a part of it, for example after a failed platform build.
+A manual start of `gate.yml` repeats a publishable candidate for an existing tag. A direct start of `release-candidate.yml` can diagnose a subset of declared platforms, for example after a failed platform build. That standalone run cannot be passed to `release.yml`.
 
 ```bash
 gh workflow run gate.yml --ref main -f release=true

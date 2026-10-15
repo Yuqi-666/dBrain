@@ -39,17 +39,10 @@ export function matchesAny(path, globs) {
   return globs.some(glob => (glob === '*' ? true : globToRegExp(glob).test(path)));
 }
 
-// The documentation list of the pipeline. A manual-only change skips every
-// check except the checks with the scope `*`.
+// Text manuals skip code checks. A script under docs/ or a repository YAML
+// file still reaches its applicable checks.
 export function isDocumentation(path) {
-  return (
-    path.endsWith('.md') ||
-    path.startsWith('docs/') ||
-    path.startsWith('.agents/') ||
-    path.startsWith('.github/ISSUE_TEMPLATE/') ||
-    path === 'LICENSE' ||
-    path === '.github/dependabot.yml'
-  );
+  return path.endsWith('.md') || path === 'LICENSE';
 }
 
 export function codePaths(paths) {

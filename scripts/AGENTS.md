@@ -40,7 +40,7 @@ Several scripts publish images or change a live host.
 `gate/checks.mjs` holds the check list. It is the single source of truth.
 `gate/scope.mjs` maps a changed path to a check.
 `gate/attest.mjs` builds and reads the commit trailer.
-`gate/run.mjs` runs the checks, the commit, and the push.
+`gate/run.mjs` runs the stages from plan through merge. With no arguments it prompts a person; automation sets `--until` and the required inputs. `gate/branches.mjs` routes ordinary branches to develop, hotfix branches to main and develop, and develop to main. Release branches synchronize the version and platform declaration before checks. The runner refuses a version that does not advance or whose remote tag already exists.
 `gate/verify.mjs` is the CI verifier. The workflow copies the base-commit file and runs the copy.
 `gate/apply-ruleset.mjs` prints the GitHub policy of the gate. The flag `--apply` writes it.
 `gate/hook.mjs` is the local brake. It runs as a `pre-push` hook. The root script `pnpm gate:hooks` installs the hook into `.git/hooks`.
@@ -56,5 +56,5 @@ The gate writes its report to `.gate/last-run.json`. The file stays out of Git.
 4. Shrink `release/lint-baseline.json` only after you fix the diagnostics. Use `node scripts/release/lint-gate.mjs --update-baseline`.
 5. Add a test as a `.test.mjs` file next to the script. The root command `pnpm test:release` collects them.
 6. Never print a secret. The local `.env` file and `pb/pb_data/.superuser-credentials.txt` hold real credentials.
-7. Keep `gate/checks.mjs` as data and `gate/scope.mjs` and `gate/attest.mjs` free of imports except Node.js built-ins. The CI verifier loads those three files from the base commit.
+7. Keep `gate/checks.mjs` as data and `gate/scope.mjs`, `gate/attest.mjs`, and `gate/branches.mjs` free of imports except Node.js built-ins. The CI verifier loads those files from the base commit.
 8. Add a check to `gate/checks.mjs` first. Never add a check to a workflow only. Add the test as a `.test.mjs` file next to the module.

@@ -10,7 +10,7 @@ The workflows call the scripts in `scripts/release/` and `scripts/gate/`.
 
 | Workflow | Trigger | Product |
 | --- | --- | --- |
-| `workflows/gate.yml` | A pull request to `main`, a push to `main`, or a manual start | The gate verdict and the version tag |
+| `workflows/gate.yml` | A pull request or push to `main` or `develop`, or a manual start | The gate verdict, main tag, and main candidate |
 | `workflows/release-candidate.yml` | A call from `gate.yml`, or a manual start | The products of the declared platforms, and one candidate |
 | `workflows/container-build.yml` | A call from another workflow | Images in GHCR for the declared platforms and a digest report |
 | `workflows/desktop-build.yml` | A call from another workflow, or a manual start | Desktop installers for the declared targets and their hashes |
@@ -21,12 +21,13 @@ The workflows call the scripts in `scripts/release/` and `scripts/gate/`.
 | Job | Function |
 | --- | --- |
 | `verify` | Reads the trailer of a pull request head. It runs on a pull request. |
-| `merged` | Reads the parents of a merge commit on `main`. |
-| `tag` | Creates the version tag when a merge changes the version in `release.json`. |
-| `release` | Calls `release-candidate.yml` for a new tag. |
+| `merged` | Reads the parents of a merge commit on `main` or `develop`. |
+| `tag` | Creates or verifies the version tag on every main push. |
+| `release` | Calls `release-candidate.yml` on every main push. |
 
 The jobs `verify` and `merged` copy the verifier from a trusted commit and run the copy.
-A change therefore cannot weaken its own judge.
+During the first develop bootstrap, they use the protected main commit if develop has no verifier.
+They fail when neither trusted source has one. A change cannot weaken its own judge.
 
 `release-candidate.yml` is a reusable workflow now. The job `release` of `gate.yml`
 calls it. The job `verify-tag` reads the platforms from `scripts/release/release.json`

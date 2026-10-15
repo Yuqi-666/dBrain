@@ -1,11 +1,11 @@
 // Applies the GitHub side policy of the push gate.
 //
-// The repository must make the gate the only way into the main branch:
+// The repository must make the gate the only way into main and develop:
 //
 //   1. Auto-merge is on, so the local gate can hand the merge to GitHub.
 //   2. Only a merge commit can join the main branch. The job `merged` reads
 //      the second parent of that commit.
-//   3. A pull request is required, so a direct push to the main branch fails.
+//   3. A pull request is required, so a direct push to either branch fails.
 //   4. The status check `verify` is required, and the branch must be current.
 //   5. The label `gate-change` exists, so a person can approve a change to the
 //      gate itself. A label must exist before a pull request can carry it.
@@ -17,7 +17,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gateChangeLabel } from './checks.mjs';
 
-export const rulesetName = 'dBrain main gate';
+export const rulesetName = 'dBrain protected branches gate';
+export const legacyRulesetName = 'dBrain main gate';
 export const requiredCheck = 'verify';
 // The GitHub Actions application. A required check from another application
 // cannot satisfy the rule.
@@ -30,13 +31,13 @@ Print the GitHub policy of the push gate. Pass --apply to write it.
 Options:
   --apply              Write the repository settings and the ruleset.
   --repo OWNER/NAME    The repository. The default is the current gh repository.
-  --branch NAME        The protected branch. The default is main.
+  --branch NAME        Protect one branch. The default protects main and develop.
   --check NAME         The required status check. The default is ${requiredCheck}.
   -h, --help           Print this text.
 `;
 
 export function parseArgs(argv) {
-  const options = { apply: false, repository: null, branch: 'main', check: requiredCheck, help: false };
+  const options = { apply: false, repository: null, branch: null, check: requiredCheck, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--apply') options.apply = true;
@@ -60,7 +61,7 @@ export function repoSettings() {
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: true,
+    delete_branch_on_merge: false,
   };
 }
 
@@ -75,12 +76,12 @@ export function labelPayload() {
   };
 }
 
-export function rulesetPayload({ branch = 'main', check = requiredCheck } = {}) {
+export function rulesetPayload({ branch = null, check = requiredCheck } = {}) {
   return {
     name: rulesetName,
     target: 'branch',
     enforcement: 'active',
-    conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
+    conditions: { ref_name: { include: (branch ? [branch] : ['main', 'develop']).map(name => `refs/heads/${name}`), exclude: [] } },
     rules: [
       {
         type: 'pull_request',
@@ -108,7 +109,8 @@ export function rulesetPayload({ branch = 'main', check = requiredCheck } = {}) 
 }
 
 export function planRuleset(existing, payload) {
-  const found = (existing ?? []).find(entry => entry.name === payload.name);
+  const found = (existing ?? []).find(entry => entry.name === payload.name) ??
+    (existing ?? []).find(entry => entry.name === legacyRulesetName);
   return found ? { action: 'update', id: found.id } : { action: 'create', id: null };
 }
 

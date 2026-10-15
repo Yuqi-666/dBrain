@@ -28,14 +28,13 @@ test('the glob matcher follows the documented rules', () => {
   assert.ok(matchesAny('a/b/c', ['*']));
 });
 
-test('the documentation list matches the release scope script', () => {
-  for (const path of ['README.md', 'docs/a.md', '.agents/a.md', '.github/ISSUE_TEMPLATE/bug.yml', 'LICENSE', '.github/dependabot.yml']) {
+test('only text manuals and LICENSE skip code checks', () => {
+  for (const path of ['README.md', 'docs/a.md', '.agents/a.md', 'LICENSE']) {
     assert.ok(isDocumentation(path), path);
   }
-  for (const path of ['src/a.ts', '.github/workflows/container-build.yml', 'scripts/gate/run.mjs']) {
+  for (const path of ['src/a.ts', 'docs/a.ts', '.github/ISSUE_TEMPLATE/bug.yml', '.github/dependabot.yml', '.github/workflows/container-build.yml', 'scripts/gate/run.mjs']) {
     assert.ok(!isDocumentation(path), path);
   }
-  assert.ok(isDocumentation('docs/a.ts'), 'the docs/ prefix wins over the file suffix');
   assert.deepEqual(codePaths(['README.md', 'src/a.ts']), ['src/a.ts']);
 });
 
@@ -49,6 +48,15 @@ test('a change selects the checks in its scope', () => {
   assert.deepEqual(requiredCheckIds(['.github/workflows/container-build.yml'], definition), [
     'release-check',
     'workflow-lint',
+  ]);
+  assert.deepEqual(requiredCheckIds(['.github/dependabot.yml'], definition), [
+    'release-check',
+    'repository-yaml',
+  ]);
+  assert.deepEqual(requiredCheckIds(['docs/tool.mjs'], definition), [
+    'release-check',
+    'lint-gate',
+    'unit',
   ]);
   assert.deepEqual(requiredCheckIds(['backend/domain/src/node.ts'], definition), [
     'release-check',

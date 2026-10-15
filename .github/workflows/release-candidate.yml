@@ -1,7 +1,7 @@
 name: Release candidate
 
 # Builds the products of one version tag. The gate workflow calls this workflow
-# when a new tag appears on the main branch. A manual start repeats a failed
+# after each main push. A manual start repeats a failed
 # platform build, because the tag then already exists.
 #
 # The platforms come from `scripts/release/release.json` at that tag. A person

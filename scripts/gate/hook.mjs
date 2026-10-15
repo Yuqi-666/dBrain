@@ -12,8 +12,8 @@
 //
 // The hook makes these decisions.
 //
-// 1. A push that writes `main` directly is refused. `main` moves through a
-//    merge of a pull request.
+// 1. A push that writes `main` or `develop` directly is refused. Both move
+//    through a merge of a pull request.
 // 2. The tip of a pushed branch must pass the verifier in `verify.mjs`.
 // 3. A pushed tag must point at a gated commit or at a merge commit.
 // 4. A commit without a signature is refused. The job `verify` rejects one.
@@ -39,6 +39,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checks, protocol, protectedPaths, trackedDeny } from './checks.mjs';
 import { createGit, verifyGate } from './verify.mjs';
+import { branchRoute } from './branches.mjs';
 
 const definition = { protocol, checks, protectedPaths, trackedDeny };
 
@@ -49,7 +50,7 @@ export const hookDirectory = 'scripts/gate/hooks';
 export const stubMarker = 'dbrain-local-push-gate';
 
 /** The branch that a direct push may not write. */
-export const protectedBranch = 'main';
+export const protectedBranch = 'develop';
 
 /** The variable that turns the hook off for one push. */
 export const bypassVariable = 'DBRAIN_GATE_BYPASS';
@@ -104,7 +105,9 @@ export function parsePushRefs(text) {
 // The base of the comparison. It is the same base that `pnpm gate` uses, so
 // the hook and the gate select the same checks.
 export function baseCommit({ git, head, branch = protectedBranch }) {
-  for (const ref of [branch, `origin/${branch}`]) {
+  for (const ref of [`origin/${branch}`, branch, 'origin/main', 'main']) {
+    const full = ref.startsWith('origin/') ? `refs/remotes/${ref}` : `refs/heads/${ref}`;
+    if (tryGit(git, ['for-each-ref', '--format=%(refname)', full]) !== full) continue;
     const base = tryGit(git, ['merge-base', ref, head]);
     if (base) return base;
   }
@@ -185,9 +188,9 @@ export async function evaluatePush({ refs, git, verifySignature, branch = protec
       continue;
     }
 
-    if (target === `refs/heads/${branch}`) {
+    if (target === 'refs/heads/main' || target === 'refs/heads/develop') {
       failures.push(
-        `The push writes ${branch} directly. Work on a branch. \`pnpm gate\` pushes the branch and opens a pull request.`,
+        `The push writes a protected branch directly. Work on a branch. \`pnpm gate\` pushes the branch and opens a pull request.`,
       );
       continue;
     }
@@ -205,9 +208,11 @@ export async function evaluatePush({ refs, git, verifySignature, branch = protec
       }
     }
 
+    const route = branchRoute(target.replace(/^refs\/heads\//, ''));
+    const comparisonBranch = route?.bases[0] ?? branch;
     const checked = target.startsWith('refs/tags/')
-      ? await checkTag(ref, { git, verifySignature, branch })
-      : await checkBranch(ref, { git, verifySignature, branch });
+      ? await checkTag(ref, { git, verifySignature, branch: 'main' })
+      : await checkBranch(ref, { git, verifySignature, branch: comparisonBranch });
     failures.push(...checked.failures);
     notes.push(...checked.notes);
   }
@@ -337,7 +342,7 @@ export async function hookCommand(deps = {}) {
 
   io.log('The local push gate rejects this push.');
   for (const failure of result.failures) io.log(`- ${failure}`);
-  io.log('Run `pnpm gate -m "type(scope): subject"`. The command checks the change and writes the trailer.');
+  io.log('Run `pnpm gate` in a terminal, or `pnpm gate --until=pr -m "type(scope): subject"`. The command checks the change and writes the trailer.');
   io.log(`An emergency push: ${bypassVariable}=1 git push ...`);
   return 1;
 }

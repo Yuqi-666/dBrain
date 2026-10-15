@@ -46,6 +46,14 @@ export const checks = [
     description: 'actionlint accepts every workflow file.',
   },
   {
+    id: 'repository-yaml',
+    runner: 'local',
+    required: true,
+    scope: ['.github/dependabot.yml', '.github/ISSUE_TEMPLATE/**'],
+    command: 'pnpm exec prettier .github/dependabot.yml .github/ISSUE_TEMPLATE/*.yml > /dev/null',
+    description: 'Repository configuration YAML parses.',
+  },
+  {
     id: 'typecheck',
     runner: 'local',
     required: true,

@@ -26,8 +26,36 @@ import {
   findProtected,
   requiredCheckIds,
 } from './scope.mjs';
+import { validPullRoute } from './branches.mjs';
 
 const defaultDefinition = { protocol, checks, protectedPaths, trackedDeny };
+
+export function versionIncreases(before, after) {
+  const parse = value => /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(.*))?$/.exec(value ?? '');
+  const left = parse(before);
+  const right = parse(after);
+  if (!left || !right) return false;
+  for (let index = 1; index <= 3; index += 1) {
+    const delta = Number(right[index]) - Number(left[index]);
+    if (delta !== 0) return delta > 0;
+  }
+  if (!left[4] && right[4]) return false;
+  if (left[4] && !right[4]) return true;
+  if (!left[4] || !right[4]) return false;
+  const oldParts = left[4].split('.');
+  const newParts = right[4].split('.');
+  for (let index = 0; index < Math.max(oldParts.length, newParts.length); index += 1) {
+    if (oldParts[index] === undefined) return true;
+    if (newParts[index] === undefined) return false;
+    const oldNumber = /^[0-9]+$/.test(oldParts[index]);
+    const newNumber = /^[0-9]+$/.test(newParts[index]);
+    if (oldNumber !== newNumber) return !newNumber;
+    if (oldParts[index] !== newParts[index]) {
+      return oldNumber ? Number(newParts[index]) > Number(oldParts[index]) : newParts[index] > oldParts[index];
+    }
+  }
+  return false;
+}
 
 export function createGit(cwd) {
   return args =>
@@ -115,6 +143,16 @@ export async function verifyGate(options, deps = {}) {
     );
   }
 
+  if (options.headBranch?.startsWith('hotfix/') && options.baseBranch === 'main' && options.baseSha) {
+    try {
+      const before = JSON.parse(git(['show', `${options.baseSha}:scripts/release/release.json`]));
+      const after = JSON.parse(git(['show', `${head}:scripts/release/release.json`]));
+      if (!versionIncreases(before.version, after.version)) failures.push('A hotfix into main must increase the release version for its candidate.');
+    } catch (error) {
+      failures.push(`Cannot compare hotfix release versions: ${error.message}`);
+    }
+  }
+
   const signature = await verifySignature({ repository: options.repository, sha: head });
   details.signature = signature;
   if (signature.verified === true) {
@@ -130,8 +168,40 @@ export async function verifyGate(options, deps = {}) {
   return { ok: failures.length === 0, failures, notes, details };
 }
 
-// A merge on the main branch must come from gated commits. The first parent is
-// the previous main tip, which an earlier run of this check accepted. Every
+export async function verifyPromotionGate(options, deps = {}) {
+  const git = deps.git ?? createGit(options.repoDir ?? process.cwd());
+  const failures = [];
+  const notes = [];
+  const details = {};
+  if (!options.baseSha || !options.headSha) {
+    return { ok: false, failures: ['Promotion needs both the main and develop commits.'], notes, details };
+  }
+  const ancestor = git(['merge-base', options.baseSha, options.headSha]);
+  if (ancestor !== options.baseSha) failures.push('The main tip is not an ancestor of develop. Sync main into develop first.');
+  const commits = git(['rev-list', '--first-parent', '--reverse', `${options.baseSha}..${options.headSha}`]).split('\n').filter(Boolean);
+  if (commits.length === 0) failures.push('Develop has no new merge to promote.');
+  for (const commit of commits) {
+    const result = await verifyMergeGate({ ...options, headSha: commit }, deps);
+    failures.push(...result.failures.map(item => `${commit}: ${item}`));
+  }
+  try {
+    const before = JSON.parse(git(['show', `${options.baseSha}:scripts/release/release.json`]));
+    const after = JSON.parse(git(['show', `${options.headSha}:scripts/release/release.json`]));
+    if (!versionIncreases(before.version, after.version)) failures.push('Promotion must increase the release version before main builds a candidate.');
+    if (!Array.isArray(after.desktopTargets) || !after.desktopTargets.length || !Array.isArray(after.containerPlatforms) || !after.containerPlatforms.length) {
+      failures.push('Promotion must declare desktop and container platforms.');
+    }
+    details.version = after.version;
+    details.desktopTargets = after.desktopTargets;
+    details.containerPlatforms = after.containerPlatforms;
+  } catch (error) {
+    failures.push(`Cannot read the release declaration: ${error.message}`);
+  }
+  return { ok: failures.length === 0, failures, notes, details };
+}
+
+// A merge on a protected branch must come from gated commits. The first parent is
+// the previous branch tip, which an earlier run of this check accepted. Every
 // other parent is a change that arrived through a pull request.
 export async function verifyMergeGate(options, deps = {}) {
   const definition = options.definition ?? defaultDefinition;
@@ -156,6 +226,13 @@ export async function verifyMergeGate(options, deps = {}) {
 
   const gated = [];
   for (const parent of parents.slice(1)) {
+    const sourceParents = git(['rev-list', '--parents', '-n', '1', parent]).split(' ').slice(1);
+    if (sourceParents.length >= 2) {
+      const nested = await verifyMergeGate({ ...options, headSha: parent }, deps);
+      failures.push(...nested.failures.map(item => `The merged parent ${parent}: ${item}`));
+      if (nested.ok) gated.push(parent);
+      continue;
+    }
     const trailers = parseTrailers(git(['log', '-1', '--format=%B', parent]));
     if (!trailers) {
       failures.push(`The parent ${parent} has no Gate trailer.`);
@@ -248,12 +325,16 @@ export function parseVerifyArgs(argv) {
     requireSignature: false,
     json: false,
     merge: false,
+    headBranch: null,
+    baseBranch: null,
   };
   for (const arg of argv) {
     if (arg.startsWith('--repo=')) options.repository = arg.slice('--repo='.length);
     else if (arg.startsWith('--base=')) options.base = arg.slice('--base='.length);
     else if (arg.startsWith('--head=')) options.head = arg.slice('--head='.length);
     else if (arg.startsWith('--pr=')) options.pullNumber = arg.slice('--pr='.length);
+    else if (arg.startsWith('--head-branch=')) options.headBranch = arg.slice('--head-branch='.length);
+    else if (arg.startsWith('--base-branch=')) options.baseBranch = arg.slice('--base-branch='.length);
     else if (arg === '--merge') options.merge = true;
     else if (arg === '--advisory') options.advisory = true;
     else if (arg === '--require-signature') options.requireSignature = true;
@@ -275,7 +356,8 @@ export async function verifyCommand(argv, env = process.env) {
     pullNumber,
   })();
 
-  const check = options.merge ? verifyMergeGate : verifyGate;
+  const routeValid = options.merge || validPullRoute(options.headBranch ?? '', options.baseBranch ?? '');
+  const check = options.merge ? verifyMergeGate : options.headBranch === 'develop' ? verifyPromotionGate : verifyGate;
   const result = await check(
     {
       repository,
@@ -283,12 +365,18 @@ export async function verifyCommand(argv, env = process.env) {
       headSha: options.head ?? env.GATE_HEAD_SHA ?? 'HEAD',
       requireSignature: options.requireSignature,
       gateChangeApproved,
+      headBranch: options.headBranch,
+      baseBranch: options.baseBranch,
     },
     { verifySignature: githubSignatureVerifier({ token }) },
   );
 
+  if (!routeValid) {
+    result.ok = false;
+    result.failures.unshift(`The branch ${options.headBranch || '(missing)'} may not merge into ${options.baseBranch || '(missing)'}.`);
+  }
   const lines = [];
-  const subject = options.merge ? 'The merge on the main branch' : 'The push gate';
+  const subject = options.merge ? 'The merge on the protected branch' : 'The push gate';
   lines.push(result.ok ? `${subject} is accepted.` : `${subject} is rejected.`);
   for (const failure of result.failures) lines.push(`- ${failure}`);
   for (const note of result.notes) lines.push(`- Note: ${note}`);
