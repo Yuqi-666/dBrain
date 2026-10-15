@@ -23,7 +23,7 @@ Local Docker reuses the layers of the same builder. The GHA cache belongs to the
 
 ## Use a candidate or a release image
 
-Get the deployment directory from the matching candidate or release. Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env.example` in the same directory. A published release also contains `compose.release.yml`; a candidate does not. Verify the source commit, the `SHA256SUMS` file, and the digests in the container report.
+For releases after v0.1.3, download `dbrain-deploy-vVERSION.tar.gz` and `SHA256SUMS` from the matching release. Check the archive hash, then extract it into the deployment directory. The archive holds `docker-compose.yml`, `nginx.conf`, `update.sh`, `.env.example`, `compose.release.yml`, and `container-report.json` at its root. Keep these files together. v0.1.3 published the same deployment files as separate assets; download them individually and rename `default.env.example` to `.env.example`. Verify the source commit and image digests in the container report.
 
 For a published release, the following manual commands use its fixed digest overlay. Run them in that deployment directory.
 
@@ -36,11 +36,11 @@ docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-Use the same digest overlay for later Compose commands: `compose.release.yml` for this manual release setup, or `compose.current.yml` after running `update.sh`. Keep the deployment directory and the project name stable. A change creates a new volume by accident. No public release exists at this time. Complete a deployment verification before important data goes on an internal candidate.
+Use the same digest overlay for later Compose commands: `compose.release.yml` for this manual release setup, or `compose.current.yml` after running `update.sh`. Keep the deployment directory and the project name stable. A change creates a new volume by accident. Complete a deployment verification before important data goes on an internal candidate.
 
 ## Update with one command
 
-Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env` in one deployment directory. The candidate and release assets include the first three files. Run the script from that directory. For a private GHCR package, log in to `ghcr.io` first with a token that can read packages.
+Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env` in one deployment directory. The candidate contains the first three files; releases after v0.1.3 put them in the deployment archive. Run the script from that directory. For a private GHCR package, log in to `ghcr.io` first with a token that can read packages.
 
 ```bash
 sh update.sh candidate-RUN_ID-ATTEMPT
@@ -49,7 +49,7 @@ sh update.sh vVERSION
 
 The argument selects exactly one tested image set. The script pulls the three images, resolves their registry digests, stops the stack, copies the complete PocketBase volume to `backups/`, writes `compose.current.yml`, starts the stack, and waits for health checks. PocketBase prepares its migration run directory before opening the database. Keep `compose.current.yml` with the deployment; use it for later manual Compose commands. If startup fails, the script leaves the stack stopped and prints the backup location. Restore the matching database backup before starting an older image; an old image alone cannot reverse a migration. The script uses the fixed Compose project `dbrain`.
 
-For an official server, register one `user@host /absolute/deployment/path` line in the repository variable `DBRAIN_DEPLOY_TARGETS`. Set `DBRAIN_DEPLOY_SSH_KEY` and `DBRAIN_DEPLOY_KNOWN_HOSTS` in the `production` environment. Give the SSH account Docker access and provision that directory with the deployment files and `.env`. After the main CI pushes the tested container candidate, it sends the current `deploy/update.sh` over SSH and passes `candidate-RUN_ID-ATTEMPT` to each registered host. A desktop signing failure does not block this container deployment.
+For an official server, register one `user@host /absolute/deployment/path [ssh-port]` line in the repository variable `DBRAIN_DEPLOY_TARGETS`; the port defaults to 22. For example, `lyq@yuqi-666.cn /opt/dbrain 22000`. Set `DBRAIN_DEPLOY_SSH_KEY` and `DBRAIN_DEPLOY_KNOWN_HOSTS` in the `production` environment. For a nonstandard port, the known-hosts entry uses `[host]:port`. Give the SSH account Docker access and provision that directory with the deployment files and `.env`. After the main CI pushes the tested container candidate, it sends the current `deploy/update.sh` over SSH and passes `candidate-RUN_ID-ATTEMPT` to each registered host. A desktop signing failure does not block this container deployment.
 
 ## PocketBase schema updates
 

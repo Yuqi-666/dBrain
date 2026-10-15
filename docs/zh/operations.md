@@ -23,7 +23,7 @@ docker compose -p dbrain ps
 
 ## 使用候选或发行镜像
 
-从匹配的候选或 Release 获取部署目录。确保 `docker-compose.yml`、`nginx.conf`、`update.sh`、`.env.example` 同级。已发布的 Release 还包含 `compose.release.yml`，候选没有。验证来源 commit、`SHA256SUMS` 和容器报告中的 digest。
+对于 v0.1.3 之后的 Release，从对应版本下载 `dbrain-deploy-vVERSION.tar.gz` 和 `SHA256SUMS`。核对归档的哈希后，把它解压到部署目录。归档根目录包含 `docker-compose.yml`、`nginx.conf`、`update.sh`、`.env.example`、`compose.release.yml` 和 `container-report.json`。这些文件应保持同级。v0.1.3 把相同的部署文件作为独立制品发布；需分别下载，并把 `default.env.example` 改名为 `.env.example`。验证来源 commit 和容器报告中的镜像 digest。
 
 已发布 Release 可手动使用其固定 digest 的覆盖层。在该部署目录执行：
 
@@ -36,11 +36,11 @@ docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-后续 Compose 命令使用同一个 digest 覆盖层：此处手动部署使用 `compose.release.yml`，运行 `update.sh` 后使用 `compose.current.yml`。部署目录和 project 名保持稳定。改动会误建新卷。当前没有公开正式发行。内部候选完成部署验证后才能承载重要数据。
+后续 Compose 命令使用同一个 digest 覆盖层：此处手动部署使用 `compose.release.yml`，运行 `update.sh` 后使用 `compose.current.yml`。部署目录和 project 名保持稳定。改动会误建新卷。内部候选完成部署验证后才能承载重要数据。
 
 ## 一条命令更新
 
-在同一个部署目录保留 `docker-compose.yml`、`nginx.conf`、`update.sh` 和 `.env`。候选与 Release 资产包含前三个文件。在该目录运行脚本。若 GHCR 包是私有的，先使用有读取包权限的令牌登录 `ghcr.io`。
+在同一个部署目录保留 `docker-compose.yml`、`nginx.conf`、`update.sh` 和 `.env`。候选包含前三个文件；v0.1.3 之后的 Release 把它们放在部署归档中。在该目录运行脚本。若 GHCR 包是私有的，先使用有读取包权限的令牌登录 `ghcr.io`。
 
 ```bash
 sh update.sh candidate-RUN_ID-ATTEMPT
@@ -49,7 +49,7 @@ sh update.sh vVERSION
 
 参数精确选择一组已测试的镜像。脚本拉取三个镜像并解析仓库 digest，停止服务，把完整的 PocketBase 数据卷复制到 `backups/`，写入 `compose.current.yml`，启动服务并等待健康检查。PocketBase 在打开数据库前准备迁移运行目录。后续手动运行 Compose 时保留并使用 `compose.current.yml`。若启动失败，脚本保持服务停止并输出备份位置。启动旧镜像前必须恢复匹配的数据库备份；旧镜像不能撤销迁移。脚本固定使用 Compose project `dbrain`。
 
-官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
+官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path [ssh-port]`；省略端口时使用 22。例如 `lyq@yuqi-666.cn /opt/dbrain 22000`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。非标准端口的 known_hosts 条目使用 `[host]:port`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
 
 ## PocketBase 结构更新
 

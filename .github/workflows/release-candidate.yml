@@ -153,11 +153,12 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/id_dbrain" "$HOME/.ssh/known_hosts"
           tag="candidate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          while read -r host directory extra; do
+          while read -r host directory port extra; do
             [ -n "$host" ] || continue
-            [[ "$host" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$ ]] && [[ "$directory" =~ ^/[A-Za-z0-9/_-]+$ ]] && [ -z "${extra:-}" ] || { echo 'Invalid deployment target'; exit 1; }
-            echo "Deploying $tag to $host:$directory"
-            ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/id_dbrain" "$host" "cd '$directory' && sh -s -- '$tag'" < deploy/update.sh
+            port="${port:-22}"
+            [[ "$host" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$ ]] && [[ "$directory" =~ ^/[A-Za-z0-9/_-]+$ ]] && [[ "$port" =~ ^[0-9]{1,5}$ ]] && (( 10#$port >= 1 && 10#$port <= 65535 )) && [ -z "${extra:-}" ] || { echo 'Invalid deployment target'; exit 1; }
+            echo "Deploying $tag to $host:$directory on SSH port $port"
+            ssh -p "$port" -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/id_dbrain" "$host" "cd '$directory' && sh -s -- '$tag'" < deploy/update.sh
           done <<< "$TARGETS"
           rm -f "$HOME/.ssh/id_dbrain"
 

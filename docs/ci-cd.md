@@ -377,6 +377,8 @@ The job verifies the run and the tag in this order.
 
 The job refuses to replace an existing release. It creates a draft and publishes it in the same run by default. Set `publish=false` to keep a draft. No acceptance file or manual test record is required.
 
+For releases after v0.1.3, the container deployment files are one `dbrain-deploy-vVERSION.tar.gz` asset. It contains the Compose files, gateway configuration, update script, environment template, and image digest report. Desktop installers and signed updater files stay as individual, platform-prefixed assets because the desktop updater downloads them by URL. `latest.json`, `candidate-index.json`, release notes, and `SHA256SUMS` remain at the release root. v0.1.3 keeps its original separate assets.
+
 A tag with a suffix, for example `v0.1.0-rc.1`, creates a prerelease.
 
 ## Repository policy

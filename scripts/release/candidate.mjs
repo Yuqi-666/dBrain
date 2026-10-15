@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import {
   cp,
   lstat,
@@ -10,9 +11,11 @@ import {
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { hashFile } from "../lib/runtime-manifest.mjs";
 import { declarationOf, loadDeclaration, selectTargets } from "./platforms.mjs";
 export const services = ["pocketbase", "server", "web"];
+const execFileAsync = promisify(execFile);
 const readJSON = async (path) => JSON.parse(await readFile(path, "utf8"));
 const safeName = (name) =>
   typeof name === "string" &&
@@ -230,19 +233,13 @@ export async function prepareReleaseAssets(root, out, expected) {
   );
   for (const target of index.desktopTargets) {
     const dir = join(root, target);
-    for (const name of (await readdir(dir)).filter(
-      (name) => name !== "SHA256SUMS",
-    ))
-      await cp(
-        join(dir, name),
-        join(out, name.startsWith(`${target}-`) ? name : `${target}-${name}`),
-      );
-  }
-  if (index.containerPlatforms.length) {
-    await writeFile(join(out, "docker-compose.yml"), await readFile(join(root, "deployment/docker-compose.yml"), "utf8"));
-    await cp(join(root, "deployment/nginx.conf"), join(out, "nginx.conf"));
-    await cp(join(root, "deployment/update.sh"), join(out, "update.sh"));
-    await cp(join(root, "deployment/.env.example"), join(out, ".env.example"));
+    const report = await readJSON(join(dir, "build-report.json"));
+    const names = new Set([
+      ...report.installers,
+      report.updater.asset,
+      report.updater.signature,
+    ]);
+    for (const name of names) await cp(join(dir, name), join(out, name));
   }
   const updaterPlatforms = {
     "linux-x64": "linux-x86_64",
@@ -263,7 +260,17 @@ export async function prepareReleaseAssets(root, out, expected) {
     await writeFile(join(out, "latest.json"), JSON.stringify({ version: index.version, platforms }, null, 2) + "\n");
   if (index.containerPlatforms.length) {
     const containers = await readJSON(join(root, "containers/container-report.json"));
-    await writeFile(join(out, "compose.release.yml"), "services:\n" + services.map((service) => `  ${service}:\n    image: ${containers.images[service].reference}\n`).join(""));
+    const staging = join(out, ".deployment");
+    await mkdir(staging);
+    try {
+      for (const name of ["docker-compose.yml", "nginx.conf", "update.sh", ".env.example"])
+        await cp(join(root, "deployment", name), join(staging, name));
+      await cp(join(root, "containers/container-report.json"), join(staging, "container-report.json"));
+      await writeFile(join(staging, "compose.release.yml"), "services:\n" + services.map((service) => `  ${service}:\n    image: ${containers.images[service].reference}\n`).join(""));
+      await execFileAsync("tar", ["-czf", join(out, `dbrain-deploy-v${index.version}.tar.gz`), "-C", staging, "."]);
+    } finally {
+      await rm(staging, { recursive: true, force: true });
+    }
   }
   await writeFile(
     join(out, "RELEASE-NOTES.md"),
