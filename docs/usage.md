@@ -81,7 +81,7 @@ The maintainer backs up the data of a web user. A browser cache is not a server 
 
 ## Upgrade and uninstall
 
-The app does not yet update itself. The maintainer provides a new installer. Back up the data before an upgrade. Exit the old version. Then follow the steps of the new installer. An upgrade does not replace the application data directory. The desktop runtime backs up the data before a version migration. That backup does not replace your external backup.
+On each start, an installed desktop app checks the latest published release over HTTPS. If a newer signed update exists for its platform, the app downloads it, verifies the updater signature, installs it, and restarts. The app remains usable offline if the check fails. The first version built with this updater must be installed manually. Tauri currently transfers a complete update bundle; this is a version update, not a byte-level delta patch. An upgrade does not replace the application data directory. The desktop runtime backs up the data before a version migration. That backup does not replace your external backup.
 
 Uninstall and data removal are two different operations. Do not assume that the uninstaller removes the data. To remove the data, exit the app, inspect the application data directory, back it up, and remove it by hand. For a rollback, use the data backup of the old version. An old version cannot always open a migrated database.
 

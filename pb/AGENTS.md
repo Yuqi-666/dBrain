@@ -12,7 +12,9 @@ It is the only data store in the project.
 | Path | Content | Tracked in Git |
 | --- | --- | --- |
 | `pb_hooks/` | JavaScript hooks for edge and file requests | Yes |
-| `pb_migrations/` | Schema and API-rule migrations | Yes |
+| `pb_migrations_base/` | Complete schema for a new database | Yes |
+| `pb_migrations_changes/` | Immutable incremental migrations for existing databases | Yes |
+| `pb_data/pb_migrations/` | Default local run directory prepared before PocketBase starts | No |
 | `pb_data/` | The local database, attachments, and generated types | No |
 
 `pb_data/` holds live local state.
@@ -28,18 +30,17 @@ It rejects an edge when the endpoints or the semantic link belong to another wor
 It authorizes a download for the file owner, the workspace owner, or a workspace member.
 It also accepts a `pb_token` cookie, because media elements cannot send an authorization header.
 
-The three migrations are `1700000000_initial_schema.js`, `1800000000_release_access.js`, and `1900000000_upload_limit.js`.
-The second migration tightens the collection API rules.
-Its downgrade path throws an error, because the change needs a restored backup.
-The third raises the `files.file` cap to 2 GiB, which must stay equal to `MAX_UPLOAD_BYTES` in `packages/utils/src/upload.ts`.
+`0000000001_base_schema.js` is the genesis migration. The change directory starts empty; future changes use higher numbers and are immutable after release.
+Databases created before this baseline are unsupported. The launcher refuses them instead of silently skipping schema work.
+The `files.file` cap is 2 GiB, which must stay equal to `MAX_UPLOAD_BYTES` in `packages/utils/src/upload.ts`.
 
-The development launcher `scripts/dev-pocketbase.mjs` pins the directories.
+The development launcher `scripts/dev-pocketbase.mjs` prepares the run directory inside the selected data directory before creating the operator account.
 It passes `--dir`, `--migrationsDir`, and `--hooksDir`, and it sets `--automigrate=0`.
 The working directory of the shell therefore does not change the target database.
 
 ## Rules
 
-1. Never edit an applied migration. Add a new migration with a higher timestamp instead.
+1. Never edit an applied change migration. For each schema change, update the base script and add one new change script with a higher timestamp.
 2. Test an upgrade against a copy of old data before you release the new migration.
 3. Write a hook change in `pb_hooks/` and test it with `scripts/release/edge-hook.test.mjs`.
 4. Keep the collection rules in the migration. Do not change rules by hand in the admin UI.

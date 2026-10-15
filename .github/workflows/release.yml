@@ -32,7 +32,7 @@ jobs:
     permissions:
       contents: write
       actions: read
-      packages: read
+      packages: write
     env:
       GH_TOKEN: ${{ github.token }}
       CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
@@ -75,7 +75,9 @@ jobs:
           acceptance="docs/release-acceptance/$RELEASE_TAG.json"
           node scripts/release/candidate.mjs approve candidate "$acceptance" assets
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          node scripts/release/verify-images.mjs candidate/containers/container-report.json
+          if [ -f candidate/containers/container-report.json ]; then
+            node scripts/release/verify-images.mjs candidate/containers/container-report.json
+          fi
       - name: Create a draft with the verified assets
         shell: bash
         run: |
@@ -92,6 +94,10 @@ jobs:
           gh release create "$RELEASE_TAG" assets/* --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "dBrain $RELEASE_TAG" --notes-file assets/RELEASE-NOTES.md "${flags[@]}"
       - name: Publish explicitly accepted release
         if: inputs.publish
-        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+        run: |
+          if [ -f candidate/containers/container-report.json ]; then
+            node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
       - if: always()
         run: docker logout ghcr.io

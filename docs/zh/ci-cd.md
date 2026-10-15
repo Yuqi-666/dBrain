@@ -59,7 +59,7 @@ pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 
 两种方式都走同一条直线：`plan → check → commit → push → pr → merge`。`--until` 在指定阶段后停止。分支决定目标：普通开发分支进入 `develop`；`hotfix/*` 同时创建面向 `main` 和 `develop` 的 PR；在干净的 `develop` 上运行 gate 会创建面向 `main` 的晋升 PR。晋升沿用已有的合并历史，因此提交和推送阶段会报告无需新提交或直接推送。
 
-在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台列表创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
+在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。对本次不构建的产品类别传入 `none`；至少保留一类。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台选择创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
 
 写入发布或热修复版本前，gate 检查新版本高于目标分支版本，且 `origin` 上的 `vVERSION` 尚未占用。晋升时再与 `main` 比较一次。不要提前创建版本标签；由 main 的 CI 在完成验证的提交上创建它。
 
@@ -77,8 +77,8 @@ pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 | `-m "text"` | 提交标题。从 `commit` 阶段起必填。重复该选项可增加正文段落。 |
 | `--base BRANCH` | 确认由当前分支路由选出的目标分支。 |
 | `--version VERSION` | 在 `release/*` 或 `hotfix/*` 分支同步版本。 |
-| `--desktop-targets LIST` | 在 `release/*` 分支选择桌面目标；在 `develop` 上确认。 |
-| `--container-platforms LIST` | 在 `release/*` 分支选择容器平台；在 `develop` 上确认。 |
+| `--desktop-targets LIST\|none` | 在 `release/*` 分支选择桌面目标或关闭桌面构建；在 `develop` 上确认。 |
+| `--container-platforms LIST\|none` | 在 `release/*` 分支选择容器平台或关闭容器构建；在 `develop` 上确认。 |
 | `--full` | 运行全部本地检查，而不只是范围内的检查。 |
 | `--no-sign` | 不对提交签名。验证器会拒绝未签名的提交。 |
 | `--allow-protected` | 允许在 `main` 或 `develop` 上本地运行。 |
@@ -263,7 +263,7 @@ PR 不构建任何产物。每次成功合并到 `main` 都会启动干净机器
 }
 ```
 
-gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。候选只构建标签处文件里写的平台。上例只发布 Linux。
+gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。对不构建的类别传入 `none` 后，gate 写入 `desktopEnabled: false` 或 `containerEnabled: false`，同时保留其平台清单供后续版本使用。候选只构建已启用的类别。仅容器候选没有桌面安装包及更新元数据；仅桌面候选没有容器镜像及 Compose 文件。
 
 脚本 `scripts/release/platforms.mjs` 保存每个平台对应的 runner。该表是全集。声明的名称不在其中时，本地门控和作业 `verify-tag` 都会在 runner 启动之前停止。
 
@@ -271,7 +271,7 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 
 候选随后只保存已声明的平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。
 
-随后作业 `desktop` 构建已声明的目标。每个矩阵作业的时限为 90 分钟。
+随后作业 `desktop` 构建已启用的目标。每个矩阵作业的时限为 90 分钟。未启用的类别及其组装、发布资产都会跳过。
 
 | Runner | 目标 |
 | --- | --- |
@@ -298,6 +298,33 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 步骤 9 和 10 只在输入 `signed` 为 `true` 时运行。
 
 签名构建使用环境 `release`。未签名构建使用环境 `candidate`。签名作业在结束时删除临时签名密钥。
+
+### 桌面应用签名配置
+
+在仓库 Settings → Environments 中创建 GitHub Actions 环境 `release`，并添加下表中的环境机密。工作流只在签名的 Windows 和 macOS 作业中读取它们。原始证书和私钥应保存在仓库之外。
+
+| 机密 | 值 |
+| --- | --- |
+| `APPLE_CERTIFICATE` | 包含私钥的 Developer ID Application `.p12` 文件的 Base64 文本 |
+| `APPLE_CERTIFICATE_PASSWORD` | 导出该 `.p12` 文件时设置的密码 |
+| `APPLE_SIGNING_IDENTITY` | `security find-identity -v -p codesigning` 显示的完整 Developer ID Application 身份名称 |
+| `APPLE_API_PRIVATE_KEY` | App Store Connect API `.p8` 私钥的完整文本 |
+| `APPLE_API_KEY` | 该 API 密钥的 Key ID |
+| `APPLE_API_ISSUER` | 该 API 密钥的 Issuer ID |
+| `WINDOWS_CERTIFICATE` | 包含私钥的代码签名 `.pfx` 文件的 Base64 文本 |
+| `WINDOWS_CERTIFICATE_PASSWORD` | 该 `.pfx` 文件的密码 |
+
+macOS：在 Apple Developer 账户中创建 [Developer ID Application 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/)，从“钥匙串访问”将证书和私钥一起导出为 `.p12`。再创建用于公证的 [App Store Connect API 密钥](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api)。CI 将证书导入临时钥匙串，并将 `.p8` 密钥写入临时文件。此工作流不能使用 Mac App Store 分发证书。
+
+Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥导出为 `.pfx`。CI 将它导入 runner 的证书存储。Tauri 构建使用证书指纹签名，并添加 RFC 3161 时间戳。参见 [Microsoft SignTool 指南](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures)。
+
+添加机密前，将每个证书文件编码为单行 Base64。在 macOS 或 Linux 上运行 `base64 < certificate.p12 | tr -d '\n'`；`.pfx` 文件使用相同命令。将结果存入对应机密。将 `.p8` 文件内容直接存入 `APPLE_API_PRIVATE_KEY`。不要在 CI 日志中输出这些值，也不要提交它们。
+
+配置机密后，在 `main` 上为已有标签启动签名候选：`gh workflow run gate.yml --ref main -f release=true`。确认 macOS 和 Windows 作业通过签名验证，且 `assemble` 上传 `candidate-RUN_ID-ATTEMPT`。未签名的诊断构建不能通过发布闸门。[GitHub 环境机密指南](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)说明了添加位置。
+
+桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`；若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。已签名桌面候选包含更新包和 `.sig` 文件。验收后，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包；它不支持按字节差异传输的补丁。
+
+容器构建通过冒烟测试后推送 `candidate-RUN_ID-ATTEMPT` 镜像。设置 `DBRAIN_DEPLOY_TARGETS` 后，候选工作流通过 SSH 向每台登记服务器发送 `deploy/update.sh` 并选择该候选。目标登记与个人自部署命令见[运维手册](operations.md)。桌面构建单独失败不会阻止容器部署。发布已验收的 Release 时，已验证的容器 digest 也会获得 `vVERSION` 标签，因此同一更新脚本可以选择 Release。
 
 作业 `containers` 构建已声明的架构。
 

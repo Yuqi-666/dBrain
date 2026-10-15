@@ -46,6 +46,7 @@ At run time it selects a free loopback port, starts PocketBase, writes `local-id
 `apps/server/src/desktop/pb_hooks/local.pb.js` requires the internal request header.
 
 `scripts/prepare-runtime.mjs` builds the runtime into `src-tauri/runtime/`.
+The Rust shell checks the latest published release at startup with Tauri updater. Signed updater assets are built only for signed candidates. The release workflow publishes `latest.json` with the accepted installers.
 
 ## Commands
 

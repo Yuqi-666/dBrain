@@ -18,7 +18,7 @@ export { DIRECT_UPLOAD_MAX_BYTES, MAX_UPLOAD_BYTES, PDF_ANALYZE_MAX_BYTES };
 
 /**
  * PocketBase collection that every uploaded blob lands in.
- * Created by the `files` block in `pb/pb_migrations/1700000000_initial_schema.js`.
+ * Created by the `files` block in `pb/pb_migrations_base/0000000001_base_schema.js`.
  */
 export const FILES_COLLECTION = "files";
 

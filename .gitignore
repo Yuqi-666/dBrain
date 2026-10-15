@@ -45,8 +45,10 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+*.key
 
 pb/pb_data/
+pb/pb_migrations/
 pb/pocketbase
 pb/pocketbase.exe
 .agents/
@@ -57,4 +59,8 @@ pb/pocketbase.exe
 
 # Release candidates and prepared dependency staging
 release-artifacts/
+backups/
+compose.current.yml
+.current-version
+.update.lock
 **/.runtime-staging/

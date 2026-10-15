@@ -57,7 +57,7 @@ pnpm gate --until=pr -m "feat(graph): add a density slider"
 
 Both forms use one straight path: `plan → check → commit → push → pr → merge`. `--until` stops after the named stage. The branch selects the route. Normal branches target `develop`; `hotfix/*` opens PRs to both `main` and `develop`; running on clean `develop` opens its promotion PR to `main`. The promotion path uses the existing merge history, so its commit and push stages report that no new commit or direct push is needed.
 
-Prepare a release on a `release/*` branch. The gate accepts `--version`, `--desktop-targets`, and `--container-platforms`, synchronizes the version files, and writes the platform declaration before checks. Merge that branch into `develop`, then run the gate on `develop` with the same platform lists to open the promotion PR. Every `main` merge needs a new version. The `main` CI creates its tag and immediately builds the candidate.
+Prepare a release on a `release/*` branch. The gate accepts `--version`, `--desktop-targets`, and `--container-platforms`, synchronizes the version files, and writes the platform declaration before checks. Pass `none` for a product family that this release does not build; at least one family must remain. Merge that branch into `develop`, then run the gate on `develop` with the same platform selections to open the promotion PR. Every `main` merge needs a new version. The `main` CI creates its tag and immediately builds the candidate.
 
 Before writing a release or hotfix version, gate checks that it is newer than the target branch version and that `vVERSION` is free on `origin`. Promotion repeats this check against `main`. Do not create a version tag in advance; the main CI creates it at the tested main commit.
 
@@ -75,8 +75,8 @@ The workflow `gate.yml` is the second gate. It answers one question. Did the aut
 | `-m "text"` | Commit subject. Required from `commit` onward. Repeat for a body paragraph. |
 | `--base BRANCH` | Assert a target selected by the branch route. |
 | `--version VERSION` | Synchronize the version on a `release/*` or `hotfix/*` branch. |
-| `--desktop-targets LIST` | Select declared desktop targets on a `release/*` branch; confirm them on `develop`. |
-| `--container-platforms LIST` | Select declared container platforms on a `release/*` branch; confirm them on `develop`. |
+| `--desktop-targets LIST\|none` | Select desktop targets or disable desktop builds on a `release/*` branch; confirm on `develop`. |
+| `--container-platforms LIST\|none` | Select container platforms or disable container builds on a `release/*` branch; confirm on `develop`. |
 | `--full` | Run every local check, not only the checks in scope. |
 | `--no-sign` | Do not sign the commit. The verifier rejects an unsigned commit. |
 | `--allow-protected` | Allow a local run on `main` or `develop`. |
@@ -261,7 +261,7 @@ One file declares the release. `scripts/release/release.json` holds the version 
 }
 ```
 
-The gate writes that file from the platform options on a `release/*` branch. The local checks verify it, the merge into `develop` carries it, and the main tag pins it. The candidate builds exactly the platforms in the file at the tag. This example releases Linux only.
+The gate writes that file from the platform options on a `release/*` branch. The local checks verify it, the merge into `develop` carries it, and the main tag pins it. To disable a family, pass `none`; the gate writes `desktopEnabled: false` or `containerEnabled: false` while preserving its platform catalog for future releases. The candidate builds only the enabled families. A container-only candidate has no desktop installer or updater metadata; a desktop-only candidate has no container images or Compose assets.
 
 The script `scripts/release/platforms.mjs` holds the runner of each platform. That table is the universe. A declared name outside it stops the local gate and the job `verify-tag`, before a runner starts.
 
@@ -269,7 +269,7 @@ The inputs `desktop_targets` and `container_platforms` only narrow the declarati
 
 The candidate then holds the declared platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers.
 
-The job `desktop` then builds the declared targets. Each matrix job has a limit of 90 minutes.
+The job `desktop` builds the enabled targets. Each matrix job has a limit of 90 minutes. A disabled family is skipped, including its assembly and publication assets.
 
 | Runner             | Target        |
 | ------------------ | ------------- |
@@ -296,6 +296,33 @@ Each desktop job runs these steps.
 Steps 9 and 10 run only when the input `signed` is `true`.
 
 A signed build uses the environment `release`. An unsigned build uses the environment `candidate`. A signed job removes the temporary signing key at the end.
+
+### Desktop signing setup
+
+Create the GitHub Actions environment `release` in repository Settings → Environments. Add these environment secrets. The workflow reads them only for signed Windows and macOS jobs. Keep the original certificate and private key outside this repository.
+
+| Secret | Value |
+| --- | --- |
+| `APPLE_CERTIFICATE` | Base64 text of an exported Developer ID Application `.p12` file, including its private key |
+| `APPLE_CERTIFICATE_PASSWORD` | Password used when exporting that `.p12` file |
+| `APPLE_SIGNING_IDENTITY` | Exact Developer ID Application identity shown by `security find-identity -v -p codesigning` |
+| `APPLE_API_PRIVATE_KEY` | Complete text of the App Store Connect API `.p8` private key |
+| `APPLE_API_KEY` | Key ID of that API key |
+| `APPLE_API_ISSUER` | Issuer ID of that API key |
+| `WINDOWS_CERTIFICATE` | Base64 text of a code-signing `.pfx` file, including its private key |
+| `WINDOWS_CERTIFICATE_PASSWORD` | Password of that `.pfx` file |
+
+For macOS, create a [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/) in the Apple Developer account. Export the certificate and private key together as `.p12` from Keychain Access. Create an [App Store Connect API key](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api) for notarization. The CI imports the certificate into a temporary keychain and writes the `.p8` key to a temporary file. Do not use a Mac App Store distribution certificate for this workflow.
+
+For Windows, obtain a trusted Authenticode code-signing certificate and export it with its private key as `.pfx`. The CI imports it into the runner certificate store. The Tauri build signs with its thumbprint and an RFC 3161 time stamp. See [Microsoft's SignTool guidance](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures).
+
+Encode each certificate file as one-line Base64 before adding it as a secret. On macOS or Linux, use `base64 < certificate.p12 | tr -d '\n'` or the same command with `certificate.pfx`. Put the resulting text into the matching secret. Put the `.p8` file contents directly into `APPLE_API_PRIVATE_KEY`. Do not print these values in CI logs or commit them.
+
+After the secrets are set, start a signed candidate for an existing tag from `main` with `gh workflow run gate.yml --ref main -f release=true`. Check that the macOS and Windows jobs pass signing verification and that `assemble` uploads `candidate-RUN_ID-ATTEMPT`. An unsigned diagnostic run cannot pass the publication gate. [GitHub's environment secret guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) shows where to add the secrets.
+
+The desktop updater uses a separate Tauri signing key. Generate it with `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key`. Put only the `.pub` file contents in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Store the private key as `TAURI_SIGNING_PRIVATE_KEY` in the `release` environment; set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` there if the key has a password. Never commit the private key. Signed desktop candidates include the updater bundle and `.sig` file. After acceptance, `release.yml` generates `latest.json` and publishes it with the signed bundles. Installed apps check the latest published release at startup. [Tauri's updater guide](https://v2.tauri.app/plugin/updater/) defines the signature and metadata formats. The updater downloads a complete bundle; it does not implement byte-level delta patches.
+
+The container build pushes `candidate-RUN_ID-ATTEMPT` images after smoke tests. If `DBRAIN_DEPLOY_TARGETS` is set, the candidate workflow sends `deploy/update.sh` to each registered SSH server and selects that exact candidate. See [Operations](operations.md) for target registration and the self-hosted command. The desktop build can fail independently without blocking container deployment. Publishing an accepted release also gives the verified container digests a `vVERSION` tag, so the same update script can select a release.
 
 The job `containers` builds the declared architectures.
 

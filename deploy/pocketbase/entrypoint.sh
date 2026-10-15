@@ -46,6 +46,7 @@ if [ -z "$password" ]; then
   exit 1
 fi
 
+/prepare-migrations.sh
 pocketbase superuser upsert "$DBRAIN_ADMIN_EMAIL" "$password" --dir="$data_dir"
 echo "[pocketbase] operator account ensured for $DBRAIN_ADMIN_EMAIL"
 

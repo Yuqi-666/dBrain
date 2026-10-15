@@ -53,7 +53,7 @@ Only two development commands exist. `pnpm dev` starts PocketBase, the web app, 
 
 Two services on the same port fail at the start with an error. PocketBase does not wait in a loop.
 
-Development data goes to the repository directory `pb/pb_data` by default. The PocketBase launcher sets the data, the migration, and the hook directories. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR` or `DBRAIN_PB_HTTP`, verify the backend `PB_URL` too.
+Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it; when you change the PocketBase address, verify the backend `PB_URL` too. A database from before the `0000000001_base_schema.js` baseline is rejected.
 
 `DBRAIN_ADMIN_EMAIL` and the password in `.env` belong to the operator account. The app identity uses the normal `users` collection. A shell variable of the same name has priority over the file. After an admin configuration change, run `pnpm pb:admin` to synchronize the development database account.
 

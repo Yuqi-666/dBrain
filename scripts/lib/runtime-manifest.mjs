@@ -94,7 +94,10 @@ export async function writeRuntimeManifest(
   await walk(destination);
   const databaseInputs = Object.entries(hashes).filter(
     ([name]) =>
-      name.startsWith("pb_migrations/") || /^pocketbase(?:\.exe)?$/.test(name),
+      name.startsWith("pb_migrations_base/") ||
+      name.startsWith("pb_migrations_changes/") ||
+      name === "pocketbase-migrations.mjs" ||
+      /^pocketbase(?:\.exe)?$/.test(name),
   );
   const fingerprint = createHash("sha256")
     .update(JSON.stringify({ version, databaseInputs }))

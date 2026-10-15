@@ -100,19 +100,70 @@ jobs:
 
   desktop:
     needs: verify-tag
+    if: needs.verify-tag.outputs.desktop_targets != ''
     uses: ./.github/workflows/desktop-build.yml
     with:
       signed: ${{ inputs.signed }}
       targets: ${{ needs.verify-tag.outputs.desktop_targets }}
+    secrets: inherit
 
   containers:
     needs: verify-tag
+    if: needs.verify-tag.outputs.container_platforms != ''
     uses: ./.github/workflows/container-build.yml
     with:
       platforms: ${{ needs.verify-tag.outputs.container_platforms }}
 
+  deploy-plan:
+    runs-on: ubuntu-22.04
+    outputs:
+      enabled: ${{ steps.plan.outputs.enabled }}
+    steps:
+      - id: plan
+        env:
+          TARGETS: ${{ vars.DBRAIN_DEPLOY_TARGETS }}
+        run: |
+          if [ -n "$TARGETS" ]; then echo 'enabled=true' >> "$GITHUB_OUTPUT"; else echo 'enabled=false' >> "$GITHUB_OUTPUT"; fi
+
+  deploy-official:
+    needs: [verify-tag, containers, deploy-plan]
+    if: needs.deploy-plan.outputs.enabled == 'true' && needs.verify-tag.outputs.container_platforms != ''
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    environment: production
+    concurrency:
+      group: dbrain-official-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.tag }}
+      - name: Update registered servers to this candidate
+        shell: bash
+        env:
+          TARGETS: ${{ vars.DBRAIN_DEPLOY_TARGETS }}
+          SSH_KEY: ${{ secrets.DBRAIN_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DBRAIN_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [ -n "$SSH_KEY" ] && [ -n "$SSH_KNOWN_HOSTS" ] || { echo 'Production SSH credentials are missing'; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_dbrain"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_dbrain" "$HOME/.ssh/known_hosts"
+          tag="candidate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          while read -r host directory extra; do
+            [ -n "$host" ] || continue
+            [[ "$host" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$ ]] && [[ "$directory" =~ ^/[A-Za-z0-9/_-]+$ ]] && [ -z "${extra:-}" ] || { echo 'Invalid deployment target'; exit 1; }
+            echo "Deploying $tag to $host:$directory"
+            ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/id_dbrain" "$host" "cd '$directory' && sh -s -- '$tag'" < deploy/update.sh
+          done <<< "$TARGETS"
+          rm -f "$HOME/.ssh/id_dbrain"
+
   assemble:
     needs: [verify-tag, desktop, containers]
+    if: always() && needs.verify-tag.result == 'success' && (needs.desktop.result == 'success' || (needs.desktop.result == 'skipped' && needs.verify-tag.outputs.desktop_targets == '')) && (needs.containers.result == 'success' || (needs.containers.result == 'skipped' && needs.verify-tag.outputs.container_platforms == ''))
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -135,7 +186,9 @@ jobs:
           for target in $(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS"); do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
           done
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
+          if [ -n "$CONTAINER_PLATFORMS" ]; then
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
+          fi
           node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="$DESKTOP_TARGETS" --containers="$CONTAINER_PLATFORMS"
           echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Platforms: desktop=$DESKTOP_TARGETS containers=$CONTAINER_PLATFORMS. Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -56,6 +56,8 @@ export async function prepareUpgradeBackup(
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
+    try { await cp(join(dataDir, "pb_migrations"), join(staging, "pb_migrations"), { recursive: true }); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     await writeFile(
       join(staging, "backup.json"),
       JSON.stringify({

@@ -245,6 +245,24 @@ test('release checking writes the selected platform declaration before checks', 
   assert.deepEqual(declaration.containerPlatforms, ['linux/amd64', 'linux/arm64']);
 });
 
+test('release gate disables one product family while keeping the trusted platform catalog', async t => {
+  const root = createRepo(t);
+  write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));
+  commitAll(root, 'chore: start');
+  git(root, ['branch', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'release/0.2.0']);
+  const output = [];
+  const code = await runGate(['--until=check', '--version=0.2.0', '--desktop-targets=none', '--container-platforms=linux/amd64'], {
+    cwd: root, git: createGit(root), run: stubRun(),
+    runCheck: () => ({ status: 'passed', exitCode: 0, durationMs: 1 }), io: quietIo(output),
+  });
+  assert.equal(code, 0, output.join('\n'));
+  const declaration = JSON.parse(readFileSync(resolve(root, 'scripts/release/release.json'), 'utf8'));
+  assert.deepEqual(declaration.desktopTargets, ['linux-x64']);
+  assert.equal(declaration.desktopEnabled, false);
+  assert.equal(declaration.containerEnabled, true);
+});
+
 test('the changed-path list holds the branch and the index', t => {
   const root = createRepo(t);
   write(root, 'README.md', '# dBrain\n');

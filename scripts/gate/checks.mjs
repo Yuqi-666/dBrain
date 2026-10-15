@@ -30,7 +30,7 @@ export const checks = [
     required: true,
     scope: ['scripts/**', 'apps/*/scripts/**'],
     command:
-      'for file in scripts/lib/*.mjs scripts/release/*.mjs scripts/gate/*.mjs scripts/gate.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do node --check "$file"; done && bash -n scripts/gate/hooks/pre-push scripts/release/check-workflows.sh',
+      'for file in scripts/lib/*.mjs scripts/release/*.mjs scripts/gate/*.mjs scripts/gate.mjs apps/desktop/scripts/*.mjs apps/server/scripts/*.mjs; do node --check "$file"; done && bash -n scripts/gate/hooks/pre-push scripts/release/check-workflows.sh && sh -n deploy/update.sh deploy/pocketbase/*.sh',
     description: 'Every automation script parses.',
   },
   {
@@ -163,4 +163,5 @@ export const trackedDeny = [
   { pattern: '(^|/)dist/', reason: 'Build output is not source.' },
   { pattern: '(^|/)target/', reason: 'Build output is not source.' },
   { pattern: '\\.pem$', reason: 'A key file is not source.' },
+  { pattern: '\\.key$', reason: 'A private key file is not source.' },
 ];

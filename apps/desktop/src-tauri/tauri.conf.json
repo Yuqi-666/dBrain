@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "dBrain",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "cn.dbrain.desktop",
   "build": {
     "beforeDevCommand": "pnpm runtime:prepare && pnpm dev",
@@ -52,5 +52,13 @@
     },
     "shortDescription": "dBrain local knowledge workspace",
     "copyright": "Copyright (c) 2026 dBrain contributors. All rights reserved."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI0RkY3OEI0OEVGNjQxRjIKUldUeVFmYU90SGovdEdQUkdCNXNPemZSM0Y5aWF4ZmZmTmFONjQzeW9EUHBucFVCUytEZ0QrN2EK",
+      "endpoints": [
+        "https://github.com/Yuqi-666/dBrain/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
