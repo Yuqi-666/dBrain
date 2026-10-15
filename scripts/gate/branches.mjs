@@ -15,3 +15,17 @@ export function branchRoute(branch) {
 export function validPullRoute(head, base) {
   return branchRoute(head)?.bases.includes(base) ?? false;
 }
+
+// A previous promotion adds a merge commit only to main. The next promotion
+// can use develop directly when Git's merge result contains exactly its tree.
+export function promotionMergeProblem(git, main, develop) {
+  try {
+    const result = git(['merge-tree', '--write-tree', main, develop]);
+    const mergedTree = result.split('\n')[0];
+    const developTree = git(['rev-parse', `${develop}^{tree}`]);
+    if (mergedTree === developTree) return null;
+    return 'Main has content missing from develop. Merge main into develop before promotion.';
+  } catch {
+    return 'Cannot safely merge main into develop. Fetch both branches and resolve any merge conflict before promotion.';
+  }
+}

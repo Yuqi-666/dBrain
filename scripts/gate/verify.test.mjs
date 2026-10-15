@@ -253,6 +253,30 @@ test('promotion verifies each develop merge and the new release declaration', as
   assert.equal(release.sha.length, 40);
 });
 
+test('promotion accepts the next release without syncing the previous main merge', async t => {
+  const root = createRepo(t);
+  write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));
+  commitAll(root, 'start');
+  git(root, ['branch', 'develop']);
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'feature/first']);
+  gatedCommit(root, { files: { 'docs/first.md': 'first\n' }, checks: ['release-check'] });
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['merge', '--quiet', '--no-ff', '--no-verify', '-m', 'Merge first', 'feature/first']);
+  git(root, ['checkout', '--quiet', 'main']);
+  git(root, ['merge', '--quiet', '--no-ff', '--no-verify', '-m', 'Previous promotion', 'develop']);
+  const main = git(root, ['rev-parse', 'HEAD']);
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'release/0.2.0']);
+  gatedCommit(root, { files: { 'scripts/release/release.json': JSON.stringify({ version: '0.2.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }) }, checks: ['release-check'] });
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['merge', '--quiet', '--no-ff', '--no-verify', '-m', 'Merge release', 'release/0.2.0']);
+  const develop = git(root, ['rev-parse', 'HEAD']);
+  assert.notEqual(git(root, ['merge-base', main, develop]), main);
+  const result = await verifyPromotionGate({ repoDir: root, baseSha: main, headSha: develop, requireSignature: true }, deps(root));
+  assert.equal(result.ok, true, result.failures.join('\n'));
+});
+
 test('promotion refuses an unchanged release version', async t => {
   const root = createRepo(t);
   write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));

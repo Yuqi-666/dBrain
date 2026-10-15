@@ -26,7 +26,7 @@ import {
   findProtected,
   requiredCheckIds,
 } from './scope.mjs';
-import { validPullRoute } from './branches.mjs';
+import { promotionMergeProblem, validPullRoute } from './branches.mjs';
 
 const defaultDefinition = { protocol, checks, protectedPaths, trackedDeny };
 
@@ -176,8 +176,8 @@ export async function verifyPromotionGate(options, deps = {}) {
   if (!options.baseSha || !options.headSha) {
     return { ok: false, failures: ['Promotion needs both the main and develop commits.'], notes, details };
   }
-  const ancestor = git(['merge-base', options.baseSha, options.headSha]);
-  if (ancestor !== options.baseSha) failures.push('The main tip is not an ancestor of develop. Sync main into develop first.');
+  const mergeProblem = promotionMergeProblem(git, options.baseSha, options.headSha);
+  if (mergeProblem) failures.push(mergeProblem);
   const commits = git(['rev-list', '--first-parent', '--reverse', `${options.baseSha}..${options.headSha}`]).split('\n').filter(Boolean);
   if (commits.length === 0) failures.push('Develop has no new merge to promote.');
   for (const commit of commits) {
