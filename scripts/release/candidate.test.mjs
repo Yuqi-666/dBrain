@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -72,8 +72,9 @@ async function fixture(signed = true, plan = expected) {
     }
     await writeFile(join(path, "SHA256SUMS"), sums.join("\n") + "\n");
   }
-  await mkdir(join(incoming, "containers"));
-  await writeFile(
+  if (plan.containerPlatforms.length) {
+    await mkdir(join(incoming, "containers"));
+    await writeFile(
     join(incoming, "containers/container-report.json"),
     JSON.stringify({
       ...plan,
@@ -88,7 +89,8 @@ async function fixture(signed = true, plan = expected) {
         ]),
       ),
     }),
-  );
+    );
+  }
   return { dir, incoming, output };
 }
 async function accepted(output, plan = expected) {
@@ -205,6 +207,27 @@ test("a subset candidate carries only the selected platforms", async () => {
     await approveCandidate(f.output, await accepted(f.output, subset), subset);
   } finally {
     await rm(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("single product families assemble and publish without the other family", async () => {
+  for (const plan of [
+    { ...expected, desktopTargets: [] },
+    { ...expected, containerPlatforms: [] },
+  ]) {
+    const f = await fixture(true, plan);
+    try {
+      await assembleCandidate(f.incoming, f.output, plan);
+      const acceptancePath = join(f.dir, "acceptance.json");
+      await writeFile(acceptancePath, JSON.stringify(await accepted(f.output, plan)));
+      const assets = join(f.dir, "assets");
+      await prepareReleaseAssets(f.output, acceptancePath, assets, plan);
+      const names = await readdir(assets);
+      assert.equal(names.includes("latest.json"), plan.desktopTargets.length > 0);
+      assert.equal(names.includes("compose.release.yml"), plan.containerPlatforms.length > 0);
+    } finally {
+      await rm(f.dir, { recursive: true, force: true });
+    }
   }
 });
 

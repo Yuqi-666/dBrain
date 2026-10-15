@@ -1,9 +1,9 @@
 // The platforms of one release candidate.
 //
-// `scripts/release/release.json` declares the release. It holds the version and
-// the platforms of the next candidate. A person edits that one file. The push
-// gate checks it, and the version tag pins it. A candidate therefore builds
-// exactly the platforms that a person wrote down.
+// `scripts/release/release.json` declares the release. It holds the version,
+// the platform catalogs, and optional enabled flags. The catalogs remain
+// nonempty for compatibility with the trusted main verifier. A disabled family
+// contributes no target to the candidate.
 //
 // The runner tables below are the universe. Every declared name must appear in
 // them, and no workflow reads a runner from anywhere else.
@@ -60,18 +60,23 @@ export function declarationOf(release) {
     release && typeof release === "object",
     `${releasePath} must hold an object.`,
   );
-  return {
-    version: release.version,
-    desktopTargets: declaredList(
+  for (const key of ["desktopEnabled", "containerEnabled"])
+    if (release[key] !== undefined) assert.equal(typeof release[key], "boolean", `${key} must be boolean.`);
+  const desktopTargets = declaredList(
       release.desktopTargets,
       "desktopTargets",
       Object.keys(desktopRunners),
-    ),
-    containerPlatforms: declaredList(
+    );
+  const containerPlatforms = declaredList(
       release.containerPlatforms,
       "containerPlatforms",
       Object.keys(containerRunners),
-    ),
+    );
+  assert.ok(release.desktopEnabled !== false || release.containerEnabled !== false, "At least one product family must be enabled.");
+  return {
+    version: release.version,
+    desktopTargets: release.desktopEnabled === false ? [] : desktopTargets,
+    containerPlatforms: release.containerEnabled === false ? [] : containerPlatforms,
   };
 }
 

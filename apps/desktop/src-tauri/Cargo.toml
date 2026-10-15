@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.1"
+version = "0.1.2"
 description = "dBrain local knowledge workspace"
 authors = ["dBrain contributors"]
 license-file = "../../../LICENSE"

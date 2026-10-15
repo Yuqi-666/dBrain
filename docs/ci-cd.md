@@ -57,7 +57,7 @@ pnpm gate --until=pr -m "feat(graph): add a density slider"
 
 Both forms use one straight path: `plan → check → commit → push → pr → merge`. `--until` stops after the named stage. The branch selects the route. Normal branches target `develop`; `hotfix/*` opens PRs to both `main` and `develop`; running on clean `develop` opens its promotion PR to `main`. The promotion path uses the existing merge history, so its commit and push stages report that no new commit or direct push is needed.
 
-Prepare a release on a `release/*` branch. The gate accepts `--version`, `--desktop-targets`, and `--container-platforms`, synchronizes the version files, and writes the platform declaration before checks. Merge that branch into `develop`, then run the gate on `develop` with the same platform lists to open the promotion PR. Every `main` merge needs a new version. The `main` CI creates its tag and immediately builds the candidate.
+Prepare a release on a `release/*` branch. The gate accepts `--version`, `--desktop-targets`, and `--container-platforms`, synchronizes the version files, and writes the platform declaration before checks. Pass `none` for a product family that this release does not build; at least one family must remain. Merge that branch into `develop`, then run the gate on `develop` with the same platform selections to open the promotion PR. Every `main` merge needs a new version. The `main` CI creates its tag and immediately builds the candidate.
 
 Before writing a release or hotfix version, gate checks that it is newer than the target branch version and that `vVERSION` is free on `origin`. Promotion repeats this check against `main`. Do not create a version tag in advance; the main CI creates it at the tested main commit.
 
@@ -75,8 +75,8 @@ The workflow `gate.yml` is the second gate. It answers one question. Did the aut
 | `-m "text"` | Commit subject. Required from `commit` onward. Repeat for a body paragraph. |
 | `--base BRANCH` | Assert a target selected by the branch route. |
 | `--version VERSION` | Synchronize the version on a `release/*` or `hotfix/*` branch. |
-| `--desktop-targets LIST` | Select declared desktop targets on a `release/*` branch; confirm them on `develop`. |
-| `--container-platforms LIST` | Select declared container platforms on a `release/*` branch; confirm them on `develop`. |
+| `--desktop-targets LIST\|none` | Select desktop targets or disable desktop builds on a `release/*` branch; confirm on `develop`. |
+| `--container-platforms LIST\|none` | Select container platforms or disable container builds on a `release/*` branch; confirm on `develop`. |
 | `--full` | Run every local check, not only the checks in scope. |
 | `--no-sign` | Do not sign the commit. The verifier rejects an unsigned commit. |
 | `--allow-protected` | Allow a local run on `main` or `develop`. |
@@ -261,7 +261,7 @@ One file declares the release. `scripts/release/release.json` holds the version 
 }
 ```
 
-The gate writes that file from the platform options on a `release/*` branch. The local checks verify it, the merge into `develop` carries it, and the main tag pins it. The candidate builds exactly the platforms in the file at the tag. This example releases Linux only.
+The gate writes that file from the platform options on a `release/*` branch. The local checks verify it, the merge into `develop` carries it, and the main tag pins it. To disable a family, pass `none`; the gate writes `desktopEnabled: false` or `containerEnabled: false` while preserving its platform catalog for future releases. The candidate builds only the enabled families. A container-only candidate has no desktop installer or updater metadata; a desktop-only candidate has no container images or Compose assets.
 
 The script `scripts/release/platforms.mjs` holds the runner of each platform. That table is the universe. A declared name outside it stops the local gate and the job `verify-tag`, before a runner starts.
 
@@ -269,7 +269,7 @@ The inputs `desktop_targets` and `container_platforms` only narrow the declarati
 
 The candidate then holds the declared platforms only. The acceptance record covers those platforms only. The publication gate accepts such a candidate, so a release publishes the platforms that the record covers.
 
-The job `desktop` then builds the declared targets. Each matrix job has a limit of 90 minutes.
+The job `desktop` builds the enabled targets. Each matrix job has a limit of 90 minutes. A disabled family is skipped, including its assembly and publication assets.
 
 | Runner             | Target        |
 | ------------------ | ------------- |
