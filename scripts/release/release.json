@@ -1,5 +1,5 @@
 {
-  "version": "0.1.3",
+  "version": "0.1.4",
   "desktopTargets": [
     "linux-x64",
     "win32-x64",
