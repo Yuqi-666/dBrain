@@ -497,7 +497,7 @@ export async function runGate(argv, deps = {}) {
     }
     paths.sort();
   }
-  const selected = options.full || route?.kind === 'hotfix'
+  const selected = options.full || route?.kind === 'hotfix' || route?.kind === 'bootstrap'
     ? allLocalCheckIds(definition)
     : requiredCheckIds(paths, definition);
   const planned = definition.checks.filter(check => selected.includes(check.id));

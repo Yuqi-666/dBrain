@@ -206,6 +206,21 @@ test('release planning rejects an occupied tag before changing files', async t =
   assert.equal(git(root, ['status', '--porcelain']), '');
 });
 
+test('bootstrap into main covers the checks required by the develop push hook', async t => {
+  const root = createRepo(t);
+  write(root, 'README.md', '# dBrain\n');
+  commitAll(root, 'docs: start');
+  git(root, ['branch', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'ci/bootstrap']);
+  write(root, 'scripts/gate/branches.mjs', 'export const ready = true;\n');
+  const output = [];
+  const code = await runGate(['--until=plan', '--base=main'], {
+    cwd: root, git: createGit(root), run: stubRun(), io: quietIo(output),
+  });
+  assert.equal(code, 0, output.join('\n'));
+  assert.match(output.join('\n'), /Checks: .*repository-yaml.*typecheck.*build.*smoke-server/);
+});
+
 test('release checking writes the selected platform declaration before checks', async t => {
   const root = createRepo(t);
   write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));
