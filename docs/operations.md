@@ -23,7 +23,7 @@ Local Docker reuses the layers of the same builder. The GHA cache belongs to the
 
 ## Use a candidate or a release image
 
-For releases after v0.1.3, download `dbrain-deploy-vVERSION.tar.gz` and `SHA256SUMS` from the matching release. Check the archive hash, then extract it into the deployment directory. The archive holds `docker-compose.yml`, `nginx.conf`, `update.sh`, `.env.example`, `compose.release.yml`, and `container-report.json` at its root. Keep these files together. v0.1.3 published the same deployment files as separate assets; download them individually and rename `default.env.example` to `.env.example`. Verify the source commit and image digests in the container report.
+For releases after v0.1.3, download `dbrain-deploy-vVERSION.tar.gz` and `SHA256SUMS` from the matching release. Check the archive hash, then extract it into the deployment directory. The archive holds `docker-compose.yml`, `nginx.conf`, `update.sh`, `.env.example`, `compose.release.yml`, and `container-report.json` at its root. Newer archives also include `compose.updater.yml` and `deploy/updater/`. Keep these files together. v0.1.3 published the same deployment files as separate assets; download them individually and rename `default.env.example` to `.env.example`. Verify the source commit and image digests in the container report.
 
 For a published release, the following manual commands use its fixed digest overlay. Run them in that deployment directory.
 
@@ -49,7 +49,16 @@ sh update.sh vVERSION
 
 The argument selects exactly one tested image set. The script pulls the three images, resolves their registry digests, stops the stack, copies the complete PocketBase volume to `backups/`, writes `compose.current.yml`, starts the stack, and waits for health checks. PocketBase prepares its migration run directory before opening the database. Keep `compose.current.yml` with the deployment; use it for later manual Compose commands. If startup fails, the script leaves the stack stopped and prints the backup location. Restore the matching database backup before starting an older image; an old image alone cannot reverse a migration. The script uses the fixed Compose project `dbrain`.
 
-For an official server, register one `user@host /absolute/deployment/path [ssh-port]` line in the repository variable `DBRAIN_DEPLOY_TARGETS`; the port defaults to 22. For example, `lyq@yuqi-666.cn /opt/dbrain 22000`. Set `DBRAIN_DEPLOY_SSH_KEY` and `DBRAIN_DEPLOY_KNOWN_HOSTS` in the `production` environment. For a nonstandard port, the known-hosts entry uses `[host]:port`. Give the SSH account Docker access and provision that directory with the deployment files and `.env`. After the main CI pushes the tested container candidate, it sends the current `deploy/update.sh` over SSH and passes `candidate-RUN_ID-ATTEMPT` to each registered host. A desktop signing failure does not block this container deployment.
+## Automatic candidate updates
+
+Set `DBRAIN_AUTO_UPDATE=true` in the deployment `.env`, then start the separate updater project from that directory:
+
+```bash
+docker compose -f compose.updater.yml up -d --build
+docker compose -f compose.updater.yml logs -f updater
+```
+
+The updater checks the latest successful `main` Gate push every five minutes. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. A failed update is retried; if startup fails, the application stays stopped for recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. Stop it with `docker compose -f compose.updater.yml down`.
 
 ## PocketBase schema updates
 
@@ -64,6 +73,7 @@ For an official server, register one `user@host /absolute/deployment/path [ssh-p
 | `DBRAIN_ADMIN_PASSWORD_FILE` | The password file has priority. The container needs a mount for that file. |
 | `DBRAIN_BIND_HOST` | The gateway host address. The default is `127.0.0.1`. |
 | `DBRAIN_PORT` | The gateway host port. The default is `3000`. |
+| `DBRAIN_AUTO_UPDATE` | `true` enables the separate updater; `false` pauses it. The default is `false`. |
 | `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | The image name and tag of the source Compose. A release uses the digest overlay. |
 

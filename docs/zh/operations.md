@@ -23,7 +23,7 @@ docker compose -p dbrain ps
 
 ## 使用候选或发行镜像
 
-对于 v0.1.3 之后的 Release，从对应版本下载 `dbrain-deploy-vVERSION.tar.gz` 和 `SHA256SUMS`。核对归档的哈希后，把它解压到部署目录。归档根目录包含 `docker-compose.yml`、`nginx.conf`、`update.sh`、`.env.example`、`compose.release.yml` 和 `container-report.json`。这些文件应保持同级。v0.1.3 把相同的部署文件作为独立制品发布；需分别下载，并把 `default.env.example` 改名为 `.env.example`。验证来源 commit 和容器报告中的镜像 digest。
+对于 v0.1.3 之后的 Release，从对应版本下载 `dbrain-deploy-vVERSION.tar.gz` 和 `SHA256SUMS`。核对归档的哈希后，把它解压到部署目录。归档根目录包含 `docker-compose.yml`、`nginx.conf`、`update.sh`、`.env.example`、`compose.release.yml` 和 `container-report.json`。较新的归档还包含 `compose.updater.yml` 和 `deploy/updater/`。这些文件应保持同级。v0.1.3 把相同的部署文件作为独立制品发布；需分别下载，并把 `default.env.example` 改名为 `.env.example`。验证来源 commit 和容器报告中的镜像 digest。
 
 已发布 Release 可手动使用其固定 digest 的覆盖层。在该部署目录执行：
 
@@ -49,7 +49,16 @@ sh update.sh vVERSION
 
 参数精确选择一组已测试的镜像。脚本拉取三个镜像并解析仓库 digest，停止服务，把完整的 PocketBase 数据卷复制到 `backups/`，写入 `compose.current.yml`，启动服务并等待健康检查。PocketBase 在打开数据库前准备迁移运行目录。后续手动运行 Compose 时保留并使用 `compose.current.yml`。若启动失败，脚本保持服务停止并输出备份位置。启动旧镜像前必须恢复匹配的数据库备份；旧镜像不能撤销迁移。脚本固定使用 Compose project `dbrain`。
 
-官方服务器在仓库变量 `DBRAIN_DEPLOY_TARGETS` 中登记，每行一个 `user@host /absolute/deployment/path [ssh-port]`；省略端口时使用 22。例如 `lyq@yuqi-666.cn /opt/dbrain 22000`。在 `production` 环境设置 `DBRAIN_DEPLOY_SSH_KEY` 和 `DBRAIN_DEPLOY_KNOWN_HOSTS`。非标准端口的 known_hosts 条目使用 `[host]:port`。SSH 账号需要 Docker 权限；部署目录需预先放好部署文件和 `.env`。main CI 推送已测试的容器候选后，通过 SSH 发送当前 `deploy/update.sh`，向每台已登记服务器传入 `candidate-RUN_ID-ATTEMPT`。桌面签名失败不会阻止容器部署。
+## 自动更新候选
+
+在部署目录的 `.env` 中设置 `DBRAIN_AUTO_UPDATE=true`，然后在该目录启动独立的更新项目：
+
+```bash
+docker compose -f compose.updater.yml up -d --build
+docker compose -f compose.updater.yml logs -f updater
+```
+
+更新容器每五分钟检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库并等待所有应用健康检查。失败后会重试；如果启动失败，应用保持停止，等待恢复。将 `.env` 改为 `DBRAIN_AUTO_UPDATE=false` 即可暂停检查，无需重启更新容器。更新容器使用独立的 Compose 项目，因此应用重启不会停止它。它需要 Docker 套接字和部署目录的写权限；只在可信主机上授予该权限。使用 `docker compose -f compose.updater.yml down` 停止它。
 
 ## PocketBase 结构更新
 
@@ -64,6 +73,7 @@ sh update.sh vVERSION
 | `DBRAIN_ADMIN_PASSWORD_FILE` | 密码文件优先。容器需要挂载该文件。 |
 | `DBRAIN_BIND_HOST` | Gateway 宿主机监听地址。默认 `127.0.0.1`。 |
 | `DBRAIN_PORT` | Gateway 宿主机端口。默认 `3000`。 |
+| `DBRAIN_AUTO_UPDATE` | `true` 启用独立更新容器；`false` 暂停。默认为 `false`。 |
 | `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
 
