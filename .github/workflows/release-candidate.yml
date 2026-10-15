@@ -100,6 +100,7 @@ jobs:
 
   desktop:
     needs: verify-tag
+    if: needs.verify-tag.outputs.desktop_targets != ''
     uses: ./.github/workflows/desktop-build.yml
     with:
       signed: ${{ inputs.signed }}
@@ -108,6 +109,7 @@ jobs:
 
   containers:
     needs: verify-tag
+    if: needs.verify-tag.outputs.container_platforms != ''
     uses: ./.github/workflows/container-build.yml
     with:
       platforms: ${{ needs.verify-tag.outputs.container_platforms }}
@@ -125,7 +127,7 @@ jobs:
 
   deploy-official:
     needs: [verify-tag, containers, deploy-plan]
-    if: needs.deploy-plan.outputs.enabled == 'true'
+    if: needs.deploy-plan.outputs.enabled == 'true' && needs.verify-tag.outputs.container_platforms != ''
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     environment: production
@@ -161,6 +163,7 @@ jobs:
 
   assemble:
     needs: [verify-tag, desktop, containers]
+    if: always() && needs.verify-tag.result == 'success' && (needs.desktop.result == 'success' || (needs.desktop.result == 'skipped' && needs.verify-tag.outputs.desktop_targets == '')) && (needs.containers.result == 'success' || (needs.containers.result == 'skipped' && needs.verify-tag.outputs.container_platforms == ''))
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -183,7 +186,9 @@ jobs:
           for target in $(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS"); do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
           done
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
+          if [ -n "$CONTAINER_PLATFORMS" ]; then
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
+          fi
           node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="$DESKTOP_TARGETS" --containers="$CONTAINER_PLATFORMS"
           echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Platforms: desktop=$DESKTOP_TARGETS containers=$CONTAINER_PLATFORMS. Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

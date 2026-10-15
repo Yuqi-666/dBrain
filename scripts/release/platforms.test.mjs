@@ -59,6 +59,9 @@ test("a selection outside the declared list is refused", () => {
 });
 
 test("a declaration must name only platforms of the runner table", () => {
+  assert.deepEqual(declarationOf({ desktopTargets: ["linux-x64"], desktopEnabled: false, containerPlatforms: ["linux/amd64"] }).desktopTargets, []);
+  assert.deepEqual(declarationOf({ desktopTargets: ["linux-x64"], containerPlatforms: ["linux/amd64"], containerEnabled: false }).containerPlatforms, []);
+  assert.throws(() => declarationOf({ desktopTargets: ["linux-x64"], desktopEnabled: false, containerPlatforms: ["linux/amd64"], containerEnabled: false }), /At least one product family/);
   assert.deepEqual(
     declarationOf({
       desktopTargets: ["linux-x64"],

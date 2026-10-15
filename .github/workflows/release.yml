@@ -75,7 +75,9 @@ jobs:
           acceptance="docs/release-acceptance/$RELEASE_TAG.json"
           node scripts/release/candidate.mjs approve candidate "$acceptance" assets
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          node scripts/release/verify-images.mjs candidate/containers/container-report.json
+          if [ -f candidate/containers/container-report.json ]; then
+            node scripts/release/verify-images.mjs candidate/containers/container-report.json
+          fi
       - name: Create a draft with the verified assets
         shell: bash
         run: |
@@ -93,7 +95,9 @@ jobs:
       - name: Publish explicitly accepted release
         if: inputs.publish
         run: |
-          node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
+          if [ -f candidate/containers/container-report.json ]; then
+            node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
+          fi
           gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
       - if: always()
         run: docker logout ghcr.io

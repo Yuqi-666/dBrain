@@ -25,7 +25,7 @@ import {
 } from './scope.mjs';
 import { installHooks } from './hook.mjs';
 import { branchRoute } from './branches.mjs';
-import { desktopRunners, containerRunners } from '../release/platforms.mjs';
+import { desktopRunners, containerRunners, declarationOf } from '../release/platforms.mjs';
 import { versionIncreases } from './verify.mjs';
 
 const definition = { protocol, checks, protectedPaths, trackedDeny };
@@ -43,8 +43,8 @@ Options:
       --until <stage>    Stop after plan, check, commit, push, pr, or merge.
   -m, --message <text>   The commit subject. Repeat the option for a body paragraph.
       --base <branch>    Assert the target branch selected from the current branch.
-      --desktop-targets <list>     Assert the selected desktop platforms for promotion.
-      --container-platforms <list> Assert the selected container platforms for promotion.
+      --desktop-targets <list|none>     Select desktop targets or disable desktop builds.
+      --container-platforms <list|none> Select container platforms or disable container builds.
       --version <semver> Set the next version on release/* or hotfix/*.
       --full             Run every local check, not only the checks in scope.
       --no-sign          Do not sign the commit. The verifier rejects an unsigned commit.
@@ -140,10 +140,12 @@ export async function promptGateOptions({ input = process.stdin, output = proces
     const hotfixBranch = currentBranch.startsWith('hotfix/');
     const declaration = currentBranch === 'develop' || releaseBranch || hotfixBranch ? readJson(resolve(process.cwd(), 'scripts/release/release.json')) : null;
     const version = releaseBranch || hotfixBranch ? (await question(`New release version (current ${declaration.version}): `)).trim() : null;
+    const desktopDefault = declaration?.desktopEnabled === false ? 'none' : declaration?.desktopTargets.join(',');
+    const containerDefault = declaration?.containerEnabled === false ? 'none' : declaration?.containerPlatforms.join(',');
     const desktopTargets = declaration && !hotfixBranch
-      ? (await question(`Desktop targets [${declaration.desktopTargets.join(',')}]: `)).trim() || declaration.desktopTargets.join(',') : null;
+      ? (await question(`Desktop targets [${desktopDefault}]: `)).trim() || desktopDefault : null;
     const containerPlatforms = declaration && !hotfixBranch
-      ? (await question(`Container platforms [${declaration.containerPlatforms.join(',')}]: `)).trim() || declaration.containerPlatforms.join(',') : null;
+      ? (await question(`Container platforms [${containerDefault}]: `)).trim() || containerDefault : null;
     return { ...parseArgs([]), until, base, full, messages, version, desktopTargets, containerPlatforms };
   } finally {
     prompt?.close();
@@ -206,6 +208,7 @@ function readJson(path) {
 }
 
 function selectedNames(value, allowed, label) {
+  if (String(value).trim().toLowerCase() === 'none') return [];
   const names = String(value ?? '').split(/[\s,]+/).filter(Boolean);
   if (!names.length || new Set(names).size !== names.length || names.some(name => !allowed.includes(name))) {
     throw new Error(`${label} must be a nonempty list of distinct names from: ${allowed.join(', ')}.`);
@@ -221,11 +224,13 @@ function releaseSelection(options) {
   if (!validVersion(options.version)) {
     throw new Error('A release/* branch needs --version MAJOR.MINOR.PATCH.');
   }
-  return {
+  const selection = {
     version: options.version,
     desktopTargets: selectedNames(options.desktopTargets, Object.keys(desktopRunners), 'Desktop targets'),
     containerPlatforms: selectedNames(options.containerPlatforms, Object.keys(containerRunners), 'Container platforms'),
   };
+  if (!selection.desktopTargets.length && !selection.containerPlatforms.length) throw new Error('Select at least one desktop or container platform.');
+  return selection;
 }
 
 function releaseAt(git, ref) {
@@ -407,7 +412,7 @@ export async function runGate(argv, deps = {}) {
       io.log(problem);
       return 1;
     }
-    io.log(`Release v${selection.version}: desktop=${selection.desktopTargets.join(',')}; containers=${selection.containerPlatforms.join(',')}.`);
+    io.log(`Release v${selection.version}: desktop=${selection.desktopTargets.join(',') || 'none'}; containers=${selection.containerPlatforms.join(',') || 'none'}.`);
     if (until !== 'plan') {
       const synchronized = run('node', ['scripts/release/version.mjs', selection.version], { cwd: root });
       if (synchronized.status !== 0) {
@@ -416,8 +421,10 @@ export async function runGate(argv, deps = {}) {
       }
       const file = resolve(root, 'scripts/release/release.json');
       const declaration = readJson(file);
-      declaration.desktopTargets = selection.desktopTargets;
-      declaration.containerPlatforms = selection.containerPlatforms;
+      declaration.desktopEnabled = selection.desktopTargets.length > 0;
+      declaration.containerEnabled = selection.containerPlatforms.length > 0;
+      if (selection.desktopTargets.length) declaration.desktopTargets = selection.desktopTargets;
+      if (selection.containerPlatforms.length) declaration.containerPlatforms = selection.containerPlatforms;
       writeFileSync(file, `${JSON.stringify(declaration, null, 2)}\n`);
     }
   } else if (hotfix) {
@@ -471,14 +478,15 @@ export async function runGate(argv, deps = {}) {
       io.log(problem);
       return 1;
     }
+    const effective = declarationOf(release);
     for (const [key, value] of [['desktopTargets', options.desktopTargets], ['containerPlatforms', options.containerPlatforms]]) {
-      const names = value ? value.split(/[\s,]+/).filter(Boolean) : [];
-      if (value && (names.length !== release[key].length || new Set(names).size !== names.length || names.some(name => !release[key].includes(name)))) {
-        io.log(`${key} must match the declared list: ${release[key].join(',')}. Change release.json through a development PR first.`);
+      const names = value?.trim().toLowerCase() === 'none' ? [] : value ? value.split(/[\s,]+/).filter(Boolean) : [];
+      if (value && (names.length !== effective[key].length || new Set(names).size !== names.length || names.some(name => !effective[key].includes(name)))) {
+        io.log(`${key} must match the declared list: ${effective[key].join(',') || 'none'}. Change release.json through a development PR first.`);
         return 1;
       }
     }
-    io.log(`Promotion v${release.version}: desktop=${release.desktopTargets.join(',')}; containers=${release.containerPlatforms.join(',')}.`);
+    io.log(`Promotion v${release.version}: desktop=${effective.desktopTargets.join(',') || 'none'}; containers=${effective.containerPlatforms.join(',') || 'none'}.`);
   } else if (!releaseBranch && !hotfix && (options.version || options.desktopTargets || options.containerPlatforms)) {
     io.log('Version and platform selection apply only to release/* preparation or develop promotion.');
     return 1;

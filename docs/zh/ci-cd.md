@@ -59,7 +59,7 @@ pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 
 两种方式都走同一条直线：`plan → check → commit → push → pr → merge`。`--until` 在指定阶段后停止。分支决定目标：普通开发分支进入 `develop`；`hotfix/*` 同时创建面向 `main` 和 `develop` 的 PR；在干净的 `develop` 上运行 gate 会创建面向 `main` 的晋升 PR。晋升沿用已有的合并历史，因此提交和推送阶段会报告无需新提交或直接推送。
 
-在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台列表创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
+在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。对本次不构建的产品类别传入 `none`；至少保留一类。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台选择创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
 
 写入发布或热修复版本前，gate 检查新版本高于目标分支版本，且 `origin` 上的 `vVERSION` 尚未占用。晋升时再与 `main` 比较一次。不要提前创建版本标签；由 main 的 CI 在完成验证的提交上创建它。
 
@@ -77,8 +77,8 @@ pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 | `-m "text"` | 提交标题。从 `commit` 阶段起必填。重复该选项可增加正文段落。 |
 | `--base BRANCH` | 确认由当前分支路由选出的目标分支。 |
 | `--version VERSION` | 在 `release/*` 或 `hotfix/*` 分支同步版本。 |
-| `--desktop-targets LIST` | 在 `release/*` 分支选择桌面目标；在 `develop` 上确认。 |
-| `--container-platforms LIST` | 在 `release/*` 分支选择容器平台；在 `develop` 上确认。 |
+| `--desktop-targets LIST\|none` | 在 `release/*` 分支选择桌面目标或关闭桌面构建；在 `develop` 上确认。 |
+| `--container-platforms LIST\|none` | 在 `release/*` 分支选择容器平台或关闭容器构建；在 `develop` 上确认。 |
 | `--full` | 运行全部本地检查，而不只是范围内的检查。 |
 | `--no-sign` | 不对提交签名。验证器会拒绝未签名的提交。 |
 | `--allow-protected` | 允许在 `main` 或 `develop` 上本地运行。 |
@@ -263,7 +263,7 @@ PR 不构建任何产物。每次成功合并到 `main` 都会启动干净机器
 }
 ```
 
-gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。候选只构建标签处文件里写的平台。上例只发布 Linux。
+gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。对不构建的类别传入 `none` 后，gate 写入 `desktopEnabled: false` 或 `containerEnabled: false`，同时保留其平台清单供后续版本使用。候选只构建已启用的类别。仅容器候选没有桌面安装包及更新元数据；仅桌面候选没有容器镜像及 Compose 文件。
 
 脚本 `scripts/release/platforms.mjs` 保存每个平台对应的 runner。该表是全集。声明的名称不在其中时，本地门控和作业 `verify-tag` 都会在 runner 启动之前停止。
 
@@ -271,7 +271,7 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 
 候选随后只保存已声明的平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。
 
-随后作业 `desktop` 构建已声明的目标。每个矩阵作业的时限为 90 分钟。
+随后作业 `desktop` 构建已启用的目标。每个矩阵作业的时限为 90 分钟。未启用的类别及其组装、发布资产都会跳过。
 
 | Runner | 目标 |
 | --- | --- |
