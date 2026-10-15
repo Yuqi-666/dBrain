@@ -206,9 +206,10 @@ test("published assets preserve hashes and deploy verified digests without stale
     await mkdir(deployment);
     await execFileAsync("tar", ["-xzf", join(assets, `dbrain-deploy-v${expected.version}.tar.gz`), "-C", deployment]);
     assert.deepEqual((await readdir(deployment)).sort(), [
-      ".env.example", "compose.release.yml", "container-report.json", "docker-compose.yml", "nginx.conf", "update.sh",
+      ".env.example", "compose.release.yml", "compose.updater.yml", "container-report.json", "deploy", "docker-compose.yml", "nginx.conf", "update.sh",
     ]);
     assert.match(await readFile(join(deployment, "compose.release.yml"), "utf8"), /pocketbase@sha256:[b]+/);
+    assert.match(await readFile(join(deployment, "deploy/updater/watch.sh"), "utf8"), /DBRAIN_AUTO_UPDATE/);
     const latest = JSON.parse(await readFile(join(assets, "latest.json"), "utf8"));
     assert.equal(latest.version, expected.version);
     assert.equal(Object.keys(latest.platforms).length, expected.desktopTargets.length);
