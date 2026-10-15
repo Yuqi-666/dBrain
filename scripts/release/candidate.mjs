@@ -159,7 +159,7 @@ export async function verifyCandidate(root, expected) {
       assert.equal(image.smokePassed, true);
     }
     assert.deepEqual((await readdir(join(root, "containers"))).sort(), ["container-report.json"]);
-    assert.deepEqual((await readdir(join(root, "deployment"))).sort(), [".env.example", "docker-compose.yml", "nginx.conf", "update.sh"]);
+    assert.deepEqual((await readdir(join(root, "deployment"))).sort(), [".env.example", "compose.updater.yml", "deploy", "docker-compose.yml", "nginx.conf", "update.sh"]);
   }
   return { reports, containers };
 }
@@ -180,6 +180,8 @@ export async function assembleCandidate(incoming, destination, expected) {
     );
     await cp("deploy/nginx.conf", join(destination, "deployment/nginx.conf"));
     await cp("deploy/update.sh", join(destination, "deployment/update.sh"));
+    await cp("compose.updater.yml", join(destination, "deployment/compose.updater.yml"));
+    await cp("deploy/updater", join(destination, "deployment/deploy/updater"), { recursive: true });
     await cp("deploy/.env.example", join(destination, "deployment/.env.example"));
   }
   await verifyCandidate(destination, expected);
@@ -263,8 +265,9 @@ export async function prepareReleaseAssets(root, out, expected) {
     const staging = join(out, ".deployment");
     await mkdir(staging);
     try {
-      for (const name of ["docker-compose.yml", "nginx.conf", "update.sh", ".env.example"])
+      for (const name of ["docker-compose.yml", "nginx.conf", "update.sh", "compose.updater.yml", ".env.example"])
         await cp(join(root, "deployment", name), join(staging, name));
+      await cp(join(root, "deployment/deploy"), join(staging, "deploy"), { recursive: true });
       await cp(join(root, "containers/container-report.json"), join(staging, "container-report.json"));
       await writeFile(join(staging, "compose.release.yml"), "services:\n" + services.map((service) => `  ${service}:\n    image: ${containers.images[service].reference}\n`).join(""));
       await execFileAsync("tar", ["-czf", join(out, `dbrain-deploy-v${index.version}.tar.gz`), "-C", staging, "."]);

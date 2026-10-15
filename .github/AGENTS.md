@@ -35,7 +35,7 @@ at that tag. A manual start repeats a failed platform build for an existing tag,
 it may narrow the declaration of that file.
 
 `release.yml` reads a Gate run, compares the tag with the source version, and publishes a verified release by default.
-After container candidates pass, `release-candidate.yml` runs `deploy/update.sh` over SSH for registered production targets. `release.yml` tags verified images when a release is published.
+After container candidates pass, the host-side updater can discover the successful main Gate run and apply it. `release.yml` tags verified images when a release is published.
 
 A pull request builds no product. The release candidate is the only clean-machine build.
 
