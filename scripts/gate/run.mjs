@@ -24,7 +24,7 @@ import {
   requiredCheckIds,
 } from './scope.mjs';
 import { installHooks } from './hook.mjs';
-import { branchRoute } from './branches.mjs';
+import { branchRoute, promotionMergeProblem } from './branches.mjs';
 import { desktopRunners, containerRunners, declarationOf } from '../release/platforms.mjs';
 import { versionIncreases } from './verify.mjs';
 
@@ -468,8 +468,11 @@ export async function runGate(argv, deps = {}) {
     }
     const main = run('git', ['ls-remote', 'origin', 'refs/heads/main'], { cwd: root });
     const mainSha = main.status === 0 ? main.stdout.trim().split(/\s+/)[0] : '';
-    if (!mainSha || run('git', ['merge-base', '--is-ancestor', mainSha, 'HEAD'], { cwd: root }).status !== 0) {
-      io.log('Promotion requires the remote main tip to be an ancestor of develop. Merge main into develop first.');
+    const mergeProblem = mainSha
+      ? promotionMergeProblem(git, mainSha, 'HEAD')
+      : 'Cannot read the remote main tip. Fetch main and try again.';
+    if (mergeProblem) {
+      io.log(mergeProblem);
       return 1;
     }
     const release = readJson(resolve(root, 'scripts/release/release.json'));

@@ -165,7 +165,7 @@ Cargo 验证前准备 Tauri 配置要求的运行时和前端资源。Server smo
 
 ## 日常维护
 
-从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升前，如有需要，先通过受门控的 PR 把当前 `main` 顶端同步进 `develop`。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
+从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升会检查计划中的合并结果。只有 `main` 有 `develop` 缺少的内容，或合并发生冲突时，才需要同步 PR。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
 
 新增 JavaScript 依赖时，更新对应 workspace 包和 `pnpm-lock.yaml`。新增 Rust 依赖时，更新 `Cargo.lock`。不要修改已发行迁移。新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台。验证运行时、安装包和备份恢复。
 

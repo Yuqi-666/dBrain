@@ -198,7 +198,7 @@ Rule 6 keeps the identity of the author. A signature proves a claim. It does not
 
 ### The merge gate
 
-Every change reaches `main` or `develop` as a merge commit. The job `merged` reads that commit. A promotion PR verifies each merge on the first-parent history of `develop` since the `main` tip.
+Every change reaches `main` or `develop` as a merge commit. The job `merged` reads that commit. A promotion PR verifies each new merge on the first-parent history of `develop`. The gate also checks that merging `main` with `develop` produces exactly the `develop` file tree. A previous promotion merge on `main` does not require a sync PR. If `main` has independent content or the merge conflicts, sync or resolve it before promotion.
 
 The commit must have two parents. The first parent is the previous tip of `main`, which an earlier run accepted. The second parent is the head of the pull request. The job makes these decisions about every parent after the first.
 
