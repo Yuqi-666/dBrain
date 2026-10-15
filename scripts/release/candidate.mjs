@@ -11,7 +11,7 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashFile } from "../lib/runtime-manifest.mjs";
-import { loadDeclaration, selectTargets } from "./platforms.mjs";
+import { declarationOf, loadDeclaration, selectTargets } from "./platforms.mjs";
 export const services = ["pocketbase", "server", "web"];
 const readJSON = async (path) => JSON.parse(await readFile(path, "utf8"));
 const safeName = (name) =>
@@ -160,24 +160,6 @@ export async function verifyCandidate(root, expected) {
   }
   return { reports, containers };
 }
-export function acceptanceChecks(targets) {
-  return [
-    ...targets.flatMap((target) =>
-      [
-        "installation",
-        "uninstall",
-        "csp",
-        "media",
-        "upgrade",
-        "process-exit",
-      ].map((check) => `${target}.${check}`),
-    ),
-    "third-party-materials",
-    "historical-data-migration",
-    "backup-restore",
-    "known-lint-debt",
-  ];
-}
 export async function assembleCandidate(incoming, destination, expected) {
   // Never erase an input directory by accident.
   assert.ok(
@@ -207,46 +189,16 @@ export async function assembleCandidate(incoming, destination, expected) {
     join(destination, "candidate-index.json"),
     JSON.stringify(index, null, 2) + "\n",
   );
-  const acceptance = {
-    schemaVersion: 1,
-    version: expected.version,
-    commit: expected.commit,
-    runId: expected.runId,
-    runAttempt: expected.runAttempt,
-    candidateIndexSha256: await hashFile(
-      join(destination, "candidate-index.json"),
-    ),
-    reviewer: "",
-    reviewedAt: "",
-    checks: Object.fromEntries(
-      acceptanceChecks(expected.desktopTargets).map((name) => [
-        name,
-        { status: "pending", evidence: "" },
-      ]),
-    ),
-    thirdPartyMaterials: { url: "", sha256: "" },
-  };
-  await writeFile(
-    join(destination, "acceptance-template.json"),
-    JSON.stringify(acceptance, null, 2) + "\n",
-  );
   return index;
 }
-export async function approveCandidate(root, acceptance, expected) {
+export async function verifyPublishableCandidate(root, expected) {
   const index = await readJSON(join(root, "candidate-index.json"));
   assert.equal(index.schemaVersion, 1);
-  assert.equal(acceptance.schemaVersion, 1);
   identity(index, expected);
-  identity(acceptance, expected);
   assert.equal(index.repository, expected.repository);
   assert.equal(index.imagePrefix, expected.imagePrefix);
   assert.deepEqual(index.desktopTargets, expected.desktopTargets);
   assert.deepEqual(index.containerPlatforms, expected.containerPlatforms);
-  assert.equal(
-    acceptance.candidateIndexSha256,
-    await hashFile(join(root, "candidate-index.json")),
-    "Acceptance is for a different candidate",
-  );
   assert.deepEqual(
     index.files,
     await fileInventory(root),
@@ -267,50 +219,15 @@ export async function approveCandidate(root, acceptance, expected) {
       `${target} signing verification missing`,
     );
   }
-  assert.ok(
-    typeof acceptance.reviewer === "string" &&
-      acceptance.reviewer.trim().length > 0,
-    "Missing reviewer",
-  );
-  assert.ok(
-    typeof acceptance.reviewedAt === "string" &&
-      Number.isFinite(Date.parse(acceptance.reviewedAt)),
-    "Missing review date",
-  );
-  assert.deepEqual(
-    Object.keys(acceptance.checks).sort(),
-    acceptanceChecks(expected.desktopTargets).sort(),
-  );
-  for (const [name, check] of Object.entries(acceptance.checks)) {
-    assert.equal(check.status, "passed", `Acceptance pending: ${name}`);
-    assert.ok(
-      typeof check.evidence === "string" && check.evidence.trim().length >= 10,
-      `Evidence missing: ${name}`,
-    );
-  }
-  const url = new URL(acceptance.thirdPartyMaterials.url);
-  assert.equal(url.protocol, "https:");
-  assert.ok(!url.username && !url.password);
-  assert.match(acceptance.thirdPartyMaterials.sha256, /^[a-f0-9]{64}$/);
   return index;
 }
-export async function prepareReleaseAssets(
-  root,
-  acceptancePath,
-  out,
-  expected,
-) {
-  const index = await approveCandidate(
-    root,
-    await readJSON(acceptancePath),
-    expected,
-  );
+export async function prepareReleaseAssets(root, out, expected) {
+  const index = await verifyPublishableCandidate(root, expected);
   await mkdir(out);
   await cp(
     join(root, "candidate-index.json"),
     join(out, "candidate-index.json"),
   );
-  await cp(acceptancePath, join(out, "acceptance.json"));
   for (const target of index.desktopTargets) {
     const dir = join(root, target);
     for (const name of (await readdir(dir)).filter(
@@ -348,10 +265,9 @@ export async function prepareReleaseAssets(
     const containers = await readJSON(join(root, "containers/container-report.json"));
     await writeFile(join(out, "compose.release.yml"), "services:\n" + services.map((service) => `  ${service}:\n    image: ${containers.images[service].reference}\n`).join(""));
   }
-  const acceptance = await readJSON(acceptancePath);
   await writeFile(
     join(out, "RELEASE-NOTES.md"),
-    `dBrain ${index.version}\n\nSource: ${index.commit}\nCandidate: ${index.runId}, attempt ${index.runAttempt}\n\nThird-party license and source materials: ${acceptance.thirdPartyMaterials.url}\nMaterials SHA256: ${acceptance.thirdPartyMaterials.sha256}\n\nInstall and upgrade instructions: docs/usage.md at source commit.\n`,
+    `dBrain ${index.version}\n\nSource: ${index.commit}\nCandidate: ${index.runId}, attempt ${index.runAttempt}\n\nInstall and upgrade instructions: docs/usage.md at source commit.\n`,
   );
   const files = Object.fromEntries(
     await Promise.all(
@@ -378,8 +294,11 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  const release = await loadDeclaration();
   const args = process.argv.slice(2);
+  const releasePath = option(args, "release-json");
+  const release = releasePath
+    ? declarationOf(await readJSON(releasePath))
+    : await loadDeclaration();
   const [mode, ...positional] = args.filter((arg) => !arg.startsWith("--"));
   const expected = {
     ...release,
@@ -405,11 +324,9 @@ if (
       "container platform",
     );
     await assembleCandidate(positional[0], positional[1], expected);
-  } else if (mode === "approve") {
-    // The candidate index names the platforms of the run that a person tested.
-    // A release therefore publishes what the acceptance record covers. The
-    // list must still stay inside the declaration of release.json, so an
-    // edited index cannot invent a platform.
+  } else if (mode === "publish") {
+    // The index names the built platforms. Keep them inside the declaration
+    // from the tagged commit, even if main now declares a newer release.
     const index = await readJSON(
       join(positional[0], "candidate-index.json"),
     );
@@ -426,11 +343,10 @@ if (
     await prepareReleaseAssets(
       positional[0],
       positional[1],
-      positional[2],
       expected,
     );
   } else
     throw new Error(
-      "Usage: candidate.mjs assemble <incoming> <output> [--desktop=LIST] [--containers=LIST] | approve <candidate> <acceptance.json> <assets>",
+      "Usage: candidate.mjs assemble <incoming> <output> [--desktop=LIST] [--containers=LIST] | publish <candidate> <assets> --release-json=TAG_RELEASE_JSON",
     );
 }

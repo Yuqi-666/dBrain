@@ -26,11 +26,11 @@ The JavaScript files use the `.mjs` suffix and run directly, so no build step ex
 `release/server-smoke.mjs` starts a server against a fresh database and checks user isolation.
 `release/download-pocketbase.mjs` fetches the pinned binary from `release/pocketbase-lock.json` and verifies its checksum.
 `release/version.mjs` synchronizes the version in `release/release.json`, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json`.
-`release/candidate.mjs` assembles, approves, and prepares release assets.
+`release/candidate.mjs` assembles and verifies candidates, then prepares release assets.
 `release/platforms.mjs` reads the declared platforms of a release candidate and holds the runner of each platform.
 `release/validate-run.mjs` accepts or rejects a Gate run before release.
 `release/container-images.mjs` builds and pushes the container images.
-`release/promote-images.mjs` tags accepted image digests when the GitHub release is published.
+`release/promote-images.mjs` tags verified image digests when the GitHub release is published.
 `lib/pocketbase-migrations.mjs` prepares the durable migration run directory for development and desktop.
 
 Read a script before you run it.

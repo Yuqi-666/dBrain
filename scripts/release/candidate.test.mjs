@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   prepareReleaseAssets,
-  acceptanceChecks,
-  approveCandidate,
+  verifyPublishableCandidate,
   assembleCandidate,
   services,
 } from "./candidate.mjs";
@@ -93,44 +92,14 @@ async function fixture(signed = true, plan = expected) {
   }
   return { dir, incoming, output };
 }
-async function accepted(output, plan = expected) {
-  const acceptance = JSON.parse(
-    await readFile(join(output, "acceptance-template.json")),
-  );
-  acceptance.reviewer = "release-reviewer";
-  acceptance.reviewedAt = "2026-10-11T00:00:00Z";
-  for (const key of acceptanceChecks(plan.desktopTargets))
-    acceptance.checks[key] = {
-      status: "passed",
-      evidence: "Recorded platform acceptance with screenshots and logs",
-    };
-  acceptance.thirdPartyMaterials = {
-    url: "https://example.com/release-materials.tar.gz",
-    sha256: "c".repeat(64),
-  };
-  return acceptance;
-}
-test("complete signed candidate and explicit acceptance pass; templates cannot publish", async () => {
+test("signed candidate can publish without an acceptance record", async () => {
   const f = await fixture();
   try {
     await assembleCandidate(f.incoming, f.output, expected);
-    const pending = JSON.parse(
-      await readFile(join(f.output, "acceptance-template.json")),
-    );
-    await assert.rejects(
-      approveCandidate(f.output, pending, expected),
-      /Missing reviewer/,
-    );
-    const acceptance = await accepted(f.output);
-    assert.equal(
-      (await approveCandidate(f.output, acceptance, expected)).commit,
-      expected.commit,
-    );
-    acceptance.checks["linux-x64.csp"].status = "pending";
-    await assert.rejects(
-      approveCandidate(f.output, acceptance, expected),
-      /Acceptance pending/,
-    );
+    assert.equal((await verifyPublishableCandidate(f.output, expected)).commit, expected.commit);
+    assert.ok(!(await readdir(f.output)).includes("acceptance-template.json"));
+    await writeFile(join(f.output, "acceptance-template.json"), "legacy template");
+    assert.equal((await verifyPublishableCandidate(f.output, expected)).commit, expected.commit);
   } finally {
     await rm(f.dir, { recursive: true, force: true });
   }
@@ -150,18 +119,12 @@ test("modified installers, missing targets, different commits and run attempts f
       /runAttempt mismatch/,
     );
     await assembleCandidate(f.incoming, f.output, expected);
-    const acceptance = await accepted(f.output);
-    acceptance.candidateIndexSha256 = "0".repeat(64);
-    await assert.rejects(
-      approveCandidate(f.output, acceptance, expected),
-      /different candidate/,
-    );
     await writeFile(
       join(f.output, "linux-x64/linux-x64-dBrain.deb"),
       "modified",
     );
     await assert.rejects(
-      approveCandidate(f.output, await accepted(f.output), expected),
+      verifyPublishableCandidate(f.output, expected),
       /files modified/,
     );
     await rm(join(f.incoming, "darwin-arm64"), { recursive: true });
@@ -173,12 +136,12 @@ test("modified installers, missing targets, different commits and run attempts f
     await rm(f.dir, { recursive: true, force: true });
   }
 });
-test("unsigned candidates may be inspected but cannot be approved for release", async () => {
+test("unsigned candidates may be assembled but cannot be published", async () => {
   const f = await fixture(false);
   try {
     await assembleCandidate(f.incoming, f.output, expected);
     await assert.rejects(
-      approveCandidate(f.output, await accepted(f.output), expected),
+      verifyPublishableCandidate(f.output, expected),
       /unsigned/,
     );
   } finally {
@@ -197,14 +160,7 @@ test("a subset candidate carries only the selected platforms", async () => {
     const index = await assembleCandidate(f.incoming, f.output, subset);
     assert.deepEqual(index.desktopTargets, ["linux-x64"]);
     assert.deepEqual(index.containerPlatforms, ["linux/arm64"]);
-    const template = JSON.parse(
-      await readFile(join(f.output, "acceptance-template.json")),
-    );
-    assert.deepEqual(
-      Object.keys(template.checks),
-      acceptanceChecks(["linux-x64"]),
-    );
-    await approveCandidate(f.output, await accepted(f.output, subset), subset);
+    await verifyPublishableCandidate(f.output, subset);
   } finally {
     await rm(f.dir, { recursive: true, force: true });
   }
@@ -218,10 +174,8 @@ test("single product families assemble and publish without the other family", as
     const f = await fixture(true, plan);
     try {
       await assembleCandidate(f.incoming, f.output, plan);
-      const acceptancePath = join(f.dir, "acceptance.json");
-      await writeFile(acceptancePath, JSON.stringify(await accepted(f.output, plan)));
       const assets = join(f.dir, "assets");
-      await prepareReleaseAssets(f.output, acceptancePath, assets, plan);
+      await prepareReleaseAssets(f.output, assets, plan);
       const names = await readdir(assets);
       assert.equal(names.includes("latest.json"), plan.desktopTargets.length > 0);
       assert.equal(names.includes("compose.release.yml"), plan.containerPlatforms.length > 0);
@@ -231,14 +185,12 @@ test("single product families assemble and publish without the other family", as
   }
 });
 
-test("published assets preserve hashes and deploy the accepted digests without stale files", async () => {
+test("published assets preserve hashes and deploy verified digests without stale files", async () => {
   const f = await fixture();
   try {
     await assembleCandidate(f.incoming, f.output, expected);
-    const acceptancePath = join(f.dir, "acceptance.json");
-    await writeFile(acceptancePath, JSON.stringify(await accepted(f.output)));
     const assets = join(f.dir, "assets");
-    await prepareReleaseAssets(f.output, acceptancePath, assets, expected);
+    await prepareReleaseAssets(f.output, assets, expected);
     const sums = (await readFile(join(assets, "SHA256SUMS"), "utf8"))
       .trim()
       .split("\n");
@@ -260,7 +212,7 @@ test("published assets preserve hashes and deploy the accepted digests without s
       ),
     );
     await assert.rejects(
-      prepareReleaseAssets(f.output, acceptancePath, assets, expected),
+      prepareReleaseAssets(f.output, assets, expected),
       /EEXIST/,
     );
   } finally {

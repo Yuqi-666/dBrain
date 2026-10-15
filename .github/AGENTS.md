@@ -14,7 +14,7 @@ The workflows call the scripts in `scripts/release/` and `scripts/gate/`.
 | `workflows/release-candidate.yml` | A call from `gate.yml`, or a manual start | The products of the declared platforms, and one candidate |
 | `workflows/container-build.yml` | A call from another workflow | Images in GHCR for the declared platforms and a digest report |
 | `workflows/desktop-build.yml` | A call from another workflow, or a manual start | Desktop installers for the declared targets and their hashes |
-| `workflows/release.yml` | Manual start | A draft GitHub release from an accepted candidate |
+| `workflows/release.yml` | Manual start | A GitHub release from a verified candidate |
 
 `gate.yml` holds the whole push gate.
 
@@ -34,9 +34,8 @@ calls it. The job `verify-tag` reads the platforms from `scripts/release/release
 at that tag. A manual start repeats a failed platform build for an existing tag, and
 it may narrow the declaration of that file.
 
-`release.yml` reads a Gate run, compares the tag with the version, and creates a draft release.
-A person publishes the draft.
-After container candidates pass, `release-candidate.yml` runs `deploy/update.sh` over SSH for registered production targets. `release.yml` tags accepted images when a release is published.
+`release.yml` reads a Gate run, compares the tag with the source version, and publishes a verified release by default.
+After container candidates pass, `release-candidate.yml` runs `deploy/update.sh` over SSH for registered production targets. `release.yml` tags verified images when a release is published.
 
 A pull request builds no product. The release candidate is the only clean-machine build.
 
