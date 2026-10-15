@@ -58,7 +58,9 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-更新容器每五分钟检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库并等待所有应用健康检查。如果更新失败，自动尝试暂停，`.auto-update-failed` 记录目标。检查应用，必要时恢复匹配的备份；完成恢复后再删除该标记。将 `.env` 改为 `DBRAIN_AUTO_UPDATE=false` 即可暂停检查，无需重启更新容器。更新容器使用独立的 Compose 项目，因此应用重启不会停止它。它需要 Docker 套接字和部署目录的写权限；只在可信主机上授予该权限。使用 `docker compose -f compose.updater.yml down` 停止它。
+更新容器每 15 秒检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库并等待所有应用健康检查。如果更新失败，自动尝试暂停，`.auto-update-failed` 记录目标。检查应用，必要时恢复匹配的备份；完成恢复后再删除该标记。将 `.env` 改为 `DBRAIN_AUTO_UPDATE=false` 即可暂停检查，无需重启更新容器。更新容器使用独立的 Compose 项目，因此应用重启不会停止它。它需要 Docker 套接字和部署目录的写权限；只在可信主机上授予该权限。GitHub API 未认证时每小时只允许 60 次请求。在 `.env` 中设置 `DBRAIN_GITHUB_TOKEN` 可把上限提高到 5000 次。更新容器发送条件请求，结果未变化时不下载响应体。达到上限后它会等到整点重置。轮询间隔与该逻辑都在更新容器镜像内。修改 `deploy/updater/watch.sh` 后需要重建该容器：`docker compose -f compose.updater.yml up -d --build`。使用 `docker compose -f compose.updater.yml down` 停止它。
+
+更新容器在容器内调用 Compose，并把部署目录挂载到 `/deployment`。Compose 按 project 目录解析 Compose 文件中的相对路径。因此 `update.sh` 把部署目录的宿主机路径作为该 project 目录传入，`nginx.conf` 的 bind mount 仍落在宿主机上。该路径取自更新容器自身的挂载表。仅当该探测无答案时（例如使用命名卷），才在 `.env` 中把 `DBRAIN_DEPLOYMENT_DIR` 设为绝对路径。project 目录若留在容器内，守护进程会在宿主机上创建空目录，gateway 随之启动失败。
 
 ## PocketBase 结构更新
 
@@ -74,6 +76,8 @@ docker compose -f compose.updater.yml logs -f updater
 | `DBRAIN_BIND_HOST` | Gateway 宿主机监听地址。默认 `127.0.0.1`。 |
 | `DBRAIN_PORT` | Gateway 宿主机端口。默认 `3000`。 |
 | `DBRAIN_AUTO_UPDATE` | `true` 启用独立更新容器；`false` 暂停。默认为 `false`。 |
+| `DBRAIN_GITHUB_TOKEN` | 可选，供更新容器使用的 token。它把 GitHub API 上限从每小时 60 次提高到 5000 次。这个公开仓库的 token 无需权限范围。 |
+| `DBRAIN_DEPLOYMENT_DIR` | 部署目录的宿主机绝对路径。它覆盖更新容器探测到的路径。通常留空。 |
 | `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
 
@@ -123,6 +127,7 @@ curl -fsS http://127.0.0.1:3000/health
 | 页面打开但一直加载，或 API 返回 403 | 代理 Host、Origin、WebSocket 转发和 `DBRAIN_PUBLIC_ORIGIN`。 |
 | pull 报告权限错误 | 私有 GHCR 登录身份和包读取权限。 |
 | 升级后像全新安装 | project 名、部署目录和实际 `pb_data` 卷。 |
+| 自动更新后 gateway 停住 | 更新容器的 project 目录，以及宿主机上多出的 `/deployment` 路径。 |
 | 视频或 PDF 失败 | 对应后端日志、附件访问权限和运行时依赖。 |
 
 日志可能包含业务信息。分享日志前删除隐私数据。管理员 CLI 需要正确的数据目录，容器内为 `/pb_data`。目录错误会误建空数据库。
