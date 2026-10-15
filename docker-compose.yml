@@ -1,7 +1,7 @@
 name: dbrain
 services:
   pocketbase:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.1.4}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.1.5}
     build:
       context: .
       dockerfile: deploy/pocketbase/Dockerfile
@@ -20,7 +20,7 @@ services:
     networks: [backend]
     security_opt: [no-new-privileges:true]
   server:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.1.4}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.1.5}
     build:
       context: .
       dockerfile: apps/server/Dockerfile
@@ -39,7 +39,7 @@ services:
     networks: [backend, frontend]
     security_opt: [no-new-privileges:true]
   web:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.1.4}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.1.5}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
