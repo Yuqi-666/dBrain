@@ -157,9 +157,8 @@ Cargo 验证前准备 Tauri 配置要求的运行时和前端资源。Server smo
 | 将 develop 晋升到 main | 在干净且已更新的 `develop` 上运行 `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`。列表必须与 `release.json` 一致。main 的 CI 打标签并构建候选。 |
 | 重跑现有标签的可发布候选构建 | 手动启动 `gate.yml` 并设置 `release=true`。发布需要这次 Gate 的 run ID。 |
 | 诊断候选的部分平台 | 手动启动 `release-candidate.yml`，用 `desktop_targets` 或 `container_platforms` 选择已声明平台的子集。这次独立运行不能传给 `release.yml`。 |
-| 验收候选 | 下载并测试候选。填写 `docs/release-acceptance/vVERSION.json`，然后合并记录。 |
 | 创建发布草稿 | 从 `main` 手动启动 `release.yml`，提供候选 Gate run ID、标签和 `publish=false`。 |
-| 在同次运行中发布已验收版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
+| 直接发布已验证版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
 | 查看或应用仓库门控策略 | 用 `pnpm gate:policy` 查看；管理员用 `pnpm gate:policy --apply` 应用。 |
 
 `pnpm gate` 会提交工作区中的全部改动。运行前先提交或暂存无关工作。

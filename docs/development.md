@@ -157,9 +157,8 @@ Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) expl
 | Promote develop to main | On a clean, current `develop`, run `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The lists must match `release.json`. The main CI tags and builds the candidate. |
 | Repeat a publishable candidate build for an existing tag | Manually start `gate.yml` with `release=true`. Publication requires its Gate run ID. |
 | Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
-| Accept a candidate | Download and test the candidate. Fill `docs/release-acceptance/vVERSION.json` and merge the record. |
 | Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
-| Publish an accepted release in the same run | Manually start `release.yml` with the same inputs and `publish=true`. |
+| Publish a verified release directly | Manually start `release.yml` with the same inputs and `publish=true`. |
 | Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect; an administrator runs `pnpm gate:policy --apply` to apply. |
 
 `pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.

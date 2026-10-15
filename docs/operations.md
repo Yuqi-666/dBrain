@@ -19,7 +19,7 @@ docker compose -p dbrain up --build --wait
 docker compose -p dbrain ps
 ```
 
-Local Docker reuses the layers of the same builder. The GHA cache belongs to the remote workflows, and the local Compose does not download it. This build uses the current source. It is not an accepted release image. Open `http://localhost:3000` and verify the pages, the user login, and the file functions.
+Local Docker reuses the layers of the same builder. The GHA cache belongs to the remote workflows, and the local Compose does not download it. This build uses the current source. It is not a published release image. Open `http://localhost:3000` and verify the pages, the user login, and the file functions.
 
 ## Use a candidate or a release image
 

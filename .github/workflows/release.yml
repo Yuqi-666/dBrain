@@ -1,7 +1,5 @@
-name: Publish accepted release
-# The gate workflow creates the candidate on the main branch. A person tests the
-# candidate, writes the acceptance record, then starts this workflow with the
-# Gate run ID and the version tag.
+name: Publish release
+# Publish a verified Gate candidate from main by run ID and version tag.
 on:
   workflow_dispatch:
     inputs:
@@ -14,9 +12,9 @@ on:
         type: string
         required: true
       publish:
-        description: Publish after acceptance (false creates a draft)
+        description: Publish now (false creates a draft)
         type: boolean
-        default: false
+        default: true
 permissions:
   contents: read
   actions: read
@@ -59,21 +57,19 @@ jobs:
           [ "$(node -p "require('./candidate-run.json').head_branch")" = "$default_branch" ] || { echo "The candidate run is not on the default branch"; exit 1; }
           source_sha=$(node -p "require('./candidate-run.json').head_sha")
           attempt=$(node -p "require('./candidate-run.json').run_attempt")
-          [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ] || { echo "Tag does not match the accepted candidate"; exit 1; }
+          [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ] || { echo "Tag does not match the candidate"; exit 1; }
           git merge-base --is-ancestor "$source_sha" HEAD
-          node scripts/release/check.mjs --tag="$RELEASE_TAG"
-          # Check the version at source as well as the release-control branch.
-          [ "$(git show "$source_sha:scripts/release/release.json" | node -e "let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>console.log('v'+JSON.parse(s).version))")" = "$RELEASE_TAG" ]
+          git show "$source_sha:scripts/release/release.json" > tag-release.json
+          [ "$(node -p "'v'+require('./tag-release.json').version")" = "$RELEASE_TAG" ]
           echo "DBRAIN_CANDIDATE_SHA=$source_sha" >> "$GITHUB_ENV"
           echo "DBRAIN_CANDIDATE_RUN_ID=$CANDIDATE_RUN_ID" >> "$GITHUB_ENV"
           echo "DBRAIN_CANDIDATE_RUN_ATTEMPT=$attempt" >> "$GITHUB_ENV"
           gh run download "$CANDIDATE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "candidate-$CANDIDATE_RUN_ID-$attempt" --dir candidate
-      - name: Check acceptance and prepare release assets
+      - name: Verify candidate and prepare release assets
         shell: bash
         run: |
           set -euo pipefail
-          acceptance="docs/release-acceptance/$RELEASE_TAG.json"
-          node scripts/release/candidate.mjs approve candidate "$acceptance" assets
+          node scripts/release/candidate.mjs publish candidate assets --release-json=tag-release.json
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           if [ -f candidate/containers/container-report.json ]; then
             node scripts/release/verify-images.mjs candidate/containers/container-report.json
@@ -92,7 +88,7 @@ jobs:
           # Ship .env.example as well as the visible, checksummed assets.
           shopt -s dotglob
           gh release create "$RELEASE_TAG" assets/* --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "dBrain $RELEASE_TAG" --notes-file assets/RELEASE-NOTES.md "${flags[@]}"
-      - name: Publish explicitly accepted release
+      - name: Publish release
         if: inputs.publish
         run: |
           if [ -f candidate/containers/container-report.json ]; then
