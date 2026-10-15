@@ -97,6 +97,13 @@ const deadline = setTimeout(() => {
   setTimeout(() => process.exit(1), 1000);
 }, 90_000);
 const tmpId = () => `tmp_${crypto.randomUUID()}`;
+function firstSegmentUrl(playlist, playlistUrl, gatewayBase) {
+  const segment = playlist.split("\n").find(line => line && !line.startsWith("#"));
+  assert.ok(segment, "HLS playlist names a media segment");
+  const url = new URL(segment, playlistUrl);
+  assert.ok(url.href.startsWith(`${gatewayBase}/api/files/`), "HLS segment uses the authenticated gateway");
+  return url;
+}
 async function createVideoFixture(path) {
   console.log("STEP packaged FFmpeg media fixture");
   await new Promise((resolve, reject) => {
@@ -213,9 +220,8 @@ try {
   assert.equal(transcode.reencoded, true);
   assert.ok(transcode.coverUrl.startsWith("/api/files/"));
   const playlist = await (await fetch(`${descriptor.pocketbase}${transcode.hlsUrl}`)).text();
-  const segment = playlist.split("\n").find(line => line.startsWith("/session/"));
-  assert.ok(segment, "HLS segment uses the authenticated gateway");
-  assert.equal((await fetch(`${base}${segment}`)).status, 200);
+  const segmentUrl = firstSegmentUrl(playlist, `${descriptor.pocketbase}${transcode.hlsUrl}`, descriptor.pocketbase);
+  assert.equal((await fetch(segmentUrl)).status, 200);
   console.log("PASS disk attachments, range requests, PDF parsing/covers and FFmpeg video transcoding/HLS");
 
   await stop();
@@ -228,9 +234,9 @@ try {
   assert.equal(await (await fetch(`${descriptor.pocketbase}${file}`)).text(), "local attachment");
   assert.equal(await (await fetch(`${descriptor.pocketbase}${chunked}`)).text(), "chunked desktop attachment");
   const newPlaylist = await (await fetch(`${descriptor.pocketbase}${transcode.hlsUrl}`)).text();
-  const newSegment = newPlaylist.split("\n").find(line => line.startsWith("/session/"));
-  assert.notEqual(newSegment, segment);
-  assert.equal((await fetch(`${new URL(descriptor.pocketbase).origin}${newSegment}`)).status, 200);
+  const newSegmentUrl = firstSegmentUrl(newPlaylist, `${descriptor.pocketbase}${transcode.hlsUrl}`, descriptor.pocketbase);
+  assert.notEqual(newSegmentUrl.href, segmentUrl.href);
+  assert.equal((await fetch(newSegmentUrl)).status, 200);
   await client.edge.delete.mutate({ id: edge.id });
   await client.node.delete.mutate({ id: nodes[0].id });
   console.log("PASS clean shutdown, same local identity, restart persistence and portable file/HLS paths");

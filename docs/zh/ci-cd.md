@@ -299,6 +299,29 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 
 签名构建使用环境 `release`。未签名构建使用环境 `candidate`。签名作业在结束时删除临时签名密钥。
 
+### 桌面应用签名配置
+
+在仓库 Settings → Environments 中创建 GitHub Actions 环境 `release`，并添加下表中的环境机密。工作流只在签名的 Windows 和 macOS 作业中读取它们。原始证书和私钥应保存在仓库之外。
+
+| 机密 | 值 |
+| --- | --- |
+| `APPLE_CERTIFICATE` | 包含私钥的 Developer ID Application `.p12` 文件的 Base64 文本 |
+| `APPLE_CERTIFICATE_PASSWORD` | 导出该 `.p12` 文件时设置的密码 |
+| `APPLE_SIGNING_IDENTITY` | `security find-identity -v -p codesigning` 显示的完整 Developer ID Application 身份名称 |
+| `APPLE_API_PRIVATE_KEY` | App Store Connect API `.p8` 私钥的完整文本 |
+| `APPLE_API_KEY` | 该 API 密钥的 Key ID |
+| `APPLE_API_ISSUER` | 该 API 密钥的 Issuer ID |
+| `WINDOWS_CERTIFICATE` | 包含私钥的代码签名 `.pfx` 文件的 Base64 文本 |
+| `WINDOWS_CERTIFICATE_PASSWORD` | 该 `.pfx` 文件的密码 |
+
+macOS：在 Apple Developer 账户中创建 [Developer ID Application 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/)，从“钥匙串访问”将证书和私钥一起导出为 `.p12`。再创建用于公证的 [App Store Connect API 密钥](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api)。CI 将证书导入临时钥匙串，并将 `.p8` 密钥写入临时文件。此工作流不能使用 Mac App Store 分发证书。
+
+Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥导出为 `.pfx`。CI 将它导入 runner 的证书存储。Tauri 构建使用证书指纹签名，并添加 RFC 3161 时间戳。参见 [Microsoft SignTool 指南](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures)。
+
+添加机密前，将每个证书文件编码为单行 Base64。在 macOS 或 Linux 上运行 `base64 < certificate.p12 | tr -d '\n'`；`.pfx` 文件使用相同命令。将结果存入对应机密。将 `.p8` 文件内容直接存入 `APPLE_API_PRIVATE_KEY`。不要在 CI 日志中输出这些值，也不要提交它们。
+
+配置机密后，在 `main` 上为已有标签启动签名候选：`gh workflow run gate.yml --ref main -f release=true`。确认 macOS 和 Windows 作业通过签名验证，且 `assemble` 上传 `candidate-RUN_ID-ATTEMPT`。未签名的诊断构建不能通过发布闸门。[GitHub 环境机密指南](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)说明了添加位置。
+
 作业 `containers` 构建已声明的架构。
 
 | Runner | 架构 |
