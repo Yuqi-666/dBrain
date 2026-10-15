@@ -320,6 +320,10 @@ Encode each certificate file as one-line Base64 before adding it as a secret. On
 
 After the secrets are set, start a signed candidate for an existing tag from `main` with `gh workflow run gate.yml --ref main -f release=true`. Check that the macOS and Windows jobs pass signing verification and that `assemble` uploads `candidate-RUN_ID-ATTEMPT`. An unsigned diagnostic run cannot pass the publication gate. [GitHub's environment secret guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) shows where to add the secrets.
 
+The desktop updater uses a separate Tauri signing key. Generate it with `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key`. Put only the `.pub` file contents in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Store the private key as `TAURI_SIGNING_PRIVATE_KEY` in the `release` environment; set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` there if the key has a password. Never commit the private key. Signed desktop candidates include the updater bundle and `.sig` file. After acceptance, `release.yml` generates `latest.json` and publishes it with the signed bundles. Installed apps check the latest published release at startup. [Tauri's updater guide](https://v2.tauri.app/plugin/updater/) defines the signature and metadata formats. The updater downloads a complete bundle; it does not implement byte-level delta patches.
+
+The container build pushes `candidate-RUN_ID-ATTEMPT` images after smoke tests. If `DBRAIN_DEPLOY_TARGETS` is set, the candidate workflow sends `deploy/update.sh` to each registered SSH server and selects that exact candidate. See [Operations](operations.md) for target registration and the self-hosted command. The desktop build can fail independently without blocking container deployment. Publishing an accepted release also gives the verified container digests a `vVERSION` tag, so the same update script can select a release.
+
 The job `containers` builds the declared architectures.
 
 | Runner             | Architecture |

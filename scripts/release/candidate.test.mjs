@@ -37,9 +37,18 @@ async function fixture(signed = true, plan = expected) {
           ? ["exe", "msi"]
           : ["dmg"];
     const installers = extensions.map((ext) => `${target}-dBrain.${ext}`);
+    const updater = signed ? {
+      asset: platform === "darwin" ? `${target}-dBrain.app.tar.gz` : platform === "linux" ? `${target}-dBrain.AppImage` : `${target}-dBrain-setup.exe`,
+      signature: platform === "darwin" ? `${target}-dBrain.app.tar.gz.sig` : platform === "linux" ? `${target}-dBrain.AppImage.sig` : `${target}-dBrain-setup.exe.sig`,
+    } : null;
+    if (signed && platform === "win32") installers[0] = updater.asset;
     const files = Object.fromEntries(
       installers.map((name) => [name, "installer bytes"]),
     );
+    if (signed) {
+      if (platform === "darwin") files[updater.asset] = "updater bytes";
+      files[updater.signature] = "signed updater artifact contents";
+    }
     files["runtime-manifest.json"] = JSON.stringify({
       platform,
       arch,
@@ -53,6 +62,7 @@ async function fixture(signed = true, plan = expected) {
       signingVerified: signed,
       distributionReady: false,
       installers,
+      updater,
     });
     files.LICENSE = "All rights reserved.";
     const sums = [];
@@ -218,6 +228,9 @@ test("published assets preserve hashes and deploy the accepted digests without s
       await readFile(join(assets, "compose.release.yml"), "utf8"),
       /pocketbase@sha256:[b]+/,
     );
+    const latest = JSON.parse(await readFile(join(assets, "latest.json"), "utf8"));
+    assert.equal(latest.version, expected.version);
+    assert.equal(Object.keys(latest.platforms).length, expected.desktopTargets.length);
     assert.ok(
       !(await readFile(join(assets, "docker-compose.yml"), "utf8")).includes(
         "./deploy/nginx.conf",

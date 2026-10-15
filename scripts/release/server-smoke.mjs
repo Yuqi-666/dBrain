@@ -94,7 +94,14 @@ const deadline = setTimeout(() => {
   process.exitCode = 1;
 }, 90_000);
 try {
-  if (!process.env.DBRAIN_SMOKE_PB_URL)
+  if (!process.env.DBRAIN_SMOKE_PB_URL) {
+    const { prepareMigrations } = await import("../lib/pocketbase-migrations.mjs");
+    await prepareMigrations({
+      dataDir: join(temp, "data"),
+      baseDir: join(root, "pb/pb_migrations_base"),
+      changesDir: join(root, "pb/pb_migrations_changes"),
+      runDir: join(temp, "migrations"),
+    });
     launch(
       process.env.DBRAIN_POCKETBASE_PATH ??
         join(
@@ -106,10 +113,12 @@ try {
         "serve",
         `--http=127.0.0.1:${pbPort}`,
         `--dir=${join(temp, "data")}`,
-        `--migrationsDir=${join(root, "pb/pb_migrations")}`,
+        `--migrationsDir=${join(temp, "migrations")}`,
         `--hooksDir=${join(root, "pb/pb_hooks")}`,
+        "--automigrate=0",
       ],
     );
+  }
   await ready(`${pbUrl}/api/health`);
   // Only the container job configures an operator account (`docker-compose.yml`
   // requires one and the image entrypoint upserts it before serving); when it is

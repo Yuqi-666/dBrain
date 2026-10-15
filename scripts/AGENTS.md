@@ -30,6 +30,8 @@ The JavaScript files use the `.mjs` suffix and run directly, so no build step ex
 `release/platforms.mjs` reads the declared platforms of a release candidate and holds the runner of each platform.
 `release/validate-run.mjs` accepts or rejects a Gate run before release.
 `release/container-images.mjs` builds and pushes the container images.
+`release/promote-images.mjs` tags accepted image digests when the GitHub release is published.
+`lib/pocketbase-migrations.mjs` prepares the durable migration run directory for development and desktop.
 
 Read a script before you run it.
 Several scripts publish images or change a live host.

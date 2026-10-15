@@ -2,6 +2,16 @@ mod local_backend;
 use local_backend::{LocalBackend, start_local_backend};
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_updater::UpdaterExt;
+
+async fn update_on_start(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
+  if let Some(update) = app.updater()?.check().await? {
+    log::info!("New dBrain release available: {}", update.version);
+    update.download_and_install(|_, _| {}, || {}).await?;
+    app.restart();
+  }
+  Ok(())
+}
 
 fn themed_icon(theme: tauri::Theme) -> tauri::image::Image<'static> {
   match theme {
@@ -15,6 +25,15 @@ pub fn run() {
   let app = tauri::Builder::default()
     .setup(|app| {
       app.manage(Mutex::new(LocalBackend::new(app.handle())?));
+      app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+      if !cfg!(debug_assertions) {
+        let handle = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+          if let Err(error) = update_on_start(handle).await {
+            log::warn!("Release check or installation failed: {error}");
+          }
+        });
+      }
       for window in app.webview_windows().values() {
         window.set_icon(themed_icon(window.theme().unwrap_or(tauri::Theme::Light)))?;
       }

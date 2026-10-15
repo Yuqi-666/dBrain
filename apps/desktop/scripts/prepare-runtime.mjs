@@ -51,9 +51,13 @@ try {
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
   const modules = await prepareModules(root, staging, destination);
-  await cp(join(root, "pb/pb_migrations"), join(destination, "pb_migrations"), {
+  await cp(join(root, "pb/pb_migrations_base"), join(destination, "pb_migrations_base"), {
     recursive: true,
   });
+  await cp(join(root, "pb/pb_migrations_changes"), join(destination, "pb_migrations_changes"), {
+    recursive: true,
+  });
+  await cp(join(root, "scripts/lib/pocketbase-migrations.mjs"), join(destination, "pocketbase-migrations.mjs"));
   await cp(join(root, "pb/pb_hooks"), join(destination, "pb_hooks"), {
     recursive: true,
   });

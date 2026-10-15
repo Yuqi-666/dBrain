@@ -322,6 +322,10 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 配置机密后，在 `main` 上为已有标签启动签名候选：`gh workflow run gate.yml --ref main -f release=true`。确认 macOS 和 Windows 作业通过签名验证，且 `assemble` 上传 `candidate-RUN_ID-ATTEMPT`。未签名的诊断构建不能通过发布闸门。[GitHub 环境机密指南](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)说明了添加位置。
 
+桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`；若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。已签名桌面候选包含更新包和 `.sig` 文件。验收后，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包；它不支持按字节差异传输的补丁。
+
+容器构建通过冒烟测试后推送 `candidate-RUN_ID-ATTEMPT` 镜像。设置 `DBRAIN_DEPLOY_TARGETS` 后，候选工作流通过 SSH 向每台登记服务器发送 `deploy/update.sh` 并选择该候选。目标登记与个人自部署命令见[运维手册](operations.md)。桌面构建单独失败不会阻止容器部署。发布已验收的 Release 时，已验证的容器 digest 也会获得 `vVERSION` 标签，因此同一更新脚本可以选择 Release。
+
 作业 `containers` 构建已声明的架构。
 
 | Runner | 架构 |

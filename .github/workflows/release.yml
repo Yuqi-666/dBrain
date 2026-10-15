@@ -32,7 +32,7 @@ jobs:
     permissions:
       contents: write
       actions: read
-      packages: read
+      packages: write
     env:
       GH_TOKEN: ${{ github.token }}
       CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
@@ -92,6 +92,8 @@ jobs:
           gh release create "$RELEASE_TAG" assets/* --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "dBrain $RELEASE_TAG" --notes-file assets/RELEASE-NOTES.md "${flags[@]}"
       - name: Publish explicitly accepted release
         if: inputs.publish
-        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+        run: |
+          node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
       - if: always()
         run: docker logout ghcr.io

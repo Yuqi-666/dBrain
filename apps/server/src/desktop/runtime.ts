@@ -82,6 +82,13 @@ async function main() {
   if (!manifest.fingerprint) throw new Error("Packaged runtime manifest is missing its release fingerprint");
   const backup = await prepareUpgradeBackup(dataDir!, manifest.fingerprint);
   if (backup) console.log("[desktop] pre-upgrade backup created", backup);
+  const { prepareMigrations } = await import(new URL("./pocketbase-migrations.mjs", import.meta.url).href);
+  await prepareMigrations({
+    dataDir: join(dataDir!, "pb_data"),
+    baseDir: join(runtimeDir, "pb_migrations_base"),
+    changesDir: join(runtimeDir, "pb_migrations_changes"),
+    runDir: join(dataDir!, "pb_migrations"),
+  });
   const pbPort = await freePort();
   const pbUrl = `http://127.0.0.1:${pbPort}`;
   const databaseSecret = randomBytes(32).toString("hex");
@@ -96,7 +103,7 @@ async function main() {
     return originalFetch(input, { ...init, headers });
   };
   pocketbase = spawn(executable("pocketbase"), ["serve", `--http=127.0.0.1:${pbPort}`,
-    `--dir=${join(dataDir!, "pb_data")}`, `--migrationsDir=${join(runtimeDir, "pb_migrations")}`, `--hooksDir=${join(runtimeDir, "pb_hooks")}`,
+    `--dir=${join(dataDir!, "pb_data")}`, `--migrationsDir=${join(dataDir!, "pb_migrations")}`, `--hooksDir=${join(runtimeDir, "pb_hooks")}`, "--automigrate=0",
     "--origins=http://localhost:3002,http://127.0.0.1:3002,tauri://localhost,http://tauri.localhost,https://tauri.localhost",
   ], { stdio: ["ignore", "ignore", "inherit"], windowsHide: true, env: { ...process.env, DBRAIN_PB_SECRET: databaseSecret } });
   pocketbase.once("error", error => { console.error("PocketBase launch failed", error); void shutdown(1); });

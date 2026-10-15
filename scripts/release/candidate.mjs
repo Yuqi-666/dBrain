@@ -103,6 +103,12 @@ export async function verifyCandidate(root, expected) {
           extensions.some((ext) => name.endsWith(ext)),
         "Unexpected installer name",
       );
+    if (report.signed) {
+      assert.ok(report.updater && safeName(report.updater.asset) && safeName(report.updater.signature));
+      assert.equal(report.updater.signature, `${report.updater.asset}.sig`);
+      assert.ok(report.updater.asset.startsWith(`${target}-`));
+      assert.ok((await readFile(join(dir, report.updater.signature), "utf8")).trim().length > 20);
+    } else assert.equal(report.updater, null);
     const files = await fileInventory(dir);
     const lines = (await readFile(join(dir, "SHA256SUMS"), "utf8"))
       .trim()
@@ -123,6 +129,7 @@ export async function verifyCandidate(root, expected) {
       Object.keys(files).sort(),
       [
         ...report.installers,
+        ...(report.updater ? [report.updater.signature, ...(!report.installers.includes(report.updater.asset) ? [report.updater.asset] : [])] : []),
         "runtime-manifest.json",
         "build-report.json",
         "LICENSE",
@@ -159,6 +166,7 @@ export async function verifyCandidate(root, expected) {
     ".env.example",
     "docker-compose.yml",
     "nginx.conf",
+    "update.sh",
   ]);
   return { reports, containers };
 }
@@ -190,11 +198,12 @@ export async function assembleCandidate(incoming, destination, expected) {
   await rm(destination, { recursive: true, force: true });
   await cp(incoming, destination, { recursive: true });
   await mkdir(join(destination, "deployment"), { recursive: true });
-  await cp(
-    "docker-compose.yml",
+  await writeFile(
     join(destination, "deployment/docker-compose.yml"),
+    (await readFile("docker-compose.yml", "utf8")).replace("./deploy/nginx.conf", "./nginx.conf"),
   );
   await cp("deploy/nginx.conf", join(destination, "deployment/nginx.conf"));
+  await cp("deploy/update.sh", join(destination, "deployment/update.sh"));
   // The deployed stack refuses to start without `.env`, so its template ships
   // next to the compose file it is copied for.
   await cp("deploy/.env.example", join(destination, "deployment/.env.example"));
@@ -254,14 +263,14 @@ export async function approveCandidate(root, acceptance, expected) {
     "Candidate files modified after assembly",
   );
   const verified = await verifyCandidate(root, expected);
-  for (const target of expected.desktopTargets.filter(
-    (t) => !t.startsWith("linux"),
-  )) {
+  for (const target of expected.desktopTargets) {
     assert.equal(
       verified.reports[target].signed,
       true,
       `${target} is unsigned`,
     );
+    assert.ok(verified.reports[target].updater, `${target} has no updater artifact`);
+    if (target.startsWith("linux")) continue;
     assert.equal(
       verified.reports[target].signingVerified,
       true,
@@ -329,7 +338,24 @@ export async function prepareReleaseAssets(
     ).replace("./deploy/nginx.conf", "./nginx.conf"),
   );
   await cp(join(root, "deployment/nginx.conf"), join(out, "nginx.conf"));
+  await cp(join(root, "deployment/update.sh"), join(out, "update.sh"));
   await cp(join(root, "deployment/.env.example"), join(out, ".env.example"));
+  const updaterPlatforms = {
+    "linux-x64": "linux-x86_64",
+    "win32-x64": "windows-x86_64",
+    "darwin-x64": "darwin-x86_64",
+    "darwin-arm64": "darwin-aarch64",
+  };
+  const platforms = {};
+  for (const target of index.desktopTargets) {
+    const report = await readJSON(join(root, target, "build-report.json"));
+    assert.ok(report.updater, `Updater artifact missing for ${target}`);
+    platforms[updaterPlatforms[target]] = {
+      url: `https://github.com/${index.repository}/releases/download/v${index.version}/${report.updater.asset}`,
+      signature: (await readFile(join(root, target, report.updater.signature), "utf8")).trim(),
+    };
+  }
+  await writeFile(join(out, "latest.json"), JSON.stringify({ version: index.version, platforms }, null, 2) + "\n");
   const containers = await readJSON(
     join(root, "containers/container-report.json"),
   );
