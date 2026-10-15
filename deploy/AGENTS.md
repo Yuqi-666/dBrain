@@ -14,7 +14,7 @@ The root file `docker-compose.yml` wires the services together.
 | `pocketbase/entrypoint.sh` | Start script. It refuses to start without an operator account, then applies the account and starts PocketBase. |
 | `pocketbase/prepare-migrations.sh` | Builds the durable run directory before PocketBase starts. |
 | `update.sh` | Pulls one candidate or release image set, backs up the data volume, and restarts the stack. |
-| `updater/` | Separate container that polls successful main candidates and calls `update.sh`. |
+| `updater/` | Separate container that polls successful main candidates every 15 seconds and calls `update.sh`. Its image holds a copy of `watch.sh`. |
 | `nginx.conf` | Gateway. It publishes port 8080 and routes `/health`, `/pb/`, `/trpc`, and `/`. |
 | `compose.test.yml` | CI-only overlay. It publishes test ports and adds a probe network. |
 | `.env.example` | Deployment variables. Copy it and fill real values. |
@@ -45,3 +45,5 @@ The server owns file authorization, so attachments do not bypass the business ru
 4. Pass the operator password through `DBRAIN_ADMIN_PASSWORD_FILE` in production. A plain variable stays visible in the process list.
 5. Set `DBRAIN_PB_DATA_DIR` to the same path as the `--dir` argument of the container command.
 6. Treat `compose.test.yml` as a CI artifact. Do not use it on a host.
+7. Run Compose with the host path of the deployment directory as the project directory. The updater calls `update.sh` inside a container, and a container path there becomes a bind mount source on the host. `update.sh` resolves that path and refuses a Compose file that would resolve a bind mount into the container.
+8. Rebuild the updater image after a change to `updater/watch.sh`: `docker compose -f compose.updater.yml up -d --build`. The Dockerfile copies that script into the image, so the deployment directory is not the source of the running updater.
