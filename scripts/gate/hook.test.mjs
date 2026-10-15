@@ -128,7 +128,7 @@ test('the hook refuses a direct write to main and an ungated branch', async t =>
     verifySignature: trustedSignature(),
   });
   assert.equal(direct.ok, false);
-  assert.match(direct.failures.join(' '), /writes main directly/);
+  assert.match(direct.failures.join(' '), /writes a protected branch directly/);
 
   const ungated = await evaluatePush({
     refs: parsePushRefs(`refs/heads/topic ${base} refs/heads/topic ${zeros()}`),
@@ -261,7 +261,7 @@ test('Git runs the hook and refuses an ungated push', async t => {
   commitAll(root, 'docs: move main');
   const direct = push(root, ['origin', 'main']);
   assert.notEqual(direct.status, 0, 'a direct write to main must not reach the origin');
-  assert.match(direct.stderr, /writes main directly/);
+  assert.match(direct.stderr, /writes a protected branch directly/);
 
   const bypassed = push(root, ['origin', 'main'], { [bypassVariable]: '1' });
   assert.equal(bypassed.status, 0, bypassed.stderr);

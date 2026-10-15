@@ -64,7 +64,7 @@ pnpm check-types
 pnpm lint:gate
 pnpm test:release
 pnpm build                    # builds the server and the web app
-pnpm gate --dry-run -m "chore: check"   # runs the checks and writes the push gate trailer
+pnpm gate --until=plan        # prints the check plan without changing files
 pnpm gate:policy              # prints the GitHub policy of the push gate
 pnpm gate:hooks               # installs the local pre-push brake. `pnpm gate` does it too.
 pnpm dev:desktop              # needs Rust and the native libraries
@@ -82,10 +82,8 @@ pnpm dev:desktop              # needs Rust and the native libraries
 
 ## Before you finish
 
-1. Run `pnpm release:check`.
-2. Run `pnpm check-types`.
-3. Run `pnpm lint:gate`. The gate compares your work against a stored baseline. It blocks new diagnostics only.
-4. Run `pnpm test:release`.
-5. Run `pnpm build`.
-6. If you changed the desktop app, also run the desktop checks in [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md).
-7. To push the work, run `pnpm gate -m "type(scope): subject"`. It runs the checks, commits the change, and pushes it. Read [docs/ci-cd.md](docs/ci-cd.md) first.
+1. Run `pnpm gate --until=plan` to see the checks selected for the changed paths. A person can run `pnpm gate` and answer the prompts.
+2. Run those checks. `pnpm gate` runs them before a commit; for a read-only task, run only the checks needed to verify the work.
+3. Use `pnpm gate --until=check --full` for a full check run. `pnpm lint:gate` blocks new diagnostics against a baseline.
+4. If you changed the desktop app, also run the desktop checks in [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md).
+5. To push work into `develop` through a PR, run `pnpm gate --until=pr -m "type(scope): subject"` on a development branch. Use `--until=merge` to request auto-merge too. Hotfix and release branches need version inputs; promotion runs from clean `develop`. Read [docs/ci-cd.md](docs/ci-cd.md) first.

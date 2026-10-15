@@ -4,23 +4,22 @@ name: Gate
 # message. This workflow reads it and runs the stages that need a clean runner.
 #
 #   verify    A pull request proves that the author used the local entry.
-#   merged    A push to main proves that the change arrived as a merge of
+#   merged    A push to main or develop proves that the change arrived as a merge of
 #             gated commits.
-#   build     The main branch builds and tests the container stack once.
-#   tag       A version without a tag becomes a tag.
-#   release   A new tag starts the release candidate build.
+#   tag       Every main commit gets its version tag.
+#   release   Every main push starts the release candidate build.
 #
 # The verify and merged jobs copy the verifier from a trusted commit and run
 # that copy. A change cannot weaken the judge that reads it.
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     # A label decides a protected-path change, so the label itself must run the
     # check again. Without `labeled`, the verdict could only change on a push.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       release:
@@ -65,6 +64,8 @@ jobs:
           GATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GATE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GATE_PR_NUMBER: ${{ format('{0}', github.event.pull_request.number) }}
+          GATE_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          GATE_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
           if ! git cat-file -e "$GATE_HEAD_SHA^{commit}" 2>/dev/null; then
@@ -73,20 +74,33 @@ jobs:
           fi
           source_sha="$GATE_BASE_SHA"
           if [ -z "$source_sha" ] || ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
-            echo "::warning title=Push gate::The base commit holds no verifier. The job reads the commit under test."
-            source_sha="$GATE_HEAD_SHA"
+            if [ "$GATE_BASE_BRANCH" != "develop" ]; then
+              echo "::error title=Push gate::The base commit holds no trusted verifier."
+              exit 1
+            fi
+            source_sha="$(git rev-parse refs/remotes/origin/main)"
+            if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+              echo "::error title=Push gate::Neither develop nor trusted main holds a verifier."
+              exit 1
+            fi
+            echo "The develop bootstrap uses the trusted main verifier at $source_sha."
           fi
           mkdir -p "$RUNNER_TEMP/gate-base"
           git archive "$source_sha" scripts/gate | tar -x -C "$RUNNER_TEMP/gate-base"
+          route_args=()
+          if git cat-file -e "$source_sha:scripts/gate/branches.mjs" 2>/dev/null; then
+            route_args+=("--head-branch=$GATE_HEAD_BRANCH" "--base-branch=$GATE_BASE_BRANCH")
+          fi
           node "$RUNNER_TEMP/gate-base/scripts/gate/verify.mjs" \
             --repo="$GITHUB_REPOSITORY" \
             --base="$GATE_BASE_SHA" \
             --head="$GATE_HEAD_SHA" \
+            "${route_args[@]}" \
             --require-signature
 
   merged:
-    # A push to the main branch, or a manual start from the main branch.
-    if: github.event_name == 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    # Every protected branch advances through a verified merge.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -97,7 +111,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .node-version
-      - name: Verify the merge on the main branch
+      - name: Verify the merge on the protected branch
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -110,8 +124,16 @@ jobs:
           fi
           source_sha="$(git rev-parse "$GATE_HEAD_SHA^1")"
           if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
-            echo "::warning title=Push gate::The previous main tip holds no verifier. The job reads the pushed commit."
-            source_sha="$GATE_HEAD_SHA"
+            if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+              echo "::error title=Push gate::The previous main tip holds no trusted verifier."
+              exit 1
+            fi
+            source_sha="$(git rev-parse refs/remotes/origin/main)"
+            if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+              echo "::error title=Push gate::Neither previous develop nor trusted main holds a verifier."
+              exit 1
+            fi
+            echo "The develop bootstrap uses the trusted main verifier at $source_sha."
           fi
           mkdir -p "$RUNNER_TEMP/gate-base"
           git archive "$source_sha" scripts/gate | tar -x -C "$RUNNER_TEMP/gate-base"
@@ -121,102 +143,9 @@ jobs:
             --merge \
             --require-signature
 
-  build:
-    needs: merged
-    if: github.event_name == 'push'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 40
-    env:
-      # `docker-compose.yml` treats the PocketBase operator account as required
-      # configuration, so every compose invocation in this job (up, logs, down)
-      # needs it. The account is upserted by the image entrypoint on start; the
-      # stack and its data are throwaway.
-      DBRAIN_ADMIN_EMAIL: ci@dbrain.invalid
-      DBRAIN_ADMIN_PASSWORD: ci-operator-password
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
-        with:
-          version: 9.0.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Configure isolated CI image names
-        shell: bash
-        run: |
-          echo "DBRAIN_IMAGE_PREFIX=dbrain-ci" >> "$GITHUB_ENV"
-          echo "DBRAIN_VERSION=main" >> "$GITHUB_ENV"
-          echo "DBRAIN_PORT=13080" >> "$GITHUB_ENV"
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-      - name: Build cached pocketbase image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: deploy/pocketbase/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-pocketbase:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-pocketbase-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-pocketbase-amd64
-      - name: Build cached server image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: apps/server/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-server:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-server-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-server-amd64
-      - name: Build cached web image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          platforms: linux/amd64
-          load: true
-          provenance: false
-          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-web:${{ env.DBRAIN_VERSION }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha,version=2,scope=dbrain-v1-web-amd64
-          cache-to: type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-web-amd64
-      - name: Start the cached images for integration checks
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml up --no-build --wait --wait-timeout 180
-      - name: Install media fixture dependency
-        # The smoke client creates media fixtures outside the containers.
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Verify container runtime and browser endpoints
-        run: node scripts/release/server-smoke.mjs
-        env:
-          DBRAIN_SMOKE_SERVER_URL: http://127.0.0.1:13081
-          DBRAIN_SMOKE_PB_URL: http://127.0.0.1:13090
-          DBRAIN_SMOKE_WEB_URL: http://127.0.0.1:13080
-          # Same credentials as the job env above: the smoke run then proves the
-          # operator account the image entrypoint upserted actually authenticates.
-          DBRAIN_SMOKE_ADMIN_EMAIL: ci@dbrain.invalid
-          DBRAIN_SMOKE_ADMIN_PASSWORD: ci-operator-password
-      - if: failure()
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml logs --tail=60
-      - if: always()
-        run: docker compose -p dbrain-ci -f docker-compose.yml -f deploy/compose.test.yml down -v
-
   tag:
     needs: merged
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -229,7 +158,7 @@ jobs:
         with:
           # This job pushes the tag. It needs the checkout credentials.
           fetch-depth: 0
-      - name: Create the version tag when it is missing
+      - name: Create the version tag at this main commit
         id: version
         shell: bash
         run: |
@@ -237,27 +166,23 @@ jobs:
           version="v$(node -p "require('./scripts/release/release.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "created=false" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            changed="$(git diff --name-only "$GITHUB_SHA^1" "$GITHUB_SHA" -- scripts/release/release.json)"
-            if [ -z "$changed" ]; then
-              echo "The version did not change in this push. No release starts."
-              exit 0
-            fi
-          fi
           if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
-            echo "The tag $version already exists."
-            exit 0
+            if [ "$(git rev-list -n 1 "refs/tags/$version")" != "$GITHUB_SHA" ]; then
+              echo "::error title=Version tag::The tag $version points to another commit. Increase the release version before merging into main."
+              exit 1
+            fi
+            echo "The tag $version already points to this commit."
+          else
+            git tag "$version"
+            git push origin "$version"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "Created the tag $version" >> "$GITHUB_STEP_SUMMARY"
           fi
-          git tag "$version"
-          git push origin "$version"
-          echo "created=true" >> "$GITHUB_OUTPUT"
-          echo "Created the tag $version" >> "$GITHUB_STEP_SUMMARY"
 
   release:
     needs: [merged, tag]
-    # A new tag starts the candidate build. A manual start can repeat it after a
-    # failed platform build, because the tag then already exists.
-    if: needs.tag.outputs.created == 'true' || github.event.inputs.release == 'true'
+    # Every main push builds a candidate. A manual start repeats one.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.release == 'true')
     permissions:
       contents: read
       actions: read

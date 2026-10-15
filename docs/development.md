@@ -114,6 +114,8 @@ The current release targets are Linux x64, Windows x64, and macOS x64 / arm64. T
 
 ## Before you commit
 
+Use `pnpm gate` in a terminal and answer the prompts. For automation, use `pnpm gate --until=plan` to see the checks selected for the changed paths. The later stages run those checks before a commit. Use the commands below when diagnosing a specific check or preparing a full release run.
+
 ```bash
 pnpm release:check
 pnpm check-types
@@ -134,10 +136,38 @@ Prepare the runtime and the frontend resources of the Tauri configuration before
 
 `pnpm lint:gate` compares the result with the stored baseline. It blocks a new diagnostic. It does not mean that the repository has zero warnings. After you fix an old diagnostic, shrink the baseline with `node scripts/release/lint-gate.mjs --update-baseline`. Explain a baseline growth in the code review.
 
+## Choose a CI/CD operation
+
+Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) explains the gates and the release evidence.
+
+| Intent | Operation |
+| --- | --- |
+| Preview the checks for a change | `pnpm gate --until=plan` |
+| Diagnose one check | Run its command, such as `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, or `pnpm build`. |
+| Run checks without a commit | `pnpm gate --until=check` |
+| Check and commit without a push | `pnpm gate --until=commit -m "type(scope): subject"` |
+| Check, commit, and push | `pnpm gate --until=push -m "type(scope): subject"` |
+| Open a PR without requesting auto-merge | `pnpm gate --until=pr -m "type(scope): subject"` |
+| Request auto-merge after opening a PR | `pnpm gate --until=merge -m "type(scope): subject"` |
+| Run all local checks | Add `--full` to the chosen stage. |
+| Change the gate scripts or workflow | Use `--until=pr` or `--until=merge`. The PR also needs the `gate-change` label and a review. |
+| Develop a feature or fix | Branch from `develop`, then run `pnpm gate --until=merge -m "type(scope): subject"`. The PR targets `develop`. |
+| Fix production urgently | Branch as `hotfix/NAME` from `main`, then run `pnpm gate --until=merge -m "fix(scope): subject" --version=VERSION`. Gate synchronizes the version and opens PRs to both `main` and `develop`. |
+| Prepare a new version and platforms | Branch as `release/VERSION` from `develop`. Run `pnpm gate --until=merge -m "chore(release): prepare VERSION" --version=VERSION --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The PR targets `develop`. |
+| Promote develop to main | On a clean, current `develop`, run `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The lists must match `release.json`. The main CI tags and builds the candidate. |
+| Repeat a publishable candidate build for an existing tag | Manually start `gate.yml` with `release=true`. Publication requires its Gate run ID. |
+| Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
+| Accept a candidate | Download and test the candidate. Fill `docs/release-acceptance/vVERSION.json` and merge the record. |
+| Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
+| Publish an accepted release in the same run | Manually start `release.yml` with the same inputs and `publish=true`. |
+| Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect; an administrator runs `pnpm gate:policy --apply` to apply. |
+
+`pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.
+
 ## Daily maintenance
 
-Create a short development branch from `main`. Open a pull request to `main` or `develop`. A non-draft pull request runs the path-selected CI. A push to `main` also runs the CI. A normal development branch and a push to `develop` do not start another run.
+Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Before a promotion, sync the current `main` tip into `develop` through a gated PR if necessary. A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
 
 When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and verify the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, verify the runtime, the installers, and the backup-restore of the affected platforms again.
 
-Synchronize the version with `pnpm release:version VERSION`, then run `pnpm release:check`. For the build and the release entry, see the [CI/CD pipeline](ci-cd.md). The remote CI holds caches for Next.js, the Rust dependencies, and the Docker layers. The caches hold intermediate data only and do not skip a verification. A cold build or an evicted cache still runs every step. See the cache section of that manual for the hit rates and the maintenance method.
+Select the version and platforms with `pnpm gate` on a `release/*` branch, then run `pnpm release:check` if you need to diagnose the version files. For the build and the release entry, see the [CI/CD pipeline](ci-cd.md). The remote CI holds caches for Next.js, the Rust dependencies, and the Docker layers. The caches hold intermediate data only and do not skip a verification. A cold build or an evicted cache still runs every step. See the cache section of that manual for the hit rates and the maintenance method.

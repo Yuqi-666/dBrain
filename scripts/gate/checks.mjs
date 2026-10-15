@@ -5,11 +5,9 @@
 // reads the copy at the base commit. A pull request therefore cannot weaken
 // the checks that judge it.
 //
-// `runner: 'local'`  The local gate runs the check, and the trailer must list
-//                    the check id.
-// `runner: 'main'`   Only a clean GitHub runner can run the check. The build
-//                    on `main` is the check. The verifier does not demand it
-//                    in the trailer.
+// `runner: 'local'`  Every check runs in the local gate, and the trailer must
+//                    list the check id. The gate holds no check for a clean
+//                    runner. The release candidate builds the products.
 //
 // `scope` is a list of path globs. A check is required when the change touches
 // a matching path. The glob `*` matches every path. Documentation paths are
@@ -46,6 +44,14 @@ export const checks = [
     ],
     command: 'bash scripts/release/check-workflows.sh',
     description: 'actionlint accepts every workflow file.',
+  },
+  {
+    id: 'repository-yaml',
+    runner: 'local',
+    required: true,
+    scope: ['.github/dependabot.yml', '.github/ISSUE_TEMPLATE/**'],
+    command: 'pnpm exec prettier .github/dependabot.yml .github/ISSUE_TEMPLATE/*.yml > /dev/null',
+    description: 'Repository configuration YAML parses.',
   },
   {
     id: 'typecheck',
@@ -123,32 +129,6 @@ export const checks = [
     ],
     command: 'pnpm smoke:server',
     description: 'The server answers against an isolated database.',
-  },
-  {
-    id: 'container',
-    runner: 'main',
-    required: true,
-    scope: [
-      'apps/server/**',
-      'apps/web/**',
-      'packages/**',
-      'backend/**',
-      'pb/**',
-      'deploy/**',
-      'docker-compose.yml',
-      'package.json',
-      'pnpm-lock.yaml',
-    ],
-    command: null,
-    description: 'The container stack builds and answers on the main branch.',
-  },
-  {
-    id: 'desktop',
-    runner: 'main',
-    required: true,
-    scope: ['apps/desktop/**', 'rust-toolchain.toml', 'pnpm-lock.yaml'],
-    command: null,
-    description: 'The desktop installers build on the main branch and a tag.',
   },
 ];
 

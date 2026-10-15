@@ -4,6 +4,7 @@ import {
   actionsAppId,
   describe,
   labelPayload,
+  legacyRulesetName,
   main,
   parseArgs,
   planRuleset,
@@ -18,7 +19,7 @@ test('the ruleset makes the gate the only way into main', () => {
   assert.equal(payload.name, rulesetName);
   assert.equal(payload.target, 'branch');
   assert.equal(payload.enforcement, 'active');
-  assert.deepEqual(payload.conditions.ref_name.include, ['refs/heads/main']);
+  assert.deepEqual(payload.conditions.ref_name.include, ['refs/heads/main', 'refs/heads/develop']);
   const types = payload.rules.map(rule => rule.type);
   assert.deepEqual(types, ['pull_request', 'required_status_checks', 'non_fast_forward', 'deletion']);
   assert.ok(!types.includes('required_linear_history'), 'the gate merges with a merge commit');
@@ -37,7 +38,7 @@ test('the repository settings allow only a merge commit', () => {
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: true,
+    delete_branch_on_merge: false,
   });
 });
 
@@ -51,6 +52,9 @@ test('the plan creates a missing ruleset and replaces a known one', () => {
   assert.deepEqual(planRuleset([{ id: 7, name: rulesetName }], payload), {
     action: 'update',
     id: 7,
+  });
+  assert.deepEqual(planRuleset([{ id: 8, name: legacyRulesetName }], payload), {
+    action: 'update', id: 8,
   });
 });
 
@@ -75,7 +79,7 @@ test('the argument parser follows the usage text', () => {
   assert.deepEqual(parseArgs([]), {
     apply: false,
     repository: null,
-    branch: 'main',
+    branch: null,
     check: requiredCheck,
     help: false,
   });

@@ -9,7 +9,7 @@ Chinese versions of these manuals are in [`zh/`](zh/README.md).
 | [Development](development.md) | Environment, project layout, web and desktop development, quality gates, and maintenance |
 | [Operations](operations.md) | Source deployment, image deployment, access configuration, backup, restore, and troubleshooting |
 | [Usage](usage.md) | Installation, accounts and data, workspace, graph, dashboard, and upgrade |
-| [CI/CD pipeline](ci-cd.md) | The push gate, the trailer, the verifier, the merge gate, the main build, the tag, the release candidate, the acceptance gate, the publication gate, the repository policy, and caches |
+| [CI/CD pipeline](ci-cd.md) | The push gate, the trailer, the verifier, the merge gate, the tag, the declared platforms, the release candidate, the acceptance gate, the publication gate, the repository policy, and caches |
 
 ## Manual maintenance
 

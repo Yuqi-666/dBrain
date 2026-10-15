@@ -2,9 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checks, protocol, protectedPaths, trackedDeny } from './checks.mjs';
 import { commitAll, createRepo, gatedCommit, git, write } from './test-helpers.mjs';
-import { createGit, githubSignatureVerifier, parseVerifyArgs, verifyGate, verifyMergeGate } from './verify.mjs';
+import { createGit, githubSignatureVerifier, parseVerifyArgs, verifyGate, verifyMergeGate, verifyPromotionGate, versionIncreases } from './verify.mjs';
 
 const definition = { checks, protocol, protectedPaths, trackedDeny };
+
+test('release versions must advance, including prerelease numbers', () => {
+  assert.equal(versionIncreases('0.1.0', '0.1.1'), true);
+  assert.equal(versionIncreases('0.1.0', '0.1.0'), false);
+  assert.equal(versionIncreases('0.2.0', '0.1.9'), false);
+  assert.equal(versionIncreases('0.2.0-rc.2', '0.2.0-rc.10'), true);
+  assert.equal(versionIncreases('0.2.0', '0.2.0-rc.1'), false);
+});
 
 function deps(root, signature = { verified: true, reason: 'valid', login: 'tester' }) {
   return {
@@ -189,6 +197,8 @@ test('the argument parser accepts the documented options', () => {
     requireSignature: false,
     json: false,
     merge: false,
+    headBranch: null,
+    baseBranch: null,
   });
   assert.equal(parseVerifyArgs(['--merge']).merge, true);
   assert.throws(() => parseVerifyArgs(['--nope']), /Unknown option/);
@@ -225,6 +235,36 @@ test('a merge from a gated branch passes', async t => {
   assert.equal(result.ok, true);
   assert.equal(result.details.parents.length, 2);
   assert.deepEqual(result.details.gatedParents, [parent]);
+});
+
+test('promotion verifies each develop merge and the new release declaration', async t => {
+  const root = createRepo(t);
+  write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));
+  const main = commitAll(root, 'chore: start');
+  git(root, ['checkout', '--quiet', '-b', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'release/0.2.0']);
+  const release = gatedCommit(root, { files: { 'scripts/release/release.json': JSON.stringify({ version: '0.2.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }) }, checks: ['release-check'] });
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['merge', '--quiet', '--no-ff', '--no-verify', '-m', 'Merge release', 'release/0.2.0']);
+  const develop = git(root, ['rev-parse', 'HEAD']);
+  const result = await verifyPromotionGate({ repoDir: root, baseSha: main, headSha: develop, requireSignature: true }, deps(root));
+  assert.equal(result.ok, true, result.failures.join('\n'));
+  assert.equal(result.details.version, '0.2.0');
+  assert.equal(release.sha.length, 40);
+});
+
+test('promotion refuses an unchanged release version', async t => {
+  const root = createRepo(t);
+  write(root, 'scripts/release/release.json', JSON.stringify({ version: '0.1.0', desktopTargets: ['linux-x64'], containerPlatforms: ['linux/amd64'] }));
+  const main = commitAll(root, 'chore: start');
+  git(root, ['checkout', '--quiet', '-b', 'develop']);
+  git(root, ['checkout', '--quiet', '-b', 'feature/note']);
+  gatedCommit(root, { files: { 'docs/note.md': 'A note.\n' }, checks: ['release-check'] });
+  git(root, ['checkout', '--quiet', 'develop']);
+  git(root, ['merge', '--quiet', '--no-ff', '--no-verify', '-m', 'Merge note', 'feature/note']);
+  const result = await verifyPromotionGate({ repoDir: root, baseSha: main, headSha: git(root, ['rev-parse', 'HEAD']) }, deps(root));
+  assert.equal(result.ok, false);
+  assert.ok(result.failures.some(failure => failure.includes('increase the release version')));
 });
 
 test('a push outside a merge commit fails', async t => {

@@ -2,38 +2,55 @@ name: Desktop candidate build
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: Single target for diagnostics; unified candidates always build all
-        type: choice
-        default: linux-x64
-        options: [linux-x64, win32-x64, darwin-x64, darwin-arm64, all]
+      targets:
+        description: A comma-separated part of the declared targets, or empty for all of them
+        type: string
+        default: ""
       signed:
         description: Build signed candidates using release environment secrets
         type: boolean
         default: false
   workflow_call:
     inputs:
+      targets:
+        type: string
+        default: ""
       signed:
         type: boolean
         default: false
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.target || 'all' }}
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.targets || 'declared' }}
   cancel-in-progress: ${{ github.workflow == 'Desktop candidate build' }}
 jobs:
+  plan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Resolve the selected targets
+        id: resolve
+        shell: bash
+        env:
+          DESKTOP_TARGETS: ${{ inputs.targets }}
+        run: |
+          set -euo pipefail
+          targets="$(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS")"
+          echo "matrix=$(node scripts/release/platforms.mjs matrix desktop "$targets")" >> "$GITHUB_OUTPUT"
   build:
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
-        include: >-
-          ${{ fromJSON(
-            inputs.target == 'linux-x64' && '[{"os":"ubuntu-22.04","target":"linux-x64"}]' ||
-            inputs.target == 'win32-x64' && '[{"os":"windows-2022","target":"win32-x64"}]' ||
-            inputs.target == 'darwin-x64' && '[{"os":"macos-15-intel","target":"darwin-x64"}]' ||
-            inputs.target == 'darwin-arm64' && '[{"os":"macos-15","target":"darwin-arm64"}]' ||
-            '[{"os":"ubuntu-22.04","target":"linux-x64"},{"os":"windows-2022","target":"win32-x64"},{"os":"macos-15-intel","target":"darwin-x64"},{"os":"macos-15","target":"darwin-arm64"}]'
-          ) }}
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     environment: ${{ inputs.signed && 'release' || 'candidate' }}

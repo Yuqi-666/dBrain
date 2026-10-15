@@ -11,6 +11,7 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashFile } from "../lib/runtime-manifest.mjs";
+import { loadDeclaration, selectTargets } from "./platforms.mjs";
 export const services = ["pocketbase", "server", "web"];
 const readJSON = async (path) => JSON.parse(await readFile(path, "utf8"));
 const safeName = (name) =>
@@ -362,11 +363,19 @@ export async function prepareReleaseAssets(
   );
   return index;
 }
+/** Reads `--name=text`. An absent text keeps the declared platforms. */
+function option(args, name) {
+  const prefix = `--${name}=`;
+  const found = args.find((arg) => arg.startsWith(prefix));
+  return found ? found.slice(prefix.length) : "";
+}
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  const release = await readJSON("scripts/release/release.json");
+  const release = await loadDeclaration();
+  const args = process.argv.slice(2);
+  const [mode, ...positional] = args.filter((arg) => !arg.startsWith("--"));
   const expected = {
     ...release,
     repository: process.env.GITHUB_REPOSITORY,
@@ -377,17 +386,46 @@ if (
       process.env.GITHUB_RUN_ATTEMPT,
     imagePrefix: `ghcr.io/${process.env.GITHUB_REPOSITORY.toLowerCase()}`,
   };
-  if (process.argv[2] === "assemble")
-    await assembleCandidate(process.argv[3], process.argv[4], expected);
-  else if (process.argv[2] === "approve") {
+  if (mode === "assemble") {
+    // The candidate holds the platforms of this start. A start may narrow the
+    // declaration of release.json, and it cannot add a platform.
+    expected.desktopTargets = selectTargets(
+      option(args, "desktop"),
+      release.desktopTargets,
+      "desktop target",
+    );
+    expected.containerPlatforms = selectTargets(
+      option(args, "containers"),
+      release.containerPlatforms,
+      "container platform",
+    );
+    await assembleCandidate(positional[0], positional[1], expected);
+  } else if (mode === "approve") {
+    // The candidate index names the platforms of the run that a person tested.
+    // A release therefore publishes what the acceptance record covers. The
+    // list must still stay inside the declaration of release.json, so an
+    // edited index cannot invent a platform.
+    const index = await readJSON(
+      join(positional[0], "candidate-index.json"),
+    );
+    expected.desktopTargets = selectTargets(
+      index.desktopTargets.join(","),
+      release.desktopTargets,
+      "desktop target",
+    );
+    expected.containerPlatforms = selectTargets(
+      index.containerPlatforms.join(","),
+      release.containerPlatforms,
+      "container platform",
+    );
     await prepareReleaseAssets(
-      process.argv[3],
-      process.argv[4],
-      process.argv[5],
+      positional[0],
+      positional[1],
+      positional[2],
       expected,
     );
   } else
     throw new Error(
-      "Usage: candidate.mjs assemble <incoming> <output> | approve <candidate> <acceptance.json> <assets>",
+      "Usage: candidate.mjs assemble <incoming> <output> [--desktop=LIST] [--containers=LIST] | approve <candidate> <acceptance.json> <assets>",
     );
 }

@@ -12,15 +12,60 @@
 
 本手册分两部分。「推送门控」章节说明本地入口和验证器。「合并之后」及其后的章节说明构建与发布。
 
-## 推送门控
+## 流水线总览
 
-流水线从本地工作区开始。一条命令运行检查、提交改动并推送分支。
-
-```bash
-pnpm gate -m "feat(graph): 添加密度滑块"
+```mermaid
+flowchart TD
+    A["开发者运行 pnpm gate"] --> B["按改动路径运行本地检查"]
+    B -->|失败| X["提交和推送前停止"]
+    B -->|通过| C["签名提交并写入 Gate trailer"]
+    C --> D["pre-push 钩子检查提交；推送分支并创建 PR"]
+    D --> E{"分支路由"}
+    E -->|feature、fix、release| E1["PR 进入 develop"]
+    E -->|hotfix| E2["PR 同时进入 main 和 develop"]
+    E1 --> V["gate.yml verify"]
+    E2 --> V
+    V -->|通过| P["合并到 develop"]
+    P --> R["在 develop 运行 pnpm gate，确认平台并创建晋升 PR"]
+    R --> F["合并 develop 到 main"]
+    E2 --> F
+    V -->|失败| Y["必需检查阻止合并"]
+    F --> G["gate.yml merged：验证合并及通过门控的父提交"]
+    G -->|失败| Z["合并验证失败"]
+    G -->|通过| J["在 main 提交上创建 vVERSION 标签"]
+    J --> K["验证标签和已声明的平台"]
+    K --> L["并行构建桌面安装包与容器镜像"]
+    L --> M["组装候选工件"]
+    M --> N["人工测试候选并提交验收记录"]
+    N --> O["手动启动 release.yml"]
+    O --> P["验证运行、标签、验收、签名和镜像摘要"]
+    P -->|失败| Q["拒绝发布"]
+    P -->|通过| R["创建 GitHub Release 草稿"]
+    R --> S{"publish 输入为 true？"}
+    S -->|是| T["同次运行发布"]
+    S -->|否| U["人员稍后发布草稿"]
 ```
 
-这条命令是唯一入口。它从 `scripts/gate/checks.mjs` 读取检查清单。它把 trailer 写入提交信息。然后它推送分支并创建 PR。
+手动启动 `gate.yml` 并设置 `release=true`，可以重跑可发布的候选构建。直接启动 `release-candidate.yml` 可以诊断指定平台，但 `release.yml` 只接受 Gate run ID。发布工作流始终手动启动。
+
+## 推送门控
+
+流水线从本地工作区开始。人在终端运行 `pnpm gate`，按提示填写。自动化直接提供终点阶段和提交标题。
+
+```bash
+pnpm gate
+pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
+```
+
+两种方式都走同一条直线：`plan → check → commit → push → pr → merge`。`--until` 在指定阶段后停止。分支决定目标：普通开发分支进入 `develop`；`hotfix/*` 同时创建面向 `main` 和 `develop` 的 PR；在干净的 `develop` 上运行 gate 会创建面向 `main` 的晋升 PR。晋升沿用已有的合并历史，因此提交和推送阶段会报告无需新提交或直接推送。
+
+在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台列表创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
+
+写入发布或热修复版本前，gate 检查新版本高于目标分支版本，且 `origin` 上的 `vVERSION` 尚未占用。晋升时再与 `main` 比较一次。不要提前创建版本标签；由 main 的 CI 在完成验证的提交上创建它。
+
+首次上线需要一次初始化。在受信任的 `main` 提交还没有 `scripts/gate/branches.mjs` 时，在门控变更分支传入 `--base=main`，先让新验证器进入 `main`。随后通过 PR 把门控带入 `develop`。在 `develop` 尚无自己的验证器时，其 CI 读取受保护的 `main` 上的验证器，绝不读取 PR 头部分支的副本。两个分支都有新验证器后，普通开发分支只进入 `develop`。
+
+`plan` 不改动文件。在工作分支上，`check` 阶段暂存工作区并写入 `.gate/last-run.json`；在这里停止时，文件仍处于暂存状态。在 `develop` 上，晋升要求工作区干净，不暂存文件。从 `commit` 阶段起需要标题。每个阶段在进入下一阶段前打印简短结果。
 
 工作流 `gate.yml` 是第二道门。它只回答一个问题。作者是否对本次改动要并入的那棵树使用了本地入口？它不重跑任何检查。
 
@@ -28,16 +73,18 @@ pnpm gate -m "feat(graph): 添加密度滑块"
 
 | 选项 | 作用 |
 | --- | --- |
-| `-m "text"` | 提交标题。重复该选项可增加正文段落。 |
-| `--base BRANCH` | PR 的目标分支。默认是 `main`。 |
+| `--until STAGE` | 在 `plan`、`check`、`commit`、`push`、`pr` 或 `merge` 阶段后停止。 |
+| `-m "text"` | 提交标题。从 `commit` 阶段起必填。重复该选项可增加正文段落。 |
+| `--base BRANCH` | 确认由当前分支路由选出的目标分支。 |
+| `--version VERSION` | 在 `release/*` 或 `hotfix/*` 分支同步版本。 |
+| `--desktop-targets LIST` | 在 `release/*` 分支选择桌面目标；在 `develop` 上确认。 |
+| `--container-platforms LIST` | 在 `release/*` 分支选择容器平台；在 `develop` 上确认。 |
 | `--full` | 运行全部本地检查，而不只是范围内的检查。 |
-| `--release` | 同样的全量运行，用于发布打标签之前。 |
-| `--no-push` | 只检查和提交，不推送。 |
 | `--no-sign` | 不对提交签名。验证器会拒绝未签名的提交。 |
-| `--no-auto-merge` | 不请 GitHub 合并该 PR。 |
 | `--allow-protected` | 允许在 `main` 或 `develop` 上本地运行。 |
 | `--no-hooks` | 不安装本地 pre-push 钩子。 |
-| `--dry-run` | 打印检查计划与 trailer，不做任何改动。 |
+
+只有 `--until` 选择停止阶段。`--full` 控制检查范围。
 
 检查失败时命令在提交之前停止。它绝不 force-push。
 
@@ -73,7 +120,7 @@ pnpm gate:hooks
 
 | 推送 | 判定 |
 | --- | --- |
-| `main` | 拒绝。`main` 只能通过合并 PR 推进。 |
+| `main` 或 `develop` | 拒绝。受保护分支只能通过 PR 推进。 |
 | 分支 | 顶端提交必须通过与作业 `verify` 相同的验证器。 |
 | 标签 | 标签必须指向已过门控的提交，或指向合并提交。 |
 | 删除 | 接受。 |
@@ -112,31 +159,30 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 文件 `scripts/gate/checks.mjs` 保存全部检查。它是唯一真源。
 
-| 检查 | 执行者 | 内容 |
-| --- | --- | --- |
-| `release-check` | 本地 | 版本与锁文件一致。 |
-| `syntax` | 本地 | 每个自动化脚本都能解析。 |
-| `workflow-lint` | 本地 | actionlint 接受每个工作流文件。 |
-| `typecheck` | 本地 | TypeScript 类型检查器接受整个工作区。 |
-| `lint-gate` | 本地 | 不出现新的 lint 诊断。 |
-| `unit` | 本地 | 发布测试与库测试通过。 |
-| `build` | 本地 | Server 与 Web 应用构建成功。 |
-| `smoke-server` | 本地 | Server 在隔离数据库上应答。 |
-| `container` | GitHub | 容器栈在 `main` 上构建并应答。 |
-| `desktop` | GitHub | 桌面安装包在 `main` 和标签上构建。 |
+| 检查 | 内容 |
+| --- | --- |
+| `release-check` | 版本与锁文件一致。 |
+| `syntax` | 每个自动化脚本都能解析。 |
+| `workflow-lint` | actionlint 接受每个工作流文件。 |
+| `repository-yaml` | Dependabot 和 issue template 的 YAML 文件可以解析。 |
+| `typecheck` | TypeScript 类型检查器接受整个工作区。 |
+| `lint-gate` | 不出现新的 lint 诊断。 |
+| `unit` | 发布测试与库测试通过。 |
+| `build` | Server 与 Web 应用构建成功。 |
+| `smoke-server` | Server 在隔离数据库上应答。 |
 
-每个检查有路径范围。只有改动触及其范围时，门控才运行对应的本地检查。选项 `--full` 运行全部本地检查。
+每个检查有路径范围。只有改动触及其范围时，门控才运行该检查。选项 `--full` 运行全部检查。
 
 检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它校验两个固定的 SHA256 值，因此缓存被改就会拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
 
-执行者为 `GitHub` 的检查永远不进入 trailer。只有干净的 GitHub runner 能运行它。`gate.yml` 的作业 `build` 和发布候选就是这些检查。
+每个检查都在本地门控中运行，每个检查 id 都进入 trailer。清单里没有为干净 runner 准备的检查。产物由发布候选构建并验证。
 
 ### 验证器
 
-作业 `verify` 和 `merged` 从可信提交复制 `checks.mjs`、`scope.mjs`、`attest.mjs` 和 `verify.mjs`，并运行该副本。因此改动无法削弱判卷标准。
+作业 `verify` 和 `merged` 从可信提交复制门控验证器及其同目录模块，并运行该副本。没有可信验证器时，作业失败。因此改动无法削弱判卷标准。
 
 - 作业 `verify` 读取 PR 的基线提交。
-- 作业 `merged` 读取 `main` 的上一个顶端提交。
+- 作业 `merged` 读取 `main` 或 `develop` 的上一个顶端提交。`develop` 首次拥有验证器之前，两个作业可读取受保护的 main 顶端。
 
 验证器约需 30 秒。它不安装任何依赖。它做以下判定。
 
@@ -155,7 +201,7 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 ### 合并门
 
-每个改动都以 merge commit 进入 `main`。作业 `merged` 读取该提交。
+每个改动都以 merge commit 进入 `main` 或 `develop`。作业 `merged` 读取该提交。晋升 PR 会验证从 `main` 顶端到 `develop` 顶端的每个第一父提交合并。
 
 该提交必须有两个父提交。第一个父提交是 `main` 的上一个顶端提交，它已由更早的一次运行接受。第二个父提交是 PR 的头部。作业对第一个之后的每个父提交做以下判定。
 
@@ -163,46 +209,31 @@ Gate-Run: 2026-05-05T09:12:44Z
 2. 该父提交的树等于 `Gate-Tree`。
 3. 该提交签名有效。
 
-不是 merge commit 的推送会失败。直接推送到 `main` 无法通过 ruleset。
+不是 merge commit 的推送会失败。直接推送到任一受保护分支都无法通过 ruleset。
 
 ## 合并之后
 
 | 阶段 | 工作流与作业 | 触发方式 | 产物 |
 | --- | --- | --- | --- |
-| 校验 | `gate.yml`，作业 `verify` | 面向 `main` 的 PR | trailer 的门控结论 |
-| 合并 | `gate.yml`，作业 `merged` | 推送到 `main` | 合并的门控结论 |
-| 主线构建 | `gate.yml`，作业 `build` | 推送到 `main` | 三个镜像与容器 smoke 测试 |
-| 打标签 | `gate.yml`，作业 `tag` | 推送到 `main` | 版本标签（版本变化时） |
-| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 新标签 | 四个安装包、两个架构、一个候选 |
+| 校验 | `gate.yml`，作业 `verify` | 面向 `main` 或 `develop` 的 PR | 分支路由和提交的门控结论 |
+| 合并 | `gate.yml`，作业 `merged` | 推送到 `main` 或 `develop` | 合并的门控结论 |
+| 打标签 | `gate.yml`，作业 `tag` | 推送到 `main` | 该 main 提交的版本标签 |
+| 候选 | `gate.yml`，作业 `release` → `release-candidate.yml` | 每次推送到 main | 已声明平台的产物，以及一个候选 |
 | 发布 | `release.yml` | 手工启动 | 草稿 Release，或已发布的 Release |
 
-旧工作流 `ci.yml` 与 `release-candidate.yml` 随本设计退役。`ci.yml` 的作业 `containers` 变成 `gate.yml` 的作业 `build`。因此 PR 不再构建容器。
+PR 不构建任何产物。每次成功合并到 `main` 都会启动干净机器上的候选构建。
 
-作业 `build` 的时限为 40 分钟。它为 `linux/amd64` 构建三个镜像：PocketBase、server 和 web。每次构建读取 Docker 缓存并写入缓存。
-
-作业随后用 CI 覆盖文件 `deploy/compose.test.yml` 启动容器栈。该覆盖文件发布三个回环端口。
-
-| 端口 | 服务 |
-| --- | --- |
-| 13080 | 网关 |
-| 13081 | Server |
-| 13090 | PocketBase |
-
-作业对这些端口运行 `scripts/release/server-smoke.mjs`。失败时作业打印最后 60 行日志。作业总是移除容器栈及其卷。
-
-容器栈使用一次性的运维账号。账号邮箱是 `ci@dbrain.invalid`。密码是固定测试值。容器栈及其数据都是一次性的。
-
-作业 `build` 是干净机器上的最后一道质量检查。被污染的工作区掩盖的问题会在这里失败。
+产物构建读取 `scripts/release/release.json` 中的声明。下一节说明该声明。
 
 ### 标签
 
-作业 `tag` 从 `scripts/release/release.json` 读取版本。版本号变化就是发布信号。
+作业 `tag` 在每次推送到 main 时从 `scripts/release/release.json` 读取版本。
 
-- 本次合并没有改变版本：作业停止。不会启动发布。
-- 标签已存在：作业报告该情况并停止。
+- 标签已存在并指向其他提交：作业失败。合并前必须提高版本号。
+- 标签已存在并指向当前提交：作业复用标签以重跑候选。
 - 标签不存在：作业在被推送的提交上创建 `vVERSION` 并推送该标签。
 
-标签是新的时，作业 `release` 随后调用 `release-candidate.yml`。手工启动 `gate.yml` 并传入 `release=true` 可以为已存在的标签重复候选构建，例如某个平台构建失败之后。
+每次推送到 main，作业 `release` 都会调用 `release-candidate.yml`。手工启动 `gate.yml` 并传入 `release=true` 可以为已存在的标签重复候选构建，例如某个平台构建失败之后。
 
 ## 发布候选
 
@@ -212,13 +243,35 @@ Gate-Run: 2026-05-05T09:12:44Z
 | --- | --- | --- |
 | `tag` | 版本标签，例如 `v0.1.1` | 无 |
 | `signed` | 验证 Windows 与 macOS 签名及公证 | `true` |
+| `desktop_targets` | 已声明桌面目标中的一部分 | 空 |
+| `container_platforms` | 已声明容器平台中的一部分 | 空 |
 
-作业 `verify-tag` 接受或拒绝该标签。它检查以下内容。
+输入为空时构建整份声明。作业 `verify-tag` 接受或拒绝该标签。它检查以下内容。
 
 1. 发布文件中的版本等于标签。脚本 `scripts/release/check.mjs` 做此判定。
 2. 标签所在的提交在默认分支上。
 
-随后作业 `desktop` 构建四个目标。每个矩阵作业的时限为 90 分钟。
+### 已声明的平台
+
+发布由一个文件声明。`scripts/release/release.json` 保存版本和两张平台表。
+
+```json
+{
+  "version": "0.1.1",
+  "desktopTargets": ["linux-x64"],
+  "containerPlatforms": ["linux/amd64"]
+}
+```
+
+gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。候选只构建标签处文件里写的平台。上例只发布 Linux。
+
+脚本 `scripts/release/platforms.mjs` 保存每个平台对应的 runner。该表是全集。声明的名称不在其中时，本地门控和作业 `verify-tag` 都会在 runner 启动之前停止。
+
+输入 `desktop_targets` 与 `container_platforms` 只用于收窄声明，例如某个平台构建失败后的重试。名称不在声明中时会被拒绝。runner 表不包含的名称同样会被拒绝。
+
+候选随后只保存已声明的平台。验收记录也只覆盖这些平台。发布闸门接受这样的候选，因此发布的就是验收记录覆盖的平台。
+
+随后作业 `desktop` 构建已声明的目标。每个矩阵作业的时限为 90 分钟。
 
 | Runner | 目标 |
 | --- | --- |
@@ -246,7 +299,7 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 签名构建使用环境 `release`。未签名构建使用环境 `candidate`。签名作业在结束时删除临时签名密钥。
 
-作业 `containers` 构建两个架构。
+作业 `containers` 构建已声明的架构。
 
 | Runner | 架构 |
 | --- | --- |
@@ -257,7 +310,7 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 每个作业上传名为 `container-ARCH-RUN_ID-ATTEMPT` 的制品。该制品保存一个架构的 digest 报告。
 
-作业 `merge` 下载两份报告。然后它为每个服务创建一个多架构 digest。最终制品 `containers-RUN_ID-ATTEMPT` 保存 `container-report.json`。
+作业 `merge` 下载每个已声明架构的报告。然后它为每个服务创建一个多架构 digest。最终制品 `containers-RUN_ID-ATTEMPT` 保存 `container-report.json`。
 
 这些作业的环境是 `candidate`。
 
@@ -276,7 +329,7 @@ Gate-Run: 2026-05-05T09:12:44Z
 | 路径 | 内容 |
 | --- | --- |
 | `linux-x64/`、`win32-x64/`、`darwin-x64/`、`darwin-arm64/` | 安装包、构建报告、运行时清单、哈希 |
-| `containers/container-report.json` | 三个服务、两个架构的镜像 digest |
+| `containers/container-report.json` | 三个服务、每个已声明架构的镜像 digest |
 | `deployment/` | `docker-compose.yml`、`nginx.conf` 和 `.env.example` |
 | `candidate-index.json` | 候选身份以及每个文件的 SHA256 |
 | `acceptance-template.json` | 空的验收记录 |
@@ -339,7 +392,8 @@ pnpm gate:policy --apply
 | 自动合并 | 开启 | 本地门控请 GitHub 合并 PR。 |
 | 自动合并，实际生效 | 仅当 `verify` 是必需检查 | 没有必需检查时 GitHub 立即合并该请求。此时门控把合并留给你。 |
 | 合并方式 | 仅 merge commit | 作业 `merged` 读取 merge commit 的第二个父提交。 |
-| PR | `main` 必需 | 直接推送 `main` 无法绕过门控。 |
+| 合并后删除源分支 | 关闭 | 热修复分支还要供第二个 PR 使用。 |
+| PR | `main` 和 `develop` 必需 | 直接推送无法绕过门控。 |
 | 状态检查 | `verify`，来自 GitHub Actions，且分支必须最新 | 合并前必须通过门控。 |
 | force-push 与分支删除 | 阻止 | 已门控的提交不能离开历史。 |
 | 标签 | `gate-change` 已存在 | 由人添加该标签以批准对门控自身的改动。标签必须先存在，PR 才能带上它。 |
@@ -354,7 +408,7 @@ GitHub API 此时返回 `403`。
 升级到 GitHub Pro 或把仓库改为公开之后，请再次应用策略。
 在此之前必需检查无法存在，门控也永不请求合并。
 
-此时由本地刹车承担入口。它拒绝直接推送 `main`、拒绝没有 trailer 的提交、拒绝没有签名的提交。GitHub 报告判定结果，本地机器拒绝推送。
+此时由本地刹车承担入口。它拒绝直接推送 `main` 或 `develop`、拒绝没有 trailer 的提交、拒绝没有签名的提交。GitHub 报告判定结果，本地机器拒绝推送。
 
 另外两项需要手工完成。
 
@@ -363,7 +417,7 @@ GitHub API 此时返回 `403`。
 
 ## 安全控制
 
-每个工作流都限制权限。作业 `verify`、`merged` 和 `build` 只申请读权限。作业 `tag` 增加 `contents: write` 以推送标签。发布候选增加 `packages: write`。发布作业增加 `contents: write` 以创建 Release。
+每个工作流都限制权限。作业 `verify` 和 `merged` 只申请读权限。作业 `tag` 增加 `contents: write` 以推送标签。发布候选增加 `packages: write`。发布作业增加 `contents: write` 以创建 Release。
 
 只读作业的 checkout 步骤不保留凭据。每个 action 步骤使用完整提交 SHA，而不是版本标签。
 
@@ -380,16 +434,16 @@ GitHub API 此时返回 `403`。
 | Rust | 目标、签名模式、编译器、锁文件、环境 | 仅默认分支 |
 | Docker | 服务与架构 | 仅默认分支 |
 
-`gate.yml` 的作业 `build` 写入 amd64 的 Docker 缓存。发布候选恢复该缓存并写入 arm64 缓存。PR 不写入缓存。
+发布候选为它构建的每个架构写入 Docker 缓存。PR 不写入缓存。
 
 冷构建会执行每一步。Docker 缓存导出失败不会让构建失败。
 
 ## 本地复现流水线
 
-推送门控用一条命令复现全部检查。它写入 trailer 并提交改动。选项 `--dry-run` 不做任何改动。
+推送门控按顺序运行各阶段。`--until=plan` 只打印检查计划，不暂存文件，也不运行检查。
 
 ```bash
-pnpm gate --dry-run -m "chore: 检查门控"
+pnpm gate --until=plan
 ```
 
 在仓库根目录运行以下命令。它们用于诊断单个检查。
@@ -435,6 +489,13 @@ gh run download RUN_ID --name candidate-RUN_ID-ATTEMPT --dir candidate
 gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 -f publish=false
 ```
 
+手动启动 `gate.yml` 可以重跑现有标签的可发布候选。直接启动 `release-candidate.yml` 可以诊断已声明平台的子集，例如某个平台构建失败后。这次独立运行不能传给 `release.yml`。
+
+```bash
+gh workflow run gate.yml --ref main -f release=true
+gh workflow run release-candidate.yml --ref main -f tag=v0.1.1 -f signed=true -f desktop_targets=linux-x64 -f container_platforms=linux/amd64
+```
+
 ## 流水线规则
 
 1. 把可复用逻辑放在 `scripts/release/` 或 `scripts/gate/`，由工作流调用。保持工作流步骤简短。
@@ -445,6 +506,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=v0.1.1 
 6. 检查清单只放在 `scripts/gate/checks.mjs`。绝不要只把检查加到工作流里。验证器读取基线提交上的清单。
 7. 改动 `scripts/gate/**` 需要标签 `gate-change` 和一次复核。没有复核时验证器会拒绝改动判卷标准的提交。
 8. 保留 `scripts/gate/hooks/pre-push`。没有 ruleset 的仓库靠它刹车。
+9. 在 `scripts/release/release.json` 中声明一次发布的平台。`scripts/release/platforms.mjs` 的 runner 表保存所有存在的名称。测试 `platforms.test.mjs` 做此判定。
 
 ## 相关手册
 

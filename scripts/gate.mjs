@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The one entry of the push gate.
 //
-// `pnpm gate` checks the workspace, commits it, and pushes it.
+// `pnpm gate` prompts a person. `--until` selects the last stage for automation.
 // `pnpm gate --verify` runs the same verifier that CI runs.
 
 import { execFileSync } from 'node:child_process';
