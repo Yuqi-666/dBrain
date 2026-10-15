@@ -67,7 +67,7 @@ test('the argument parser follows the usage text', () => {
 test('the human prompt asks for each needed input', async () => {
   const questions = [];
   const replies = ['pr', '', 'yes', 'feat(gate): one path', 'A short body'];
-  const options = await promptGateOptions({ ask: async text => {
+  const options = await promptGateOptions({ branch: 'topic', ask: async text => {
     questions.push(text);
     return replies.shift();
   } });
@@ -76,7 +76,7 @@ test('the human prompt asks for each needed input', async () => {
   assert.equal(options.full, true);
   assert.deepEqual(options.messages, ['feat(gate): one path', 'A short body']);
   assert.equal(questions.length, 5);
-  const plan = await promptGateOptions({ ask: async () => '' });
+  const plan = await promptGateOptions({ branch: 'topic', ask: async () => '' });
   assert.equal(plan.until, 'plan');
   assert.deepEqual(plan.messages, []);
 });

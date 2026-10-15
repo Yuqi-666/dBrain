@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
 const script = join(here, "container-images.mjs");
+const version = JSON.parse(
+  await readFile(join(here, "release.json"), "utf8"),
+).version;
 const commit = "a".repeat(40);
 const prefix = "ghcr.io/yuqi-666/dbrain";
 const digest = (letter) => `sha256:${letter.repeat(64)}`;
@@ -35,7 +38,7 @@ esac
 function report(platform, letter) {
   return {
     commit,
-    version: "0.1.0",
+    version,
     runId: "7",
     runAttempt: "1",
     platform,
@@ -119,7 +122,7 @@ test("a merge reads only the selected platforms", async () => {
     assert.deepEqual(merged.images[name].platforms, ["linux/arm64"]);
     assert.match(merged.images[name].reference, /@sha256:[a-f0-9]{64}$/);
   }
-  assert.equal(merged.version, "0.1.0");
+  assert.equal(merged.version, version);
   assert.equal(merged.commit, commit);
   const creates = (await run.calls()).filter((call) =>
     call.startsWith("buildx imagetools create"),

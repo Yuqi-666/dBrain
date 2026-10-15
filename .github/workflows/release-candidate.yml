@@ -93,9 +93,9 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/release/check.mjs --tag="$RELEASE_TAG"
-          default_branch=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef --jq '.defaultBranchRef.name')
-          git fetch --quiet --no-tags origin "+refs/heads/$default_branch:refs/remotes/origin/$default_branch"
-          git merge-base --is-ancestor HEAD "origin/$default_branch"
+          # checkout with fetch-depth: 0 already has the main tracking ref.
+          # Its credentials are intentionally removed after checkout.
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
           echo "The tag $RELEASE_TAG is on the main branch." >> "$GITHUB_STEP_SUMMARY"
 
   desktop:
