@@ -297,6 +297,29 @@ Steps 9 and 10 run only when the input `signed` is `true`.
 
 A signed build uses the environment `release`. An unsigned build uses the environment `candidate`. A signed job removes the temporary signing key at the end.
 
+### Desktop signing setup
+
+Create the GitHub Actions environment `release` in repository Settings → Environments. Add these environment secrets. The workflow reads them only for signed Windows and macOS jobs. Keep the original certificate and private key outside this repository.
+
+| Secret | Value |
+| --- | --- |
+| `APPLE_CERTIFICATE` | Base64 text of an exported Developer ID Application `.p12` file, including its private key |
+| `APPLE_CERTIFICATE_PASSWORD` | Password used when exporting that `.p12` file |
+| `APPLE_SIGNING_IDENTITY` | Exact Developer ID Application identity shown by `security find-identity -v -p codesigning` |
+| `APPLE_API_PRIVATE_KEY` | Complete text of the App Store Connect API `.p8` private key |
+| `APPLE_API_KEY` | Key ID of that API key |
+| `APPLE_API_ISSUER` | Issuer ID of that API key |
+| `WINDOWS_CERTIFICATE` | Base64 text of a code-signing `.pfx` file, including its private key |
+| `WINDOWS_CERTIFICATE_PASSWORD` | Password of that `.pfx` file |
+
+For macOS, create a [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/) in the Apple Developer account. Export the certificate and private key together as `.p12` from Keychain Access. Create an [App Store Connect API key](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api) for notarization. The CI imports the certificate into a temporary keychain and writes the `.p8` key to a temporary file. Do not use a Mac App Store distribution certificate for this workflow.
+
+For Windows, obtain a trusted Authenticode code-signing certificate and export it with its private key as `.pfx`. The CI imports it into the runner certificate store. The Tauri build signs with its thumbprint and an RFC 3161 time stamp. See [Microsoft's SignTool guidance](https://learn.microsoft.com/en-us/windows/win32/seccrypto/time-stamping-authenticode-signatures).
+
+Encode each certificate file as one-line Base64 before adding it as a secret. On macOS or Linux, use `base64 < certificate.p12 | tr -d '\n'` or the same command with `certificate.pfx`. Put the resulting text into the matching secret. Put the `.p8` file contents directly into `APPLE_API_PRIVATE_KEY`. Do not print these values in CI logs or commit them.
+
+After the secrets are set, start a signed candidate for an existing tag from `main` with `gh workflow run gate.yml --ref main -f release=true`. Check that the macOS and Windows jobs pass signing verification and that `assemble` uploads `candidate-RUN_ID-ATTEMPT`. An unsigned diagnostic run cannot pass the publication gate. [GitHub's environment secret guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) shows where to add the secrets.
+
 The job `containers` builds the declared architectures.
 
 | Runner             | Architecture |
