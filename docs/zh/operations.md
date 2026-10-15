@@ -58,7 +58,7 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-更新容器每五分钟检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库并等待所有应用健康检查。失败后会重试；如果启动失败，应用保持停止，等待恢复。将 `.env` 改为 `DBRAIN_AUTO_UPDATE=false` 即可暂停检查，无需重启更新容器。更新容器使用独立的 Compose 项目，因此应用重启不会停止它。它需要 Docker 套接字和部署目录的写权限；只在可信主机上授予该权限。使用 `docker compose -f compose.updater.yml down` 停止它。
+更新容器每五分钟检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库并等待所有应用健康检查。如果更新失败，自动尝试暂停，`.auto-update-failed` 记录目标。检查应用，必要时恢复匹配的备份；完成恢复后再删除该标记。将 `.env` 改为 `DBRAIN_AUTO_UPDATE=false` 即可暂停检查，无需重启更新容器。更新容器使用独立的 Compose 项目，因此应用重启不会停止它。它需要 Docker 套接字和部署目录的写权限；只在可信主机上授予该权限。使用 `docker compose -f compose.updater.yml down` 停止它。
 
 ## PocketBase 结构更新
 

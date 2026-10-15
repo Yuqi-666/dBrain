@@ -58,7 +58,7 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-The updater checks the latest successful `main` Gate push every five minutes. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. A failed update is retried; if startup fails, the application stays stopped for recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. Stop it with `docker compose -f compose.updater.yml down`.
+The updater checks the latest successful `main` Gate push every five minutes. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed; remove that marker only after recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. Stop it with `docker compose -f compose.updater.yml down`.
 
 ## PocketBase schema updates
 

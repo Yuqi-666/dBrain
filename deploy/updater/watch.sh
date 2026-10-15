@@ -23,6 +23,7 @@ candidate_number() {
 }
 
 check_once() {
+  [ ! -f .auto-update-failed ] || return 0
   response="$(curl -fsSL --connect-timeout 10 --max-time 30 --retry 2 -H 'Accept: application/vnd.github+json' "$api")" || return 1
   result="$(printf '%s' "$response" | jq -er '.workflow_runs[0] | select(.conclusion == "success" and .head_branch == "main" and .event == "push") | "\(.id) \(.run_attempt)"')" || return 1
   read -r run attempt <<EOF
@@ -59,7 +60,8 @@ EOF
     printf '%s\n' "$target" > .auto-update-last-run
     echo "[updater] deployed $target"
   else
-    echo "[updater] update failed; retrying $target after ${interval}s" >&2
+    printf '%s\n' "$target" > .auto-update-failed
+    echo "[updater] update failed; automatic updates paused. Recover the application and remove .auto-update-failed to resume" >&2
     return 1
   fi
 }
