@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The gallery view's toolbar — its one control strip.
@@ -76,6 +77,8 @@ export function GalleryToolbar({
   onAddRecord,
   className,
 }: GalleryToolbarProps) {
+  const { t } = useI18n();
+
   const patch = (next: Partial<GalleryViewConfig>) =>
     onConfigChange?.({ ...config, ...next });
 
@@ -93,7 +96,7 @@ export function GalleryToolbar({
         className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
       >
         <Plus className="size-3.5" />
-        添加记录
+        {t("添加记录")}{" "}
       </Button>
 
       {/* ——————— 卡片配置 ——————— */}
@@ -106,7 +109,7 @@ export function GalleryToolbar({
 
       {/* ——————— 布局 ——————— */}
       <SettingsPanel
-        label="布局"
+        label={t("布局")}
         icon={LayoutGrid}
         value={
           GALLERY_LAYOUT_OPTIONS.find((option) => option.value === layout)
@@ -114,7 +117,7 @@ export function GalleryToolbar({
         }
         disabled={!canConfigure}
       >
-        <PanelSection label="排列方式">
+        <PanelSection label={t("排列方式")}>
           <ToggleGroup
             type="single"
             size="sm"
@@ -138,7 +141,7 @@ export function GalleryToolbar({
           </ToggleGroup>
         </PanelSection>
         <Separator />
-        <PanelSection label="卡片尺寸">
+        <PanelSection label={t("卡片尺寸")}>
           <ToggleGroup
             type="single"
             size="sm"

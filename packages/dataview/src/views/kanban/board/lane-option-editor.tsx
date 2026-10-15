@@ -1,4 +1,7 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 编辑选项 — the lane header's rename / recolour popover.
@@ -18,11 +21,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
-
-import { OPTION_COLORS } from "../../../shared/field-meta";
 
 export interface LaneOptionEditorProps {
   /** The option's current name. */
@@ -37,6 +37,8 @@ export function LaneOptionEditor({
   color,
   onSave,
 }: LaneOptionEditorProps) {
+  const { t } = useI18n();
+
   const [draftName, setDraftName] = useState(name);
   // `null` = "no declared colour" (fall back to the palette), `undefined` =
   // "untouched by this edit".
@@ -75,7 +77,7 @@ export function LaneOptionEditor({
           htmlFor="kanban-option-name"
           className="text-[11px] font-medium text-muted-foreground"
         >
-          选项名称
+          {t("选项名称")}{" "}
         </label>
         <Input
           id="kanban-option-name"
@@ -91,33 +93,14 @@ export function LaneOptionEditor({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-medium text-muted-foreground">
-          颜色
+          {t("颜色")}{" "}
         </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="默认颜色"
-            onClick={() => setDraftColor(null)}
-            className={cn(
-              "size-5 rounded-full border border-dashed border-muted-foreground/60",
-              draftColor === null && "ring-2 ring-ring ring-offset-1",
-            )}
-          />
-          {OPTION_COLORS.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              aria-label={`颜色 ${swatch}`}
-              onClick={() => setDraftColor(swatch)}
-              style={{ backgroundColor: swatch }}
-              className={cn(
-                "size-5 rounded-full",
-                effectiveColor.toLowerCase() === swatch.toLowerCase() &&
-                  "ring-2 ring-ring ring-offset-1",
-              )}
-            />
-          ))}
-        </div>
+        <ColorPicker
+          className="rounded-xl border border-border/60 p-2"
+          value={draftColor === null ? undefined : effectiveColor}
+          onChange={setDraftColor}
+          onClear={() => setDraftColor(null)}
+        />
       </div>
 
       <Button
@@ -128,7 +111,7 @@ export function LaneOptionEditor({
         onClick={save}
       >
         <Check className="size-3.5" />
-        保存
+        {t("保存")}{" "}
       </Button>
     </div>
   );

@@ -1,4 +1,7 @@
 "use client";
+import { useLocaleMemo } from "@workspace/ui/lib/i18n";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useMemo } from "react";
 import type { Editor } from "@tiptap/react";
@@ -66,12 +69,20 @@ export const tableSortRowColumnLabels: Record<
   Record<SortDirection, string>
 > = {
   row: {
-    asc: "Sort row A-Z",
-    desc: "Sort row Z-A",
+    get asc() {
+      return translate("Sort row A-Z");
+    },
+    get desc() {
+      return translate("Sort row Z-A");
+    },
   },
   column: {
-    asc: "Sort column A-Z",
-    desc: "Sort column Z-A",
+    get asc() {
+      return translate("Sort column A-Z");
+    },
+    get desc() {
+      return translate("Sort column Z-A");
+    },
   },
 };
 
@@ -416,6 +427,8 @@ function shouldShowButton({
 export function useTableSortRowColumn(
   config: UseTableSortRowColumnConfig = { direction: "asc" },
 ) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,
@@ -457,7 +470,7 @@ export function useTableSortRowColumn(
     return success;
   }, [editor, index, orientation, direction, tablePos, onSorted]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     const orientationLabels =
       tableSortRowColumnLabels[selectionType?.orientation || "row"];
     return (

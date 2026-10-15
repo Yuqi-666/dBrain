@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The small controls the 筛选 / 填色 menus share: a type-aware value input.
@@ -17,6 +20,7 @@ import {
 } from "@workspace/ui/components/ui/select";
 import type { DatabaseField } from "@workspace/interfaces";
 
+import { DatePicker } from "../../../shared/date-picker";
 import type { TableFilterOperator } from "../core/filter";
 
 /** Radix `Select` rejects an empty item value, so "not set" needs a sentinel. */
@@ -41,7 +45,7 @@ export function ConditionValueInput({
   operator,
   value,
   disabled,
-  placeholder = "请输入",
+  placeholder = translate("请输入"),
   onChange,
   className,
 }: {
@@ -53,6 +57,8 @@ export function ConditionValueInput({
   onChange: (value: string) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
+
   const inert = operator === "empty" || operator === "notEmpty";
   const optionValues = optionValuesFor(field);
 
@@ -65,18 +71,18 @@ export function ConditionValueInput({
       >
         <SelectTrigger
           size="sm"
-          aria-label="条件值"
+          aria-label={t("条件值")}
           className={cn("h-7 min-w-0 flex-1 py-1 pl-2 text-[11px]", className)}
         >
-          <SelectValue placeholder="请选择" />
+          <SelectValue placeholder={t("请选择")} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NONE} className="text-[11px]">
-            请选择
+            {t("请选择")}{" "}
           </SelectItem>
           {optionValues.map((option) => (
             <SelectItem key={option} value={option} className="text-[11px]">
-              {option}
+              {field?.type === "checkbox" ? t(option) : option}
             </SelectItem>
           ))}
         </SelectContent>
@@ -84,9 +90,24 @@ export function ConditionValueInput({
     );
   }
 
+  if (field?.type === "date") {
+    return (
+      <DatePicker
+        value={value || null}
+        disabled={disabled || inert}
+        placeholder={inert ? "—" : placeholder}
+        className={cn(
+          "h-7 min-w-0 flex-1 rounded-lg border border-input/80 bg-background/80",
+          className,
+        )}
+        onChange={(next) => onChange(next ?? "")}
+      />
+    );
+  }
+
   return (
     <Input
-      aria-label="条件值"
+      aria-label={t("条件值")}
       className={cn("h-7 min-w-0 flex-1 px-2 text-[11px]", className)}
       disabled={disabled || inert}
       value={value ?? ""}

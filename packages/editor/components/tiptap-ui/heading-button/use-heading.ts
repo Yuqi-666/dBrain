@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -298,6 +299,7 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useHeading(config: UseHeadingConfig) {
+  const { t } = useI18n();
   const {
     editor: providedEditor,
     level,
@@ -341,7 +343,7 @@ export function useHeading(config: UseHeadingConfig) {
     isActive,
     handleToggle,
     canToggle: canToggleState,
-    label: `Heading ${level}`,
+    label: t("Heading {level}", { level }),
     shortcutKeys: HEADING_SHORTCUT_KEYS[level],
     Icon: headingIcons[level],
   };

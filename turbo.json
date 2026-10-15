@@ -2,7 +2,10 @@
   "$schema": "https://v2-9-6.turborepo.dev/schema.json",
   "ui": "tui",
   "globalEnv": [
-    "NODE_ENV"
+    "NODE_ENV",
+    "NEXT_PUBLIC_DBRAIN_PLATFORM",
+    "DBRAIN_UPLOAD_DIR",
+    "DBRAIN_PB_INTERNAL_SECRET"
   ],
   "tasks": {
     "build": {

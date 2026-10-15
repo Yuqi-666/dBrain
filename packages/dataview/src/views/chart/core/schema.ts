@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Chart data building — rows to the shapes a VChart spec consumes.
  *
@@ -177,7 +178,10 @@ export function buildSeriesData(
 ): ChartSeriesData {
   const used = new Set<string>();
   const dimensionField = resolved.dimension;
-  const dimensionKey = uniqueKey(dimensionField?.name ?? "维度", used);
+  const dimensionKey = uniqueKey(
+    dimensionField?.name ?? translate("维度"),
+    used,
+  );
   /**
    * 区间图 (rangeColumn / rangeArea) is the one cartesian family that does not
    * fold its measures into a series: the spec encodes a floor and a ceiling, so
@@ -195,19 +199,21 @@ export function buildSeriesData(
     ? drawn.map((measure) => uniqueKey(measure.label, used))
     : [];
   const seriesKey = uniqueKey(
-    useSeries ? (resolved.series?.name ?? "系列") : "指标",
+    useSeries
+      ? (resolved.series?.name ?? translate("系列"))
+      : translate("指标"),
     used,
   );
   const valueKey = uniqueKey(
-    drawn.length === 1 ? drawn[0]!.label : "数值",
+    drawn.length === 1 ? drawn[0]!.label : translate("数值"),
     used,
   );
 
   const buckets = new Map<string, DimensionBucket>();
   for (const row of source.rows) {
-    const dimension = text(row, dimensionField, lookup) || "（空）";
+    const dimension = text(row, dimensionField, lookup) || translate("（空）");
     const series = useSeries
-      ? text(row, resolved.series, lookup) || "（空）"
+      ? text(row, resolved.series, lookup) || translate("（空）")
       : "";
     let bucket = buckets.get(dimension);
     if (!bucket) {
@@ -315,9 +321,11 @@ export function buildSeriesData(
     dimensionKey,
     seriesKey,
     valueKey,
-    dimensionLabel: dimensionField?.name ?? "维度",
-    seriesLabel: useSeries ? (resolved.series?.name ?? "系列") : "指标",
-    valueLabel: drawn.length === 1 ? drawn[0]!.label : "数值",
+    dimensionLabel: dimensionField?.name ?? translate("维度"),
+    seriesLabel: useSeries
+      ? (resolved.series?.name ?? translate("系列"))
+      : translate("指标"),
+    valueLabel: drawn.length === 1 ? drawn[0]!.label : translate("数值"),
     seriesValues,
     dimensionValues: drilledDimensions,
     measureKeys,
@@ -354,7 +362,7 @@ export function buildScatterData(
   const used = new Set<string>();
   const xKey = uniqueKey(xy.x?.name ?? "X", used);
   const yKey = uniqueKey(xy.y?.name ?? "Y", used);
-  const seriesKey = uniqueKey(seriesField?.name ?? "系列", used);
+  const seriesKey = uniqueKey(seriesField?.name ?? translate("系列"), used);
 
   const values: ChartDatum[] = [];
   const seriesValues: string[] = [];
@@ -363,8 +371,8 @@ export function buildScatterData(
     const y = xy.y ? toNumber(row.cells[xy.y.id]) : null;
     if (x === null || y === null) continue;
     const seriesValue = seriesField
-      ? text(row, seriesField, lookup) || "（空）"
-      : "全部";
+      ? text(row, seriesField, lookup) || translate("（空）")
+      : translate("全部");
     if (seriesField && !seriesValues.includes(seriesValue)) {
       seriesValues.push(seriesValue);
     }
@@ -385,7 +393,7 @@ export function buildScatterData(
     seriesKey,
     xLabel: xy.x?.name ?? "X",
     yLabel: xy.y?.name ?? "Y",
-    seriesLabel: seriesField?.name ?? "系列",
+    seriesLabel: seriesField?.name ?? translate("系列"),
     seriesValues,
     pointCount: values.length,
   };
@@ -431,13 +439,15 @@ export function buildHierarchyData(
   }
 
   const root: Draft = {
-    name: source.nodeTitle?.trim() || "全部",
+    name: source.nodeTitle?.trim() || translate("全部"),
     children: new Map(),
     rows: [],
   };
 
   for (const row of source.rows) {
-    const path = levels.map((field) => text(row, field, lookup) || "（空）");
+    const path = levels.map(
+      (field) => text(row, field, lookup) || translate("（空）"),
+    );
     if (drill && path[0] !== drill.dimension) continue;
     root.rows.push(row);
     let node = root;
@@ -505,8 +515,8 @@ export function buildSankeyData(
   >();
 
   for (const row of source.rows) {
-    const from = text(row, flow.source, lookup) || "（空）";
-    const to = text(row, flow.target, lookup) || "（空）";
+    const from = text(row, flow.source, lookup) || translate("（空）");
+    const to = text(row, flow.target, lookup) || translate("（空）");
     if (drill && drill.dimension !== from && drill.dimension !== to) continue;
     if (!nodes.includes(from)) nodes.push(from);
     if (!nodes.includes(to)) nodes.push(to);

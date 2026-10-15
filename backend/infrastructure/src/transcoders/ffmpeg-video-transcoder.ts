@@ -221,8 +221,21 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
       // Kept under its own extension: ffprobe probes by content, but some
       // demuxers are only picked by extension, and the temporary directory is
       // private to this call.
-      const input = join(workDir, `input${sourceExtension(source.fileName)}`);
-      await writeFile(input, source.bytes);
+      //
+      // A `source.path` is already a file on this machine (the upload path
+      // downloads it there so a 2 GiB video never enters the heap), so it is
+      // read in place. Copying it into the working directory would double the
+      // disk traffic and the required free space for no benefit; the file
+      // belongs to the caller and is deleted by the caller, never here.
+      const input = source.path
+        ? source.path
+        : join(workDir, `input${sourceExtension(source.fileName)}`);
+      if (!source.path) {
+        if (!source.bytes) {
+          throw new Error(`The source video ${source.fileName} carried no bytes`);
+        }
+        await writeFile(input, source.bytes);
+      }
 
       const probe = await this.probe(input);
       const video = probe.streams?.find(

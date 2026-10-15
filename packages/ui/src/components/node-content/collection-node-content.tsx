@@ -1,6 +1,7 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { ListFilter } from "lucide-react";
 import type {
   CollectionContent,
@@ -45,13 +46,15 @@ export function CollectionNodeContent({
   node,
   className,
 }: CollectionNodeContentProps) {
+  const { t } = useI18n();
+
   const nodes = useDataStore((state) => state.nodes);
   const nodeSemantics = useDataStore((state) => state.nodeSemantics);
   const nodeTags = useDataStore((state) => state.nodeTags);
 
   const content = node.content;
 
-  const source = useMemo(
+  const source = useLocaleMemo(
     () =>
       collectionToDataViewSource(node, nodes, {
         semantics: nodeSemantics,
@@ -161,7 +164,7 @@ export function CollectionNodeContent({
               className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
             >
               <ListFilter className="size-3.5" />
-              编辑过滤
+              {t("编辑过滤")}{" "}
             </Button>
           }
         />

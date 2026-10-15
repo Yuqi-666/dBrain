@@ -1,37 +1,126 @@
 name: Release candidate
+
+# Builds the products of one version tag. The gate workflow calls this workflow
+# after each main push. A manual start repeats a failed
+# platform build, because the tag then already exists.
+#
+# The platforms come from `scripts/release/release.json` at that tag. A person
+# declares them there before the tag exists. The inputs below only narrow the
+# declaration for a repeat.
+
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: The version tag, for example v0.1.1
+        type: string
+        required: true
       signed:
         description: Verify Windows/macOS signatures and macOS notarization
         type: boolean
-        default: false
+        default: true
+      desktop_targets:
+        description: A part of the declared desktop targets, or empty for all of them
+        type: string
+        default: ""
+      container_platforms:
+        description: A part of the declared container platforms, or empty for all of them
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      signed:
+        type: boolean
+        default: true
+      desktop_targets:
+        type: string
+        default: ""
+      container_platforms:
+        type: string
+        default: ""
+
 permissions:
   contents: read
   actions: read
   packages: write
+
 concurrency:
-  group: release-candidate-${{ github.ref }}
+  group: release-candidate-${{ inputs.tag }}
   cancel-in-progress: false
+
 jobs:
-  quality:
-    uses: ./.github/workflows/ci.yml
+  verify-tag:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      desktop_targets: ${{ steps.platforms.outputs.desktop_targets }}
+      container_platforms: ${{ steps.platforms.outputs.container_platforms }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Read the declaration of the tag
+        id: platforms
+        shell: bash
+        env:
+          DESKTOP_TARGETS: ${{ inputs.desktop_targets }}
+          CONTAINER_PLATFORMS: ${{ inputs.container_platforms }}
+        run: |
+          set -euo pipefail
+          desktop="$(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS")"
+          containers="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
+          echo "desktop_targets=$desktop" >> "$GITHUB_OUTPUT"
+          echo "container_platforms=$containers" >> "$GITHUB_OUTPUT"
+          {
+            echo "The declaration of the tag:"
+            node scripts/release/platforms.mjs declaration
+            echo "This candidate builds desktop: $desktop"
+            echo "This candidate builds containers: $containers"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify the tag and the main branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          node scripts/release/check.mjs --tag="$RELEASE_TAG"
+          # checkout with fetch-depth: 0 already has the main tracking ref.
+          # Its credentials are intentionally removed after checkout.
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+          echo "The tag $RELEASE_TAG is on the main branch." >> "$GITHUB_STEP_SUMMARY"
+
   desktop:
-    needs: quality
+    needs: verify-tag
     uses: ./.github/workflows/desktop-build.yml
     with:
       signed: ${{ inputs.signed }}
+      targets: ${{ needs.verify-tag.outputs.desktop_targets }}
+
   containers:
-    needs: quality
+    needs: verify-tag
     uses: ./.github/workflows/container-build.yml
+    with:
+      platforms: ${{ needs.verify-tag.outputs.container_platforms }}
+
   assemble:
-    needs: [desktop, containers]
+    needs: [verify-tag, desktop, containers]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          # The declaration of the candidate is the file at the tag.
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .node-version
@@ -39,14 +128,16 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DESKTOP_TARGETS: ${{ needs.verify-tag.outputs.desktop_targets }}
+          CONTAINER_PLATFORMS: ${{ needs.verify-tag.outputs.container_platforms }}
         run: |
           set -euo pipefail
-          for target in $(node -p "require('./scripts/release/release.json').desktopTargets.join(' ')"); do
+          for target in $(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS"); do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
           done
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
-          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate
-          echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
+          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="$DESKTOP_TARGETS" --containers="$CONTAINER_PLATFORMS"
+          echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Platforms: desktop=$DESKTOP_TARGETS containers=$CONTAINER_PLATFORMS. Complete acceptance-template.json before release." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-${{ github.run_id }}-${{ github.run_attempt }}

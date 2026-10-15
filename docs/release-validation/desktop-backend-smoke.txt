@@ -1,8 +1,0 @@
-Environment: yuqi, /tmp/dbrain-release-check; Linux x64, packaged runtime copied outside checkout.
-PASS session gate, origin checks, private database gate and authentication
-PASS workspace, view, semantics, tags, all 10 node types, edges and live events
-PASS Dashboard persistence and optimistic conflicts
-PASS disk attachments, range requests, PDF parsing/covers and FFmpeg video transcoding/HLS
-PASS clean shutdown, same local identity, restart persistence and portable file/HLS paths
-This was backend verification before the final CSP/workspace configuration changes.
-It is not an acceptance result for the newest native installer or window.

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -198,6 +199,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useResetAllFormatting(config?: UseResetAllFormattingConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     preserveMarks,
@@ -255,7 +258,7 @@ export function useResetAllFormatting(config?: UseResetAllFormattingConfig) {
     isVisible,
     handleResetFormatting,
     canReset,
-    label: "Reset formatting",
+    label: t("Reset formatting"),
     shortcutKeys: RESET_ALL_FORMATTING_SHORTCUT_KEY,
     Icon: RotateCcwIcon,
   };

@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 import type { Transition } from "motion/react";
 
 import type { IslandPanel } from "@workspace/interfaces";
@@ -33,21 +34,27 @@ export const ISLAND_FORMS: Record<IslandPanel, IslandForm> = {
     height: 340,
     maxHeightRatio: 0.44,
     radius: 28,
-    placeholder: "选择节点以预览",
+    get placeholder() {
+      return translate("选择节点以预览");
+    },
   },
   search: {
     width: 560,
     height: 440,
     maxHeightRatio: 0.52,
     radius: 28,
-    placeholder: "搜索",
+    get placeholder() {
+      return translate("搜索");
+    },
   },
   agent: {
     width: 400,
     height: 440,
     maxHeightRatio: 0.52,
     radius: 28,
-    placeholder: "Agent",
+    get placeholder() {
+      return translate("Agent");
+    },
   },
 };
 

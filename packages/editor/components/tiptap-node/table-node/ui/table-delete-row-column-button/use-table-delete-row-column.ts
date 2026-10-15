@@ -1,6 +1,9 @@
 "use client";
+import { useLocaleMemo } from "@workspace/ui/lib/i18n";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import { deleteRow, deleteColumn, CellSelection } from "@tiptap/pm/tables";
 import type { Transaction } from "@tiptap/pm/state";
@@ -52,8 +55,12 @@ export interface UseTableDeleteRowColumnConfig {
 const REQUIRED_EXTENSIONS = ["table"];
 
 export const tableDeleteRowColumnLabels: Record<Orientation, string> = {
-  row: "Delete row",
-  column: "Delete column",
+  get row() {
+    return translate("Delete row");
+  },
+  get column() {
+    return translate("Delete column");
+  },
 };
 
 /**
@@ -214,6 +221,8 @@ function shouldShowButton({
  * ```
  */
 export function useTableDeleteRowColumn(config: UseTableDeleteRowColumnConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,
@@ -252,7 +261,7 @@ export function useTableDeleteRowColumn(config: UseTableDeleteRowColumnConfig) {
     return success;
   }, [editor, index, orientation, tablePos, onDeleted]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     return tableDeleteRowColumnLabels[selectionType?.orientation || "row"];
   }, [selectionType]);
 

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -198,6 +199,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useCopyToClipboard(config?: UseCopyToClipboardConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     copyWithFormatting = true,
@@ -255,7 +258,7 @@ export function useCopyToClipboard(config?: UseCopyToClipboardConfig) {
     isVisible,
     handleCopyToClipboard,
     canCopyToClipboard: canCopyToClipboardState,
-    label: "Copy to clipboard",
+    label: t("Copy to clipboard"),
     shortcutKeys: COPY_TO_CLIPBOARD_SHORTCUT_KEY,
     Icon: ClipboardIcon,
   };

@@ -17,11 +17,13 @@ function toViewDTO(view: View): ViewDTO {
     viewType: view.viewType.getValue() as ViewDTO['viewType'],
     visualConfig: {
       backgroundColor: view.visualConfig.backgroundColor,
+      colorsSyncTheme: view.visualConfig.colorsSyncTheme,
       backgroundStyle: view.visualConfig.backgroundStyle,
       gridSpacing: view.visualConfig.gridSpacing,
       gridColor: view.visualConfig.gridColor,
       snapToGrid: view.visualConfig.snapToGrid,
       showMinimap: view.visualConfig.showMinimap,
+      nodeDensity: view.visualConfig.nodeDensity,
     },
     filterConfig: {
       selectedNodes: view.filterConfig.selectedNodes?.map(nodeId => nodeId.value),

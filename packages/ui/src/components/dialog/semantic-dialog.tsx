@@ -1,6 +1,11 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+import { IconSelectorPopover } from "@workspace/ui/components/selector/icon-selector-popover";
+import { IconView } from "@workspace/ui/components/icon/icon-view";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
 import { useDataStore, useUIStore } from "@workspace/store";
 import { NodeSemanticService, EdgeSemanticService } from "@workspace/services";
@@ -14,6 +19,14 @@ import {
 } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
+import { Textarea } from "@workspace/ui/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
 import { Label } from "@workspace/ui/components/ui/label";
 import type {
   NodeSemantic,
@@ -22,7 +35,7 @@ import type {
   EdgeSemanticId,
   EdgeType,
 } from "@workspace/interfaces";
-import { Trash2Icon, PlusIcon } from "lucide-react";
+import { Trash2Icon, PlusIcon, SmilePlus } from "lucide-react";
 
 export interface NodeSemanticFormData {
   name: string;
@@ -32,7 +45,7 @@ export interface NodeSemanticFormData {
 }
 
 /**
- * 节点语义表单值 → 落库载荷：裁剪空白，空串统一收敛为 `undefined`。
+ * 节点语义表单值 → 落库载荷：裁剪空白；图标用空串明确清除旧值。
  * 语义对话框与「Add Node」表单共用，保证两个入口创建出的语义完全一致。
  */
 export function buildNodeSemanticPayload(formData: NodeSemanticFormData) {
@@ -40,7 +53,7 @@ export function buildNodeSemanticPayload(formData: NodeSemanticFormData) {
     name: formData.name.trim(),
     description: formData.description?.trim() || undefined,
     color: formData.color || undefined,
-    icon: formData.icon?.trim() || undefined,
+    icon: formData.icon?.trim() || "",
   };
 }
 
@@ -56,6 +69,8 @@ export async function createNodeSemantic(
 }
 
 export function NodeSemanticDialog() {
+  useI18n();
+
   const { open, editingSemantic, afterCreate } = useUIStore(
     (state) => state.nodeSemanticDialog,
   );
@@ -113,7 +128,11 @@ export function NodeSemanticDialog() {
       onOpenChange={(o) => !o && closeDialog()}
       editingSemantic={editingSemantic}
       onSubmit={handleSubmit}
-      onDelete={editingSemantic ? () => NodeSemanticService.delete(editingSemantic.id) : undefined}
+      onDelete={
+        editingSemantic
+          ? () => NodeSemanticService.delete(editingSemantic.id)
+          : undefined
+      }
     />
   );
 }
@@ -133,12 +152,14 @@ export function NodeSemanticDialogContent({
   onSubmit,
   onDelete,
 }: NodeSemanticDialogContentProps) {
+  const { t } = useI18n();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
-            {editingSemantic ? "Edit Node Semantic" : "Add Node Semantic"}
+            {editingSemantic ? t("Edit Node Semantic") : t("Add Node Semantic")}
           </DialogTitle>
         </DialogHeader>
 
@@ -148,9 +169,11 @@ export function NodeSemanticDialogContent({
             const form = e.currentTarget;
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
-              description: (form.elements.namedItem("description") as HTMLInputElement)
+              description: (
+                form.elements.namedItem("description") as HTMLTextAreaElement
+              ).value,
+              color: (form.elements.namedItem("color") as HTMLInputElement)
                 .value,
-              color: (form.elements.namedItem("color") as HTMLInputElement).value,
               icon: (form.elements.namedItem("icon") as HTMLInputElement).value,
             };
             onSubmit(data);
@@ -158,52 +181,40 @@ export function NodeSemanticDialogContent({
         >
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="node-name">Name</Label>
+              <Label htmlFor="node-name">{t("Name")}</Label>
               <Input
                 id="node-name"
                 name="name"
                 defaultValue={editingSemantic?.name ?? ""}
-                placeholder="e.g., Concept, Person, Event"
+                placeholder={t("e.g., Concept, Person, Event")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-description">Description</Label>
-              <Input
+              <Label htmlFor="node-description">{t("Description")}</Label>
+              <Textarea
                 id="node-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
-                placeholder="Optional description"
+                placeholder={t("Optional description")}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-color">Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="node-color"
-                  name="color"
-                  type="color"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  className="w-12 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  name="color-text"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  placeholder="#6366f1"
-                  className="flex-1"
-                />
-              </div>
+              <Label>{t("Color")}</Label>
+              <SemanticColorField
+                key={editingSemantic?.id ?? "new"}
+                defaultValue={editingSemantic?.color ?? "#6366f1"}
+                aria-label={t("Color")}
+              />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="node-icon">Icon (Lucide icon name)</Label>
-              <Input
-                id="node-icon"
-                name="icon"
+              <Label htmlFor="node-icon">{t("图标")}</Label>
+              <SemanticIconField
+                key={editingSemantic?.id ?? "new"}
                 defaultValue={editingSemantic?.icon ?? ""}
-                placeholder="e.g., Lightbulb, User, Calendar"
               />
             </div>
           </div>
@@ -219,14 +230,18 @@ export function NodeSemanticDialogContent({
                 }}
                 className="mr-auto"
               >
-                Delete
+                {t("Delete")}{" "}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("Cancel")}{" "}
             </Button>
             <Button type="submit">
-              {editingSemantic ? "Update" : "Create"}
+              {editingSemantic ? t("Update") : t("Create")}
             </Button>
           </DialogFooter>
         </form>
@@ -236,13 +251,35 @@ export function NodeSemanticDialogContent({
 }
 
 const EDGE_TYPE_OPTIONS: { value: EdgeType; label: string }[] = [
-  { value: "hierarchy", label: "Hierarchy" },
-  { value: "flow", label: "Flow" },
-  { value: "association", label: "Association" },
-  { value: "interaction", label: "Interaction" },
+  {
+    value: "hierarchy",
+    get label() {
+      return translate("Hierarchy");
+    },
+  },
+  {
+    value: "flow",
+    get label() {
+      return translate("Flow");
+    },
+  },
+  {
+    value: "association",
+    get label() {
+      return translate("Association");
+    },
+  },
+  {
+    value: "interaction",
+    get label() {
+      return translate("Interaction");
+    },
+  },
 ];
 
 export function EdgeSemanticDialog() {
+  useI18n();
+
   const { open, editingSemantic, assignToEdgeId } = useUIStore(
     (state) => state.edgeSemanticDialog,
   );
@@ -255,6 +292,7 @@ export function EdgeSemanticDialog() {
       category: EdgeType;
       description?: string;
       color?: string;
+      icon?: string;
     }) => {
       if (!formData.name.trim()) return;
 
@@ -264,6 +302,7 @@ export function EdgeSemanticDialog() {
           description: formData.description?.trim() || undefined,
           category: formData.category,
           color: formData.color || undefined,
+          icon: formData.icon?.trim() || "",
         };
 
         if (editingSemantic) {
@@ -314,6 +353,7 @@ interface EdgeSemanticDialogContentProps {
     category: EdgeType;
     description?: string;
     color?: string;
+    icon?: string;
   }) => void;
   onDelete?: () => void;
 }
@@ -325,12 +365,14 @@ export function EdgeSemanticDialogContent({
   onSubmit,
   onDelete,
 }: EdgeSemanticDialogContentProps) {
+  const { t } = useI18n();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
-            {editingSemantic ? "Edit Edge Semantic" : "Add Edge Semantic"}
+            {editingSemantic ? t("Edit Edge Semantic") : t("Add Edge Semantic")}
           </DialogTitle>
         </DialogHeader>
 
@@ -340,71 +382,75 @@ export function EdgeSemanticDialogContent({
             const form = e.currentTarget;
             const data = {
               name: (form.elements.namedItem("name") as HTMLInputElement).value,
-              category: (form.elements.namedItem("category") as HTMLSelectElement)
-                .value as EdgeType,
-              description: (form.elements.namedItem(
-                "description",
-              ) as HTMLInputElement).value,
-              color: (form.elements.namedItem("color") as HTMLInputElement).value,
+              category: (
+                form.elements.namedItem("category") as HTMLInputElement
+              ).value as EdgeType,
+              icon: (form.elements.namedItem("icon") as HTMLInputElement).value,
+              description: (
+                form.elements.namedItem("description") as HTMLTextAreaElement
+              ).value,
+              color: (form.elements.namedItem("color") as HTMLInputElement)
+                .value,
             };
             onSubmit(data);
           }}
         >
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edge-name">Name</Label>
+              <Label htmlFor="edge-name">{t("Name")}</Label>
               <Input
                 id="edge-name"
                 name="name"
                 defaultValue={editingSemantic?.name ?? ""}
-                placeholder="e.g., Causes, Part Of, References"
+                placeholder={t("e.g., Causes, Part Of, References")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-category">Category</Label>
-              <select
-                id="edge-category"
+              <Label htmlFor="edge-category">{t("Category")}</Label>
+              <Select
                 name="category"
                 defaultValue={editingSemantic?.category ?? "association"}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                {EDGE_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="edge-category" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {EDGE_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-description">Description</Label>
-              <Input
+              <Label htmlFor="edge-description">{t("Description")}</Label>
+              <Textarea
                 id="edge-description"
                 name="description"
                 defaultValue={editingSemantic?.description ?? ""}
-                placeholder="Optional description"
+                placeholder={t("Optional description")}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edge-color">Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edge-color"
-                  name="color"
-                  type="color"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  className="w-12 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  name="color-text"
-                  defaultValue={editingSemantic?.color ?? "#6366f1"}
-                  placeholder="#6366f1"
-                  className="flex-1"
-                />
-              </div>
+              <Label>{t("Color")}</Label>
+              <SemanticColorField
+                key={editingSemantic?.id ?? "new"}
+                defaultValue={editingSemantic?.color ?? "#6366f1"}
+                aria-label={t("Color")}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edge-icon">{t("图标")}</Label>
+              <SemanticIconField
+                key={editingSemantic?.id ?? "new"}
+                id="edge-icon"
+                defaultValue={editingSemantic?.icon ?? ""}
+              />
             </div>
           </div>
 
@@ -419,14 +465,18 @@ export function EdgeSemanticDialogContent({
                 }}
                 className="mr-auto"
               >
-                Delete
+                {t("Delete")}{" "}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("Cancel")}{" "}
             </Button>
             <Button type="submit">
-              {editingSemantic ? "Update" : "Create"}
+              {editingSemantic ? t("Update") : t("Create")}
             </Button>
           </DialogFooter>
         </form>
@@ -436,9 +486,9 @@ export function EdgeSemanticDialogContent({
 }
 
 export function NodeSemanticManager({ className }: { className?: string }) {
-  const nodeSemantics = useDataStore((state) =>
-    state.getAllNodeSemantics(),
-  );
+  const { t } = useI18n();
+
+  const nodeSemantics = useDataStore((state) => state.getAllNodeSemantics());
   const openDialog = useUIStore((state) => state.openNodeSemanticDialog);
 
   const handleDelete = async (id: NodeSemanticId) => {
@@ -452,15 +502,17 @@ export function NodeSemanticManager({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Node Semantics</h4>
+        <h4 className="text-sm font-medium">{t("Node Semantics")}</h4>
         <Button size="sm" variant="ghost" onClick={() => openDialog()}>
           <PlusIcon className="h-4 w-4 mr-1" />
-          Add
+          {t("Add")}{" "}
         </Button>
       </div>
 
       {nodeSemantics.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No node semantics yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("No node semantics yet.")}
+        </p>
       ) : (
         <div className="space-y-2">
           {nodeSemantics.map((semantic) => (
@@ -483,7 +535,7 @@ export function NodeSemanticManager({ className }: { className?: string }) {
                   variant="ghost"
                   onClick={() => openDialog(semantic)}
                 >
-                  Edit
+                  {t("Edit")}{" "}
                 </Button>
                 <Button
                   size="sm"
@@ -502,9 +554,9 @@ export function NodeSemanticManager({ className }: { className?: string }) {
 }
 
 export function EdgeSemanticManager({ className }: { className?: string }) {
-  const edgeSemantics = useDataStore((state) =>
-    state.getAllEdgeSemantics(),
-  );
+  const { t } = useI18n();
+
+  const edgeSemantics = useDataStore((state) => state.getAllEdgeSemantics());
   const openDialog = useUIStore((state) => state.openEdgeSemanticDialog);
 
   const handleDelete = async (id: EdgeSemanticId) => {
@@ -518,15 +570,17 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Edge Semantics</h4>
+        <h4 className="text-sm font-medium">{t("Edge Semantics")}</h4>
         <Button size="sm" variant="ghost" onClick={() => openDialog()}>
           <PlusIcon className="h-4 w-4 mr-1" />
-          Add
+          {t("Add")}{" "}
         </Button>
       </div>
 
       {edgeSemantics.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No edge semantics yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("No edge semantics yet.")}
+        </p>
       ) : (
         <div className="space-y-2">
           {edgeSemantics.map((semantic) => (
@@ -552,7 +606,7 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
                   variant="ghost"
                   onClick={() => openDialog(semantic)}
                 >
-                  Edit
+                  {t("Edit")}{" "}
                 </Button>
                 <Button
                   size="sm"
@@ -566,6 +620,63 @@ export function EdgeSemanticManager({ className }: { className?: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Select a Lucide icon and include its name in the semantic form submission. */
+function SemanticIconField({
+  defaultValue,
+  id = "node-icon",
+}: {
+  defaultValue: string;
+  id?: string;
+}) {
+  const { t } = useI18n();
+  const [icon, setIcon] = useState(defaultValue);
+  const value = icon ? { kind: "icon" as const, value: icon } : undefined;
+
+  return (
+    <>
+      <input type="hidden" name="icon" value={icon} />
+      <IconSelectorPopover
+        allowedKinds={["icon"]}
+        showColorPicker={false}
+        value={value}
+        onChange={(next) => setIcon(next?.value ?? "")}
+      >
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          className="w-full justify-start"
+          aria-label={t("设置图标")}
+        >
+          <IconView
+            icon={value}
+            className="size-4"
+            fallback={<SmilePlus className="size-4" />}
+          />
+          {icon || t("设置图标")}
+        </Button>
+      </IconSelectorPopover>
+    </>
+  );
+}
+
+/** The semantic form embeds the palette and includes its value in form submission. */
+function SemanticColorField({
+  defaultValue,
+  "aria-label": label,
+}: {
+  defaultValue: string;
+  "aria-label": string;
+}) {
+  const [color, setColor] = useState(defaultValue);
+  return (
+    <div className="max-w-80 rounded-xl border border-border/60 bg-muted/10">
+      <input type="hidden" name="color" value={color} />
+      <ColorPicker value={color} onChange={setColor} aria-label={label} />
     </div>
   );
 }

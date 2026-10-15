@@ -1,0 +1,193 @@
+name: Gate
+
+# The push gate. The local command `pnpm gate` writes a trailer into the commit
+# message. This workflow reads it and runs the stages that need a clean runner.
+#
+#   verify    A pull request proves that the author used the local entry.
+#   merged    A push to main or develop proves that the change arrived as a merge of
+#             gated commits.
+#   tag       Every main commit gets its version tag.
+#   release   Every main push starts the release candidate build.
+#
+# The verify and merged jobs copy the verifier from a trusted commit and run
+# that copy. A change cannot weaken the judge that reads it.
+
+on:
+  pull_request:
+    branches: [main, develop]
+    # A label decides a protected-path change, so the label itself must run the
+    # check again. Without `labeled`, the verdict could only change on a push.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Build the release candidate for the current version
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    # A draft pull request allocates no runner.
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    # The verifier reads the labels of the pull request to decide a
+    # protected-path change. The workflow sets `contents: read` for every job,
+    # which leaves every other scope at `none`, so the label read needs its own
+    # grant. The labels of a pull request answer to both scopes, so the job
+    # asks for both.
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Verify the push gate
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GATE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GATE_PR_NUMBER: ${{ format('{0}', github.event.pull_request.number) }}
+          GATE_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          GATE_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "$GATE_HEAD_SHA^{commit}" 2>/dev/null; then
+            echo "::error title=Push gate::The checkout holds no head commit $GATE_HEAD_SHA."
+            exit 1
+          fi
+          source_sha="$GATE_BASE_SHA"
+          if [ -z "$source_sha" ] || ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+            if [ "$GATE_BASE_BRANCH" != "develop" ]; then
+              echo "::error title=Push gate::The base commit holds no trusted verifier."
+              exit 1
+            fi
+            source_sha="$(git rev-parse refs/remotes/origin/main)"
+            if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+              echo "::error title=Push gate::Neither develop nor trusted main holds a verifier."
+              exit 1
+            fi
+            echo "The develop bootstrap uses the trusted main verifier at $source_sha."
+          fi
+          mkdir -p "$RUNNER_TEMP/gate-base"
+          git archive "$source_sha" scripts/gate | tar -x -C "$RUNNER_TEMP/gate-base"
+          route_args=()
+          if git cat-file -e "$source_sha:scripts/gate/branches.mjs" 2>/dev/null; then
+            route_args+=("--head-branch=$GATE_HEAD_BRANCH" "--base-branch=$GATE_BASE_BRANCH")
+          fi
+          node "$RUNNER_TEMP/gate-base/scripts/gate/verify.mjs" \
+            --repo="$GITHUB_REPOSITORY" \
+            --base="$GATE_BASE_SHA" \
+            --head="$GATE_HEAD_SHA" \
+            "${route_args[@]}" \
+            --require-signature
+
+  merged:
+    # Every protected branch advances through a verified merge.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Verify the merge on the protected branch
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GATE_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "$GATE_HEAD_SHA^{commit}" 2>/dev/null; then
+            echo "::error title=Push gate::The checkout holds no head commit $GATE_HEAD_SHA."
+            exit 1
+          fi
+          source_sha="$(git rev-parse "$GATE_HEAD_SHA^1")"
+          if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+            if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+              echo "::error title=Push gate::The previous main tip holds no trusted verifier."
+              exit 1
+            fi
+            source_sha="$(git rev-parse refs/remotes/origin/main)"
+            if ! git cat-file -e "$source_sha:scripts/gate/verify.mjs" 2>/dev/null; then
+              echo "::error title=Push gate::Neither previous develop nor trusted main holds a verifier."
+              exit 1
+            fi
+            echo "The develop bootstrap uses the trusted main verifier at $source_sha."
+          fi
+          mkdir -p "$RUNNER_TEMP/gate-base"
+          git archive "$source_sha" scripts/gate | tar -x -C "$RUNNER_TEMP/gate-base"
+          node "$RUNNER_TEMP/gate-base/scripts/gate/verify.mjs" \
+            --repo="$GITHUB_REPOSITORY" \
+            --head="$GATE_HEAD_SHA" \
+            --merge \
+            --require-signature
+
+  tag:
+    needs: merged
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      created: ${{ steps.version.outputs.created }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          # This job pushes the tag. It needs the checkout credentials.
+          fetch-depth: 0
+      - name: Create the version tag at this main commit
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="v$(node -p "require('./scripts/release/release.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "created=false" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            if [ "$(git rev-list -n 1 "refs/tags/$version")" != "$GITHUB_SHA" ]; then
+              echo "::error title=Version tag::The tag $version points to another commit. Increase the release version before merging into main."
+              exit 1
+            fi
+            echo "The tag $version already points to this commit."
+          else
+            git tag "$version"
+            git push origin "$version"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "Created the tag $version" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  release:
+    needs: [merged, tag]
+    # Every main push builds a candidate. A manual start repeats one.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.release == 'true')
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/release-candidate.yml
+    with:
+      tag: ${{ needs.tag.outputs.version }}
+      signed: true

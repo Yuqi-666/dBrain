@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import type { NodeData, NodeDataType, NodeId } from "@workspace/interfaces";
 import { NodeService } from "@workspace/services";
 import { useDataStore } from "@workspace/store";
+import { queuedContent, mergeNodePatches } from "./node-content-patches";
 
 /** What {@link useNodeContentWriter} hands back to a node-content host. */
 export interface NodeContentWriter<C> {
@@ -43,8 +44,8 @@ export interface NodeContentWriter<C> {
  *    report two changes (adding a field writes its column config _and_ the
  *    field), and a patch built from a snapshot taken before the first write
  *    silently drops it. {@link NodeContentWriter.liveContent} therefore reads
- *    the node back from the store; `NodeService.upsert` updates the store
- *    optimistically and synchronously, so the second read sees the first write.
+ *    the node back from the store and applies queued content patches, so a
+ *    second cell edit sees the first even before the microtask drain begins.
  * 2. **Serialize the writes.** Two writes for the same node must never be in
  *    flight together: PocketBase's SDK cancels a pending request when another
  *    one for the same record starts (the repositories pass the record id as the
@@ -71,15 +72,17 @@ export function useNodeContentWriter<C>(
   fallback: C,
   label?: string,
 ): NodeContentWriter<C> {
-  const liveContent = useCallback((): C => {
-    const live = useDataStore.getState().nodes.get(nodeId);
-    return live?.nodeType === nodeType ? (live.content as C) : fallback;
-  }, [fallback, nodeId, nodeType]);
-
   /** Patches queued for the current drain; merged one write at a time. */
   const pendingPatches = useRef<Partial<NodeData>[]>([]);
   const draining = useRef(false);
   const drainScheduled = useRef(false);
+
+  const liveContent = useCallback((): C => {
+    const live = useDataStore.getState().nodes.get(nodeId);
+    const content =
+      live?.nodeType === nodeType ? (live.content as C) : fallback;
+    return queuedContent(content, pendingPatches.current);
+  }, [fallback, nodeId, nodeType]);
 
   const drainWrites = useCallback(async () => {
     if (draining.current) return;
@@ -88,10 +91,7 @@ export function useNodeContentWriter<C>(
       // Re-checks the queue every round, so a patch raised while a write is in
       // flight is picked up instead of being left to a later gesture.
       while (pendingPatches.current.length > 0) {
-        const merged = Object.assign(
-          {},
-          ...pendingPatches.current.splice(0),
-        ) as Partial<NodeData>;
+        const merged = mergeNodePatches(pendingPatches.current.splice(0));
 
         // The content half is merged onto the freshest content, so a patch that
         // names one key never drops its siblings.

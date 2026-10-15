@@ -1,4 +1,8 @@
 "use client";
+import { getLocale } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 /**
  * The one place a cell becomes *pixels*.
@@ -54,10 +58,22 @@ export function toISODate(date: Date): string {
 }
 
 /** The locale text a `date` cell shows in a read-only surface. */
-export function formatFieldDate(value: string | null | undefined): string {
+export function formatFieldDate(
+  value: string | null | undefined,
+  includeTime = false,
+): string {
   const date = parseFieldDate(value);
   if (!date) return "";
-  return date.toLocaleDateString();
+  return includeTime
+    ? date.toLocaleString(getLocale(), {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : date.toLocaleDateString(getLocale());
 }
 
 /**
@@ -83,6 +99,8 @@ export function OptionBadge({
   onRemove?: (() => void) | undefined;
   children?: ReactNode;
 }) {
+  useI18n();
+
   const tint = color ? tintColor(color, 0.16) : undefined;
   const border = color ? tintColor(color, 0.4) : undefined;
 
@@ -109,7 +127,7 @@ export function OptionBadge({
       {onRemove && (
         <button
           type="button"
-          aria-label={`移除 ${label}`}
+          aria-label={translate("移除 {value1}", { value1: label })}
           onClick={(event) => {
             event.stopPropagation();
             onRemove();
@@ -221,6 +239,7 @@ export function FieldValue({
   emptyFallback,
   className,
 }: FieldValueProps) {
+  useI18n();
   if (!cell || !field) {
     return <>{emptyFallback ?? <EmptyValue />}</>;
   }
@@ -249,7 +268,10 @@ export function FieldValue({
         <>{emptyFallback ?? <EmptyValue />}</>
       );
     case "date": {
-      const text = cell.type === "date" ? formatFieldDate(cell.date) : "";
+      const text =
+        cell.type === "date"
+          ? formatFieldDate(cell.date, field.includeTime)
+          : "";
       return text ? (
         <span className={cn("tabular-nums", className)}>{text}</span>
       ) : (
@@ -303,4 +325,11 @@ export function FieldValue({
       );
     }
   }
+}
+
+/** Local calendar date and time, without an implicit UTC conversion. */
+export function toFieldDate(date: Date, includeTime: boolean): string {
+  const day = toISODate(date);
+  if (!includeTime) return day;
+  return `${day}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }

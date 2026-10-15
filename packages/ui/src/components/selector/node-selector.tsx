@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import {
@@ -17,6 +18,8 @@ export interface NodeSelectorProps {
 
 /** Node picker content for a DropdownMenuSub; the host supplies the trigger. */
 export function NodeSelector({ onSelect, onClose }: NodeSelectorProps) {
+  const { t } = useI18n();
+
   const [search, setSearch] = React.useState("");
   const nodesMap = useDataStore((state) => state.nodes);
 
@@ -43,7 +46,7 @@ export function NodeSelector({ onSelect, onClose }: NodeSelectorProps) {
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search nodes..."
+          placeholder={t("Search nodes...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-8 h-8"
@@ -53,7 +56,7 @@ export function NodeSelector({ onSelect, onClose }: NodeSelectorProps) {
       <div className="max-h-48 overflow-y-auto">
         {filteredNodes.length === 0 ? (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">
-            No nodes found
+            {t("No nodes found")}{" "}
           </div>
         ) : (
           filteredNodes.map((node: NodeData) => (

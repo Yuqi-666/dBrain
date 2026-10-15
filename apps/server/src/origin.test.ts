@@ -10,7 +10,7 @@ test("the WebSocket path is the one nginx forwards", () => {
 });
 
 test("split development reaches the API from the web dev server's origin", () => {
-  // `pnpm dev:full`: the app is on :3000, the API on :3001 — the port differs by
+  // `pnpm dev`: the app is on :3000, the API on :3001 — the port differs by
   // construction, which is what left `/graph` on its loading screen.
   assert.equal(sameOrigin("http://localhost:3000", "localhost:3001"), true);
   assert.equal(sameOrigin("http://127.0.0.1:3000", "127.0.0.1:3001"), true);

@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * The **field list** every 字段配置 panel is built from — the table's own
@@ -113,14 +116,16 @@ type OpenRowMenu = { fieldId: string; mode: "menu" | "edit" };
 export function FieldConfigList({
   fields,
   rows,
-  searchPlaceholder = "搜索字段",
+  searchPlaceholder = translate("搜索字段"),
   onToggleVisible,
   onReorder,
   onSubmitField,
   onDeleteField,
-  addLabel = "新增字段",
+  addLabel = translate("新增字段"),
   className,
 }: FieldConfigListProps) {
+  const { t } = useI18n();
+
   const [query, setQuery] = useState("");
   const [rowMenu, setRowMenu] = useState<OpenRowMenu | null>(null);
   const [isAdding, setAdding] = useState(false);
@@ -128,7 +133,7 @@ export function FieldConfigList({
   const [dragFieldId, setDragFieldId] = useState<string | null>(null);
   const [dropFieldId, setDropFieldId] = useState<string | null>(null);
 
-  const matched = useMemo(
+  const matched = useLocaleMemo(
     () => new Set(filterFieldsByQuery(fields, query).map((field) => field.id)),
     [fields, query],
   );
@@ -216,7 +221,11 @@ export function FieldConfigList({
               type="button"
               size="icon-xs"
               variant="ghost"
-              aria-label={visible ? `隐藏 ${field.name}` : `显示 ${field.name}`}
+              aria-label={
+                visible
+                  ? translate("隐藏 {value1}", { value1: field.name })
+                  : translate("显示 {value1}", { value1: field.name })
+              }
               // Unlike the table's column list (which reveals the eye on
               // hover), this list shows it always: the eye is the only thing
               // saying whether the field is on the card / in the tooltip, and a
@@ -253,7 +262,9 @@ export function FieldConfigList({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  aria-label={`${field.name} 更多操作`}
+                  aria-label={translate("{value1} 更多操作", {
+                    value1: field.name,
+                  })}
                   className="text-muted-foreground opacity-0 group-hover/field:opacity-100 data-[state=open]:opacity-100"
                 >
                   <MoreHorizontal className="size-3.5" />
@@ -295,7 +306,7 @@ export function FieldConfigList({
                         }}
                       >
                         <Pencil className="size-4" />
-                        编辑字段
+                        {t("编辑字段")}{" "}
                       </DropdownMenuItem>
                     )}
                     {onDeleteField && (
@@ -306,7 +317,7 @@ export function FieldConfigList({
                           onSelect={() => setPendingDeleteId(field.id)}
                         >
                           <Trash2 className="size-4" />
-                          删除字段
+                          {t("删除字段")}{" "}
                         </DropdownMenuItem>
                       </>
                     )}
@@ -320,7 +331,9 @@ export function FieldConfigList({
         {removing && (
           <div className="mx-1.5 mb-1 flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5">
             <span className="min-w-0 flex-1 text-[11px] text-muted-foreground">
-              删除「{field.name}」？该字段的数据一并清除。
+              {t("删除「")}
+              {field.name}
+              {t("」？该字段的数据一并清除。")}{" "}
             </span>
             <Button
               type="button"
@@ -329,7 +342,7 @@ export function FieldConfigList({
               className="h-6 shrink-0 text-[11px]"
               onClick={() => setPendingDeleteId(null)}
             >
-              取消
+              {t("取消")}{" "}
             </Button>
             <Button
               type="button"
@@ -341,7 +354,7 @@ export function FieldConfigList({
                 setPendingDeleteId(null);
               }}
             >
-              删除
+              {t("删除")}{" "}
             </Button>
           </div>
         )}
@@ -376,12 +389,12 @@ export function FieldConfigList({
         <div className="flex flex-col gap-1 pr-1">
           {rows.length > 0 && visibleRows.length === 0 && (
             <p className="px-1.5 py-3 text-center text-[11px] text-muted-foreground">
-              没有匹配的字段。
+              {t("没有匹配的字段。")}{" "}
             </p>
           )}
           {rows.length === 0 && (
             <p className="px-1.5 py-3 text-center text-[11px] text-muted-foreground">
-              这张表还没有字段。
+              {t("这张表还没有字段。")}{" "}
             </p>
           )}
           {visibleRows.map(renderRow)}

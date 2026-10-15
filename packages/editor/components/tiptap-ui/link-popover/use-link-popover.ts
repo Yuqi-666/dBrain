@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -108,6 +109,8 @@ export function shouldShowLinkButton(props: {
  * Custom hook for handling link operations in a Tiptap editor
  */
 export function useLinkHandler(props: LinkHandlerProps) {
+  useI18n();
+
   const { editor, onSetLink } = props;
   const [url, setUrl] = useState<string | null>(null);
 
@@ -197,6 +200,8 @@ export function useLinkState(props: {
   editor: Editor | null;
   hideWhenUnavailable: boolean;
 }) {
+  useI18n();
+
   const { editor, hideWhenUnavailable = false } = props;
 
   const canSet = canSetLink(editor);
@@ -270,6 +275,8 @@ export function useLinkState(props: {
  * ```
  */
 export function useLinkPopover(config?: UseLinkPopoverConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -292,7 +299,7 @@ export function useLinkPopover(config?: UseLinkPopoverConfig) {
     isVisible,
     canSet,
     isActive,
-    label: "Link",
+    label: t("Link"),
     Icon: LinkIcon,
     ...linkHandler,
   };

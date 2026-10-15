@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import type { Editor } from "@tiptap/react";
 
 // --- Hooks ---
@@ -22,6 +23,8 @@ export function ImageNodeFloating({
 }: {
   editor?: Editor | null;
 }) {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const visible = isNodeTypeSelected(editor, ["image"]);
 
@@ -38,7 +41,7 @@ export function ImageNodeFloating({
       <ImageCaptionButton />
       <Separator />
       <ImageDownloadButton />
-      <ImageUploadButton icon={RefreshCcwIcon} tooltip="Replace" />
+      <ImageUploadButton icon={RefreshCcwIcon} tooltip={t("Replace")} />
       <Separator />
       <DeleteNodeButton />
     </>

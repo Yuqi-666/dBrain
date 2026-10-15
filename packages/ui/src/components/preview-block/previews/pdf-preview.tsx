@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { PdfNodeData } from "@workspace/interfaces";
 import { FileType } from "lucide-react";
@@ -11,6 +12,8 @@ function formatSize(bytes: number) {
 }
 
 export function PdfPreview({ node }: { node: PdfNodeData }) {
+  const { t } = useI18n();
+
   const pageCount = node.pageCount ?? 0;
   return (
     <div className="space-y-2">
@@ -24,12 +27,18 @@ export function PdfPreview({ node }: { node: PdfNodeData }) {
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2">
             <FileType className="size-10 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">PDF Document</span>
+            <span className="text-xs text-muted-foreground">
+              {t("PDF Document")}
+            </span>
           </div>
         )}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        {pageCount > 0 && <span>{pageCount} pages</span>}
+        {pageCount > 0 && (
+          <span>
+            {pageCount} {t("pages")}
+          </span>
+        )}
         <span className="ml-auto">{formatSize(node.fileSize)}</span>
       </div>
     </div>

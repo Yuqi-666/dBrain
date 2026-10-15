@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The 字幕 tab: the cue cards, and the one piece of behaviour they need — a
@@ -68,6 +69,8 @@ export function SubtitleStream({
   onGenerateSubtitles,
   className,
 }: SubtitleStreamProps) {
+  const { t } = useI18n();
+
   const sorted = React.useMemo(() => sortTimestamps(timestamps), [timestamps]);
 
   // The cue being spoken, in `[0, sorted.length)` or `-1` for a gap.
@@ -127,7 +130,7 @@ export function SubtitleStream({
 
   const handleGenerate = () => {
     onGenerateSubtitles?.();
-    setHint("转写能力尚未接入，暂时无法生成字幕。");
+    setHint(t("转写能力尚未接入，暂时无法生成字幕。"));
   };
 
   return (
@@ -150,11 +153,16 @@ export function SubtitleStream({
         {sorted.length === 0 ? (
           <MediaSidebarEmpty
             icon={Captions}
-            title="无字幕"
+            title={t("无字幕")}
             action={
-              <Button type="button" variant="outline" size="sm" onClick={handleGenerate}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerate}
+              >
                 <Sparkles aria-hidden />
-                生成字幕
+                {t("生成字幕")}{" "}
               </Button>
             }
             hint={hint}
@@ -188,10 +196,10 @@ export function SubtitleStream({
           size="xs"
           onClick={locate}
           className="absolute bottom-2 left-1/2 -translate-x-1/2 shadow-md"
-          aria-label="滚动到当前播放位置并恢复跟随"
+          aria-label={t("滚动到当前播放位置并恢复跟随")}
         >
           <Locate aria-hidden />
-          当前位置
+          {t("当前位置")}{" "}
         </Button>
       ) : null}
     </div>

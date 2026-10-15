@@ -1,4 +1,6 @@
 "use client";
+import { NODE_TYPE_LABELS } from "@workspace/ui/lib/node-type-labels";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { ReactNode } from "react";
 import {
@@ -9,18 +11,7 @@ import {
 import type { NodeDataType } from "@workspace/interfaces";
 import { NODE_DATA_TYPES } from "@workspace/interfaces";
 
-export const NODE_TYPE_LABELS: Record<string, string> = {
-  text: "Text",
-  image: "Image",
-  pdf: "PDF",
-  video: "Video",
-  audio: "Audio",
-  webpage: "Webpage",
-  website: "Website",
-  collection: "Collection",
-  "rich-text": "Rich Text",
-  database: "Database",
-};
+export { NODE_TYPE_LABELS } from "@workspace/ui/lib/node-type-labels";
 
 export interface NodeDataTypeSelectorProps {
   children: (nodeType: NodeDataType) => ReactNode;
@@ -28,6 +19,8 @@ export interface NodeDataTypeSelectorProps {
 
 /** Node data-type picker with nested selectors supplied by the host. */
 export function NodeDataTypeSelector({ children }: NodeDataTypeSelectorProps) {
+  useI18n();
+
   return (
     <DropdownMenuSubContent className="w-48" sideOffset={0} alignOffset={0}>
       {NODE_DATA_TYPES.map((type) => (

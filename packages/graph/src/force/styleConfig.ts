@@ -212,6 +212,8 @@ export interface DefaultForceConfig {
   linkDistance: number;
   centerX: number;
   centerY: number;
+  boundaryDensity: number;
+  boundaryStrength: number;
   alphaMin: number;
   alphaDecay: number;
   velocityDecay: number;
@@ -223,6 +225,14 @@ export const DEFAULT_FORCE_CONFIG = {
   linkDistance: 80,
   centerX: 0,
   centerY: 0,
+  // Soft circular boundary: radius = sqrt(nodeCount / boundaryDensity).
+  // 1e-5 px^-2 puts 150 nodes at r ~= 3873px, 600 nodes at r ~= 7746px.
+  // Stiffness 0.05 with velocityDecay 0.4 gives the discrete spring real
+  // eigenvalues, so a node beyond the boundary returns monotonically: the
+  // overshoot shrinks by (1.5 * 0.05) per tick and the force fades to
+  // zero at the boundary, so nothing crosses or oscillates.
+  boundaryDensity: 1e-5,
+  boundaryStrength: 0.05,
   alphaMin: 0.001,
   alphaDecay: 0.0228,
   velocityDecay: 0.4,

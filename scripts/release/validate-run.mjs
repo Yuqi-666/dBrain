@@ -6,8 +6,10 @@ export function validateRun(run, repository, runId) {
   assert.equal(String(run.id), runId);
   assert.equal(run.repository.full_name, repository);
   assert.equal(run.head_repository.full_name, repository);
-  assert.equal(run.path, ".github/workflows/release-candidate.yml");
-  assert.equal(run.event, "workflow_dispatch");
+  assert.equal(run.path, ".github/workflows/gate.yml");
+  // The gate run executes on a push to the default branch. A manual start of
+  // the same workflow is also a trusted source.
+  assert.ok(run.event === "push" || run.event === "workflow_dispatch");
   assert.equal(run.status, "completed");
   assert.equal(run.conclusion, "success");
   assert.match(run.head_sha, /^[a-f0-9]{40}$/);

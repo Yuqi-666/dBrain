@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef } from "react";
 import type { Editor } from "@tiptap/react";
@@ -43,11 +44,13 @@ export function TurnIntoDropdownContent({
   blockTypes,
   editor,
 }: TurnIntoDropdownContentProps) {
+  const { t } = useI18n();
+
   const filteredOptions = getFilteredBlockTypeOptions(blockTypes);
 
   return (
     <DropdownMenuGroup>
-      <DropdownMenuLabel>Turn into</DropdownMenuLabel>
+      <DropdownMenuLabel>{t("Turn into")}</DropdownMenuLabel>
       {filteredOptions.map((option, index) =>
         renderBlockTypeButton(
           option,
@@ -194,6 +197,8 @@ export const TurnIntoDropdown = forwardRef<
   },
   ref,
 ) {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const {
     isVisible,
@@ -223,7 +228,7 @@ export const TurnIntoDropdown = forwardRef<
           role="button"
           tabIndex={-1}
           aria-label={label}
-          tooltip="Turn into"
+          tooltip={t("Turn into")}
           {...buttonProps}
           ref={ref}
         >

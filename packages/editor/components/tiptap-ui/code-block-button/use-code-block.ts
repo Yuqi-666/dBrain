@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -234,6 +235,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useCodeBlock(config?: UseCodeBlockConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -276,7 +279,7 @@ export function useCodeBlock(config?: UseCodeBlockConfig) {
     isActive,
     handleToggle,
     canToggle: canToggleState,
-    label: "Code Block",
+    label: t("Code Block"),
     shortcutKeys: CODE_BLOCK_SHORTCUT_KEY,
     Icon: CodeBlockIcon,
   };

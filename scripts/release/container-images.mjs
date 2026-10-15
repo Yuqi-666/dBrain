@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { archsOf, splitNames } from "./platforms.mjs";
 const docker = (...args) =>
   execFileSync("docker", args, {
     encoding: "utf8",
@@ -62,8 +63,13 @@ if (process.argv[2] === "push") {
     ) + "\n",
   );
 } else if (process.argv[2] === "merge") {
+  // A release may build a part of the declared list. The platforms of this
+  // candidate therefore come from the start, not from a constant.
+  const platforms = splitNames(process.env.DBRAIN_CONTAINER_PLATFORMS);
+  assert.ok(platforms.length > 0, "DBRAIN_CONTAINER_PLATFORMS is empty.");
+  const archs = archsOf(platforms);
   const reports = await Promise.all(
-    ["amd64", "arm64"].map(async (arch) =>
+    archs.map(async (arch) =>
       JSON.parse(await readFile(join(process.argv[3], `${arch}.json`))),
     ),
   );
@@ -73,7 +79,7 @@ if (process.argv[2] === "push") {
       version: release.version,
       runId,
       runAttempt,
-      platform: release.containerPlatforms[i],
+      platform: platforms[i],
       smokePassed: true,
     }))
       assert.equal(report[key], value);
@@ -94,7 +100,7 @@ if (process.argv[2] === "push") {
       raw.manifests
         .map((m) => `${m.platform.os}/${m.platform.architecture}`)
         .sort(),
-      [...release.containerPlatforms].sort(),
+      [...platforms].sort(),
     );
     const digest = docker(
       "buildx",
@@ -107,7 +113,7 @@ if (process.argv[2] === "push") {
     assert.match(digest, /^sha256:[a-f0-9]{64}$/);
     images[service] = {
       reference: `${prefix}-${service}@${digest}`,
-      platforms: release.containerPlatforms,
+      platforms,
       smokePassed: true,
     };
   }

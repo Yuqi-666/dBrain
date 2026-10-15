@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Separator } from "@workspace/editor/components/tiptap-ui-primitive/separator";
@@ -16,6 +17,8 @@ interface ToolbarProps extends BaseProps {
 const useToolbarNavigation = (
   toolbarRef: React.RefObject<HTMLDivElement | null>,
 ) => {
+  useI18n();
+
   const [items, setItems] = useState<HTMLElement[]>([]);
 
   const collectItems = useCallback(() => {
@@ -82,6 +85,8 @@ const useToolbarNavigation = (
 
 export const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(
   ({ children, className, variant = "fixed", ...props }, ref) => {
+    const { t } = useI18n();
+
     const toolbarRef = useRef<HTMLDivElement>(null);
     const composedRef = useComposedRef(toolbarRef, ref);
     useToolbarNavigation(toolbarRef);
@@ -89,8 +94,8 @@ export const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(
     return (
       <div
         ref={composedRef}
-        role="toolbar"
-        aria-label="toolbar"
+        role={t("toolbar")}
+        aria-label={t("toolbar")}
         data-variant={variant}
         className={cn("tiptap-toolbar", className)}
         {...props}

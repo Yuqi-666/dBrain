@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useEffect, useState } from "react";
 import type { ChainedCommands } from "@tiptap/react";
@@ -59,10 +61,18 @@ export const textAlignIcons = {
 };
 
 export const textAlignLabels: Record<TextAlign, string> = {
-  left: "Align left",
-  center: "Align center",
-  right: "Align right",
-  justify: "Align justify",
+  get left() {
+    return translate("Align left");
+  },
+  get center() {
+    return translate("Align center");
+  },
+  get right() {
+    return translate("Align right");
+  },
+  get justify() {
+    return translate("Align justify");
+  },
 };
 
 /**
@@ -181,6 +191,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useTextAlign(config: UseTextAlignConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     align,

@@ -1,20 +1,43 @@
 name: Container candidate build
 on:
   workflow_call:
+    inputs:
+      platforms:
+        description: A comma-separated part of the declared platforms, or empty for all of them
+        type: string
+        default: ""
 permissions:
   contents: read
   packages: write
   actions: read
 jobs:
+  plan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Resolve the selected platforms
+        id: resolve
+        shell: bash
+        env:
+          CONTAINER_PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          platforms="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
+          echo "matrix=$(node scripts/release/platforms.mjs matrix containers "$platforms")" >> "$GITHUB_OUTPUT"
   build:
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            arch: amd64
-          - os: ubuntu-24.04-arm
-            arch: arm64
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     environment: candidate
@@ -37,28 +60,56 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Configure candidate image names and builder
+      - name: Configure candidate image names
         shell: bash
-        run: |
-          echo "DBRAIN_IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          docker buildx create --name dbrain --use
-          docker buildx inspect --bootstrap
-      - name: Build native images
-        shell: bash
-        run: |
-          set -euo pipefail
-          for service in pocketbase server web; do
-            case "$service" in
-              pocketbase) dockerfile=deploy/pocketbase/Dockerfile ;;
-              server) dockerfile=apps/server/Dockerfile ;;
-              web) dockerfile=apps/web/Dockerfile ;;
-            esac
-            docker buildx build --load --platform "linux/$DBRAIN_CONTAINER_ARCH" \
-              --provenance=false --file "$dockerfile" \
-              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
-              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
-              --tag "$DBRAIN_IMAGE_PREFIX-$service:$DBRAIN_VERSION" .
-          done
+        run: echo "DBRAIN_IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Build cached pocketbase image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: deploy/pocketbase/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          provenance: false
+          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-pocketbase:${{ env.DBRAIN_VERSION }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,version=2,scope=dbrain-v1-pocketbase-${{ matrix.arch }}
+          # Only default-branch builds publish reusable caches. PRs restore.
+          cache-to: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-pocketbase-{0}', matrix.arch) || '' }}
+      - name: Build cached server image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          provenance: false
+          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-server:${{ env.DBRAIN_VERSION }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,version=2,scope=dbrain-v1-server-${{ matrix.arch }}
+          # Only default-branch builds publish reusable caches. PRs restore.
+          cache-to: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-server-{0}', matrix.arch) || '' }}
+      - name: Build cached web image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          provenance: false
+          tags: ${{ env.DBRAIN_IMAGE_PREFIX }}-web:${{ env.DBRAIN_VERSION }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,version=2,scope=dbrain-v1-web-${{ matrix.arch }}
+          # Only default-branch builds publish reusable caches. PRs restore.
+          cache-to: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('type=gha,version=2,mode=max,ignore-error=true,scope=dbrain-v1-web-{0}', matrix.arch) || '' }}
       - name: Install media fixture dependency
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Accept the built images before pushing
@@ -108,10 +159,15 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CONTAINER_PLATFORMS: ${{ inputs.platforms }}
         run: |
           set -euo pipefail
           export DBRAIN_IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY,,}"
-          for arch in amd64 arm64; do
+          # The arches of this candidate, not a fixed pair.
+          platforms="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
+          export DBRAIN_CONTAINER_PLATFORMS="$platforms"
+          archs="$(node scripts/release/platforms.mjs matrix containers "$platforms" --archs)"
+          for arch in $archs; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "container-$arch-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming
           done
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

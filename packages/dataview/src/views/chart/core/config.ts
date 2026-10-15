@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Chart config resolution — the catalogue of chart types the view can draw, the
  * self-healing field/measure resolution over a live schema, and the
@@ -98,7 +99,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "bar",
     specType: "bar",
-    label: "柱状图",
+    get label() {
+      return translate("柱状图");
+    },
     group: "比较",
     shape: "cartesian",
     roles: ["dimension", "measures", "series"],
@@ -107,7 +110,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "bar-horizontal",
     specType: "bar",
-    label: "条形图",
+    get label() {
+      return translate("条形图");
+    },
     group: "比较",
     shape: "cartesian",
     roles: ["dimension", "measures", "series"],
@@ -117,7 +122,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "rangeColumn",
     specType: "rangeColumn",
-    label: "区间柱状图",
+    get label() {
+      return translate("区间柱状图");
+    },
     group: "比较",
     shape: "cartesian",
     roles: ["dimension", "measures"],
@@ -127,7 +134,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "line",
     specType: "line",
-    label: "折线图",
+    get label() {
+      return translate("折线图");
+    },
     group: "趋势",
     shape: "cartesian",
     roles: ["dimension", "measures", "series"],
@@ -136,7 +145,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "area",
     specType: "area",
-    label: "面积图",
+    get label() {
+      return translate("面积图");
+    },
     group: "趋势",
     shape: "cartesian",
     roles: ["dimension", "measures", "series"],
@@ -145,7 +156,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "area-stacked",
     specType: "area",
-    label: "堆叠面积图",
+    get label() {
+      return translate("堆叠面积图");
+    },
     group: "趋势",
     shape: "cartesian",
     roles: ["dimension", "measures", "series"],
@@ -155,7 +168,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "rangeArea",
     specType: "rangeArea",
-    label: "区间面积图",
+    get label() {
+      return translate("区间面积图");
+    },
     group: "趋势",
     shape: "cartesian",
     roles: ["dimension", "measures"],
@@ -165,7 +180,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "pie",
     specType: "pie",
-    label: "饼图",
+    get label() {
+      return translate("饼图");
+    },
     group: "占比",
     shape: "polar",
     roles: ["dimension", "measures"],
@@ -174,7 +191,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "pie-ring",
     specType: "pie",
-    label: "环形图",
+    get label() {
+      return translate("环形图");
+    },
     group: "占比",
     shape: "polar",
     roles: ["dimension", "measures"],
@@ -184,7 +203,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "rose",
     specType: "rose",
-    label: "玫瑰图",
+    get label() {
+      return translate("玫瑰图");
+    },
     group: "占比",
     shape: "polar",
     roles: ["dimension", "measures"],
@@ -193,7 +214,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "funnel",
     specType: "funnel",
-    label: "漏斗图",
+    get label() {
+      return translate("漏斗图");
+    },
     group: "占比",
     shape: "polar",
     roles: ["dimension", "measures"],
@@ -202,7 +225,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "wordCloud",
     specType: "wordCloud",
-    label: "词云",
+    get label() {
+      return translate("词云");
+    },
     group: "占比",
     shape: "wordCloud",
     roles: ["dimension", "measures"],
@@ -211,7 +236,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "treemap",
     specType: "treemap",
-    label: "矩形树图",
+    get label() {
+      return translate("矩形树图");
+    },
     group: "占比",
     shape: "hierarchy",
     roles: ["hierarchy", "measures"],
@@ -220,7 +247,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "sunburst",
     specType: "sunburst",
-    label: "旭日图",
+    get label() {
+      return translate("旭日图");
+    },
     group: "占比",
     shape: "hierarchy",
     roles: ["hierarchy", "measures"],
@@ -229,7 +258,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "circlePacking",
     specType: "circlePacking",
-    label: "圆填充图",
+    get label() {
+      return translate("圆填充图");
+    },
     group: "占比",
     shape: "hierarchy",
     roles: ["hierarchy", "measures"],
@@ -239,7 +270,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "scatter",
     specType: "scatter",
-    label: "散点图",
+    get label() {
+      return translate("散点图");
+    },
     group: "分布",
     shape: "scatter",
     roles: ["xy", "series"],
@@ -248,7 +281,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "heatmap",
     specType: "heatmap",
-    label: "热力图",
+    get label() {
+      return translate("热力图");
+    },
     group: "分布",
     shape: "heatmap",
     roles: ["dimension", "series", "measures"],
@@ -257,7 +292,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "radar",
     specType: "radar",
-    label: "雷达图",
+    get label() {
+      return translate("雷达图");
+    },
     group: "分布",
     shape: "polar",
     roles: ["dimension", "measures", "series"],
@@ -267,7 +304,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "gauge",
     specType: "gauge",
-    label: "仪表盘",
+    get label() {
+      return translate("仪表盘");
+    },
     group: "仪表",
     shape: "single",
     roles: ["measures"],
@@ -276,7 +315,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "liquid",
     specType: "liquid",
-    label: "水波图",
+    get label() {
+      return translate("水波图");
+    },
     group: "仪表",
     shape: "single",
     roles: ["measures"],
@@ -285,7 +326,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "circularProgress",
     specType: "circularProgress",
-    label: "环形进度",
+    get label() {
+      return translate("环形进度");
+    },
     group: "仪表",
     shape: "single",
     roles: ["measures"],
@@ -294,7 +337,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "linearProgress",
     specType: "linearProgress",
-    label: "线性进度",
+    get label() {
+      return translate("线性进度");
+    },
     group: "仪表",
     shape: "single",
     roles: ["measures"],
@@ -304,7 +349,9 @@ export const CHART_TYPES: readonly ChartTypeMeta[] = [
   {
     id: "sankey",
     specType: "sankey",
-    label: "桑基图",
+    get label() {
+      return translate("桑基图");
+    },
     group: "关系",
     shape: "sankey",
     roles: ["flow", "measures"],
@@ -362,7 +409,7 @@ export function measureFieldChoices(
   fields: readonly DatabaseField[],
 ): DatabaseField[] {
   return [
-    { id: CHART_COUNT_FIELD, name: "计数", type: "number" },
+    { id: CHART_COUNT_FIELD, name: translate("计数"), type: "number" },
     ...fields.filter((field) => field.type === "number"),
   ];
 }
@@ -494,7 +541,7 @@ export function resolveMeasures(
         field: null,
         count: true,
         aggregation: "sum",
-        label: measure.alias?.trim() || "计数",
+        label: measure.alias?.trim() || translate("计数"),
       });
       continue;
     }
@@ -507,7 +554,10 @@ export function resolveMeasures(
       count,
       aggregation: count ? "sum" : aggregation,
       label:
-        measure.alias?.trim() || (count ? `${field.name}（计数）` : field.name),
+        measure.alias?.trim() ||
+        (count
+          ? translate("{value1}（计数）", { value1: field.name })
+          : field.name),
     });
   }
 
@@ -516,7 +566,7 @@ export function resolveMeasures(
       field: null,
       count: true,
       aggregation: "sum",
-      label: "计数",
+      label: translate("计数"),
     });
   }
 
@@ -563,10 +613,18 @@ export const CHART_PALETTES: ReadonlyArray<{
   label: string;
   colors: readonly string[];
 }> = [
-  { value: "default", label: "默认", colors: [] },
+  {
+    value: "default",
+    get label() {
+      return translate("默认");
+    },
+    colors: [],
+  },
   {
     value: "vivid",
-    label: "明亮",
+    get label() {
+      return translate("明亮");
+    },
     colors: [
       "#3b82f6",
       "#22c55e",
@@ -580,7 +638,9 @@ export const CHART_PALETTES: ReadonlyArray<{
   },
   {
     value: "pastel",
-    label: "柔和",
+    get label() {
+      return translate("柔和");
+    },
     colors: [
       "#93c5fd",
       "#86efac",
@@ -594,7 +654,9 @@ export const CHART_PALETTES: ReadonlyArray<{
   },
   {
     value: "cool",
-    label: "冷色",
+    get label() {
+      return translate("冷色");
+    },
     colors: [
       "#0ea5e9",
       "#6366f1",
@@ -608,7 +670,9 @@ export const CHART_PALETTES: ReadonlyArray<{
   },
   {
     value: "warm",
-    label: "暖色",
+    get label() {
+      return translate("暖色");
+    },
     colors: [
       "#f97316",
       "#ef4444",
@@ -622,7 +686,9 @@ export const CHART_PALETTES: ReadonlyArray<{
   },
   {
     value: "earth",
-    label: "大地",
+    get label() {
+      return translate("大地");
+    },
     colors: [
       "#a16207",
       "#4d7c0f",
@@ -679,10 +745,30 @@ export const CHART_AGGREGATIONS: ReadonlyArray<{
   value: Exclude<ChartAggregation, "count">;
   label: string;
 }> = [
-  { value: "sum", label: "求和" },
-  { value: "avg", label: "平均" },
-  { value: "min", label: "最小" },
-  { value: "max", label: "最大" },
+  {
+    value: "sum",
+    get label() {
+      return translate("求和");
+    },
+  },
+  {
+    value: "avg",
+    get label() {
+      return translate("平均");
+    },
+  },
+  {
+    value: "min",
+    get label() {
+      return translate("最小");
+    },
+  },
+  {
+    value: "max",
+    get label() {
+      return translate("最大");
+    },
+  },
 ];
 
 /** The 点击行为 choices. */
@@ -690,9 +776,24 @@ export const CHART_CLICK_ACTIONS: ReadonlyArray<{
   value: ChartViewConfig["clickAction"];
   label: string;
 }> = [
-  { value: "none", label: "不响应" },
-  { value: "filter", label: "下钻筛选" },
-  { value: "open", label: "打开记录" },
+  {
+    value: "none",
+    get label() {
+      return translate("不响应");
+    },
+  },
+  {
+    value: "filter",
+    get label() {
+      return translate("下钻筛选");
+    },
+  },
+  {
+    value: "open",
+    get label() {
+      return translate("打开记录");
+    },
+  },
 ];
 
 /** The 主题 choices. */
@@ -700,9 +801,24 @@ export const CHART_THEMES: ReadonlyArray<{
   value: ChartViewConfig["theme"];
   label: string;
 }> = [
-  { value: "auto", label: "跟随" },
-  { value: "light", label: "浅色" },
-  { value: "dark", label: "深色" },
+  {
+    value: "auto",
+    get label() {
+      return translate("跟随");
+    },
+  },
+  {
+    value: "light",
+    get label() {
+      return translate("浅色");
+    },
+  },
+  {
+    value: "dark",
+    get label() {
+      return translate("深色");
+    },
+  },
 ];
 
 /** 前 N 条 presets. */
@@ -715,5 +831,5 @@ export const CHART_LIMITS: readonly number[] = [5, 10, 20, 50];
  * these as the quick presets.
  */
 export function describeSource(source: DataViewSource): string {
-  return `${source.rows.length} 条记录`;
+  return translate("{value1} 条记录", { value1: source.rows.length });
 }

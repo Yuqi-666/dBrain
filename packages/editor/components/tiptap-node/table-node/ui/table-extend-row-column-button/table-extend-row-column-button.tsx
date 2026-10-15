@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -51,6 +52,8 @@ export const TableExtendRowColumnButton: React.FC<
   orientation,
   children,
 }) => {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const state = useTableHandleState({ editor });
   const isRowOrientation = orientation === "row";
@@ -189,7 +192,7 @@ export const TableExtendRowColumnButton: React.FC<
       onMouseDown={startDrag}
       type="button"
       aria-label={
-        isRowOrientation ? "Add or remove rows" : "Add or remove columns"
+        isRowOrientation ? t("Add or remove rows") : t("Add or remove columns")
       }
     >
       {children ?? <PlusSmallIcon className="tiptap-button-icon" />}
@@ -206,6 +209,8 @@ export interface TableExtendRowColumnButtonsProps {
 export const TableExtendRowColumnButtons: React.FC<
   TableExtendRowColumnButtonsProps
 > = ({ editor: providedEditor, onMouseDown, onMouseUp }) => {
+  useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const state = useTableHandleState({ editor });
   const { columnButton, rowButton } = useTableExtendRowColumnButtonsPositioning(

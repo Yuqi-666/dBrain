@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { isNodeSelection, type Editor } from "@tiptap/react";
@@ -111,6 +112,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useAiAsk(config: UseAiAskConfig = {}) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -168,7 +171,7 @@ export function useAiAsk(config: UseAiAskConfig = {}) {
     isVisible,
     handleAiAsk,
     canAiAsk,
-    label: "Ask AI Assistant",
+    label: t("Ask AI Assistant"),
     shortcutKeys: AI_ASK_SHORTCUT_KEY,
     Icon: AiSparklesIcon,
   };

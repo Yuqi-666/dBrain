@@ -45,6 +45,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
@@ -283,6 +284,8 @@ function Kanban<T>({
   modifiers,
   ...props
 }: KanbanRootProps<T>) {
+  useI18n();
+
   const columns = value;
   const setColumns = onValueChange;
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
@@ -766,6 +769,8 @@ function KanbanBoard({
   children,
   ...props
 }: KanbanBoardProps) {
+  useI18n();
+
   const { columnIds } = useContext(KanbanContext);
   const Comp = asChild ? Slot.Root : "div";
 
@@ -796,6 +801,8 @@ function KanbanColumn({
   children,
   ...props
 }: KanbanColumnProps) {
+  useI18n();
+
   const isOverlay = useContext(IsOverlayContext);
 
   const {
@@ -881,6 +888,8 @@ function KanbanColumnHandle({
   children,
   ...props
 }: KanbanColumnHandleProps) {
+  useI18n();
+
   const { attributes, listeners, isDragging, disabled } =
     useContext(ColumnContext);
 
@@ -919,6 +928,8 @@ function KanbanItem({
   children,
   ...props
 }: KanbanItemProps) {
+  useI18n();
+
   const isOverlay = useContext(IsOverlayContext);
 
   const {
@@ -999,6 +1010,8 @@ function KanbanItemHandle({
   children,
   ...props
 }: KanbanItemHandleProps) {
+  useI18n();
+
   const { listeners, isDragging, disabled } = useContext(ItemContext);
 
   const Comp = asChild ? Slot.Root : "div";
@@ -1032,6 +1045,8 @@ function KanbanColumnContent({
   children,
   ...props
 }: KanbanColumnContentProps) {
+  useI18n();
+
   const { columns, getItemId } = useContext(KanbanContext);
 
   const itemIds = useMemo(() => {
@@ -1073,6 +1088,8 @@ export interface KanbanOverlayProps extends Omit<
 }
 
 function KanbanOverlay({ children, className, ...props }: KanbanOverlayProps) {
+  useI18n();
+
   const { activeId, isColumn, modifiers } = useContext(KanbanContext);
   const mounted = useSyncExternalStore(
     subscribeToNothing,

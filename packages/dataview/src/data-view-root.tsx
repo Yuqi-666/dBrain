@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import {
   Suspense,
@@ -202,6 +203,8 @@ export function DataViewRoot({
   tabActions,
   className,
 }: DataViewRootProps) {
+  const { t } = useI18n();
+
   const [initial] = useState(() =>
     resolveInitialState(source, viewsProp, activeViewIdProp),
   );
@@ -331,8 +334,8 @@ export function DataViewRoot({
     return (
       <DataViewEmptyState
         icon={LayoutGrid}
-        title="没有可用的数据视图"
-        description="该节点的视图列表为空。"
+        title={t("没有可用的数据视图")}
+        description={t("该节点的视图列表为空。")}
         className={className}
       />
     );

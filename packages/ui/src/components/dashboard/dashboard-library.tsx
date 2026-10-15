@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import type { DashboardPage, NodeData } from "@workspace/interfaces";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -34,32 +37,34 @@ export function DashboardLibrary({
   onAdd,
   onDragNode,
 }: DashboardLibraryProps) {
+  const { t } = useI18n();
+
   return (
     <aside
       id="dashboard-library"
       className="order-1 flex max-h-80 shrink-0 flex-col border-b bg-background lg:order-2 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-l"
-      aria-label="节点组件库"
+      aria-label={t("节点组件库")}
     >
       <div className="flex items-center justify-between px-4 pt-4">
-        <h2 className="text-sm font-medium">组件库</h2>
+        <h2 className="text-sm font-medium">{t("组件库")}</h2>
         <Button
           variant="ghost"
           size="icon"
           className="size-7"
-          aria-label="关闭组件库"
+          aria-label={t("关闭组件库")}
           onClick={onClose}
         >
           <X className="size-4" />
         </Button>
       </div>
       <p className="px-4 pt-2 text-xs leading-relaxed text-muted-foreground">
-        拖入页面或点击添加。组件与原节点保持同步。
+        {t("拖入页面或点击添加。组件与原节点保持同步。")}{" "}
       </p>
       <div className="relative m-4">
         <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
         <Input
-          aria-label="搜索组件"
-          placeholder="搜索节点…"
+          aria-label={t("搜索组件")}
+          placeholder={t("搜索节点…")}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
           className="pl-9"
@@ -91,10 +96,10 @@ export function DashboardLibrary({
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
-                  {node.title || "未命名节点"}
+                  {node.title || t("未命名节点")}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {added ? "已添加" : NODE_TYPE_LABELS[node.nodeType]}
+                  {added ? t("已添加") : NODE_TYPE_LABELS[node.nodeType]}
                 </p>
               </div>
               <Button
@@ -102,7 +107,7 @@ export function DashboardLibrary({
                 size="icon"
                 className="size-7"
                 disabled={!canAdd}
-                aria-label={`添加 ${node.title}`}
+                aria-label={translate("添加 {value1}", { value1: node.title })}
                 onClick={() => onAdd(node.id)}
               >
                 {added ? (
@@ -118,7 +123,7 @@ export function DashboardLibrary({
           <Empty className="py-8">
             <EmptyHeader>
               <EmptyTitle>
-                {search ? "没有匹配的组件" : "组件库为空"}
+                {search ? t("没有匹配的组件") : t("组件库为空")}
               </EmptyTitle>
             </EmptyHeader>
           </Empty>

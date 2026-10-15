@@ -24,6 +24,7 @@ import {
   forceManyBody,
   forceCollide,
   forceCenter,
+  type Force,
   type Simulation,
 } from "d3-force";
 import { quadtree, type Quadtree } from "d3-quadtree";
@@ -199,10 +200,58 @@ function rebuildQuadtree(): void {
     .addAll(nodes);
 }
 
+// -----------------------------------------------------------------------
+// Boundary (soft circular wall)
+// -----------------------------------------------------------------------
+
+/**
+ * Soft circular wall around the layout centre.
+ *
+ * Two rules, nothing else:
+ *   1. `radius = sqrt(nodeCount / density)` — the radius follows the node
+ *      count and the tunable density only. It never looks at positions,
+ *      so it cannot chase a node and needs no connectivity analysis;
+ *   2. a node outside the boundary feels a spring anchored at it,
+ *      `v += -r̂ * strength * (r - radius) * alpha`. Inside the boundary
+ *      the force is exactly zero.
+ *
+ * The force fades to zero at the boundary, so a caught node returns
+ * monotonically and parks just outside it instead of overshooting or
+ * orbiting (d3's `forceRadial` is not usable here: it pushes a node that
+ * is inside the radius back out).
+ */
+function createBoundaryForce(
+  centerX: number,
+  centerY: number,
+  strength: number,
+  density: number,
+): Force<SimNode, SimLink> {
+  return (alpha: number): void => {
+    if (strength <= 0 || density <= 0 || nodes.length === 0) return;
+    const radius = Math.sqrt(nodes.length / density);
+    const radius2 = radius * radius;
+
+    for (const node of nodes) {
+      const dx = (node.x ?? 0) - centerX;
+      const dy = (node.y ?? 0) - centerY;
+      const d2 = dx * dx + dy * dy;
+      // Only a node outside the boundary pays for the sqrt.
+      if (d2 <= radius2 || d2 === 0) continue;
+      const r = Math.sqrt(d2);
+      const pull = (strength * (r - radius) * alpha) / r;
+      node.vx = (node.vx ?? 0) - dx * pull;
+      node.vy = (node.vy ?? 0) - dy * pull;
+    }
+  };
+}
+
 function applyConfig(forceCfg: ForceConfig): void {
   if (!sim) return;
   const cfg = { ...DEFAULT_FORCE_CONFIG, ...forceCfg };
   currentConfig = cfg;
+
+  const centerX = cfg.centerX ?? currentDims.width / 2;
+  const centerY = cfg.centerY ?? currentDims.height / 2;
 
   sim
     .force(
@@ -223,11 +272,14 @@ function applyConfig(forceCfg: ForceConfig): void {
           : DEFAULT_FORCE_CONFIG.collisionRadius - 8),
       ),
     )
+    .force("center", forceCenter(centerX, centerY))
     .force(
-      "center",
-      forceCenter(
-        cfg.centerX ?? currentDims.width / 2,
-        cfg.centerY ?? currentDims.height / 2,
+      "boundary",
+      createBoundaryForce(
+        centerX,
+        centerY,
+        cfg.boundaryStrength ?? DEFAULT_FORCE_CONFIG.boundaryStrength,
+        cfg.boundaryDensity ?? DEFAULT_FORCE_CONFIG.boundaryDensity,
       ),
     )
     .alphaMin(cfg.alphaMin ?? DEFAULT_FORCE_CONFIG.alphaMin)

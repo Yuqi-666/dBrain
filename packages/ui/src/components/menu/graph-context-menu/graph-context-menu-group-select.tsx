@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { DropdownMenuItem } from "@workspace/ui/components/ui/dropdown-menu";
@@ -17,6 +18,8 @@ export function GraphContextMenuGroupSelect({
   onDeleteSelected,
   onClose,
 }: GraphContextMenuGroupSelectProps) {
+  const { t } = useI18n();
+
   const totalCount = nodeIds.length + edgeIds.length;
 
   return (
@@ -29,7 +32,10 @@ export function GraphContextMenuGroupSelect({
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"
       >
         <Trash2 className="size-4" />
-        <span>Delete {totalCount} item{totalCount !== 1 ? "s" : ""}</span>
+        <span>
+          {t("Delete")} {totalCount} {t("item")}
+          {totalCount !== 1 ? "s" : ""}
+        </span>
       </DropdownMenuItem>
     </>
   );

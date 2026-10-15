@@ -1,7 +1,12 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useRouter } from "next/navigation";
-import { trpc, clearAuthSession, reconnectTRPCClient } from "@workspace/api-client";
+import {
+  trpc,
+  clearAuthSession,
+  reconnectTRPCClient,
+} from "@workspace/api-client";
 import { useAuthStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -14,6 +19,8 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 
 export function UserMenu() {
+  const { t } = useI18n();
+
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
   const logoutMutation = trpc.auth.logout.useMutation();
@@ -42,10 +49,14 @@ export function UserMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuLabel>{user.nickname}</DropdownMenuLabel>
-          {process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop" && <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleLogout}>Sign out</DropdownMenuItem>
-          </>}
+          {process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleLogout}>
+                {t("Sign out")}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The graph view's data mapping: the *normalized source + this view's config*
  * become the one thing `@workspace/graph` consumes — a throwaway `View`.
@@ -55,7 +56,7 @@ export function buildGraphView({
     // The graph's internal view name follows the **collection node**, like the
     // gantt's 表头: it names the set, and the set is the node. The tab already
     // names the view itself, so no config key duplicates this.
-    name: source.nodeTitle?.trim() || "节点图",
+    name: source.nodeTitle?.trim() || translate("节点图"),
     viewType,
     visualConfig,
     // The collection's filter, passed through untouched: the library applies it

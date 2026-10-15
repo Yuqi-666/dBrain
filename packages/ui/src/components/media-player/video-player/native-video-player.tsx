@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * Plays a video in a bare `<video>` element, preferring its HLS playlist when
@@ -74,6 +75,8 @@ export function NativeVideoPlayer({
   onError,
   onMediaController,
 }: NativeVideoPlayerProps) {
+  const { t } = useI18n();
+
   const videoRef = useRef<HTMLVideoElement>(null);
   // Kept in a ref so a re-render does not re-attach the source; the effect must
   // depend on the sources alone.
@@ -172,7 +175,7 @@ export function NativeVideoPlayer({
       onLoadedData={onLoadedData}
       onError={() => onErrorRef.current?.()}
     >
-      您的浏览器不支持视频播放
+      {t("您的浏览器不支持视频播放")}{" "}
     </video>
   );
 }

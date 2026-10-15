@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -11,24 +12,32 @@ import { XIcon } from "lucide-react";
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  useI18n();
+
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  useI18n();
+
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  useI18n();
+
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  useI18n();
+
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
@@ -36,6 +45,8 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  useI18n();
+
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
@@ -63,7 +74,7 @@ function DialogOverlay({
  * **Opt-in**: a consumer that needs this passes the value to `PopoverContent`'s
  * `container` (`SelectorPopoverShell` is the one that does today). It is not read
  * centrally in `ui/popover.tsx` because some dialogs are scroll containers
- * themselves (`max-h-[85vh] overflow-y-auto`, `quick-panel`'s `overflow-hidden`),
+ * themselves (`max-h-[85vh] overflow-y-auto` or `overflow-hidden`),
  * where a portalled panel would be clipped rather than merely unscrollable.
  * Plan §M2.2-8 / §M2.1 第 7 行.
  */
@@ -73,6 +84,8 @@ const DialogContentContainerContext = React.createContext<HTMLElement | null>(
 
 /** The nearest enclosing `DialogContent` element, or `null` outside a dialog. */
 function useDialogContentContainer() {
+  useI18n();
+
   return React.useContext(DialogContentContainerContext);
 }
 
@@ -96,6 +109,8 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const { t } = useI18n();
+
   const [container, setContainer] = React.useState<HTMLDivElement | null>(null);
   /**
    * Whether an inner layer was shielding this content when the in-flight
@@ -158,7 +173,7 @@ function DialogContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("Close")}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -168,6 +183,8 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  useI18n();
+
   return (
     <div
       data-slot="dialog-header"
@@ -185,6 +202,8 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       data-slot="dialog-footer"
@@ -197,7 +216,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("Close")}</Button>
         </DialogPrimitive.Close>
       )}
     </div>
@@ -208,6 +227,8 @@ function DialogTitle({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  useI18n();
+
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -221,6 +242,8 @@ function DialogDescription({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  useI18n();
+
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

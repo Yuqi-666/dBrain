@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The pdf viewer: a document surface plus its toolbar.
@@ -180,6 +183,8 @@ export function PdfViewer({
   onPageChange,
   onError,
 }: PdfViewerProps) {
+  const { t } = useI18n();
+
   const {
     status,
     pageCount,
@@ -1755,7 +1760,7 @@ export function PdfViewer({
       >
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
         <p className="text-xs text-muted-foreground">
-          正在加载 PDF
+          {t("正在加载 PDF")}{" "}
           {progress !== null ? ` · ${Math.round(progress * 100)}%` : "…"}
         </p>
       </div>
@@ -1773,10 +1778,10 @@ export function PdfViewer({
       >
         <CircleAlert className="size-6 text-muted-foreground" />
         <p className="text-sm text-foreground">
-          {failure?.message ?? "PDF 加载失败。"}
+          {failure?.message ?? t("PDF 加载失败。")}
         </p>
         <p className="text-xs text-muted-foreground">
-          已停止自绘渲染，宿主可以回退到浏览器内置预览。
+          {t("已停止自绘渲染，宿主可以回退到浏览器内置预览。")}{" "}
         </p>
       </div>
     );
@@ -1849,7 +1854,11 @@ export function PdfViewer({
             ref={scrollRef}
             tabIndex={0}
             role="region"
-            aria-label={title ? `${title} 文档` : "PDF 文档"}
+            aria-label={
+              title
+                ? translate("{value1} 文档", { value1: title })
+                : t("PDF 文档")
+            }
             onScroll={handleScroll}
             data-pdf-scroller
             className={cn(

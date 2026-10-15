@@ -20,7 +20,7 @@
  *    millisecond produces the same request, and only a changed token tells the
  *    sidebar to run it again.
  * 5. **Capture `Mod-Enter` on the content box, never on `document`** — the node
- *    editor dialog and the quick panel own their own keys (plan §M6.2-④).
+ *    editor dialog and the dynamic island own their own keys (plan §M6.2-④).
  * 6. **Own the two node-level intents** the sidebar raises — 「转化为节点」 and
  *    「打开节点」. Both need the *node* (the new node inherits its `semanticId`),
  *    and both are host concerns: the sidebar reports the gesture and never

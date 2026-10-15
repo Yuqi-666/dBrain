@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The kanban's data-transformation layer: `rows` + a group field → lanes and
  * cards (kanban.md §3.1).
@@ -206,7 +207,7 @@ export function buildKanbanBoard(
       lanes.push({
         id: KANBAN_UNASSIGNED_LANE_ID,
         optionId: null,
-        name: KANBAN_UNASSIGNED_LANE_NAME,
+        name: translate(KANBAN_UNASSIGNED_LANE_NAME),
         color: "var(--muted-foreground)",
       });
     }
@@ -227,7 +228,7 @@ export function buildKanbanBoard(
           titleField ? row.cells[titleField.id] : undefined,
           titleField ?? undefined,
           resolveNodeTitle,
-        ) || KANBAN_UNTITLED;
+        ) || translate(KANBAN_UNTITLED);
 
       const laneIds = new Set<string>();
       for (const optionId of toOptionIds(row.cells[groupField.id])) {

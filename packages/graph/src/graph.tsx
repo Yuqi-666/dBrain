@@ -1,4 +1,8 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { useViewColors } from "@workspace/ui/hooks/use-view-colors";
 
 /**
  * Main `Graph` component for graph.
@@ -38,11 +42,7 @@ import { filterByViewFilterConfig } from "@workspace/utils";
 import { ForceGraph } from "./force/ForceGraph";
 import { ForceGraphErrorBoundary } from "./force/ForceGraphErrorBoundary";
 import { FlowGraph } from "./flow/FlowGraph";
-import type {
-  GraphSnapshot,
-  DiffCallback,
-  SourceDiff,
-} from "./types";
+import type { GraphSnapshot, DiffCallback, SourceDiff } from "./types";
 import { useGraphEventHandler } from "./eventHandler";
 
 // -----------------------------------------------------------------------
@@ -73,15 +73,34 @@ const VIEW_TYPE_TO_MODE: Record<ViewType, Mode> = {
 };
 
 export function Graph(props: GraphProps) {
+  useI18n();
+
   const { viewId, view: viewProp, className, style } = props;
 
   // ---- Resolve the view ------------------------------------------
   const views = useDataStore((s) => s.views);
-  const resolvedView: View | undefined = useMemo(() => {
+  const storedView: View | undefined = useMemo(() => {
     if (viewProp) return viewProp;
     if (viewId) return views.get(viewId);
     return undefined;
   }, [viewProp, viewId, views]);
+  const { backgroundColor, gridColor } = useViewColors(
+    storedView?.visualConfig,
+  );
+  const resolvedView = useMemo(
+    () =>
+      storedView
+        ? {
+            ...storedView,
+            visualConfig: {
+              ...storedView.visualConfig,
+              backgroundColor,
+              gridColor,
+            },
+          }
+        : undefined,
+    [storedView, backgroundColor, gridColor],
+  );
 
   // ---- Snapshot + diff wrappers -----------------------------------
   const getDataSnapshot = useCallback((): GraphSnapshot => {
@@ -150,7 +169,7 @@ export function Graph(props: GraphProps) {
           ...style,
         }}
       >
-        No view selected
+        {translate("No view selected")}{" "}
       </div>
     );
   }

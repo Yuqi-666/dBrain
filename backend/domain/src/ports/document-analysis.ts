@@ -78,6 +78,30 @@ export interface StoredBlob {
   bytes: Uint8Array;
 }
 
+/** Where a stored blob ended up. */
+export interface StoredFileRef {
+  /** Record id in the file store. */
+  id: string;
+  /** Root-relative address, `/api/files/<collection>/<record>/<name>`. */
+  url: string;
+}
+
+/**
+ * A stored blob streamed to a private temporary file.
+ *
+ * The application layer decides *what* to do with a file but owns no paths and
+ * no file system calls, so the store creates the temporary location and hands
+ * it over together with the way to remove it again.
+ */
+export interface DownloadedFile {
+  /** Absolute path of the temporary copy, inside a directory private to the call. */
+  path: string;
+  /** Bytes written. */
+  bytes: number;
+  /** Removes the copy and its directory. Safe to call more than once. */
+  cleanup(): Promise<void>;
+}
+
 /** Blob storage abstraction used by the upload flow. */
 export interface IFileStore {
   /**
@@ -90,9 +114,46 @@ export interface IFileStore {
   download(fileUrl: string): Promise<Uint8Array>;
 
   /**
+   * Declared byte length of a stored blob.
+   *
+   * Lets a caller reject a file that is too large to be worth downloading,
+   * before any of it is read into memory.
+   */
+  stat(fileUrl: string): Promise<number>;
+
+  /**
+   * Streams a stored blob into a private temporary file.
+   *
+   * The streaming counterpart of {@link download}: a 2 GiB video must reach
+   * FFmpeg through the file system, not through the process heap. The caller
+   * closes the copy with {@link DownloadedFile.cleanup}.
+   */
+  downloadToTempFile(fileUrl: string, suffix: string): Promise<DownloadedFile>;
+
+  /**
    * Stores `blob` and resolves to the URL it can be read from afterwards.
+   *
+   * Every blob a store accepts lands beside the others in one collection, and
+   * the address names it as `<anything>/api/files/<collection>/<record>/<name>`.
+   * An artifact can therefore address a sibling relatively and keep working
+   * behind any mount prefix; see `rewriteSegmentUrls` in the file command
+   * service.
    *
    * @throws when the store rejects the write.
    */
   upload(blob: StoredBlob): Promise<string>;
+
+  /**
+   * Streams the file at `filePath` into the store. Resolves to the
+   * root-relative address (`/api/files/…`) it can be read from afterwards.
+   *
+   * The streaming counterpart of {@link upload}: an assembled 2 GiB upload
+   * never sits in memory on its way into the store.
+   */
+  uploadFromPath(
+    filePath: string,
+    fileName: string,
+    contentType: string,
+    workspaceId: string,
+  ): Promise<StoredFileRef>;
 }

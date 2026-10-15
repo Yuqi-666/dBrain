@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import { useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
 
@@ -51,6 +52,8 @@ import {
 import { FloatingElement } from "@workspace/editor/components/tiptap-ui-utils/floating-element";
 
 export function NotionToolbarFloating() {
+  useI18n();
+
   const { editor } = useTiptapEditor();
   const isMobile = useIsBreakpoint("max", 480);
   const { lockDragHandle, aiGenerationActive, commentInputVisible } =
@@ -157,6 +160,8 @@ export function MoreOptions({
   hideWhenUnavailable = false,
   ...props
 }: MoreOptionsProps) {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const [show, setShow] = useState(false);
 
@@ -196,7 +201,7 @@ export function MoreOptions({
               variant="ghost"
               role="button"
               tabIndex={-1}
-              tooltip="More options"
+              tooltip={t("More options")}
               {...props}
             >
               <MoreVerticalIcon className="tiptap-button-icon" />

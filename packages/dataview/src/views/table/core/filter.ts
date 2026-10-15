@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The table view's filter conditions (筛选).
  *
@@ -29,10 +30,18 @@ export const TABLE_FILTER_OPERATORS: readonly TableFilterOperator[] = [
 
 export const TABLE_FILTER_OPERATOR_LABELS: Record<TableFilterOperator, string> =
   {
-    contains: "包含",
-    equals: "等于",
-    empty: "为空",
-    notEmpty: "不为空",
+    get contains() {
+      return translate("包含");
+    },
+    get equals() {
+      return translate("等于");
+    },
+    get empty() {
+      return translate("为空");
+    },
+    get notEmpty() {
+      return translate("不为空");
+    },
   };
 
 export type { TableFilterCondition };

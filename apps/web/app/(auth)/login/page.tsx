@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,6 +28,8 @@ import {
  * card's footprint so the centred auth layout does not shift.
  */
 export default function LoginPage() {
+  useI18n();
+
   return (
     <Suspense fallback={<div className="w-full max-w-md" aria-hidden />}>
       <LoginForm />
@@ -35,6 +38,8 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+  const { t } = useI18n();
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const setUser = useAuthStore((s) => s.setUser);
@@ -67,15 +72,15 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Sign In</CardTitle>
+        <CardTitle>{t("Sign In")}</CardTitle>
         <CardDescription>
-          Enter your credentials to access your knowledge graph
+          {t("Enter your credentials to access your knowledge graph")}{" "}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("Email")}</Label>
             <Input
               id="email"
               type="email"
@@ -86,7 +91,7 @@ function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("Password")}</Label>
             <Input
               id="password"
               type="password"
@@ -102,13 +107,13 @@ function LoginForm() {
             className="w-full"
             disabled={loginMutation.isPending}
           >
-            {loginMutation.isPending ? "Signing in..." : "Sign In"}
+            {loginMutation.isPending ? t("Signing in...") : t("Sign In")}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm">
-          Don&apos;t have an account?{" "}
+          {t("Don't have an account?")}{" "}
           <a href="/register" className="text-primary hover:underline">
-            Register
+            {t("Register")}{" "}
           </a>
         </p>
       </CardContent>

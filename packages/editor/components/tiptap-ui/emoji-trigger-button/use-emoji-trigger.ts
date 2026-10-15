@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -256,6 +257,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useEmojiTrigger(config?: UseEmojiTriggerConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     node,
@@ -313,7 +316,7 @@ export function useEmojiTrigger(config?: UseEmojiTriggerConfig) {
     isVisible,
     handleAddTrigger,
     canAddTrigger,
-    label: "Add emoji",
+    label: t("Add emoji"),
     shortcutKeys: EMOJI_TRIGGER_SHORTCUT_KEY,
     trigger,
     Icon: SmilePlusIcon,

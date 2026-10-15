@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * A `text` node's content: one centered, large-type rich-text block — the 禅意
@@ -50,6 +51,8 @@ interface TextNodeContentProps {
 }
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
+  const { t } = useI18n();
+
   const writer = useNodeContentWriter<TextContent>(
     node.id,
     "text",
@@ -127,7 +130,7 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
             key={node.id}
             initialContent={normalizeDoc(node.content?.docs)}
             onContentChange={handleChange}
-            placeholder="写下这句话…"
+            placeholder={t("写下这句话…")}
             className="flex-1"
           />
         </div>

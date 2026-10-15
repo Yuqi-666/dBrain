@@ -208,6 +208,7 @@ const databaseFieldSchema = z.object({
   // Required on select / multiSelect (the domain value object enforces that),
   // carried through untouched by every other type.
   options: z.array(databaseFieldOptionSchema).optional(),
+  includeTime: z.boolean().optional(),
 });
 
 /**

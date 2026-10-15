@@ -1,4 +1,6 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The condition dropdown: an ordered list of `字段 + 方向` levels with 添加条件
@@ -51,13 +53,13 @@ export function orderLabelsForField(
   switch (type) {
     case "select":
     case "multiSelect":
-      return ["选项顺序", "选项倒序"];
+      return [translate("选项顺序"), translate("选项倒序")];
     case "number":
       return ["1 → 9", "9 → 1"];
     case "date":
-      return ["最早优先", "最晚优先"];
+      return [translate("最早优先"), translate("最晚优先")];
     case "checkbox":
-      return ["未勾选优先", "已勾选优先"];
+      return [translate("未勾选优先"), translate("已勾选优先")];
     default:
       return ["A → Z", "Z → A"];
   }
@@ -77,13 +79,15 @@ export function ConditionOrderToggle({
   onChange: (order: "asc" | "desc") => void;
   className?: string;
 }) {
+  const { t } = useI18n();
+
   const [ascLabel, descLabel] = orderLabelsForField(type);
   return (
     <ToggleGroup
       type="single"
       value={value}
       disabled={disabled}
-      aria-label="排序方向"
+      aria-label={t("排序方向")}
       className={cn("rounded-md border border-border p-0.5", className)}
       onValueChange={(next) => {
         if (next) onChange(next as "asc" | "desc");
@@ -152,6 +156,8 @@ export function ConditionMenu({
   headerExtra,
   className,
 }: ConditionMenuProps) {
+  const { t } = useI18n();
+
   const fieldById = new Map(fields.map((field) => [field.id, field]));
 
   const patch = (index: number, next: Partial<TableCondition>) =>
@@ -214,7 +220,7 @@ export function ConditionMenu({
               className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
               onClick={() => onChange([])}
             >
-              清除
+              {t("清除")}{" "}
             </Button>
           )}
         </div>
@@ -266,7 +272,7 @@ export function ConditionMenu({
                     type="button"
                     size="icon-xs"
                     variant="ghost"
-                    aria-label="删除条件"
+                    aria-label={t("删除条件")}
                     className="shrink-0 text-muted-foreground"
                     onClick={() => remove(index)}
                   >
@@ -282,7 +288,7 @@ export function ConditionMenu({
             disabled button that swallows the click. */}
         {fields.length === 0 ? (
           <p className="px-1.5 py-1 text-[11px] text-muted-foreground">
-            先添加字段，才能设置条件。
+            {t("先添加字段，才能设置条件。")}{" "}
           </p>
         ) : (
           <Button
@@ -296,7 +302,7 @@ export function ConditionMenu({
             onClick={add}
           >
             <Plus className="size-3.5" />
-            添加条件
+            {t("添加条件")}{" "}
           </Button>
         )}
       </PopoverContent>

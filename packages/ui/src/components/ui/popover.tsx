@@ -37,7 +37,7 @@ function PopoverContent({
    * is the consumer that opts in today. It stays opt-in instead of being read
    * from the dialog context here because some dialogs **are** scroll containers
    * (`max-h-[85vh] overflow-y-auto` on the filter / view dialogs,
-   * `quick-panel`'s `overflow-hidden`): a panel portalled inside those would be
+   * or `overflow-hidden`): a panel portalled inside those would be
    * clipped rather than merely unscrollable.
    */
   container?: HTMLElement | null;

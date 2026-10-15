@@ -6,15 +6,15 @@ import { createRequire } from "node:module";
 import { cp, mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer } from "node:net";
 import { once } from "node:events";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const require = createRequire(join(root, "packages/api-client/package.json"));
 const { createTRPCClient, createWSClient, wsLink } = await import(
-  require.resolve("@trpc/client")
+  pathToFileURL(require.resolve("@trpc/client")).href
 );
-const { default: superjson } = await import(require.resolve("superjson"));
+const { default: superjson } = await import(pathToFileURL(require.resolve("superjson")).href);
 const temp = await mkdtemp(join(tmpdir(), "dbrain-server-smoke-"));
 const children = [],
   connections = [];
@@ -304,21 +304,36 @@ try {
     fileUrl: `${serverUrl}/pb${videoPath}`,
   });
   assert.equal(transcode.reencoded, true);
-  const playlistResponse = await fetch(`${serverUrl}/pb${transcode.hlsUrl}`, {
+  const playlistUrl = `${serverUrl}/pb${transcode.hlsUrl}`;
+  const playlistResponse = await fetch(playlistUrl, {
     headers: { Cookie: `pb_token=${alice.token}` },
   });
   assert.equal(playlistResponse.status, 200);
+  // The playlist names each segment beside itself (`../<record>/<name>`), so one
+  // recording plays through every mount: PocketBase itself in split
+  // development, the `/pb` file gateway here and in the container, and
+  // `/session/<secret>` in the desktop. Resolving the URI against the playlist's
+  // own URL is what a player does, and it rejects the root-relative
+  // `/api/files/...` form, which this gateway answers with 404.
   const segment = (await playlistResponse.text())
     .split("\n")
-    .find((line) => line.startsWith("/pb/api/files/"));
-  assert.ok(segment, "production HLS retains gateway prefix");
+    .map((line) => line.trim())
+    .find((line) => line !== "" && !line.startsWith("#"));
+  assert.ok(segment, "production HLS names its media segment");
+  const segmentUrl = new URL(segment, playlistUrl);
+  assert.equal(
+    segmentUrl.origin,
+    new URL(playlistUrl).origin,
+    `HLS segment stays on the playlist origin: ${segment}`,
+  );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Cookie: `pb_token=${alice.token}` },
       })
     ).status,
     200,
+    `HLS segment resolves beside its playlist: ${segment}`,
   );
   console.log(
     "PASS production PDF/native canvas, FFmpeg transcoding and same-origin HLS",
@@ -347,10 +362,37 @@ try {
   });
   assert.equal(await b.node.getById.query({ id: node.id }), null);
   await assert.rejects(b.node.delete.mutate({ id: node.id }));
+  const target = await a.node.add.mutate({
+    id: "tmp_edge_target", nodeType: "text", semanticId: "",
+    workspaceId: wa.id, content: { docs: {} }, title: "edge target",
+  });
+  const edge = await a.edge.add.mutate({
+    id: "tmp_edge", from: node.id, to: target.id,
+    direction: "forward", semanticId: "", workspaceId: wa.id,
+  });
+  assert.equal(edge.semanticId, "");
+  assert.equal((await a.edge.getById.query({ id: edge.id })).to, target.id);
+  assert.equal(await b.edge.getById.query({ id: edge.id }), null);
+  await assert.rejects(b.edge.update.mutate({ id: edge.id, updates: { semanticId: "" } }));
+  const edgeSemantic = await a.edgeSemantic.add.mutate({
+    id: "tmp_edge_semantic", name: "relates to", category: "association", workspaceId: wa.id,
+  });
+  await a.edge.update.mutate({ id: edge.id, updates: { semanticId: edgeSemantic.id } });
+  assert.equal((await a.edge.getById.query({ id: edge.id })).semanticId, edgeSemantic.id);
+  await a.edge.update.mutate({ id: edge.id, updates: { semanticId: "" } });
+  const foreignTarget = await b.node.add.mutate({
+    id: "tmp_foreign_target", nodeType: "text", semanticId: "",
+    workspaceId: wb.id, content: { docs: {} }, title: "foreign target",
+  });
+  await assert.rejects(a.edge.add.mutate({
+    id: "tmp_cross_workspace", from: node.id, to: foreignTarget.id,
+    direction: "forward", semanticId: "", workspaceId: wa.id,
+  }));
+  console.log("PASS untyped edge creation, semantic selection/clearing and workspace isolation");
   await new Promise((resolve) => setTimeout(resolve, 400));
   assert.ok(eventsA.some((e) => e.eventType === "NodeCreated"));
   assert.equal(
-    eventsB.length,
+    eventsB.filter((event) => event.metadata?.workspaceId === wa.id).length,
     0,
     "another user must not receive private events",
   );
@@ -380,7 +422,7 @@ try {
   );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Authorization: bob.token },
       })
     ).status,
@@ -426,7 +468,7 @@ try {
   );
   assert.equal(
     (
-      await fetch(`${serverUrl}${segment}`, {
+      await fetch(segmentUrl, {
         headers: { Authorization: bob.token },
       })
     ).status,

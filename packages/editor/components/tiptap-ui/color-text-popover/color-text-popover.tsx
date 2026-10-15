@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -77,6 +78,8 @@ export function RecentColorButton({
   editor,
   ...props
 }: RecentColorButtonProps) {
+  useI18n();
+
   const colorSet = colorObj.type === "text" ? TEXT_COLORS : HIGHLIGHT_COLORS;
   const color = getColorByValue(colorObj.value, colorSet);
 
@@ -128,6 +131,8 @@ export function ColorGroup({
   startIndexOffset,
   editor,
 }: ColorGroupProps) {
+  useI18n();
+
   return colors.map((group, groupIndex) => (
     <ButtonGroup key={`${type}-group-${groupIndex}`}>
       {group.map((color, colorIndex) => {
@@ -186,11 +191,13 @@ function RecentColorsSection({
   selectedIndex,
   editor,
 }: RecentColorsSectionProps) {
+  const { t } = useI18n();
+
   if (recentColors.length === 0) return null;
 
   return (
     <CardItemGroup>
-      <CardGroupLabel>Recently used</CardGroupLabel>
+      <CardGroupLabel>{t("Recently used")}</CardGroupLabel>
       <ButtonGroup>
         {recentColors.map((colorObj, index) => (
           <RecentColorButton
@@ -222,6 +229,8 @@ export function TextStyleColorPanel({
   onColorChanged,
   editor,
 }: TextStyleColorPanelProps) {
+  const { t } = useI18n();
+
   const { recentColors, addRecentColor, isInitialized } =
     useRecentColors(maxRecentColors);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -255,7 +264,7 @@ export function TextStyleColorPanel({
     [textColorStartIndex, allTextColors.length],
   );
 
-  const menuItems = useMemo(() => {
+  const menuItems = useLocaleMemo(() => {
     const items = [];
 
     if (isInitialized && recentColors.length > 0) {
@@ -334,7 +343,7 @@ export function TextStyleColorPanel({
         )}
 
         <CardItemGroup>
-          <CardGroupLabel>Text color</CardGroupLabel>
+          <CardGroupLabel>{t("Text color")}</CardGroupLabel>
           <ColorGroup
             type="text"
             colors={textColorGroups}
@@ -346,7 +355,7 @@ export function TextStyleColorPanel({
         </CardItemGroup>
 
         <CardItemGroup>
-          <CardGroupLabel>Highlight color</CardGroupLabel>
+          <CardGroupLabel>{t("Highlight color")}</CardGroupLabel>
           <ColorGroup
             type="highlight"
             colors={highlightColorGroups}
@@ -382,6 +391,8 @@ export function ColorTextPopover({
   ref,
   ...buttonProps
 }: ColorTextPopoverProps) {
+  const { t } = useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const [isOpen, setIsOpen] = useState(false);
   const {
@@ -445,7 +456,7 @@ export function ColorTextPopover({
       </PopoverTrigger>
 
       <PopoverContent
-        aria-label="Text color options"
+        aria-label={t("Text color options")}
         side="bottom"
         align="start"
       >

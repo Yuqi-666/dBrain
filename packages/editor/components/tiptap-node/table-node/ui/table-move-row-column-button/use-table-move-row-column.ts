@@ -1,4 +1,7 @@
 "use client";
+import { useLocaleMemo } from "@workspace/ui/lib/i18n";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useMemo } from "react";
 import type { Editor } from "@tiptap/react";
@@ -78,16 +81,32 @@ export const tableMoveRowColumnLabels: Record<
   Record<MoveDirection, string>
 > = {
   row: {
-    up: "Move row up",
-    down: "Move row down",
-    left: "Move row left",
-    right: "Move row right",
+    get up() {
+      return translate("Move row up");
+    },
+    get down() {
+      return translate("Move row down");
+    },
+    get left() {
+      return translate("Move row left");
+    },
+    get right() {
+      return translate("Move row right");
+    },
   },
   column: {
-    up: "Move column up",
-    down: "Move column down",
-    left: "Move column left",
-    right: "Move column right",
+    get up() {
+      return translate("Move column up");
+    },
+    get down() {
+      return translate("Move column down");
+    },
+    get left() {
+      return translate("Move column left");
+    },
+    get right() {
+      return translate("Move column right");
+    },
   },
 };
 
@@ -415,6 +434,8 @@ function shouldShowButton({
  * ```
  */
 export function useTableMoveRowColumn(config: UseTableMoveRowColumnConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     index,
@@ -458,7 +479,7 @@ export function useTableMoveRowColumn(config: UseTableMoveRowColumnConfig) {
     return success;
   }, [editor, index, orientation, direction, tablePos, onMoved]);
 
-  const label = useMemo(() => {
+  const label = useLocaleMemo(() => {
     const orientationLabels =
       tableMoveRowColumnLabels[selectionType?.orientation || "row"];
     return (

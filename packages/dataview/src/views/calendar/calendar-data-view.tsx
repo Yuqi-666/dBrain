@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Calendar data view — rows laid out on a time axis and edited by dragging
@@ -105,6 +106,8 @@ export function CalendarDataView({
   resolveNodeTitle,
   className,
 }: DataViewRendererProps<CalendarViewConfig>) {
+  useI18n();
+
   const tokens = useDataViewThemeTokens(CALENDAR_FIXED.theme);
   const themeVars = useMemo(() => buildCalendarThemeVars(tokens), [tokens]);
 
@@ -166,7 +169,7 @@ export function CalendarDataView({
   const hiddenFieldIdsRef = useRef<readonly string[]>(hiddenFieldIds);
   hiddenFieldIdsRef.current = hiddenFieldIds;
 
-  const events = useMemo(
+  const events = useLocaleMemo(
     () =>
       startField
         ? rowsToEvents(source, config, (nodeId) =>
@@ -202,6 +205,22 @@ export function CalendarDataView({
 
   const apiRef = useRef<CalendarApi | null>(null);
   const [hover, setHover] = useState<ReadoutState | null>(null);
+  const [createdRowId, setCreatedRowId] = useState<string | null>(null);
+
+  // Open only once the host exposes the new row, including when insertion is
+  // asynchronous or the calendar's current filters hide the record.
+  useEffect(() => {
+    if (
+      !createdRowId ||
+      !recordActions.source.rows.some((row) => row.id === createdRowId)
+    )
+      return;
+    recordActions.openRecord(createdRowId, {
+      hiddenFieldIds: hiddenFieldIdsRef.current,
+    });
+    setCreatedRowId(null);
+    setHover(null);
+  }, [createdRowId, recordActions]);
 
   const handleApi = useCallback((api: CalendarApi | null) => {
     apiRef.current = api;
@@ -268,6 +287,7 @@ export function CalendarDataView({
       for (const cell of eventToCells(
         { rowId, start: arg.event.start, end: arg.event.end },
         writeConfig(),
+        latest.current.source.fields,
       )) {
         write(cell.rowId, cell.fieldId, cell.cell);
       }
@@ -275,41 +295,45 @@ export function CalendarDataView({
     [writeConfig],
   );
 
-  const handleSelectRange = useCallback(
-    (arg: DateSelectArg) => {
-      const { source: liveSource, onRowInsert: insert } = latest.current;
-      // The mirror highlight is left over once the row exists; clear it so the
-      // new event is what the user sees.
-      apiRef.current?.unselect();
-      if (!insert) return;
-      // One day means "a click or a one-day drag", which is not a creation
-      // gesture — 双击 (dateClick) covers the one-day case instead.
-      const days = (arg.end.getTime() - arg.start.getTime()) / 86_400_000;
-      if (days <= 1) return;
-      insert(
-        selectionToRow(
-          liveSource.fields,
-          { start: arg.start, end: arg.end },
-          writeConfig(),
-        ),
-      );
+  const createRangeRecord = useCallback(
+    (range: { start: Date; end: Date | null }) => {
+      const {
+        source: liveSource,
+        onRowInsert: insert,
+        readOnly: locked,
+      } = latest.current;
+      if (!insert || locked) return;
+      const row = selectionToRow(liveSource.fields, range, writeConfig());
+      insert(row);
+      setCreatedRowId(row.id);
     },
     [writeConfig],
   );
 
+  const handleSelectRange = useCallback(
+    (arg: DateSelectArg) => {
+      // The mirror highlight is left over once the row exists; clear it so the
+      // new event is what the user sees.
+      apiRef.current?.unselect();
+      // One day means "a click or a one-day drag", which is not a creation
+      // gesture — 双击 (dateClick) covers the one-day case instead.
+      const days = (arg.end.getTime() - arg.start.getTime()) / 86_400_000;
+      if (arg.allDay && days <= 1) return;
+      createRangeRecord({ start: arg.start, end: arg.end });
+    },
+    [createRangeRecord],
+  );
+
+  const handleAddDate = useCallback(
+    (date: Date) => createRangeRecord({ start: date, end: null }),
+    [createRangeRecord],
+  );
+
   const handleDateDoubleClick = useCallback(
     (arg: DateClickArg) => {
-      const { source: liveSource, onRowInsert: insert } = latest.current;
-      if (!insert || arg.jsEvent.detail < 2) return;
-      insert(
-        selectionToRow(
-          liveSource.fields,
-          { start: arg.date, end: null },
-          writeConfig(),
-        ),
-      );
+      if (arg.jsEvent.detail >= 2) handleAddDate(arg.date);
     },
-    [writeConfig],
+    [handleAddDate],
   );
 
   /**
@@ -361,6 +385,7 @@ export function CalendarDataView({
       onEventResize={handleEventDrop}
       onSelectRange={handleSelectRange}
       onDateDoubleClick={handleDateDoubleClick}
+      onAddDate={handleAddDate}
       onEventClick={handleEventClick}
       onEventMouseEnter={handleEventMouseEnter}
       onEventMouseLeave={handleEventMouseLeave}
@@ -423,12 +448,16 @@ function CalendarGuidance({
   fieldCount: number;
   dateFieldCount: number;
 }) {
+  const { t } = useI18n();
+
   if (fieldCount === 0) {
     return (
       <DataViewEmptyState
         icon={CalendarDays}
-        title="这张表还没有字段"
-        description="先在表格视图中添加字段，再回来按日期把记录铺到日历上。"
+        title={t("这张表还没有字段")}
+        description={t(
+          "先在表格视图中添加字段，再回来按日期把记录铺到日历上。",
+        )}
       />
     );
   }
@@ -437,12 +466,18 @@ function CalendarGuidance({
     <DataViewEmptyState
       icon={CalendarDays}
       title={
-        dateFieldCount > 0 ? "还没有选择开始日期" : "日历需要一个「日期」字段"
+        dateFieldCount > 0
+          ? t("还没有选择开始日期")
+          : t("日历需要一个「日期」字段")
       }
       description={
         dateFieldCount > 0
-          ? "在上方工具条的「字段」里选择事件的开始日期，记录就会落到对应的日子。"
-          : "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。"
+          ? t(
+              "在上方工具条的「字段」里选择事件的开始日期，记录就会落到对应的日子。",
+            )
+          : t(
+              "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。",
+            )
       }
     />
   );

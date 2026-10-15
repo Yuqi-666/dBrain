@@ -2,15 +2,25 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { declarationOf } from "./platforms.mjs";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const read = (path) => readFile(resolve(root, path), "utf8");
 const json = async (path) => JSON.parse(await read(path));
+export function lockedAppVersion(text) {
+  return text.match(
+    /\[\[package\]\]\r?\nname = "app"\r?\nversion = "(.+)"/,
+  )?.[1];
+}
 export async function checkRelease(tag) {
   const release = await json("scripts/release/release.json");
   assert.match(
     release.version,
     /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/,
   );
+  // The declaration of the release: the version above and the platforms of the
+  // next candidate. This check runs in the local gate, so a bad name fails
+  // before a tag exists.
+  declarationOf(release);
   for (const file of [
     "apps/desktop/package.json",
     "apps/desktop/src-tauri/tauri.conf.json",
@@ -28,9 +38,7 @@ export async function checkRelease(tag) {
     "Cargo version drift",
   );
   assert.equal(
-    (await read("apps/desktop/src-tauri/Cargo.lock")).match(
-      /\[\[package\]\]\nname = "app"\nversion = "(.+)"/,
-    )?.[1],
+    lockedAppVersion(await read("apps/desktop/src-tauri/Cargo.lock")),
     release.version,
     "Cargo.lock version drift",
   );

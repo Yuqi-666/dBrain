@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useMemo, useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -48,6 +49,8 @@ export function NodeSelectionList({
   idPrefix = "node-selection",
   onChange,
 }: NodeSelectionListProps) {
+  const { t } = useI18n();
+
   const [search, setSearch] = useState("");
 
   const visibleNodes = useMemo(() => {
@@ -67,9 +70,9 @@ export function NodeSelectionList({
     <div className="grid gap-2">
       <div className="flex items-center justify-between">
         <Label htmlFor={searchId}>
-          节点选择
+          {t("节点选择")}{" "}
           <span className="ml-2 text-xs font-normal text-muted-foreground">
-            已选 {selectedNodeIds.size} / {nodes.size}
+            {t("已选")} {selectedNodeIds.size} / {nodes.size}
           </span>
         </Label>
         <div className="flex items-center gap-1">
@@ -82,7 +85,7 @@ export function NodeSelectionList({
               onChange(new Set(visibleNodes.map((node) => node.id)))
             }
           >
-            全选当前
+            {t("全选当前")}{" "}
           </Button>
           <Button
             type="button"
@@ -91,7 +94,7 @@ export function NodeSelectionList({
             disabled={disabled || selectedNodeIds.size === 0}
             onClick={() => onChange(new Set())}
           >
-            清空
+            {t("清空")}{" "}
           </Button>
         </div>
       </div>
@@ -101,7 +104,7 @@ export function NodeSelectionList({
         <Input
           id={searchId}
           value={search}
-          placeholder="搜索节点标题或语义类型…"
+          placeholder={t("搜索节点标题或语义类型…")}
           className="h-8 pl-8 text-xs"
           disabled={disabled}
           onChange={(event) => setSearch(event.target.value)}
@@ -164,7 +167,9 @@ export function NodeSelectionList({
             })
           ) : (
             <p className="px-2 py-6 text-center text-[12px] text-muted-foreground">
-              {nodes.size === 0 ? "当前工作区还没有节点" : "没有匹配的节点"}
+              {nodes.size === 0
+                ? t("当前工作区还没有节点")
+                : t("没有匹配的节点")}
             </p>
           )}
         </div>

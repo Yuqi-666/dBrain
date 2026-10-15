@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * FlowGraph — placeholder shell for flow mode.
@@ -21,16 +24,8 @@
  *   - edge creation / selection sync via `eventHandler`
  */
 
-import type {
-  EdgeData,
-  NodeData,
-  View,
-  ViewId,
-} from "@workspace/interfaces";
-import type {
-  GraphSnapshot,
-  DiffCallback,
-} from "../types";
+import type { EdgeData, NodeData, View, ViewId } from "@workspace/interfaces";
+import type { GraphSnapshot, DiffCallback } from "../types";
 import type { GraphEventHandler } from "../eventHandler";
 
 // -----------------------------------------------------------------------
@@ -62,6 +57,8 @@ export interface FlowGraphProps {
 // -----------------------------------------------------------------------
 
 export function FlowGraph(props: FlowGraphProps) {
+  useI18n();
+
   const { className, style } = props;
 
   return (
@@ -78,7 +75,7 @@ export function FlowGraph(props: FlowGraphProps) {
         ...style,
       }}
     >
-      Flow mode is under reconstruction
+      {translate("Flow mode is under reconstruction")}{" "}
     </div>
   );
 }

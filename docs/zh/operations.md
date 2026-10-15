@@ -1,0 +1,133 @@
+# 运维手册
+
+## 部署模式与账号
+
+Web 部署有四部分：PocketBase、Node Server、Web 和 nginx Gateway。PocketBase 把数据库和附件保存在 `pb_data` 卷。只有 Gateway 发布宿主机端口，默认是 `127.0.0.1:3000`。其他服务留在容器网络内。
+
+`DBRAIN_ADMIN_EMAIL` 与密码属于 PocketBase 运维超级管理员。它们不是用户登录账号。应用以终端用户令牌读取数据库。容器在启动前按配置创建或更新管理员账号。要长期修改密码，请修改部署配置并重启服务。
+
+## 从源码构建内部测试环境
+
+在仓库根目录配置并启动：
+
+```bash
+cp .env.example .env
+# 编辑 .env，填写 DBRAIN_ADMIN_EMAIL 与 DBRAIN_ADMIN_PASSWORD
+# 后续命令保持一致使用同一个私有 Compose project 名
+docker compose -p dbrain config --quiet
+docker compose -p dbrain up --build --wait
+docker compose -p dbrain ps
+```
+
+本机 Docker 复用同一 builder 的已有层。GHA 缓存属于远端工作流，本地 Compose 不下载它。该构建使用当前源码，不是已验收发行镜像。打开 `http://localhost:3000`，验证页面、用户登录和文件功能。
+
+## 使用候选或发行镜像
+
+从匹配的候选或 Release 获取部署目录。确保以下文件同级：`docker-compose.yml`、`compose.release.yml`、`nginx.conf`、`.env.example`。**`compose.release.yml` 由候选组装生成。`deploy` 目录中没有该文件。** 验证来源 commit、`SHA256SUMS` 和容器报告中的 digest。
+
+在该部署目录执行：
+
+```bash
+cp .env.example .env
+# 填写管理员邮箱与密码
+# 私有 GHCR 镜像先登录：docker login ghcr.io
+docker compose -p dbrain -f docker-compose.yml -f compose.release.yml config --quiet
+docker compose -p dbrain -f docker-compose.yml -f compose.release.yml pull
+docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
+```
+
+每次 pull 和 up 都带发行覆盖层。覆盖层固定已验证的镜像 digest。不要只依赖可变版本标签。部署目录和 project 名保持稳定。改动会误建新卷。当前没有公开正式发行。内部候选完成部署验证后才能承载重要数据。
+
+## 环境配置
+
+| 变量 | 用途 |
+| --- | --- |
+| `DBRAIN_ADMIN_EMAIL` | 必填。运维管理员邮箱。 |
+| `DBRAIN_ADMIN_PASSWORD` | 管理员密码。不要提交到 Git。 |
+| `DBRAIN_ADMIN_PASSWORD_FILE` | 密码文件优先。容器需要挂载该文件。 |
+| `DBRAIN_BIND_HOST` | Gateway 宿主机监听地址。默认 `127.0.0.1`。 |
+| `DBRAIN_PORT` | Gateway 宿主机端口。默认 `3000`。 |
+| `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
+| `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
+
+使用密码文件时，添加 Compose override，只挂载 PocketBase 服务。把文件只读挂载到容器内路径，例如 `/run/secrets/pb-admin-password`。把变量设为该容器路径。只设置宿主机路径不会创建挂载。限制 `.env` 和密码文件的读取权限。
+
+## 指定部署端口
+
+在部署目录的 `.env` 文件中设置 Gateway 宿主机端口。
+
+```dotenv
+DBRAIN_BIND_HOST=127.0.0.1
+DBRAIN_PORT=18080
+```
+
+源码部署运行 `docker compose -p dbrain up --build --wait`。发行部署运行：
+
+```bash
+docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
+```
+
+在宿主机打开 `http://127.0.0.1:18080`。宿主机 HTTPS 反向代理可以转发到该地址。修改后再次运行 up 重建端口映射。restart 不应用新映射。3001 和 8090 是容器内部端口。不要随宿主机端口修改它们，也不要公开它们。浏览器通过 Gateway 的 `/trpc` 与 `/pb/` 访问 API 和文件。
+
+需要直接连接宿主机端口时，按网络策略把 `DBRAIN_BIND_HOST` 设为指定接口或 `0.0.0.0`。默认回环供同宿主机代理使用。同名的 shell 变量优先于 `.env`。端口占用时更改 `DBRAIN_PORT` 并再次运行 up。独立实例使用不同 project 名和不同端口。核对各实例的数据卷。
+
+## 外部访问与 HTTPS
+
+在宿主机或受控入口部署 TLS 反向代理。把流量转发到 Gateway。保留原始 Host 头。支持 WebSocket。按实际附件大小设置上传限制。Gateway 只监听回环，远程浏览器无法直接访问它。
+
+只有代理改写 Host 时才设置 `DBRAIN_PUBLIC_ORIGIN`。使用浏览器精确 Origin，例如 `https://dbrain.example.com`，包含 scheme 和非默认端口。不要加尾斜杠。该值是精确替换规则。填错会使 API 与 WebSocket 的来源验证失败。工作空间随后一直加载。
+
+不要把 PocketBase 管理接口发布到公网。临时管理访问可添加 override，把 8090 映射到宿主机回环地址。使用 SSH 隧道。操作后删除端口映射。
+
+## 日常观察与故障排查
+
+```bash
+docker compose -p dbrain ps
+docker compose -p dbrain logs --tail=100 pocketbase server web gateway
+curl -fsS http://127.0.0.1:3000/health
+```
+
+发行部署下这些命令要加两个 `-f` 参数。必须应用同一配置。健康接口只说明服务可达。还要验证登录、工作空间、附件和媒体。
+
+| 现象 | 优先验证 |
+| --- | --- |
+| Compose 无法渲染 | `.env` 文件存在，配置中有管理员邮箱。 |
+| PocketBase 循环重启 | 密码、密码文件挂载及其权限、卷权限、启动日志。 |
+| 页面打开但一直加载，或 API 返回 403 | 代理 Host、Origin、WebSocket 转发和 `DBRAIN_PUBLIC_ORIGIN`。 |
+| pull 报告权限错误 | 私有 GHCR 登录身份和包读取权限。 |
+| 升级后像全新安装 | project 名、部署目录和实际 `pb_data` 卷。 |
+| 视频或 PDF 失败 | 对应后端日志、附件访问权限和运行时依赖。 |
+
+日志可能包含业务信息。分享日志前删除隐私数据。管理员 CLI 需要正确的数据目录，容器内为 `/pb_data`。目录错误会误建空数据库。
+
+## 备份与恢复
+
+先停止写入，再停止整组服务。在停止状态备份完整的 `pb_data` 卷。该卷保存 SQLite 数据库和附件。记录实际卷名。保存同版本部署配置、镜像 digest 和密钥配置。限制备份的访问权限。定期验证恢复。
+
+下一个例子备份源码部署的文件。发行部署下每条 Compose 命令都要加两个 `-f` 参数。
+
+```bash
+docker compose -p dbrain stop
+backup_dir="backups/pb-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$backup_dir"
+pb_container=$(docker compose -p dbrain ps -aq pocketbase)
+test -n "$pb_container"
+docker cp "$pb_container:/pb_data/." "$backup_dir/"
+# 确认复制成功、数据库与附件完整。另存部署配置后启动服务。
+docker compose -p dbrain start
+```
+
+目录名使用 UTC 时间。不要把备份放入 Git。把副本转移到访问受限的备份存储。恢复前验证源卷、目标卷和备份版本。在停止状态把完整备份恢复到专用目标卷。不要把旧备份与含较新数据的目录混合。不要运行 `down -v`。该命令会删除数据卷。
+
+升级流程有六步。
+
+1. 停止写入。
+2. 做完整备份。
+3. 在隔离副本上测试新版本的迁移和权限。
+4. 切换到新发行覆盖层。
+5. 启动并验证用户、附件和媒体。
+6. 恢复流量。
+
+回滚需要旧数据和旧镜像 digest。只换旧镜像不能撤销数据库迁移。用独立 project 和卷做恢复演练。测试确认数据和附件后再操作生产数据。
+
+桌面个人数据的备份与恢复见[使用手册](usage.md)。发行与验收流程见 [CI/CD 流水线](ci-cd.md)。

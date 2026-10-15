@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 
@@ -33,6 +34,8 @@ export function TocSidebar({
   topOffset = 0,
   ...props
 }: TocSidebarProps) {
+  const { t } = useI18n();
+
   const { tocContent, navigateToHeading, normalizeHeadingDepths } = useToc();
   const hasRestoredHashRef = useRef(false);
 
@@ -220,7 +223,7 @@ export function TocSidebar({
               "toc-sidebar-nav",
               !hasHeadings && "toc-sidebar-nav--hidden",
             )}
-            aria-label="Table of contents"
+            aria-label={t("Table of contents")}
           >
             <div className="toc-sidebar-popover">
               {visibleHeadings.map((item) => {

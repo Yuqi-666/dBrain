@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The media sidebar — the panel beside an audio/video node's player.
@@ -113,6 +114,8 @@ export function MediaSidebar({
   onOpenNode,
   className,
 }: MediaSidebarProps) {
+  const { t } = useI18n();
+
   const [tab, setTab] = React.useState<MediaSidebarTab>("notes");
 
   // The tabs' contents. Derived here rather than passed in, so the count and the
@@ -168,10 +171,10 @@ export function MediaSidebar({
       >
         <TabsList className="w-full shrink-0">
           <TabsTrigger value="subtitles">
-            {tabLabel("字幕", subtitles.length)}
+            {tabLabel(t("字幕"), subtitles.length)}
           </TabsTrigger>
-          <TabsTrigger value="notes">笔记</TabsTrigger>
-          <TabsTrigger value="summary">AI 总结</TabsTrigger>
+          <TabsTrigger value="notes">{t("笔记")}</TabsTrigger>
+          <TabsTrigger value="summary">{t("AI 总结")}</TabsTrigger>
         </TabsList>
 
         {/* `min-h-0` on each panel is what lets the tab's own scroll area be the

@@ -123,6 +123,7 @@ export class EdgeSemantic {
   readonly name: string;
   readonly category: EdgeType;
   readonly color?: string;
+  readonly icon?: string;
   readonly description?: string;
   readonly workspaceId?: string;
 
@@ -131,6 +132,7 @@ export class EdgeSemantic {
     name: string;
     category: EdgeType;
     color?: string;
+    icon?: string;
     description?: string;
     workspaceId?: string;
   }) {
@@ -144,6 +146,7 @@ export class EdgeSemantic {
     this.name = props.name.trim();
     this.category = props.category;
     this.color = props.color?.trim();
+    this.icon = props.icon?.trim();
     this.description = props.description?.trim();
     this.workspaceId = props.workspaceId;
   }
@@ -158,6 +161,7 @@ export class EdgeSemantic {
     name: string;
     category: EdgeType;
     color?: string;
+    icon?: string;
     description?: string;
     workspaceId?: string;
   }): EdgeSemantic {
@@ -182,6 +186,7 @@ export class EdgeSemantic {
     name?: string;
     category?: EdgeType;
     color?: string;
+    icon?: string;
     description?: string;
   }): EdgeSemantic {
     return new EdgeSemantic({
@@ -189,6 +194,7 @@ export class EdgeSemantic {
       name: props.name ?? this.name,
       category: props.category ?? this.category,
       color: props.color !== undefined ? props.color : this.color,
+      icon: props.icon !== undefined ? props.icon : this.icon,
       description:
         props.description !== undefined ? props.description : this.description,
       workspaceId: this.workspaceId,

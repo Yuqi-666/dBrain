@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { type Editor } from "@tiptap/react";
@@ -116,6 +117,8 @@ export function shouldShowLatexInlineButton(props: {
 }
 
 export function useLatexInline(config?: UseLatexInlineConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -160,7 +163,7 @@ export function useLatexInline(config?: UseLatexInlineConfig) {
     isActive,
     handleToggle,
     canToggle: canToggleState,
-    label: "Inline math",
+    label: t("Inline math"),
     shortcutKeys: LATEX_INLINE_SHORTCUT_KEY,
     Icon: TypeIcon,
   };

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n, useLocaleMemo } from "@workspace/ui/lib/i18n";
 
 /**
  * Gallery data view — rows as a wall of cards, browsed visually (gallery.md).
@@ -58,12 +59,14 @@ export function GalleryDataView({
   resolveNode,
   className,
 }: DataViewRendererProps<GalleryViewConfig>) {
+  const { t } = useI18n();
+
   /** The shell's record surface: a card click opens the record editor. */
   const recordActions = useRecordActions();
 
   const settings = useMemo(() => readCardSettings(config), [config]);
 
-  const cards = useMemo(
+  const cards = useLocaleMemo(
     () => rowsToCards(source, settings, resolveNodeTitle),
     [source, settings, resolveNodeTitle],
   );
@@ -160,17 +163,19 @@ export function GalleryDataView({
     source.fields.length === 0 ? (
       <DataViewEmptyState
         icon={Images}
-        title="这张表还没有字段"
-        description="先在表格视图中添加字段（例如「标题」和「封面」），再回到画廊把它们排成卡片墙。"
+        title={t("这张表还没有字段")}
+        description={t(
+          "先在表格视图中添加字段（例如「标题」和「封面」），再回到画廊把它们排成卡片墙。",
+        )}
       />
     ) : cards.length === 0 ? (
       <DataViewEmptyState
         icon={Images}
-        title="还没有记录"
+        title={t("还没有记录")}
         description={
           canInsert
-            ? "点下方按钮新增一条记录，新卡片会立刻出现在这里。"
-            : "在表格视图中新增记录，它们会立刻出现在这里。"
+            ? t("点下方按钮新增一条记录，新卡片会立刻出现在这里。")
+            : t("在表格视图中新增记录，它们会立刻出现在这里。")
         }
       >
         {canInsert && (
@@ -182,7 +187,7 @@ export function GalleryDataView({
             onClick={handleAddRecord}
           >
             <Plus className="size-3.5" />
-            添加记录
+            {t("添加记录")}{" "}
           </Button>
         )}
       </DataViewEmptyState>

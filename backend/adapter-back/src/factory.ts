@@ -18,6 +18,7 @@ import {
   PocketBaseWorkspaceMemberRepository,
   PdfDocumentAnalyzer,
   PocketBaseFileStore,
+  FileUploadSessionStore,
   FfmpegVideoTranscoder,
 } from "@workspace/infrastructure";
 
@@ -34,6 +35,7 @@ import type {
   IWorkspaceMemberRepository,
   IDocumentAnalyzer,
   IFileStore,
+  IUploadSessionStore,
   IVideoTranscoder,
 } from "@workspace/domain";
 
@@ -158,6 +160,24 @@ export const createFileStore = (): IFileStore => {
     fileStore = new PocketBaseFileStore(getPocketBaseClient());
   }
   return fileStore;
+};
+
+let uploadSessionStore: IUploadSessionStore | null = null;
+
+/**
+ * Chunk spool for the resumable upload path. Unlike the other factories this one
+ * takes its root directory from the caller, because the spool has to be able to
+ * live somewhere other than the system temporary directory (a deployment may
+ * mount a dedicated volume for it); `rootDir` therefore only applies to the
+ * first call, and the remaining calls share the singleton the process resolved.
+ */
+export const createFileUploadSessionStore = (
+  rootDir?: string,
+): IUploadSessionStore => {
+  if (!uploadSessionStore) {
+    uploadSessionStore = new FileUploadSessionStore(rootDir);
+  }
+  return uploadSessionStore;
 };
 
 let videoTranscoder: IVideoTranscoder | null = null;

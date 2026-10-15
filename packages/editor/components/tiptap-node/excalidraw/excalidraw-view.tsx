@@ -1,3 +1,4 @@
+import { useI18n } from "@workspace/ui/lib/i18n";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect } from "react";
@@ -15,6 +16,8 @@ import { getFileUrl } from "./excalidraw-utils";
 import { ExcalidrawWrapper } from "./excalidraw-wrapper";
 
 export default function ExcalidrawView(props: NodeViewProps) {
+  const { t } = useI18n();
+
   const { node, updateAttributes, editor, selected } = props;
   const { src, title, width, data } = node.attrs;
 
@@ -98,10 +101,10 @@ export default function ExcalidrawView(props: NodeViewProps) {
         >
           <div className="flex items-center justify-end gap-2 p-2 shrink-0">
             <Button onClick={handleSave} size="sm">
-              Save & Exit
+              {t("Save & Exit")}{" "}
             </Button>
             <Button onClick={handleClose} variant="destructive" size="sm">
-              Exit
+              {t("Exit")}{" "}
             </Button>
           </div>
           <div className="flex-1 min-h-0 p-1 pt-0">
@@ -157,7 +160,7 @@ export default function ExcalidrawView(props: NodeViewProps) {
               <Pencil className="size-4" />
             </Button>
             <span className="text-muted-foreground">
-              Double-click to edit Excalidraw diagram
+              {t("Double-click to edit Excalidraw diagram")}{" "}
             </span>
           </div>
         </div>

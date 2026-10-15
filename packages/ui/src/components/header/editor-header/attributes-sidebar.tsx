@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useState } from "react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -54,6 +55,8 @@ function TabButton({
   onClick: () => void;
   children: React.ReactNode;
 }) {
+  useI18n();
+
   return (
     <button
       type="button"
@@ -79,6 +82,8 @@ function FieldLabel({
   icon: LucideIcon;
   children: React.ReactNode;
 }) {
+  useI18n();
+
   return (
     <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
       <Icon className="size-3.5 shrink-0" />
@@ -88,6 +93,8 @@ function FieldLabel({
 }
 
 export function AttributesSidebar({ className }: AttributesSidebarProps) {
+  const { t } = useI18n();
+
   const [activeTab, setActiveTab] = useState<"metadata" | "relationships">(
     "metadata",
   );
@@ -123,14 +130,14 @@ export function AttributesSidebar({ className }: AttributesSidebarProps) {
             onClick={() => setActiveTab("metadata")}
           >
             <FileText className="size-3.5" />
-            元数据
+            {t("元数据")}{" "}
           </TabButton>
           <TabButton
             active={activeTab === "relationships"}
             onClick={() => setActiveTab("relationships")}
           >
             <LinkIcon className="size-3.5" />
-            关联
+            {t("关联")}{" "}
             {nodeEdges.length > 0 && (
               <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground tabular-nums">
                 {nodeEdges.length}
@@ -164,6 +171,8 @@ function MetadataTabContent({
   node: NodeData;
   nodeId: string;
 }) {
+  const { t } = useI18n();
+
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const allSemantics = Array.from(nodeSemanticsMap.values());
 
@@ -290,14 +299,14 @@ function MetadataTabContent({
         </div>
         <div className="flex min-w-0 flex-1 items-center">
           <h3 className="truncate text-sm font-semibold leading-snug">
-            {node.title || "未命名"}
+            {node.title || t("未命名")}
           </h3>
         </div>
       </div>
 
       {/* Editable: Semantic type */}
       <div className="space-y-1.5">
-        <FieldLabel icon={Type}>类型</FieldLabel>
+        <FieldLabel icon={Type}>{t("类型")}</FieldLabel>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -318,7 +327,9 @@ function MetadataTabContent({
                   </span>
                 </span>
               ) : (
-                <span className="text-muted-foreground">选择语义标签</span>
+                <span className="text-muted-foreground">
+                  {t("选择语义标签")}
+                </span>
               )}
             </Button>
           </DropdownMenuTrigger>
@@ -330,7 +341,7 @@ function MetadataTabContent({
 
       {/* Editable: Tags */}
       <div className="space-y-1.5">
-        <FieldLabel icon={Tag}>标签</FieldLabel>
+        <FieldLabel icon={Tag}>{t("标签")}</FieldLabel>
         {node.tags && node.tags.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {node.tags.map((tagId) => {
@@ -346,7 +357,7 @@ function MetadataTabContent({
             })}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">暂无标签</p>
+          <p className="text-xs text-muted-foreground">{t("暂无标签")}</p>
         )}
         <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
           <PopoverTrigger asChild>
@@ -356,7 +367,7 @@ function MetadataTabContent({
               className="h-8 w-full justify-start gap-1.5 px-2.5 text-xs font-normal text-muted-foreground hover:text-foreground"
             >
               <Plus className="size-3.5" />
-              添加标签
+              {t("添加标签")}{" "}
             </Button>
           </PopoverTrigger>
           <NodeTagSelector
@@ -370,11 +381,11 @@ function MetadataTabContent({
 
       {/* Editable: Abstract */}
       <div className="space-y-1.5">
-        <FieldLabel icon={AlignLeft}>摘要</FieldLabel>
+        <FieldLabel icon={AlignLeft}>{t("摘要")}</FieldLabel>
         <Textarea
           value={node.abstract || ""}
           onChange={(e) => handleAbstractChange(e.target.value)}
-          placeholder="输入摘要..."
+          placeholder={t("输入摘要...")}
           className="min-h-24 resize-none text-xs leading-relaxed"
         />
       </div>
@@ -382,14 +393,16 @@ function MetadataTabContent({
       {/* Editable: Content URL (for relevant node types) */}
       {showContentUrl && (
         <div className="space-y-1.5">
-          <FieldLabel icon={LinkIcon}>内容链接</FieldLabel>
+          <FieldLabel icon={LinkIcon}>{t("内容链接")}</FieldLabel>
           <Input
             value={getContentUrl()}
             onChange={(e) =>
               handleContentUrlChange(getContentUrlField(), e.target.value)
             }
             placeholder={
-              node.nodeType === "website" ? "输入网站地址..." : "输入内容URL..."
+              node.nodeType === "website"
+                ? t("输入网站地址...")
+                : t("输入内容URL...")
             }
             className="h-8 text-xs"
           />
@@ -399,13 +412,13 @@ function MetadataTabContent({
       {/* Editable: Favicon URL (website only) */}
       {showFaviconUrl && (
         <div className="space-y-1.5">
-          <FieldLabel icon={Globe}>网站图标</FieldLabel>
+          <FieldLabel icon={Globe}>{t("网站图标")}</FieldLabel>
           <Input
             value={(node.content as { faviconUrl?: string })?.faviconUrl || ""}
             onChange={(e) =>
               handleContentUrlChange("faviconUrl", e.target.value)
             }
-            placeholder="输入网站图标URL..."
+            placeholder={t("输入网站图标URL...")}
             className="h-8 text-xs"
           />
         </div>
@@ -414,7 +427,7 @@ function MetadataTabContent({
       {/* Editable: Collection Type (collection only) */}
       {showCollectionType && (
         <div className="space-y-1.5">
-          <FieldLabel icon={LayoutGrid}>集合类型</FieldLabel>
+          <FieldLabel icon={LayoutGrid}>{t("集合类型")}</FieldLabel>
           <Select
             value={
               (node as { collectionType?: string }).collectionType ||
@@ -423,12 +436,12 @@ function MetadataTabContent({
             onValueChange={handleCollectionTypeChange}
           >
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="选择集合类型" />
+              <SelectValue placeholder={t("选择集合类型")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ordered">有序</SelectItem>
-              <SelectItem value="unordered">无序</SelectItem>
-              <SelectItem value="cards">卡片</SelectItem>
+              <SelectItem value="ordered">{t("有序")}</SelectItem>
+              <SelectItem value="unordered">{t("无序")}</SelectItem>
+              <SelectItem value="cards">{t("卡片")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -437,12 +450,12 @@ function MetadataTabContent({
       {/* Read-only: Metadata footer */}
       <div className="space-y-2.5 border-t border-border pt-4">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-          属性
+          {t("属性")}{" "}
         </p>
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Database className="size-3.5 shrink-0" />
-            数据类型
+            {t("数据类型")}{" "}
           </span>
           <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium">
             {node.nodeType}
@@ -451,19 +464,19 @@ function MetadataTabContent({
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="size-3.5 shrink-0" />
-            创建时间
+            {t("创建时间")}{" "}
           </span>
           <span className="truncate text-xs font-medium">
-            {node.createdAt || "未知"}
+            {node.createdAt || t("未知")}
           </span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <History className="size-3.5 shrink-0" />
-            更新时间
+            {t("更新时间")}{" "}
           </span>
           <span className="truncate text-xs font-medium">
-            {node.updatedAt || "未知"}
+            {node.updatedAt || t("未知")}
           </span>
         </div>
       </div>
@@ -478,6 +491,8 @@ function RelationshipsTabContent({
   edges: any[];
   currentNodeId: string;
 }) {
+  const { t } = useI18n();
+
   const edgeSemantics = useDataStore((state) => state.edgeSemantics);
   const nodes = useDataStore((state) => state.nodes);
   const setCurrentEditingNodeId = useUIStore(
@@ -490,9 +505,9 @@ function RelationshipsTabContent({
         <div className="flex size-10 items-center justify-center rounded-full bg-muted">
           <LinkIcon className="size-4 text-muted-foreground" />
         </div>
-        <p className="text-sm text-muted-foreground">暂无关联关系</p>
+        <p className="text-sm text-muted-foreground">{t("暂无关联关系")}</p>
         <p className="text-xs text-muted-foreground/70">
-          当前节点还没有连接到其他节点
+          {t("当前节点还没有连接到其他节点")}{" "}
         </p>
       </div>
     );
@@ -519,7 +534,7 @@ function RelationshipsTabContent({
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">
-                {otherNode?.title || "未命名"}
+                {otherNode?.title || t("未命名")}
               </p>
             </div>
             <span
@@ -531,7 +546,7 @@ function RelationshipsTabContent({
               {isSource ? "→" : "←"}
             </span>
             <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-[11px] text-muted-foreground ring-1 ring-border">
-              {semantic?.category || semantic?.name || "关联"}
+              {semantic?.category || semantic?.name || t("关联")}
             </span>
           </button>
         );

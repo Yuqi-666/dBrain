@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { ThemeToggle } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor-theme-toggle";
 
@@ -18,6 +19,8 @@ import { EditorContext } from "@tiptap/react";
 import { useContext } from "react";
 
 export function NotionEditorHeader() {
+  const { t } = useI18n();
+
   const { editor } = useContext(EditorContext)!;
   return (
     <header className="notion-like-editor-header">
@@ -40,7 +43,7 @@ export function NotionEditorHeader() {
           variant="default"
           onClick={() => console.log(editor?.getJSON())}
         >
-          输出编辑器内容
+          {t("输出编辑器内容")}{" "}
         </Button>
       </div>
     </header>

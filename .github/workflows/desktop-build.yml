@@ -2,34 +2,55 @@ name: Desktop candidate build
 on:
   workflow_dispatch:
     inputs:
+      targets:
+        description: A comma-separated part of the declared targets, or empty for all of them
+        type: string
+        default: ""
       signed:
         description: Build signed candidates using release environment secrets
         type: boolean
         default: false
   workflow_call:
     inputs:
+      targets:
+        type: string
+        default: ""
       signed:
         type: boolean
         default: false
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.ref }}
-  cancel-in-progress: false
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.targets || 'declared' }}
+  cancel-in-progress: ${{ github.workflow == 'Desktop candidate build' }}
 jobs:
+  plan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Resolve the selected targets
+        id: resolve
+        shell: bash
+        env:
+          DESKTOP_TARGETS: ${{ inputs.targets }}
+        run: |
+          set -euo pipefail
+          targets="$(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS")"
+          echo "matrix=$(node scripts/release/platforms.mjs matrix desktop "$targets")" >> "$GITHUB_OUTPUT"
   build:
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            target: linux-x64
-          - os: windows-2022
-            target: win32-x64
-          - os: macos-15-intel
-            target: darwin-x64
-          - os: macos-15
-            target: darwin-arm64
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     environment: ${{ inputs.signed && 'release' || 'candidate' }}
@@ -50,6 +71,13 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Restore desktop Next.js build cache
+        id: next-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: apps/desktop/.next/cache
+          key: next-v1-${{ runner.os }}-${{ matrix.target }}-desktop-${{ hashFiles('.node-version', 'pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mjs', 'apps/**/*.js', 'apps/**/*.json', 'packages/**/*.ts', 'packages/**/*.tsx', 'packages/**/*.js', 'packages/**/*.mjs', 'packages/**/*.json', 'backend/**/*.ts', 'backend/**/*.json', 'scripts/**/*.mjs', 'apps/**/*.css', 'packages/**/*.css', 'packages/**/*.scss', 'apps/*/public/**', 'packages/*/public/**', '*.json', '*.yaml', '!**/node_modules/**', '!**/.next/**', '!**/dist/**', '!**/target/**', '!**/runtime/**') }}
+          restore-keys: next-v1-${{ runner.os }}-${{ matrix.target }}-desktop-${{ hashFiles('.node-version', 'pnpm-lock.yaml') }}-
       - run: pnpm release:check
       - if: runner.os == 'Linux'
         run: |
@@ -70,6 +98,15 @@ jobs:
           "FFMPEG_PATH=$($ffmpeg.FullName)" >> $env:GITHUB_ENV
           "FFPROBE_PATH=$($ffprobe.FullName)" >> $env:GITHUB_ENV
       - run: rustup show active-toolchain
+      - name: Restore Rust dependency build cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          prefix-key: dbrain-rust-v1
+          shared-key: ${{ matrix.target }}-${{ inputs.signed && 'signed' || 'unsigned' }}
+          cache-workspace-crates: false
+          cache-on-failure: false
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       - run: node scripts/release/download-pocketbase.mjs
       - if: inputs.signed && runner.os != 'Linux'
         run: node scripts/release/prepare-signing.mjs
@@ -86,10 +123,16 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ inputs.signed && secrets.APPLE_SIGNING_IDENTITY || '' }}
       - run: node apps/desktop/scripts/backend-smoke.mjs
+        timeout-minutes: 5
       - run: cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
       - name: Build installer
         shell: bash
         run: |
+          # Tauri treats a present-but-empty identity as a request to sign.
+          # Unsigned diagnostics must omit signing variables entirely.
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$DBRAIN_BUILD_SIGNED" != "true" ]; then
+            unset APPLE_SIGNING_IDENTITY APPLE_API_KEY APPLE_API_ISSUER
+          fi
           verbosity=()
           if [ "$RUNNER_OS" = "Linux" ]; then verbosity=(--verbose); fi
           if [ -n "${DBRAIN_TAURI_SIGNING_CONFIG:-}" ]; then
@@ -125,6 +168,12 @@ jobs:
           }
           "DBRAIN_SIGNING_VERIFIED=true" >> $env:GITHUB_ENV
       - run: node scripts/release/collect-desktop.mjs
+      - name: Save desktop Next.js build cache
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.next-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: apps/desktop/.next/cache
+          key: ${{ steps.next-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: desktop-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}

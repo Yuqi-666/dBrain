@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,8 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
+
   const router = useRouter();
   const { setUser } = useAuthStore();
 
@@ -63,7 +66,7 @@ export default function MainLayout({
     }
     return (
       <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        Loading…
+        {t("Loading…")}{" "}
       </div>
     );
   }

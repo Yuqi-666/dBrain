@@ -16,7 +16,8 @@
     "@workspace/infrastructure": "workspace:*",
     "@workspace/adapter-back": "workspace:*",
     "@workspace/application": "workspace:*",
-    "@workspace/domain": "workspace:*"
+    "@workspace/domain": "workspace:*",
+    "@workspace/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "^8.18.0",

@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 import type { Annotation, AnnotationPoint } from "@workspace/interfaces";
 import type { AnnotationTool } from "./types";
 import { shouldSimulatePressure } from "./draw.ts";
@@ -7,7 +8,9 @@ export type BrushTool = Exclude<AnnotationTool, "eraser" | "pointer">;
 export const BRUSHES = [
   {
     tool: "pen",
-    label: "圆珠笔",
+    get label() {
+      return translate("圆珠笔");
+    },
     shortcut: "P",
     width: 1,
     opacity: 1,
@@ -17,7 +20,9 @@ export const BRUSHES = [
   },
   {
     tool: "pencil",
-    label: "铅笔",
+    get label() {
+      return translate("铅笔");
+    },
     shortcut: "B",
     width: 0.55,
     opacity: 0.65,
@@ -27,7 +32,9 @@ export const BRUSHES = [
   },
   {
     tool: "fountain",
-    label: "钢笔",
+    get label() {
+      return translate("钢笔");
+    },
     shortcut: "F",
     width: 1.2,
     opacity: 1,
@@ -37,7 +44,9 @@ export const BRUSHES = [
   },
   {
     tool: "marker",
-    label: "马克笔",
+    get label() {
+      return translate("马克笔");
+    },
     shortcut: "M",
     width: 1.8,
     opacity: 0.9,
@@ -47,7 +56,9 @@ export const BRUSHES = [
   },
   {
     tool: "highlighter",
-    label: "荧光笔",
+    get label() {
+      return translate("荧光笔");
+    },
     shortcut: "H",
     width: 3,
     opacity: 0.35,

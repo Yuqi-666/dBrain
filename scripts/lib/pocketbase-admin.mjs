@@ -9,7 +9,7 @@
  * The account is **required configuration**, not an optional nicety: `.env` is
  * the single source of truth, and a missing or incomplete one is a hard error, so
  * neither a developer machine nor a deployment can quietly end up with only the
- * placeholder account. See `.env.example` and `docs/release-workflow.md`.
+ * placeholder account. See `.env.example` and `docs/operations.md`.
  */
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -57,7 +57,7 @@ export function requireAdminConfig() {
   const passwordFile = process.env.DBRAIN_ADMIN_PASSWORD_FILE;
   if (passwordFile) {
     // Relative to the repository root, not to the caller's working directory:
-    // `dev:full` runs this from `apps/server` while `pb:admin` runs it from the
+    // `pnpm dev` runs this from `apps/server` while `pb:admin` runs it from the
     // root, and `.env` itself lives at the root.
     const path = resolve(root, passwordFile);
     try {

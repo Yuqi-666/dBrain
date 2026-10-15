@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { type Editor } from "@tiptap/react";
 
@@ -50,10 +51,13 @@ export function ImproveDropdown({
   modal = true,
   ...props
 }: ImproveDropdownProps) {
-  const { isVisible, isDisabled, isOpen, handleOpenChange } = useImproveDropdown({
-    editor: providedEditor,
-    hideWhenUnavailable,
-  });
+  const { t } = useI18n();
+
+  const { isVisible, isDisabled, isOpen, handleOpenChange } =
+    useImproveDropdown({
+      editor: providedEditor,
+      hideWhenUnavailable,
+    });
 
   if (!isVisible) {
     return null;
@@ -69,12 +73,12 @@ export function ImproveDropdown({
           data-disabled={isDisabled}
           role="button"
           tabIndex={-1}
-          aria-label="Improve"
-          tooltip="Improve"
+          aria-label={t("Improve")}
+          tooltip={t("Improve")}
           {...props}
         >
           <AiSparklesIcon className="tiptap-button-icon" />
-          <span className="tiptap-button-text">Improve</span>
+          <span className="tiptap-button-text">{t("Improve")}</span>
         </Button>
       </DropdownMenuTrigger>
 

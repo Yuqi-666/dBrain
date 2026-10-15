@@ -96,41 +96,57 @@ export class ViewType {
  */
 interface VisualConfigProps {
   backgroundColor?: string;
+  colorsSyncTheme?: boolean;
   backgroundStyle?: "solid" | "grid" | "dots" | "none";
   gridSpacing?: number;
   gridColor?: string;
   snapToGrid?: boolean;
   showMinimap?: boolean;
+  nodeDensity?: number;
 }
 
 export class VisualConfig {
   readonly backgroundColor?: string;
+  readonly colorsSyncTheme?: boolean;
   readonly backgroundStyle?: "solid" | "grid" | "dots" | "none";
   readonly gridSpacing?: number;
   readonly gridColor?: string;
   readonly snapToGrid?: boolean;
   readonly showMinimap?: boolean;
+  readonly nodeDensity?: number;
 
   private constructor(props: VisualConfigProps) {
     this.backgroundColor = props.backgroundColor;
+    this.colorsSyncTheme = props.colorsSyncTheme;
     this.backgroundStyle = props.backgroundStyle;
     this.gridSpacing = props.gridSpacing;
     this.gridColor = props.gridColor;
     this.snapToGrid = props.snapToGrid;
     this.showMinimap = props.showMinimap;
+    this.nodeDensity = props.nodeDensity;
   }
 
   /**
    * Creates a new VisualConfig with optional properties
    */
   static create(props?: Partial<VisualConfig>): VisualConfig {
+    const legacy = props as {
+      backgroundColorSyncTheme?: boolean;
+      gridColorSyncTheme?: boolean;
+    } | undefined;
     return new VisualConfig({
       backgroundColor: props?.backgroundColor,
+      colorsSyncTheme: props?.colorsSyncTheme ?? Boolean(
+        legacy?.backgroundColorSyncTheme || legacy?.gridColorSyncTheme,
+      ),
       backgroundStyle: props?.backgroundStyle ?? "none",
       gridSpacing: props?.gridSpacing ?? 20,
       gridColor: props?.gridColor ?? "#e5e7eb",
       snapToGrid: props?.snapToGrid ?? false,
       showMinimap: props?.showMinimap ?? false,
+      // Deliberately not defaulted: an absent density means "let the
+      // renderer decide", so the physics default lives in one place.
+      nodeDensity: props?.nodeDensity,
     });
   }
 
@@ -140,11 +156,13 @@ export class VisualConfig {
   withBackgroundColor(color: string): VisualConfig {
     return new VisualConfig({
       backgroundColor: color,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -154,11 +172,13 @@ export class VisualConfig {
   withBackgroundStyle(style: VisualConfig["backgroundStyle"]): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: style,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -168,11 +188,13 @@ export class VisualConfig {
   withGridSpacing(spacing: number): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: spacing,
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -182,11 +204,13 @@ export class VisualConfig {
   withGridColor(color: string): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: color,
       snapToGrid: this.snapToGrid,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -196,11 +220,13 @@ export class VisualConfig {
   withSnapToGrid(enabled: boolean): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
       snapToGrid: enabled,
       showMinimap: this.showMinimap,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -210,11 +236,13 @@ export class VisualConfig {
   withShowMinimap(show: boolean): VisualConfig {
     return new VisualConfig({
       backgroundColor: this.backgroundColor,
+      colorsSyncTheme: this.colorsSyncTheme,
       backgroundStyle: this.backgroundStyle,
       gridSpacing: this.gridSpacing,
       gridColor: this.gridColor,
       snapToGrid: this.snapToGrid,
       showMinimap: show,
+      nodeDensity: this.nodeDensity,
     });
   }
 
@@ -224,11 +252,13 @@ export class VisualConfig {
   equals(other: VisualConfig): boolean {
     return (
       this.backgroundColor === other.backgroundColor &&
+      this.colorsSyncTheme === other.colorsSyncTheme &&
       this.backgroundStyle === other.backgroundStyle &&
       this.gridSpacing === other.gridSpacing &&
       this.gridColor === other.gridColor &&
       this.snapToGrid === other.snapToGrid &&
-      this.showMinimap === other.showMinimap
+      this.showMinimap === other.showMinimap &&
+      this.nodeDensity === other.nodeDensity
     );
   }
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
@@ -100,6 +101,8 @@ export function shouldShowColorTextPopover(params: {
  * Hook to manage recently used colors
  */
 export function useRecentColors(maxColors: number = 3) {
+  useI18n();
+
   const [recentColors, setRecentColors] = useState<RecentColor[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -213,6 +216,8 @@ export function useRecentColors(maxColors: number = 3) {
  * ```
  */
 export function useColorTextPopover(config?: UseColorTextPopoverConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -272,7 +277,7 @@ export function useColorTextPopover(config?: UseColorTextPopoverConfig) {
     activeTextStyle,
     activeHighlight,
     handleColorChanged,
-    label: "Text color",
+    label: t("Text color"),
     Icon: TextColorSmallIcon,
   };
 }

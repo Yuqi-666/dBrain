@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The viewer's left rail: page thumbnails and the document outline.
@@ -59,6 +60,8 @@ function PdfThumbnail({
   getPage: (page: number) => Promise<PDFPageProxy | null>;
   onSelect: (page: number) => void;
 }) {
+  useI18n();
+
   const holderRef = useRef<HTMLButtonElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [visible, setVisible] = useState(false);
@@ -176,6 +179,8 @@ function OutlineList({
   activePages: ReadonlySet<number>;
   onSelectPage: (page: number) => void;
 }) {
+  useI18n();
+
   return (
     <ul className={cn("flex flex-col", depth > 0 && "pl-3")}>
       {entries.map((entry, index) => (
@@ -224,6 +229,8 @@ export function PdfSidebar({
   onClose,
   className,
 }: PdfSidebarProps) {
+  const { t } = useI18n();
+
   const pagesPerSlot = pdfSpreadStep(spread);
   /** The pages the viewer is actually showing, not just the reported one. */
   const activePages = new Set(
@@ -247,7 +254,7 @@ export function PdfSidebar({
           className="h-7 px-2 text-xs"
           onClick={() => onTabChange("thumbs")}
         >
-          缩略图
+          {t("缩略图")}{" "}
         </Button>
         <Button
           type="button"
@@ -257,13 +264,13 @@ export function PdfSidebar({
           className="h-7 px-2 text-xs"
           onClick={() => onTabChange("outline")}
         >
-          大纲
+          {t("大纲")}{" "}
         </Button>
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="收起侧栏"
+          aria-label={t("收起侧栏")}
           className="ml-auto"
           onClick={onClose}
         >
@@ -300,7 +307,7 @@ export function PdfSidebar({
               <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
                 <FileWarning className="size-5 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">
-                  这个 PDF 没有大纲
+                  {t("这个 PDF 没有大纲")}{" "}
                 </p>
               </div>
             )}

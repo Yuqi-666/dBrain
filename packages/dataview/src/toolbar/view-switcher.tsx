@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
@@ -62,6 +63,8 @@ export function ViewSwitcher({
   onRenameView,
   className,
 }: ViewSwitcherProps) {
+  const { t } = useI18n();
+
   const creatableDescriptors = getDataViewDescriptorsForKind(source.kind);
 
   const [editingId, setEditingId] = useState<DataViewId | null>(null);
@@ -114,7 +117,7 @@ export function ViewSwitcher({
               <Input
                 autoFocus
                 value={draftName}
-                aria-label="视图名称"
+                aria-label={t("视图名称")}
                 className="h-6 w-full rounded-md px-1.5 text-xs md:text-xs"
                 onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => setDraftName(event.target.value)}
@@ -163,7 +166,7 @@ export function ViewSwitcher({
               size="icon-xs"
               variant="ghost"
               className="shrink-0 text-muted-foreground"
-              aria-label="新建视图"
+              aria-label={t("新建视图")}
             >
               <Plus className="size-3.5" />
             </Button>

@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * The graph view's pure layer: which layout modes exist, which background styles
  * @workspace/graph actually draws, and how a persisted config self-heals.
@@ -32,8 +33,19 @@ export const GRAPH_LAYOUT_MODES: ReadonlyArray<{
   label: string;
   disabled?: boolean;
 }> = [
-  { value: "Force", label: "力导向" },
-  { value: "Flow", label: "流程图", disabled: true },
+  {
+    value: "Force",
+    get label() {
+      return translate("力导向");
+    },
+  },
+  {
+    value: "Flow",
+    get label() {
+      return translate("流程图");
+    },
+    disabled: true,
+  },
 ];
 
 /** Why 流程图 cannot be picked (the 布局 panel's hint). */
@@ -48,9 +60,24 @@ export const GRAPH_FLOW_UNAVAILABLE_HINT =
  * be a control that does nothing, so the 视图 panel offers only these three.
  */
 export const GRAPH_BACKGROUND_STYLES = [
-  { value: "grid", label: "网格" },
-  { value: "dots", label: "点阵" },
-  { value: "none", label: "无" },
+  {
+    value: "grid",
+    get label() {
+      return translate("网格");
+    },
+  },
+  {
+    value: "dots",
+    get label() {
+      return translate("点阵");
+    },
+  },
+  {
+    value: "none",
+    get label() {
+      return translate("无");
+    },
+  },
 ] as const;
 
 export type GraphBackgroundStyle =

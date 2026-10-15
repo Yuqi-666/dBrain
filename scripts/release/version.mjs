@@ -29,7 +29,7 @@ const lock = resolve(root, "apps/desktop/src-tauri/Cargo.lock");
 await writeFile(
   lock,
   (await readFile(lock, "utf8")).replace(
-    /(\[\[package\]\]\nname = "app"\nversion = ")[^"]+"/,
+    /(\[\[package\]\]\r?\nname = "app"\r?\nversion = ")[^"]+"/,
     `$1${version}"`,
   ),
 );

@@ -1,9 +1,13 @@
 "use client";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { cloneElement, isValidElement, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import type { NodeIcon } from "@workspace/interfaces";
-import { Ban, SmilePlus } from "lucide-react";
+import { SmilePlus } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { CommandList } from "@workspace/ui/components/ui/command";
 import { cn } from "@workspace/ui/lib/utils";
@@ -24,34 +28,34 @@ import {
 type IconSelectorTab = "emoji" | "icon" | "upload";
 
 const TABS: SelectorPopoverTab[] = [
-  { value: "emoji", label: "Emoji" },
-  { value: "icon", label: "图标" },
-  { value: "upload", label: "上传" },
+  {
+    value: "emoji",
+    get label() {
+      return translate("Emoji");
+    },
+  },
+  {
+    value: "icon",
+    get label() {
+      return translate("图标");
+    },
+  },
+  {
+    value: "upload",
+    get label() {
+      return translate("上传");
+    },
+  },
 ];
 
-/**
- * 8 swatches + 「无」. Copied — not imported — from
- * `packages/dataview/src/shared/field-meta.tsx`'s `OPTION_COLORS` (sel §5
- * 颜色/底色: "色板取 shared/field-meta.tsx 的既有调色板以保持一致"), minus its
- * neutral `#94a3b8` first entry, which is the one value that would read as
- * "no colour" and leave exactly the eight chromatic swatches the design asks for.
- */
 const EMOJI_KEY_PREFIX = "emoji:";
 const ICON_KEY_PREFIX = "icon:";
 
-const ICON_COLORS: readonly { value: string; label: string }[] = [
-  { value: "#ef4444", label: "红" },
-  { value: "#f97316", label: "橙" },
-  { value: "#eab308", label: "黄" },
-  { value: "#22c55e", label: "绿" },
-  { value: "#14b8a6", label: "青" },
-  { value: "#3b82f6", label: "蓝" },
-  { value: "#8b5cf6", label: "紫" },
-  { value: "#ec4899", label: "粉" },
-];
-
 export interface IconSelectorPopoverProps {
-  nodeId: string;
+  /** Required for uploads, which write directly to an existing node. */
+  nodeId?: string;
+  allowedKinds?: readonly NodeIcon["kind"][];
+  showColorPicker?: boolean;
   /** Controlled; `undefined` means "no icon set". */
   value?: NodeIcon;
   /** Discrete picks fire immediately; the URL row fires on Enter / blur. */
@@ -70,6 +74,8 @@ export interface IconSelectorPopoverProps {
 
 export function IconSelectorPopover({
   nodeId,
+  allowedKinds = ["emoji", "icon", "image"],
+  showColorPicker = true,
   value,
   onChange,
   onRemove,
@@ -78,10 +84,20 @@ export function IconSelectorPopover({
   children,
   className,
 }: IconSelectorPopoverProps): ReactNode {
+  const { t } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<IconSelectorTab>("emoji");
   const [urlDraft, setUrlDraft] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const availableTabs = TABS.filter((candidate) =>
+    candidate.value === "upload"
+      ? Boolean(nodeId) && allowedKinds.includes("image")
+      : allowedKinds.includes(candidate.value as "emoji" | "icon"),
+  );
+  const activeTab = availableTabs.some((candidate) => candidate.value === tab)
+    ? tab
+    : ((availableTabs[0]?.value as IconSelectorTab | undefined) ?? "icon");
 
   const disabled = Boolean(disabledReason);
 
@@ -97,7 +113,7 @@ export function IconSelectorPopover({
    * no grid.
    */
   const handleSelect = (item: SelectorGridItem) => {
-    if (tab === "emoji") {
+    if (activeTab === "emoji") {
       commit({
         kind: "emoji",
         value: item.key.slice(EMOJI_KEY_PREFIX.length),
@@ -139,7 +155,7 @@ export function IconSelectorPopover({
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={value ? "更换图标" : "设置图标"}
+      aria-label={value ? t("更换图标") : t("设置图标")}
     >
       <IconView
         icon={value}
@@ -149,60 +165,20 @@ export function IconSelectorPopover({
     </Button>
   );
 
-  const selectedNoColor = Boolean(value) && !value?.color;
-
-  /**
-   * The 底色 row is **pinned chrome**, not part of the body: it goes through the
-   * shell's `footer` slot so a 46-row grid cannot push it under the fold (that
-   * was G2-r1's 「底色只在上传 tab 有了」). It must stay always-rendered and merely
-   * `disabled` when there is no icon — a control that appears and disappears
-   * pushes its left-hand neighbours around (sel §5 清除).
-   */
   const colorRow = (
-    <div
-      role="group"
-      aria-label="底色"
-      className="flex shrink-0 items-center gap-1 border-t border-border/60 p-1"
-    >
-      <span className="px-1 text-xs text-muted-foreground">底色</span>
-      {ICON_COLORS.map((entry) => {
-        const selected = value?.color === entry.value;
-        return (
-          <Button
-            key={entry.value}
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={`底色 ${entry.label}`}
-            aria-pressed={selected}
-            disabled={!value}
-            className={cn(
-              "p-0 hover:opacity-90",
-              // `--primary` = 用户已激活 (sel §0.3-8); it never means "has icon".
-              selected &&
-                "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-            )}
-            style={{ backgroundColor: entry.value }}
-            onClick={() => handleColor(entry.value)}
-          />
-        );
-      })}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        aria-label="无底色"
-        aria-pressed={selectedNoColor}
+    <div className="border-t border-border/60 bg-muted/15 p-2">
+      <span className="px-1 text-[11px] font-medium text-muted-foreground">
+        {t("底色")}
+      </span>
+      <ColorPicker
+        className="p-1"
+        value={value?.color}
+        onChange={handleColor}
+        onClear={() => handleColor(undefined)}
+        clearLabel={t("无底色")}
         disabled={!value}
-        className={cn(
-          "hover:opacity-90",
-          selectedNoColor &&
-            "ring-2 ring-primary ring-offset-1 ring-offset-popover",
-        )}
-        onClick={() => handleColor(undefined)}
-      >
-        <Ban className="size-4" />
-      </Button>
+        aria-label={t("底色")}
+      />
     </div>
   );
 
@@ -214,13 +190,13 @@ export function IconSelectorPopover({
         setOpen(next);
       }}
       trigger={withTriggerDisabledState(baseTrigger, disabled, disabledReason)}
-      tabs={TABS}
-      activeTab={tab}
+      tabs={availableTabs}
+      activeTab={activeTab}
       onTabChange={(next) => setTab(next as IconSelectorTab)}
       width={320}
-      bodyMaxHeight="min(384px, 52vh)"
+      bodyMaxHeight="min(280px, 35vh)"
       className={className}
-      footer={colorRow}
+      footer={showColorPicker ? colorRow : undefined}
       actions={
         // Always rendered, merely disabled when empty: a control that appears and
         // disappears pushes its left-hand neighbours around (sel §5 清除).
@@ -228,19 +204,19 @@ export function IconSelectorPopover({
           type="button"
           variant="ghost"
           size="sm"
-          aria-label="移除图标"
+          aria-label={t("移除图标")}
           disabled={!value}
           onClick={handleRemove}
         >
-          移除
+          {t("移除")}{" "}
         </Button>
       }
     >
       {/* Only the grid tabs filter, so the search row only exists there. `autoFocus`
           is what puts the caret in it when the popover opens (sel §5 keyboard);
           its query belongs to the shell's `Command`, so it survives a tab switch. */}
-      {tab === "upload" ? null : <SelectorSearchInput autoFocus />}
-      {tab === "upload" ? (
+      {activeTab === "upload" ? null : <SelectorSearchInput autoFocus />}
+      {activeTab === "upload" && nodeId ? (
         // No `overflow-y-auto` of its own: the shell caps the body and lets either
         // the body wrapper or the `CommandList` scroll it, so a second viewport in
         // here would either be dead or clip the drop pane.
@@ -266,12 +242,12 @@ export function IconSelectorPopover({
       ) : (
         <CommandList>
           <SelectorGrid
-            items={tab === "emoji" ? EMOJI_ITEMS : ICON_ITEMS}
+            items={activeTab === "emoji" ? EMOJI_ITEMS : ICON_ITEMS}
             onSelect={handleSelect}
             columns={8}
             emptyState={
               <p className="py-6 text-center text-sm text-muted-foreground">
-                没有匹配的结果
+                {t("没有匹配的结果")}{" "}
               </p>
             }
           />

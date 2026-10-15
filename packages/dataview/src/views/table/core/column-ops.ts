@@ -1,3 +1,4 @@
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 /**
  * Pure `TableViewConfig` operations behind the 字段配置 menu: reordering,
  * grouping, showing/hiding and adding/removing fields.
@@ -133,10 +134,11 @@ export function createGroupWithField(
   const existing = validColumnGroups(config, fields);
   const usedNames = new Set(existing.map((group) => group.name));
   let index = existing.length + 1;
-  while (usedNames.has(`编组 ${index}`)) index += 1;
+  while (usedNames.has(translate("编组 {value1}", { value1: index })))
+    index += 1;
   const group: TableColumnGroup = {
     id: createGroupId(),
-    name: `编组 ${index}`,
+    name: translate("编组 {value1}", { value1: index }),
     fieldIds: [fieldId],
   };
   const stripped = setFieldGroup(config, fields, fieldId, null);

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 筛选 — the filter-condition dropdown (`docs/propmt/dataview-table-1.md` §筛选).
@@ -54,6 +55,8 @@ export function TableFilterMenu({
   onChange,
   className,
 }: TableFilterMenuProps) {
+  const { t } = useI18n();
+
   const fieldById = new Map(fields.map((field) => [field.id, field]));
   const count = activeFilterCount(state);
 
@@ -102,7 +105,7 @@ export function TableFilterMenu({
           )}
         >
           <ListFilter className="size-3.5" />
-          筛选
+          {t("筛选")}{" "}
           {count > 0 && (
             <Badge className="h-4 min-w-4 justify-center rounded-sm px-1 text-[10px] leading-none">
               {count}
@@ -114,7 +117,7 @@ export function TableFilterMenu({
           explicit margin below and left a hole above 添加条件. */}
       <PopoverContent align="start" className="w-96 gap-0 p-3">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-medium">设置筛选条件</span>
+          <span className="text-xs font-medium">{t("设置筛选条件")}</span>
           {state.length > 0 && (
             <Button
               type="button"
@@ -123,7 +126,7 @@ export function TableFilterMenu({
               className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
               onClick={() => onChange([])}
             >
-              清除全部
+              {t("清除全部")}{" "}
             </Button>
           )}
         </div>
@@ -168,7 +171,7 @@ export function TableFilterMenu({
                     >
                       <SelectTrigger
                         size="sm"
-                        aria-label="筛选运算符"
+                        aria-label={t("筛选运算符")}
                         className="h-7 w-20 shrink-0 py-1 pl-2 text-[11px]"
                       >
                         <SelectValue />
@@ -197,7 +200,7 @@ export function TableFilterMenu({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      aria-label="删除筛选条件"
+                      aria-label={t("删除筛选条件")}
                       className="shrink-0 text-muted-foreground"
                       onClick={() =>
                         onChange(removeFilterCondition(state, condition.id))
@@ -216,7 +219,7 @@ export function TableFilterMenu({
             disabled button that swallows the click. */}
         {fields.length === 0 ? (
           <p className="px-1.5 py-1 text-[11px] text-muted-foreground">
-            先添加字段，才能设置筛选条件。
+            {t("先添加字段，才能设置筛选条件。")}{" "}
           </p>
         ) : (
           <Button
@@ -230,7 +233,7 @@ export function TableFilterMenu({
             onClick={addCondition}
           >
             <Plus className="size-3.5" />
-            添加条件
+            {t("添加条件")}{" "}
           </Button>
         )}
       </PopoverContent>

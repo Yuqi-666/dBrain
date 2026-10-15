@@ -38,6 +38,8 @@ export const EdgeService = {
   ): Promise<EdgeData | void> {
     const store = useDataStore.getState();
 
+    if (!idOrEdge) throw new Error("Edge is required");
+
     if (typeof idOrEdge === "string") {
       if (!updates) throw new Error("Updates are required for update operation");
       const id = idOrEdge;

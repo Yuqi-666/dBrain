@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -65,9 +67,15 @@ export const imageAlignIcons = {
 };
 
 export const imageAlignLabels: Record<ImageAlign, string> = {
-  left: "Image align left",
-  center: "Image align center",
-  right: "Image align right",
+  get left() {
+    return translate("Image align left");
+  },
+  get center() {
+    return translate("Image align center");
+  },
+  get right() {
+    return translate("Image align right");
+  },
 };
 
 /**
@@ -218,6 +226,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useImageAlign(config: UseImageAlignConfig) {
+  useI18n();
+
   const {
     editor: providedEditor,
     align,

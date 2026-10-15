@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -181,6 +182,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useDeleteNode(config?: UseDeleteNodeConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -235,7 +238,7 @@ export function useDeleteNode(config?: UseDeleteNodeConfig) {
     isVisible,
     handleDeleteNode,
     canDeleteNode: canDeleteNodeState,
-    label: "Delete",
+    label: t("Delete"),
     shortcutKeys: DELETE_NODE_SHORTCUT_KEY,
     Icon: TrashIcon,
   };

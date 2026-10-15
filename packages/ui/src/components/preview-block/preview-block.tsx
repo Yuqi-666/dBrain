@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { X } from "lucide-react";
@@ -60,6 +61,8 @@ export function PreviewBlock({
   visible,
   isFocus,
 }: PreviewBlockProps) {
+  const { t } = useI18n();
+
   const node = useDataStore((state) => state.nodes.get(nodeId));
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [previewSize, setPreviewSize] = React.useState({
@@ -146,7 +149,7 @@ export function PreviewBlock({
       {isFocus && onClose && (
         <button
           onClick={handleClose}
-          aria-label="关闭预览"
+          aria-label={t("关闭预览")}
           className="absolute right-2 top-2 rounded-full p-1 hover:bg-accent/80 transition-colors"
         >
           <X className="size-3.5 text-muted-foreground" />

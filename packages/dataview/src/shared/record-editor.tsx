@@ -1,4 +1,7 @@
 "use client";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * The unified record editor — the right-hand sheet every view opens.
@@ -114,6 +117,8 @@ export function RecordEditor({
   resolveNodeTitle,
   onOpenChange,
 }: RecordEditorProps) {
+  const { t } = useI18n();
+
   const [showHidden, setShowHidden] = useState(false);
   const [fieldDraft, setFieldDraft] = useState<
     { mode: "create" } | { mode: "edit"; field: DatabaseField } | null
@@ -210,8 +215,8 @@ export function RecordEditor({
         row.cells[titleField?.id ?? ""],
         titleField,
         resolveNodeTitle,
-      ).trim() || RECORD_UNTITLED
-    : RECORD_UNTITLED;
+      ).trim() || t(RECORD_UNTITLED)
+    : t(RECORD_UNTITLED);
 
   const handleFieldSubmit = (result: FieldEditResult) => {
     if (!onFieldsChange) return;
@@ -280,7 +285,9 @@ export function RecordEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label={`字段操作：${field.name}`}
+                aria-label={translate("字段操作：{value1}", {
+                  value1: field.name,
+                })}
                 className="size-5 shrink-0 text-muted-foreground opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
               >
                 <Ellipsis className="size-3" />
@@ -290,13 +297,13 @@ export function RecordEditor({
               <DropdownMenuItem
                 onSelect={() => setFieldDraft({ mode: "edit", field })}
               >
-                编辑字段
+                {t("编辑字段")}{" "}
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => handleFieldDelete(field)}
               >
-                删除字段
+                {t("删除字段")}{" "}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -364,7 +371,7 @@ export function RecordEditor({
           <aside
             ref={pageRef}
             role="region"
-            aria-label="记录详情与字段编辑"
+            aria-label={t("记录详情与字段编辑")}
             tabIndex={-1}
             data-slot="record-page"
             className={cn(
@@ -376,7 +383,7 @@ export function RecordEditor({
               <h2 className="truncate text-base font-medium">{title}</h2>
               <div className="flex items-center gap-1.5">
                 <Badge variant="muted" className="font-normal">
-                  {source.kind === "database" ? "数据库记录" : "图谱节点"}
+                  {source.kind === "database" ? t("数据库记录") : t("图谱节点")}
                 </Badge>
                 <div className="ml-auto flex items-center gap-1">
                   {editable && onRowInsert && (
@@ -384,7 +391,7 @@ export function RecordEditor({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="复制记录"
+                      aria-label={t("复制记录")}
                       onClick={handleDuplicate}
                     >
                       <Copy />
@@ -395,7 +402,7 @@ export function RecordEditor({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="删除记录"
+                      aria-label={t("删除记录")}
                       className="text-muted-foreground hover:text-destructive"
                       onClick={handleDeleteRecord}
                     >
@@ -408,7 +415,7 @@ export function RecordEditor({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="关闭记录页"
+                aria-label={t("关闭记录页")}
                 className="absolute top-3 right-3"
                 onClick={() => onOpenChange(false)}
               >
@@ -435,7 +442,9 @@ export function RecordEditor({
                             showHidden && "rotate-180",
                           )}
                         />
-                        共 {hiddenFields.length} 个隐藏字段
+                        {t("{count} 个隐藏字段", {
+                          count: hiddenFields.length,
+                        })}{" "}
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="flex flex-col gap-0.5 pt-1">
@@ -456,7 +465,7 @@ export function RecordEditor({
                   onClick={() => setFieldDraft({ mode: "create" })}
                 >
                   <Plus className="size-3.5" />
-                  新增字段
+                  {t("新增字段")}{" "}
                 </Button>
               </div>
             )}
@@ -473,10 +482,10 @@ export function RecordEditor({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {fieldDraft?.mode === "edit" ? "编辑字段" : "新增字段"}
+              {fieldDraft?.mode === "edit" ? t("编辑字段") : t("新增字段")}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              设置字段的名称、类型、选项与默认值
+              {t("设置字段的名称、类型、选项与默认值")}{" "}
             </DialogDescription>
           </DialogHeader>
           <FieldEditor

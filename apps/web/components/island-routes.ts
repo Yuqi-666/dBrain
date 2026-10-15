@@ -1,5 +1,7 @@
-import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Network } from "lucide-react";
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+import type { ComponentType } from "react";
+import { LayoutDashboard } from "lucide-react";
+import { GraphIcon } from "@workspace/ui/components/brand/brand-icons";
 import type { MainViewType } from "@workspace/store";
 
 /** A route destination that names a workspace surface (`/graph`, `/dashboard`). */
@@ -17,7 +19,7 @@ export interface IslandRoute {
   key: string;
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   enabled: boolean;
   disabledReason?: string;
   /**
@@ -61,15 +63,19 @@ export interface IslandRoute {
 export const ISLAND_ROUTES: IslandRoute[] = [
   {
     key: "graph",
-    label: "图谱",
+    get label() {
+      return translate("图谱");
+    },
     href: "/graph",
-    icon: Network,
+    icon: GraphIcon,
     enabled: true,
     view: "graph",
   },
   {
     key: "dashboard",
-    label: "仪表盘",
+    get label() {
+      return translate("仪表盘");
+    },
     href: "/dashboard",
     icon: LayoutDashboard,
     enabled: true,

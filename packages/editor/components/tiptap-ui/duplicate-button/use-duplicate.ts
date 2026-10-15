@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -162,6 +163,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useDuplicate(config?: UseDuplicateConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -216,7 +219,7 @@ export function useDuplicate(config?: UseDuplicateConfig) {
     isVisible,
     handleDuplicate,
     canDuplicate,
-    label: "Duplicate node",
+    label: t("Duplicate node"),
     shortcutKeys: DUPLICATE_SHORTCUT_KEY,
     Icon: CopyIcon,
   };

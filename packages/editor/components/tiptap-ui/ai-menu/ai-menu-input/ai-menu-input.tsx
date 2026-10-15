@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useState } from "react";
 
@@ -45,6 +46,8 @@ export function AiMenuInputPlaceholder({
 }: {
   onPlaceholderClick: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       className="tiptap-ai-prompt-input-placeholder"
@@ -53,7 +56,7 @@ export function AiMenuInputPlaceholder({
       <div className="tiptap-ai-prompt-input-placeholder-content">
         <AiSparklesIcon className="tiptap-ai-prompt-input-placeholder-icon" />
         <span className="tiptap-ai-prompt-input-placeholder-text">
-          Tell AI what else needs to be changed...
+          {t("Tell AI what else needs to be changed...")}{" "}
         </span>
       </div>
       <Button data-style="primary" disabled>
@@ -70,6 +73,8 @@ export function ToneSelector({
   tone: Tone | null;
   onToneChange: (tone: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -79,10 +84,10 @@ export function ToneSelector({
           data-active-state={tone ? "on" : "off"}
           role="button"
           tabIndex={-1}
-          aria-label="Tone adjustment options"
+          aria-label={t("Tone adjustment options")}
         >
           <MicAiIcon className="tiptap-button-icon" />
-          <span className="tiptap-button-text">Tone</span>
+          <span className="tiptap-button-text">{t("Tone")}</span>
         </Button>
       </DropdownMenuTrigger>
 
@@ -118,6 +123,8 @@ export function AiPromptInputToolbar({
   onToneChange?: (tone: string) => void;
   isEmpty?: boolean;
 }) {
+  const { t } = useI18n();
+
   const [tone, setTone] = useState<Tone | null>(null);
   const [promptValue] = useComboboxValueState();
 
@@ -151,7 +158,7 @@ export function AiPromptInputToolbar({
           onClick={handleSubmit}
           disabled={isEmpty}
           data-style="primary"
-          aria-label="Submit prompt"
+          aria-label={t("Submit prompt")}
         >
           <ArrowUpIcon className="tiptap-button-icon" />
         </Button>
@@ -172,6 +179,8 @@ export function AiMenuInputTextarea({
   placeholder = "Ask AI what you want...",
   ...props
 }: AiMenuInputTextareaProps) {
+  useI18n();
+
   const [promptValue, setPromptValue] = useComboboxValueState();
   const [isFocused, setIsFocused] = useState(false);
 

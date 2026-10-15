@@ -1,4 +1,7 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
+import { LanguageSwitcher } from "./language-switcher";
+
 import { useAuthStore, useDataStore, useUIStore } from "@workspace/store";
 import {
   clearAuthSession,
@@ -29,13 +32,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
-import { NodeDataTypeSelector } from "@workspace/ui/components/selector/node-data-type-selector";
-import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
+import { AddNodeDialog } from "@workspace/ui/components/dialog/add-node-dialog";
 import { WorkSpaceSelector } from "@workspace/ui/components/selector/workspace-selector";
 import {
   Tabs,
@@ -62,10 +61,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import LogoIcon from "../../img/icon/logo.svg";
-import { useGraph } from "@workspace/hooks";
+import { LogoIcon } from "@workspace/ui/components/brand/brand-icons";
+import { IconView } from "@workspace/ui/components/icon/icon-view";
 
 export function GraphSidebar() {
+  const { t } = useI18n();
+
   const { sidebarMode, closeSidebar, toggleSidebar, convertTempToFixed } =
     useUIStore();
   const { views, nodes } = useDataStore();
@@ -119,7 +120,7 @@ export function GraphSidebar() {
     }
   };
 
-  const { onAddNode } = useGraph();
+  const [addNodeDialogOpen, setAddNodeDialogOpen] = useState(false);
 
   return (
     <aside
@@ -149,49 +150,25 @@ export function GraphSidebar() {
           <TabsTrigger asChild value="nodes">
             <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
               <CircleDot className="size-3.5 text-sidebar-foreground/40" />
-              <span>节点</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent sideOffset={6} align="start">
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md [&>svg]:hidden">
-                      <span className="text-[13px]">Add Node</span>
-                    </DropdownMenuSubTrigger>
-                    <NodeDataTypeSelector>
-                      {(nodeType) => (
-                        <DropdownMenuSubContent>
-                          <NodeSemanticSelector
-                            onSelect={(semanticId) => {
-                              onAddNode?.(nodeType, semanticId);
-                            }}
-                            onCreateRequest={() =>
-                              openNodeSemanticDialog(null, {
-                                kind: "create",
-                                nodeType,
-                              })
-                            }
-                          />
-                        </DropdownMenuSubContent>
-                      )}
-                    </NodeDataTypeSelector>
-                  </DropdownMenuSub>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <span>{t("节点")}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("Add Node")}
+                className="ml-auto size-7 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md opacity-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:pointer-events-auto transition-all duration-150"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAddNodeDialogOpen(true);
+                }}
+              >
+                <Plus className="size-3.5" />
+              </Button>
             </div>
           </TabsTrigger>
           <TabsTrigger asChild value="views">
             <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
               <LayoutGrid className="size-3.5 text-sidebar-foreground/40" />
-              <span>视图</span>
+              <span>{t("视图")}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -208,7 +185,7 @@ export function GraphSidebar() {
           <TabsTrigger asChild value="node-types">
             <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
               <Shapes className="size-3.5 text-sidebar-foreground/40" />
-              <span>节点类型</span>
+              <span>{t("节点类型")}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -225,7 +202,7 @@ export function GraphSidebar() {
           <TabsTrigger asChild value="edge-types">
             <div className="group/tab flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground data-active:shadow-none">
               <Link2 className="size-3.5 text-sidebar-foreground/40" />
-              <span>边类型</span>
+              <span>{t("边类型")}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -268,19 +245,26 @@ export function GraphSidebar() {
       </Tabs>
 
       <div className="h-px bg-sidebar-border" />
+      <LanguageSwitcher />
       <SidebarUserMenu />
+      <AddNodeDialog
+        open={addNodeDialogOpen}
+        onOpenChange={setAddNodeDialogOpen}
+      />
     </aside>
   );
 }
 
 function SidebarHeader({ onToggle }: { onToggle: () => void }) {
+  const { t } = useI18n();
+
   const { resolvedTheme, setTheme } = useTheme();
 
   return (
     <header className="flex items-center justify-between px-4 py-3.5">
       <div className="flex items-center gap-3">
         <div className="flex size-10 items-center justify-center rounded-lg bg-sidebar-primary/10">
-          <img src={LogoIcon.src} className="size-10" alt="dBrain" />
+          <LogoIcon className="size-10" aria-hidden />
         </div>
         <span className="text-[18px] font-heading tracking-tight text-sidebar-foreground">
           dBrain
@@ -294,7 +278,7 @@ function SidebarHeader({ onToggle }: { onToggle: () => void }) {
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-200 rounded-lg"
           aria-label={
-            resolvedTheme === "dark" ? "切换到浅色模式" : "切换到深色模式"
+            resolvedTheme === "dark" ? t("切换到浅色模式") : t("切换到深色模式")
           }
         >
           {resolvedTheme === "dark" ? (
@@ -331,6 +315,8 @@ function ViewItem({
   onEdit: (view: View) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       className={cn(
@@ -389,14 +375,14 @@ function ViewItem({
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Pencil className="mr-2 size-4" />
-              Edit
+              {t("Edit")}{" "}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onDelete(view.id)}
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Trash2 className="mr-2 size-4" />
-              Delete
+              {t("Delete")}{" "}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -412,6 +398,8 @@ function ViewsList({
   pinnedViews: View[];
   recentViews: View[];
 }) {
+  const { t } = useI18n();
+
   const handleTogglePin = async (id: string, isPinned: boolean) => {
     await ViewService.upsert(id, { isPinned });
   };
@@ -458,7 +446,7 @@ function ViewsList({
         ))
       ) : (
         <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
-          No views yet
+          {t("No views yet")}{" "}
         </p>
       )}
     </div>
@@ -478,6 +466,8 @@ function NodeItem({
   onSelect?: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       className={cn(
@@ -536,14 +526,14 @@ function NodeItem({
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Pencil className="mr-2 size-4" />
-              Edit
+              {t("Edit")}{" "}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onDelete(node.id)}
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Trash2 className="mr-2 size-4" />
-              Delete
+              {t("Delete")}{" "}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -559,6 +549,8 @@ function NodesList({
   pinnedNodes: NodeData[];
   recentNodes: NodeData[];
 }) {
+  const { t } = useI18n();
+
   const currentEditingNodeId = useUIStore(
     (state) => state.currentEditingNodeId,
   );
@@ -587,7 +579,7 @@ function NodesList({
       {pinnedNodes.length > 0 && (
         <div className="flex flex-col gap-0.5">
           <p className="px-2.5 pb-1 text-[11px] font-semibold text-sidebar-foreground/50 tracking-wide">
-            置顶
+            {t("置顶")}{" "}
           </p>
           {pinnedNodes.map((node) => (
             <NodeItem
@@ -603,7 +595,7 @@ function NodesList({
       )}
       <div className="flex flex-col gap-0.5">
         <p className="px-2.5 pb-1 text-[11px] font-semibold text-sidebar-foreground/50 tracking-wide">
-          最近打开
+          {t("最近打开")}{" "}
         </p>
         {recentNodes.length > 0 ? (
           recentNodes.map((node) => (
@@ -618,7 +610,7 @@ function NodesList({
           ))
         ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
-            No recent nodes
+            {t("No recent nodes")}{" "}
           </p>
         )}
       </div>
@@ -635,12 +627,29 @@ function NodeSemanticItem({
   onEdit: (semantic: NodeSemantic) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="group flex items-center justify-between rounded-lg px-2.5 py-2 hover:bg-sidebar-accent transition-colors duration-150">
       <div className="flex items-center gap-2.5 min-w-0">
-        <CircleDot
+        <IconView
+          icon={
+            semantic.icon
+              ? {
+                  kind: "icon",
+                  value: semantic.icon,
+                  color: semantic.color || "var(--sidebar-primary)",
+                }
+              : undefined
+          }
           className="size-3.5 shrink-0"
-          style={{ color: semantic.color || "var(--sidebar-primary)" }}
+          glyphClassName="size-3.5"
+          fallback={
+            <CircleDot
+              className="size-3.5 shrink-0"
+              style={{ color: semantic.color || "var(--sidebar-primary)" }}
+            />
+          }
         />
         <span className="text-[13px] text-sidebar-foreground truncate">
           {semantic.name}
@@ -668,14 +677,14 @@ function NodeSemanticItem({
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Pencil className="mr-2 size-4" />
-              Edit
+              {t("Edit")}{" "}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onDelete(semantic.id)}
               className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
               <Trash2 className="mr-2 size-4" />
-              Delete
+              {t("Delete")}{" "}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -685,6 +694,8 @@ function NodeSemanticItem({
 }
 
 function NodeSemanticList() {
+  const { t } = useI18n();
+
   const nodeSemanticsMap = useDataStore((state) => state.nodeSemantics);
   const nodeSemantics = useMemo(
     () => Array.from(nodeSemanticsMap.values()),
@@ -714,7 +725,7 @@ function NodeSemanticList() {
           ))
         ) : (
           <p className="px-2.5 py-2.5 text-[12px] text-sidebar-foreground/40 italic">
-            No node types
+            {t("No node types")}{" "}
           </p>
         )}
       </div>
@@ -733,6 +744,8 @@ function EdgeSemanticCategory({
   onEdit: (semantic: EdgeSemantic) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
+
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -762,16 +775,28 @@ function EdgeSemanticCategory({
               className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors duration-150"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Link2 className="size-3 text-sidebar-foreground/30 shrink-0" />
+                <IconView
+                  icon={
+                    semantic.icon
+                      ? {
+                          kind: "icon",
+                          value: semantic.icon,
+                          color: semantic.color || "var(--sidebar-foreground)",
+                        }
+                      : undefined
+                  }
+                  className="size-3 shrink-0"
+                  glyphClassName="size-3"
+                  fallback={
+                    <Link2
+                      className="size-3 text-sidebar-foreground/30 shrink-0"
+                      style={{ color: semantic.color || undefined }}
+                    />
+                  }
+                />
                 <span className="text-[12px] text-sidebar-foreground truncate">
                   {semantic.name}
                 </span>
-                {semantic.color && (
-                  <span
-                    className="size-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: semantic.color }}
-                  />
-                )}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -794,14 +819,14 @@ function EdgeSemanticCategory({
                     className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
                   >
                     <Pencil className="mr-2 size-4" />
-                    Edit
+                    {t("Edit")}{" "}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(semantic.id)}
                     className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
                   >
                     <Trash2 className="mr-2 size-4" />
-                    Delete
+                    {t("Delete")}{" "}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -814,6 +839,8 @@ function EdgeSemanticCategory({
 }
 
 function EdgeSemanticList() {
+  const { t } = useI18n();
+
   const edgeSemanticsMap = useDataStore((state) => state.edgeSemantics);
   const edgeSemantics = useMemo(
     () => Array.from(edgeSemanticsMap.values()),
@@ -829,12 +856,16 @@ function EdgeSemanticList() {
     }
   };
 
-  const categories = [
-    { key: "hierarchy", label: "层次关系" },
-    { key: "flow", label: "流向关系" },
-    { key: "association", label: "关联关系" },
-    { key: "interaction", label: "交互关系" },
-  ] as const;
+  const categories = useMemo(
+    () =>
+      [
+        { key: "hierarchy", label: t("层次关系") },
+        { key: "flow", label: t("流向关系") },
+        { key: "association", label: t("关联关系") },
+        { key: "interaction", label: t("交互关系") },
+      ] as const,
+    [t],
+  );
 
   const groupedSemantics = useMemo(
     () =>
@@ -871,6 +902,8 @@ function EdgeSemanticList() {
 }
 
 function SidebarUserMenu() {
+  const { t } = useI18n();
+
   const { user, clearAuth } = useAuthStore();
   const logoutMutation = trpc.auth.logout.useMutation();
 
@@ -915,16 +948,18 @@ function SidebarUserMenu() {
           <DropdownMenuLabel className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground">
             {user.nickname}
           </DropdownMenuLabel>
-          {process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop" && <>
-          <DropdownMenuSeparator className="my-1.5 bg-sidebar-border" />
-          <DropdownMenuItem
-            onSelect={handleLogout}
-            className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-          >
-            <LogOut className="mr-2 size-4" />
-            Sign out
-          </DropdownMenuItem>
-          </>}
+          {process.env.NEXT_PUBLIC_DBRAIN_PLATFORM !== "desktop" && (
+            <>
+              <DropdownMenuSeparator className="my-1.5 bg-sidebar-border" />
+              <DropdownMenuItem
+                onSelect={handleLogout}
+                className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+              >
+                <LogOut className="mr-2 size-4" />
+                {t("Sign out")}{" "}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

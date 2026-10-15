@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useRef } from "react";
 import { type Editor } from "@tiptap/react";
@@ -55,6 +56,8 @@ export function AiMenuStateProvider({
 }: {
   children: React.ReactNode;
 }) {
+  useI18n();
+
   const { value, AiMenuStateContext } = useAiMenuStateProvider();
 
   return (
@@ -71,6 +74,8 @@ export function AiMenuContent({
   editor?: Editor | null;
   anchorToSelection?: boolean;
 }) {
+  useI18n();
+
   const { editor } = useTiptapEditor(providedEditor);
   const { state, updateState, setFallbackAnchor, reset } = useAiMenuState();
   const { show, store } = useFloatingMenuStore();
@@ -298,6 +303,8 @@ export function AiMenuContent({
 }
 
 export function AiMenuProgress({ editor }: { editor: Editor }) {
+  const { t } = useI18n();
+
   const { reset } = useAiMenuState();
 
   const handleStop = useCallback(() => {
@@ -311,7 +318,7 @@ export function AiMenuProgress({ editor }: { editor: Editor }) {
   return (
     <div className="tiptap-ai-menu-progress">
       <div className="tiptap-spinner-alt">
-        <span>AI is writing</span>
+        <span>{t("AI is writing")}</span>
         <div className="dots-container">
           <div className="dot"></div>
           <div className="dot"></div>
@@ -319,7 +326,7 @@ export function AiMenuProgress({ editor }: { editor: Editor }) {
         </div>
       </div>
 
-      <Button variant="ghost" title="Stop" onClick={handleStop}>
+      <Button variant="ghost" title={t("Stop")} onClick={handleStop}>
         <StopCircle2Icon className="tiptap-button-icon" />
       </Button>
     </div>
@@ -333,6 +340,8 @@ export function AiMenu({
   editor?: Editor | null;
   anchorToSelection?: boolean;
 }) {
+  useI18n();
+
   return (
     <AiMenuStateProvider>
       <AiMenuContent editor={editor} anchorToSelection={anchorToSelection} />

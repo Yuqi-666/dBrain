@@ -1,9 +1,18 @@
 "use client";
+import {
+  annotationColorFromHex,
+  annotationPaletteHex,
+  annotationPickerValue,
+} from "./colors";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
 import { motion } from "motion/react";
 import {
-  Check,
   MousePointer2,
   Ellipsis,
   Eraser,
@@ -57,6 +66,8 @@ function Action({
   className,
   ...props
 }: React.ComponentProps<typeof Button> & { label: string }) {
+  useI18n();
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -85,6 +96,8 @@ function BrushPreview({
   opacity: number;
   thinning: number;
 }) {
+  useI18n();
+
   return (
     <svg viewBox="0 0 100 28" className="h-7 w-full" aria-hidden="true">
       <path
@@ -100,6 +113,8 @@ function BrushPreview({
 }
 
 export function AnnotationToolbar(props: AnnotationToolbarProps) {
+  const { t } = useI18n();
+
   const {
     tool,
     onToolChange,
@@ -197,10 +212,11 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         entry.tool ===
         (tool === "eraser" || tool === "pointer" ? lastBrush : tool),
     ) ?? BRUSHES[0];
-  const selectedColor =
-    ANNOTATION_COLORS.find((entry) => entry.key === color) ??
-    ANNOTATION_COLORS[0]!;
-  const colorStyle = `var(${selectedColor.cssVar})`;
+  const legacyColor = ANNOTATION_COLORS.find((entry) => entry.key === color);
+  const paletteHex = annotationPaletteHex(color);
+  const selectedColorLabel = legacyColor?.label ?? paletteHex ?? color;
+  const colorStyle =
+    paletteHex ?? `var(${legacyColor?.cssVar ?? ANNOTATION_COLORS[0]!.cssVar})`;
   const side =
     floating.edge === "left"
       ? "right"
@@ -225,8 +241,8 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         ref={floating.ref}
         data-annotation-toolbar
         data-dock={floating.edge}
-        role="toolbar"
-        aria-label="批注工具栏"
+        role={t("toolbar")}
+        aria-label={t("批注工具栏")}
         aria-orientation={floating.vertical ? "vertical" : "horizontal"}
         style={{ left: 0, top: 0, x: floating.x, y: floating.y }}
         className={cn(
@@ -239,7 +255,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         )}
       >
         <Action
-          label="拖动工具栏 · 方向键停靠 · Home 复位"
+          label={t("拖动工具栏 · 方向键停靠 · Home 复位")}
           data-annotation-drag
           className="touch-none cursor-grab text-muted-foreground active:cursor-grabbing"
           {...floating.handle}
@@ -265,7 +281,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
           >
             <PopoverAnchor asChild>
               <Action
-                label="指针（V）· 双击设置"
+                label={t("指针（V）· 双击设置")}
                 data-annotation-tool="pointer"
                 data-annotation-pointer
                 aria-pressed={tool === "pointer"}
@@ -291,7 +307,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               }}
               className="w-52 gap-2 rounded-2xl p-2"
             >
-              <div className="px-2 py-2 text-sm font-medium">指针</div>
+              <div className="px-2 py-2 text-sm font-medium">{t("指针")}</div>
               <Button
                 variant="ghost"
                 className="justify-start"
@@ -301,7 +317,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                 }}
               >
                 <Hand className="size-4" />
-                恢复视图
+                {t("恢复视图")}{" "}
               </Button>
               <Button
                 variant="ghost"
@@ -313,7 +329,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                 ) : (
                   <EyeOff className="size-4" />
                 )}
-                {hidden ? "显示批注" : "隐藏批注"}
+                {hidden ? t("显示批注") : t("隐藏批注")}
               </Button>
             </PopoverContent>
           </Popover>
@@ -328,7 +344,10 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
           >
             <PopoverAnchor asChild>
               <Action
-                label={`画笔 · ${brush.label}（${brush.shortcut}）· 双击设置`}
+                label={translate("画笔 · {value1}（{value2}）· 双击设置", {
+                  value1: brush.label,
+                  value2: brush.shortcut,
+                })}
                 data-annotation-tool={brush.tool}
                 data-annotation-brush-trigger
                 aria-pressed={tool !== "pointer" && tool !== "eraser"}
@@ -361,7 +380,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               }}
               className="w-64 gap-2 rounded-2xl p-2"
             >
-              <div className="px-2 py-2 text-sm font-medium">画笔</div>
+              <div className="px-2 py-2 text-sm font-medium">{t("画笔")}</div>
               <ToggleGroup
                 type="single"
                 value={
@@ -416,7 +435,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
           >
             <PopoverAnchor asChild>
               <Action
-                label="橡皮（E）· 双击设置"
+                label={t("橡皮（E）· 双击设置")}
                 data-annotation-tool="eraser"
                 aria-pressed={tool === "eraser"}
                 className="aria-pressed:bg-background aria-pressed:shadow-sm"
@@ -441,7 +460,9 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               }}
               className="w-52 gap-2 rounded-2xl p-2"
             >
-              <div className="px-2 py-2 text-sm font-medium">擦除方式</div>
+              <div className="px-2 py-2 text-sm font-medium">
+                {t("擦除方式")}
+              </div>
               <ToggleGroup
                 type="single"
                 value={eraserMode}
@@ -464,7 +485,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                   className="w-full justify-start gap-2 px-3"
                 >
                   <Eraser className="size-4" />
-                  笔画擦除
+                  {t("笔画擦除")}{" "}
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="path"
@@ -472,7 +493,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                   className="w-full justify-start gap-2 px-3"
                 >
                   <PenLine className="size-4" />
-                  路径擦除
+                  {t("路径擦除")}{" "}
                 </ToggleGroupItem>
               </ToggleGroup>
             </PopoverContent>
@@ -485,7 +506,9 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               variant="ghost"
               size="icon"
               data-annotation-color-trigger
-              aria-label={`颜色与粗细（${selectedColor.label}）`}
+              aria-label={translate("颜色与粗细（{value1}）", {
+                value1: selectedColorLabel,
+              })}
               className={HIT}
             >
               <span
@@ -498,41 +521,27 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
             side={side}
             align="start"
             sideOffset={12}
-            className="w-60 rounded-2xl p-4"
+            className="w-80 max-w-[calc(100vw-1rem)] rounded-2xl p-4"
           >
             <div className="mb-3 flex items-center justify-between text-xs">
-              <span className="font-medium">颜色</span>
-              <span className="text-muted-foreground">
-                {selectedColor.label}
-              </span>
+              <span className="font-medium">{t("颜色")}</span>
             </div>
-            <div className="grid grid-cols-6 gap-1.5 pointer-coarse:grid-cols-3">
-              {ANNOTATION_COLORS.map((entry) => (
-                <Button
-                  key={entry.key}
-                  variant="ghost"
-                  size="icon"
-                  data-annotation-color={entry.key}
-                  aria-label={entry.label}
-                  aria-pressed={color === entry.key}
-                  onClick={() => onColorChange(entry.key)}
-                  className="size-7 rounded-full p-0 ring-1 ring-border aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-2 aria-pressed:ring-offset-popover pointer-coarse:size-11"
-                  style={{ backgroundColor: `var(${entry.cssVar})` }}
-                >
-                  {color === entry.key && (
-                    <Check className="size-3.5 text-background" />
-                  )}
-                </Button>
-              ))}
-            </div>
+            <ColorPicker
+              value={annotationPickerValue(color)}
+              onChange={(value) => {
+                const next = annotationColorFromHex(value);
+                if (next) onColorChange(next);
+              }}
+              className="p-0"
+            />
             <div className="mb-2 mt-5 flex items-center justify-between text-xs">
-              <span className="font-medium">笔刷大小</span>
+              <span className="font-medium">{t("笔刷大小")}</span>
               <output className="tabular-nums text-muted-foreground">
                 {Number((size * 1000).toFixed(1))}
               </output>
             </div>
             <Slider
-              aria-label="笔刷大小"
+              aria-label={t("笔刷大小")}
               data-annotation-size-slider
               min={1}
               max={40}
@@ -556,7 +565,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                   key={value}
                   value={String(value)}
                   data-annotation-size={String(index)}
-                  aria-label={["细", "中", "粗"][index]}
+                  aria-label={[t("细"), t("中"), t("粗")][index]}
                   aria-pressed={size === value}
                   className="flex-1 gap-2 rounded-md text-xs aria-pressed:bg-background aria-pressed:shadow-sm"
                 >
@@ -564,7 +573,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                     className="rounded-full bg-current"
                     style={{ width: 3 + index * 3, height: 3 + index * 3 }}
                   />
-                  {["细", "中", "粗"][index]}
+                  {[t("细"), t("中"), t("粗")][index]}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
@@ -578,7 +587,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         </Popover>
         {divider}
         <Action
-          label="撤销（⌘ / Ctrl Z）"
+          label={t("撤销（⌘ / Ctrl Z）")}
           data-annotation-undo
           disabled={!canUndo}
           onClick={onUndo}
@@ -586,7 +595,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
           <Undo2 />
         </Action>
         <Action
-          label="重做（⌘ / Ctrl ⇧ Z）"
+          label={t("重做（⌘ / Ctrl ⇧ Z）")}
           data-annotation-redo
           disabled={!canRedo}
           onClick={onRedo}
@@ -595,7 +604,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
         </Action>
         {!compact && (
           <Action
-            label={hidden ? "显示批注（\\）" : "隐藏批注（\\）"}
+            label={hidden ? t("显示批注（\\）") : t("隐藏批注（\\）")}
             data-annotation-hide
             aria-pressed={hidden}
             onClick={onToggleHidden}
@@ -610,7 +619,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               variant="ghost"
               size="icon"
               data-annotation-more
-              aria-label="更多批注操作"
+              aria-label={t("更多批注操作")}
               className={HIT}
             >
               <Ellipsis />
@@ -627,7 +636,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               checked={touchDraws}
               onCheckedChange={onToggleTouchDraws}
             >
-              手指书写
+              {t("手指书写")}{" "}
             </DropdownMenuCheckboxItem>
             {compact && (
               <>
@@ -636,7 +645,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
                   checked={!hidden}
                   onCheckedChange={onToggleHidden}
                 >
-                  显示批注
+                  {t("显示批注")}{" "}
                 </DropdownMenuCheckboxItem>
               </>
             )}
@@ -657,7 +666,7 @@ export function AnnotationToolbar(props: AnnotationToolbarProps) {
               }}
             >
               <Trash2 />
-              {confirming ? "再次点击，清除全部" : "清除全部批注"}
+              {confirming ? t("再次点击，清除全部") : t("清除全部批注")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

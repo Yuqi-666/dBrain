@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -134,6 +135,8 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useImageUpload(config?: UseImageUploadConfig) {
+  const { t } = useI18n();
+
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
@@ -190,7 +193,7 @@ export function useImageUpload(config?: UseImageUploadConfig) {
     isActive,
     handleImage,
     canInsert,
-    label: "Add image",
+    label: t("Add image"),
     shortcutKeys: IMAGE_UPLOAD_SHORTCUT_KEY,
     Icon: ImagePlusIcon,
   };

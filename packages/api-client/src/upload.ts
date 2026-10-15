@@ -2,7 +2,19 @@ import { useWorkspaceStore } from "@workspace/store";
 import { useState } from "react";
 
 import type { IAttachment } from "@workspace/interfaces";
+import { DIRECT_UPLOAD_MAX_BYTES, MAX_UPLOAD_BYTES, PDF_ANALYZE_MAX_BYTES } from "@workspace/utils/upload";
 import { getPocketbaseClient } from "./pocketbase-client";
+import { readAuthSessionToken } from "./auth/session";
+
+/**
+ * Size limits, re-exported from the frozen shared contract.
+ *
+ * `@workspace/ui` and the node editors import everything upload-related from
+ * `@workspace/api-client`, so the transport switches and the PDF analysis cap
+ * are surfaced here; the values themselves are never restated, or the browser
+ * and the server could disagree about which request a file takes.
+ */
+export { DIRECT_UPLOAD_MAX_BYTES, MAX_UPLOAD_BYTES, PDF_ANALYZE_MAX_BYTES };
 
 /**
  * PocketBase collection that every uploaded blob lands in.
@@ -37,6 +49,16 @@ export interface FileItem {
    * @optional
    */
   url?: string;
+  /**
+   * Why the upload failed, as the server reported it.
+   *
+   * Kept on the item so the drop zone can show the reason next to the file
+   * instead of a bare "upload failed": a rejected chunk, an interrupted
+   * assembly and a file above the limit all end here, and only the message
+   * tells them apart.
+   * @optional
+   */
+  error?: string;
   /**
    * Controller that can be used to abort the upload process
    * @optional
@@ -155,7 +177,11 @@ export function resolveFileUrl(src?: string | null): string {
   }
   if (!base) return src;
 
-  return `${base.replace(/\/+$/, "")}${src.startsWith("/") ? "" : "/"}${src}`;
+  // Stored gateway paths must not duplicate /pb or retain an old desktop
+  // session prefix when resolved against the active backend.
+  const path = src.replace(/^\/pb(?=\/api\/files\/)/, "")
+    .replace(/^\/session\/[a-f0-9]+(?=\/api\/files\/)/, "");
+  return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 function buildUploadUrl(
@@ -180,15 +206,16 @@ function buildUploadUrl(
 }
 
 /**
- * Uploads a file to the PocketBase {@link FILES_COLLECTION} collection and
- * returns the created record as an {@link IAttachment}.
+ * Single-request upload: the whole file in one XHR `POST` to PocketBase.
  *
  * Implemented with `XMLHttpRequest` (instead of `pb.collection().create()`)
- * purely to get `upload.progress` events for the progress bar.
+ * purely to get `upload.progress` events for the progress bar. Kept as its own
+ * function so the chunked path can share the exact behaviour below without
+ * changing it.
  */
-export const uploadAttachment = (
+const uploadDirectAttachment = (
   file: File,
-  onProgress: (event: { progress: number }) => void = () => {},
+  onProgress: (event: { progress: number }) => void,
   signal?: AbortSignal,
 ): Promise<IAttachment> => {
   const pb = getPocketbaseClient();
@@ -281,13 +308,44 @@ export const uploadAttachment = (
       pb.buildUrl(`/api/collections/${FILES_COLLECTION}/records`).toString(),
     );
 
-    // PocketBase accepts the raw token in the `Authorization` header. The
-    // The files collection requires authentication and records ownership.
-    const token = pb.authStore?.token;
+    // Web login uses the session cookie; desktop initializes the PB auth store.
+    // Read the web cookie for every upload so renewal/logout cannot leave a
+    // stale SDK token in use. PB requires Authorization for record creation.
+    const token = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop"
+      ? pb.authStore?.token
+      : readAuthSessionToken();
     if (token) xhr.setRequestHeader("Authorization", token);
 
     xhr.send(formData);
   });
+};
+
+/**
+ * Uploads a file to PocketBase and returns the stored file as an
+ * {@link IAttachment}.
+ *
+ * Two transports exist behind this one signature, chosen by size:
+ *
+ * - `file.size <= DIRECT_UPLOAD_MAX_BYTES` — one `POST`, exactly as before.
+ * - larger — a resumable session of chunks, up to {@link MAX_UPLOAD_BYTES}.
+ *
+ * Callers (drop zones, the Tiptap image node, Excalidraw) never pick a
+ * transport and never see the difference beyond the progress events.
+ */
+export const uploadAttachment = async (
+  file: File,
+  onProgress: (event: { progress: number }) => void = () => {},
+  signal?: AbortSignal,
+): Promise<IAttachment> => {
+  if (file.size <= DIRECT_UPLOAD_MAX_BYTES) {
+    return uploadDirectAttachment(file, onProgress, signal);
+  }
+
+  // Loaded lazily: the direct path must stay exactly as it was, and the
+  // chunked machinery (fingerprint, session store, retry loop) then costs a
+  // separate chunk in the bundle that only large uploads pull in.
+  const { uploadChunked } = await import("./upload-chunked");
+  return uploadChunked(file, onProgress, signal);
 };
 
 /**
@@ -382,7 +440,15 @@ export function useFileUpload(options: UploadOptions) {
         setFileItems((prev) =>
           prev.map((item) =>
             item.id === fileId
-              ? { ...item, status: "error", progress: 0 }
+              ? {
+                  ...item,
+                  status: "error",
+                  progress: 0,
+                  error:
+                    error instanceof Error && error.message
+                      ? error.message
+                      : "Upload failed",
+                }
               : item,
           ),
         );

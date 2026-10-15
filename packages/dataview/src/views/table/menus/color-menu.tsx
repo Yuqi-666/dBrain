@@ -1,4 +1,11 @@
 "use client";
+import { useState } from "react";
+import { usePopoverLayer } from "@workspace/ui/hooks/use-popover-layer";
+import { ColorPicker } from "@workspace/ui/components/selector/color-picker";
+
+import { translate } from "@workspace/ui/lib/i18n/runtime";
+
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * 填色 — conditional colours (`docs/propmt/dataview-table-1.md` §填色).
@@ -33,7 +40,7 @@ import type {
 
 import { ConditionValueInput } from "./condition-controls";
 import { FieldPickerButton } from "../../../shared/field-picker";
-import { DEFAULT_FILL_COLOR, FILL_COLORS } from "../../../shared/field-meta";
+import { DEFAULT_FILL_COLOR } from "../../../shared/field-meta";
 import {
   TABLE_FILTER_OPERATOR_LABELS,
   filterOperatorsForField,
@@ -41,9 +48,15 @@ import {
 } from "../core/filter";
 
 const TARGET_LABELS: Record<TableColorTarget, string> = {
-  cell: "单元格",
-  row: "行",
-  column: "列",
+  get cell() {
+    return translate("单元格");
+  },
+  get row() {
+    return translate("行");
+  },
+  get column() {
+    return translate("列");
+  },
 };
 
 function createRuleId(): string {
@@ -69,6 +82,8 @@ export function TableColorMenu({
   onChange,
   className,
 }: TableColorMenuProps) {
+  const { t } = useI18n();
+
   const fieldById = new Map(fields.map((field) => [field.id, field]));
 
   const patch = (id: string, next: Partial<TableColorRule>) =>
@@ -112,7 +127,7 @@ export function TableColorMenu({
           )}
         >
           <Palette className="size-3.5" />
-          填色
+          {t("填色")}{" "}
           {rules.length > 0 && (
             <Badge className="h-4 min-w-4 justify-center rounded-sm px-1 text-[10px] leading-none">
               {rules.length}
@@ -124,7 +139,7 @@ export function TableColorMenu({
           explicit margin below and left a hole above 添加条件. */}
       <PopoverContent align="start" className="w-[26rem] gap-0 p-3">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-medium">设置填色条件</span>
+          <span className="text-xs font-medium">{t("设置填色条件")}</span>
           {rules.length > 0 && (
             <Button
               type="button"
@@ -133,7 +148,7 @@ export function TableColorMenu({
               className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground"
               onClick={() => onChange([])}
             >
-              清除全部
+              {t("清除全部")}{" "}
             </Button>
           )}
         </div>
@@ -154,36 +169,10 @@ export function TableColorMenu({
                     <GripVertical className="size-3.5 shrink-0 text-muted-foreground/60" />
 
                     {/* —— 颜色 —— */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="填色颜色"
-                          className="size-6 shrink-0 rounded-md border border-border"
-                          style={{ background: rule.color }}
-                        />
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="w-auto p-2">
-                        <div className="grid grid-cols-5 gap-1.5">
-                          {FILL_COLORS.map((swatch) => (
-                            <button
-                              key={swatch}
-                              type="button"
-                              aria-label={swatch}
-                              aria-pressed={swatch === rule.color}
-                              className={cn(
-                                "size-5 rounded-md border",
-                                swatch === rule.color
-                                  ? "border-primary"
-                                  : "border-transparent",
-                              )}
-                              style={{ background: swatch }}
-                              onClick={() => patch(rule.id, { color: swatch })}
-                            />
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <RuleFillColor
+                      value={rule.color}
+                      onChange={(color) => patch(rule.id, { color })}
+                    />
 
                     {/* —— 范围 —— */}
                     <Select
@@ -194,7 +183,7 @@ export function TableColorMenu({
                     >
                       <SelectTrigger
                         size="sm"
-                        aria-label="填色范围"
+                        aria-label={t("填色范围")}
                         className="h-7 w-[4.5rem] shrink-0 py-1 pl-2 text-[11px]"
                       >
                         <SelectValue />
@@ -241,7 +230,7 @@ export function TableColorMenu({
                     >
                       <SelectTrigger
                         size="sm"
-                        aria-label="填色运算符"
+                        aria-label={t("填色运算符")}
                         className="h-7 w-20 shrink-0 py-1 pl-2 text-[11px]"
                       >
                         <SelectValue />
@@ -270,7 +259,7 @@ export function TableColorMenu({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      aria-label="删除填色条件"
+                      aria-label={t("删除填色条件")}
                       className="shrink-0 text-muted-foreground"
                       onClick={() =>
                         onChange(rules.filter((entry) => entry.id !== rule.id))
@@ -297,8 +286,56 @@ export function TableColorMenu({
           onClick={addRule}
         >
           <Plus className="size-3.5" />
-          添加条件
+          {t("添加条件")}{" "}
         </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** A compact fill preview leaves room for the condition fields in each rule. */
+function RuleFillColor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const layer = usePopoverLayer();
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) layer.prepareLayer();
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          ref={layer.triggerRef}
+          type="button"
+          aria-label={t("填色颜色")}
+          title={value}
+          className="size-6 shrink-0 rounded-md border border-foreground/10 shadow-xs outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          style={{ background: value }}
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        container={layer.container}
+        style={{ zIndex: layer.zIndex }}
+        align="start"
+        className="w-72 rounded-xl p-0"
+      >
+        <ColorPicker
+          value={value}
+          aria-label={t("填色颜色")}
+          onChange={(color) => {
+            onChange(color);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

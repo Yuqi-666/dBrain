@@ -16,7 +16,3 @@ export function allowedFileRequest(path: string, method?: string): boolean {
   return ((method === "GET" || method === "HEAD") && /^\/api\/files\/[a-zA-Z0-9_]+\/[a-zA-Z0-9]+\/[^/]+$/.test(pathname)) ||
     (method === "POST" && pathname === "/api/collections/files/records");
 }
-/** HLS URI lines must retain the authenticated gateway prefix, including after a restart. */
-export function rewriteLocalPlaylist(body: string, secret: string): string {
-  return body.replace(/^\/api\/files\//gm, `/session/${secret}/api/files/`);
-}

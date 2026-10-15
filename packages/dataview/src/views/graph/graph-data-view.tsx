@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@workspace/ui/lib/i18n";
 
 /**
  * Graph data view — a collection's nodes and edges drawn by `@workspace/graph`
@@ -50,6 +51,8 @@ export function GraphDataView({
   onConfigChange,
   className,
 }: DataViewRendererProps<GraphViewConfig>) {
+  const { t } = useI18n();
+
   const tokens = useDataViewThemeTokens("auto");
 
   /**
@@ -98,14 +101,16 @@ export function GraphDataView({
       ? null
       : hasActiveFilter(source.filterConfig)
         ? {
-            title: "没有节点匹配当前的过滤条件",
-            description:
+            title: t("没有节点匹配当前的过滤条件"),
+            description: t(
               "节点图画的是这个 collection 筛选出的子图，当前条件没有选中任何节点。",
+            ),
           }
         : {
-            title: "这个工作区还没有节点",
-            description:
+            title: t("这个工作区还没有节点"),
+            description: t(
               "节点图画的是图谱里的节点与连边，先创建一些节点再回到这个视图。",
+            ),
           };
 
   return (
