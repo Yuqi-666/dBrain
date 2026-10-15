@@ -379,6 +379,8 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 作业拒绝覆盖已存在的 Release。默认在同次运行中创建草稿并发布；设置 `publish=false` 可仅保留草稿。无需验收文件或人工测试记录。
 
+v0.1.3 之后的 Release 把容器部署文件合并为一个 `dbrain-deploy-vVERSION.tar.gz` 制品。归档包含 Compose 文件、网关配置、更新脚本、环境变量模板和镜像 digest 报告。桌面安装包和签名更新文件保留为带平台前缀的独立制品，因为桌面更新器通过 URL 下载它们。`latest.json`、`candidate-index.json`、发行说明和 `SHA256SUMS` 仍位于 Release 根目录。v0.1.3 保留原有的独立制品。
+
 带后缀的标签（例如 `v0.1.0-rc.1`）创建预发布。
 
 ## 仓库策略

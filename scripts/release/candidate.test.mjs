@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, readdir, writeFile, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { promisify } from "node:util";
 import {
   prepareReleaseAssets,
   verifyPublishableCandidate,
@@ -10,6 +12,7 @@ import {
   services,
 } from "./candidate.mjs";
 import { hashFile } from "../lib/runtime-manifest.mjs";
+const execFileAsync = promisify(execFile);
 const expected = {
   version: "0.1.0",
   commit: "a".repeat(40),
@@ -178,7 +181,7 @@ test("single product families assemble and publish without the other family", as
       await prepareReleaseAssets(f.output, assets, plan);
       const names = await readdir(assets);
       assert.equal(names.includes("latest.json"), plan.desktopTargets.length > 0);
-      assert.equal(names.includes("compose.release.yml"), plan.containerPlatforms.length > 0);
+      assert.equal(names.includes(`dbrain-deploy-v${plan.version}.tar.gz`), plan.containerPlatforms.length > 0);
     } finally {
       await rm(f.dir, { recursive: true, force: true });
     }
@@ -199,18 +202,22 @@ test("published assets preserve hashes and deploy verified digests without stale
       const [hash, name] = line.split("  ");
       assert.equal(await hashFile(join(assets, name)), hash);
     }
-    assert.match(
-      await readFile(join(assets, "compose.release.yml"), "utf8"),
-      /pocketbase@sha256:[b]+/,
-    );
+    const deployment = join(f.dir, "deployment");
+    await mkdir(deployment);
+    await execFileAsync("tar", ["-xzf", join(assets, `dbrain-deploy-v${expected.version}.tar.gz`), "-C", deployment]);
+    assert.deepEqual((await readdir(deployment)).sort(), [
+      ".env.example", "compose.release.yml", "container-report.json", "docker-compose.yml", "nginx.conf", "update.sh",
+    ]);
+    assert.match(await readFile(join(deployment, "compose.release.yml"), "utf8"), /pocketbase@sha256:[b]+/);
     const latest = JSON.parse(await readFile(join(assets, "latest.json"), "utf8"));
     assert.equal(latest.version, expected.version);
     assert.equal(Object.keys(latest.platforms).length, expected.desktopTargets.length);
     assert.ok(
-      !(await readFile(join(assets, "docker-compose.yml"), "utf8")).includes(
+      !(await readFile(join(deployment, "docker-compose.yml"), "utf8")).includes(
         "./deploy/nginx.conf",
       ),
     );
+    assert.ok(!(await readdir(assets)).includes("build-report.json"));
     await assert.rejects(
       prepareReleaseAssets(f.output, assets, expected),
       /EEXIST/,
