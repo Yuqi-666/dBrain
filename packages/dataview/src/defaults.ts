@@ -145,9 +145,9 @@ const GRAPH_DEFAULT_CONFIG = (): GraphViewConfig => ({
   // Flow mode is still a placeholder shell in @workspace/graph, and
   // `views/graph/core/config.ts` self-heals anything but Force.
   viewType: "Force",
-  // Only `backgroundStyle` is a decision: the colours come from the app's
-  // light/dark tokens at render time (`core/config.ts`), so a theme switch
-  // repaints the canvas without rewriting the config.
+  // The colours start unset: `core/config.ts` falls back to the app's
+  // light/dark tokens at render time, so a theme switch repaints the canvas
+  // without rewriting the config, while a pinned colour stays the user's.
   visualConfig: { backgroundStyle: "grid" },
 });
 

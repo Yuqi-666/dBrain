@@ -116,8 +116,9 @@ export function resolveGraphBackgroundStyle(
  * A canvas is not a DOM node and cannot resolve `var(--token)`, so the
  * light/dark background and grid come from the shared theme tokens as literals —
  * the same mapping every other canvas view does (`shared/theme-tokens.ts`).
- * That is why the persisted config carries only the *style*: a theme switch has
- * to repaint the canvas without rewriting every view's config.
+ * That fallback is why an unset colour needs no config rewrite on a theme
+ * switch; a colour the user pinned (with or without `colorsSyncTheme`) is
+ * resolved by the graph package's own `useViewColors` over these literals.
  *
  * A colour persisted by an older build (or set by hand) still wins, so nothing
  * a user configured is silently replaced.
