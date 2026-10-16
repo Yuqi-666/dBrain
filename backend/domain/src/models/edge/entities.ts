@@ -25,7 +25,7 @@ export interface EdgeProps {
  * Business rules:
  * - An edge cannot connect a node to itself (no self-loops)
  * - Edges are immutable - all updates return new instances
- * - Bidirectional edges are symmetric and cannot be flipped
+ * - A direction change is an explicit assignment, never a toggle
  */
 export class Edge {
   readonly id: EdgeId;
@@ -73,23 +73,19 @@ export class Edge {
   }
 
   /**
-   * Creates a new edge with reversed direction.
-   * Forward edges become: reverse
-   * Reverse edges become: forward
-   * Bidirectional edges remain: bidirectional (no-op)
+   * Creates a new edge with the given direction.
+   *
+   * This assigns the direction; it never toggles it. A caller that repeats
+   * the current direction gets the same edge back.
    */
-  flip(): Edge {
-    if (this.direction.isBidirectional()) {
+  changeDirection(direction: EdgeDirection): Edge {
+    if (this.direction.equals(direction)) {
       return this;
     }
 
-    const flippedDirection = this.direction.isForward()
-      ? EdgeDirection.reverse()
-      : EdgeDirection.forward();
-
     return new Edge({
       ...this,
-      direction: flippedDirection,
+      direction,
       updatedAt: new Date().toISOString(),
     });
   }
