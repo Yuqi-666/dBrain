@@ -118,7 +118,7 @@ The current release targets are Linux x64, Windows x64, and macOS x64 / arm64. T
 
 ## Before you commit
 
-Use `pnpm gate` in a terminal and answer the prompts. For automation, use `pnpm gate --until=plan` to see the checks selected for the changed paths. The later stages run those checks before a commit. Use the commands below when diagnosing a specific check or preparing a full release run.
+The owner commits directly to `develop` or merges an internal `feature/*` or `fix/*` branch. External PRs are not accepted. Run relevant checks locally:
 
 ```bash
 pnpm release:check
@@ -128,51 +128,14 @@ pnpm test:release
 pnpm build
 ```
 
-Add the desktop backend verification for the changed scope.
+For desktop changes, also prepare the runtime, run the backend smoke test, and run the Rust library tests as described in [the desktop instructions](../apps/desktop/AGENTS.md). Use only isolated test data for server smoke tests. `pnpm lint:gate` blocks new diagnostics against the stored baseline.
 
-```bash
-pnpm --filter desktop runtime:prepare
-node apps/desktop/scripts/backend-smoke.mjs
-cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
-```
+## CI/CD operations
 
-Prepare the runtime and the frontend resources of the Tauri configuration before the Cargo verification. The server smoke test needs an isolated test database. Do not point it at a production service.
+CI runs on pushes to `develop` and `main` and internal PRs. The owner tags a version commit on `develop`; the tag builds declared containers and desktop targets with available signing secrets and creates a draft release after a successful candidate. Promote `develop` to `main` using a merge commit, then manually publish the draft. See [CI/CD and releases](ci-cd.md).
 
-`pnpm lint:gate` compares the result with the stored baseline. It blocks a new diagnostic. It does not mean that the repository has zero warnings. After you fix an old diagnostic, shrink the baseline with `node scripts/release/lint-gate.mjs --update-baseline`. Explain a baseline growth in the code review.
-
-## Choose a CI/CD operation
-
-Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) explains the gates and the release evidence.
-
-| Intent | Operation |
-| --- | --- |
-| Preview the checks for a change | `pnpm gate --until=plan` |
-| Diagnose one check | Run its command, such as `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, or `pnpm build`. |
-| Run checks without a commit | `pnpm gate --until=check` |
-| Check and commit without a push | `pnpm gate --until=commit -m "type(scope): subject"` |
-| Check, commit, and push | `pnpm gate --until=push -m "type(scope): subject"` |
-| Open a PR without requesting auto-merge | `pnpm gate --until=pr -m "type(scope): subject"` |
-| Request auto-merge after opening a PR | `pnpm gate --until=merge -m "type(scope): subject"` |
-| Run all local checks | Add `--full` to the chosen stage. |
-| Change the gate scripts or workflow | Use `--until=pr` or `--until=merge`. The PR also needs the `gate-change` label and a review. |
-| Develop a feature or fix | Branch from `develop`, then run `pnpm gate --until=merge -m "type(scope): subject"`. The PR targets `develop`. |
-| Fix production urgently | Branch as `hotfix/NAME` from `main`, then run `pnpm gate --until=merge -m "fix(scope): subject" --version=VERSION`. Gate synchronizes the version and opens PRs to both `main` and `develop`. |
-| Prepare a new version and platforms | Branch as `release/VERSION` from `develop`. Run `pnpm gate --until=merge -m "chore(release): prepare VERSION" --version=VERSION --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The PR targets `develop`. |
-| Promote develop to main | On a clean, current `develop`, run `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The lists must match `release.json`. The main CI tags and builds the candidate. |
-| Repeat a publishable candidate build for an existing tag | Manually start `gate.yml` with `release=true`. Publication requires its Gate run ID. |
-| Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
-| Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
-| Publish a verified release directly | Manually start `release.yml` with the same inputs and `publish=true`. |
-| Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect. An administrator runs `pnpm gate:policy --apply` to apply it. |
-
-`pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.
+`pnpm gate --until=plan` remains available for a local check plan. The old gate commit, push, PR, and auto-merge stages are optional legacy tools.
 
 ## Daily maintenance
 
-Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Promotion checks the planned merge. It needs a sync PR only if `main` has content missing from `develop` or the merge conflicts.
-
-A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
-
-When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and check the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, check the runtime, the installers, and the backup-restore of the affected platforms again.
-
-Select the version and platforms with `pnpm gate` on a `release/*` branch, then run `pnpm release:check` if you need to diagnose the version files. For the build and the release entry, see the [CI/CD pipeline](ci-cd.md). The remote CI holds caches for Next.js, the Rust dependencies, and the Docker layers. The caches hold intermediate data only and do not skip a verification. A cold build or an evicted cache still runs every step. See the cache section of that manual for the hit rates and the maintenance method.
+Update the correct workspace package and lockfile when changing dependencies. Add a new migration for schema changes; do not edit a released migration. Test native runtime and backup/restore behavior when an affected platform changes. The owner selects and commits dependency updates.

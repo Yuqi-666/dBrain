@@ -11,7 +11,7 @@ Both modes use the same workspace interface. They do not synchronize data automa
 
 ## Install the desktop app
 
-A maintainer provides the current private internal-test release or candidate. A draft is visible only to a person with draft access. Choose the package for your system and CPU. Unpack the platform ZIP and check the included `SHA256SUMS`. Do not mix installers of different architectures.
+Download a published release from the repository's GitHub Releases page. Drafts and candidate artifacts are for maintainers. Choose the package for your system and CPU. Unpack the platform ZIP and check the included `SHA256SUMS`. Do not mix installers of different architectures.
 
 | Platform | Install format and steps |
 | --- | --- |

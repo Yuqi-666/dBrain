@@ -51,7 +51,7 @@
       }
     },
     "shortDescription": "dBrain local knowledge workspace",
-    "copyright": "Copyright (c) 2026 dBrain contributors. All rights reserved."
+    "copyright": "Copyright (c) 2026 dBrain contributors"
   },
   "plugins": {
     "updater": {

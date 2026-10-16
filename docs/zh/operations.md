@@ -6,7 +6,7 @@ Web 部署有四部分：PocketBase、Node Server、Web 和 nginx Gateway。Pock
 
 `DBRAIN_ADMIN_EMAIL` 与密码属于 PocketBase 运维超级管理员。它们不是用户登录账号。应用以终端用户令牌读取数据库。容器在启动前按配置创建或更新管理员账号。要长期修改密码，请修改部署配置并重启服务。
 
-## 从源码构建内部测试环境
+## 从源码构建自托管环境
 
 在仓库根目录配置并启动：
 
@@ -62,7 +62,7 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-更新容器每 15 秒检查一次 `main` 上成功的 Gate 推送。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库，并等待所有应用服务健康。
+更新容器每 15 秒检查一次由标签触发并成功的 `release-candidate.yml` 运行。它跳过更旧的运行编号，发现新候选时调用 `update.sh`。该脚本备份数据库，并等待所有应用服务健康。
 
 如果更新失败，自动尝试暂停，`.auto-update-failed` 记录目标。检查应用，必要时恢复匹配的备份。完成恢复后再删除该标记。
 

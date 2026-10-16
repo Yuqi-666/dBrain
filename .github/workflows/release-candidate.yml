@@ -1,14 +1,13 @@
 name: Release candidate
 
-# Builds the products of one version tag. The gate workflow calls this workflow
-# after each main push. A manual start repeats a failed
-# platform build, because the tag then already exists.
+# Builds every declared platform when the owner pushes a version tag from develop.
 #
 # The platforms come from `scripts/release/release.json` at that tag. A person
-# declares them there before the tag exists. The inputs below only narrow the
-# declaration for a repeat.
+# declares them there before the tag exists.
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
@@ -20,50 +19,38 @@ on:
         type: boolean
         default: true
       desktop_targets:
-        description: A part of the declared desktop targets, or empty for all of them
+        description: A part of the declared desktop targets for a manual retry
         type: string
         default: ""
       container_platforms:
-        description: A part of the declared container platforms, or empty for all of them
+        description: A part of the declared container platforms for a manual retry
         type: string
         default: ""
-  workflow_call:
-    inputs:
-      tag:
-        type: string
-        required: true
-      signed:
-        type: boolean
-        default: true
-      desktop_targets:
-        type: string
-        default: ""
-      container_platforms:
-        type: string
-        default: ""
-
 permissions:
   contents: read
   actions: read
   packages: write
 
 concurrency:
-  group: release-candidate-${{ inputs.tag }}
+  group: release-candidate-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
   verify-tag:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' && github.ref == format('refs/tags/{0}', inputs.tag)
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    environment: candidate
     outputs:
-      desktop_targets: ${{ steps.platforms.outputs.desktop_targets }}
+      desktop_targets: ${{ steps.signing.outputs.desktop_targets }}
       container_platforms: ${{ steps.platforms.outputs.container_platforms }}
+      tag: ${{ steps.platforms.outputs.tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .node-version
@@ -71,39 +58,57 @@ jobs:
         id: platforms
         shell: bash
         env:
-          DESKTOP_TARGETS: ${{ inputs.desktop_targets }}
-          CONTAINER_PLATFORMS: ${{ inputs.container_platforms }}
+          DESKTOP_TARGETS: ${{ github.event_name == 'push' && '' || inputs.desktop_targets }}
+          CONTAINER_PLATFORMS: ${{ github.event_name == 'push' && '' || inputs.container_platforms }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: |
           set -euo pipefail
           desktop="$(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS")"
           containers="$(node scripts/release/platforms.mjs select containers "$CONTAINER_PLATFORMS")"
           echo "desktop_targets=$desktop" >> "$GITHUB_OUTPUT"
           echo "container_platforms=$containers" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           {
             echo "The declaration of the tag:"
             node scripts/release/platforms.mjs declaration
-            echo "This candidate builds desktop: $desktop"
+            echo "This candidate declares desktop: $desktop"
             echo "This candidate builds containers: $containers"
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Verify the tag and the main branch
+      - name: Select desktop targets with available signing secrets
+        id: signing
+        env:
+          DESKTOP_TARGETS: ${{ steps.platforms.outputs.desktop_targets }}
+          CONTAINER_PLATFORMS: ${{ steps.platforms.outputs.container_platforms }}
+          SIGNED: ${{ github.event_name == 'push' || inputs.signed }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/release/signing-targets.mjs
+      - name: Verify the tag and develop ancestry
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: |
           set -euo pipefail
           node scripts/release/check.mjs --tag="$RELEASE_TAG"
-          # checkout with fetch-depth: 0 already has the main tracking ref.
-          # Its credentials are intentionally removed after checkout.
-          git merge-base --is-ancestor HEAD refs/remotes/origin/main
-          echo "The tag $RELEASE_TAG is on the main branch." >> "$GITHUB_STEP_SUMMARY"
+          [ "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")" ]
+          git merge-base --is-ancestor HEAD refs/remotes/origin/develop
+          echo "The tag $RELEASE_TAG is on develop." >> "$GITHUB_STEP_SUMMARY"
 
   desktop:
     needs: verify-tag
     if: needs.verify-tag.outputs.desktop_targets != ''
     uses: ./.github/workflows/desktop-build.yml
     with:
-      signed: ${{ inputs.signed }}
+      signed: ${{ github.event_name == 'push' || inputs.signed }}
       targets: ${{ needs.verify-tag.outputs.desktop_targets }}
     secrets: inherit
 
@@ -124,7 +129,7 @@ jobs:
         with:
           persist-credentials: false
           # The declaration of the candidate is the file at the tag.
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.verify-tag.outputs.tag }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .node-version
@@ -136,13 +141,13 @@ jobs:
           CONTAINER_PLATFORMS: ${{ needs.verify-tag.outputs.container_platforms }}
         run: |
           set -euo pipefail
-          for target in $(node scripts/release/platforms.mjs select desktop "$DESKTOP_TARGETS"); do
+          for target in $DESKTOP_TARGETS; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "desktop-$target-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir "incoming/$target"
           done
           if [ -n "$CONTAINER_PLATFORMS" ]; then
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "containers-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --dir incoming/containers
           fi
-          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="$DESKTOP_TARGETS" --containers="$CONTAINER_PLATFORMS"
+          node scripts/release/candidate.mjs assemble incoming release-artifacts/candidate --desktop="${DESKTOP_TARGETS:-none}" --containers="$CONTAINER_PLATFORMS"
           echo "Candidate $GITHUB_SHA (run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT). Platforms: desktop=$DESKTOP_TARGETS containers=$CONTAINER_PLATFORMS. Publish with release.yml when ready." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

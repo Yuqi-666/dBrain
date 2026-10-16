@@ -2,7 +2,7 @@
 
 dBrain 是一个知识工作空间：用节点记录内容，用关系连接知识，用图谱和 Dashboard 组织工作。Web 端连接自托管服务，桌面端在设备上运行完整本地后端，支持离线使用。
 
-当前产品版本为 **0.1.0**，处于内部测试阶段。Linux x64、Windows x64、macOS Intel 和 Apple Silicon 已完成统一候选构建；签名、公证及各平台人工验收仍需完成。Linux 容器支持 amd64 / arm64。源码仓库与内测下载渠道目前均为私有。
+当前源码版本见 [`release.json`](scripts/release/release.json)。项目以 Apache-2.0 许可证开源，仍处于早期开发阶段。Linux 容器支持 amd64 / arm64；桌面发行平台以版本声明为准。
 
 ## 能做什么
 
@@ -11,7 +11,7 @@ dBrain 是一个知识工作空间：用节点记录内容，用关系连接知�
 - 在 Dashboard 和数据视图中整理内容。
 - 桌面版携带 Node、PocketBase 和媒体处理运行时，用户无需安装开发工具。
 
-桌面本地数据与 Web 服务端数据分别保存，当前没有云端同步和应用内自动更新。
+桌面本地数据与 Web 服务端数据分别保存，当前没有云端同步。桌面更新取决于已发布的签名发行资产。
 
 ## 文档
 
@@ -21,8 +21,9 @@ dBrain 是一个知识工作空间：用节点记录内容，用关系连接知�
 | 配置开发环境、理解目录、修改和检查代码 | [开发手册](docs/zh/development.md) |
 | 部署容器、监控、升级、备份和恢复 | [运维手册](docs/zh/operations.md) |
 | 了解 CI/CD、四端构建、签名和发布门禁 | [CI/CD 流水线](docs/zh/ci-cd.md) |
+| 报告问题或安全漏洞 | [贡献指南](docs/zh/contributing.md)、[安全策略](SECURITY.md) |
 
-完整索引见 [docs](docs/README.md)（英文）与 [docs/zh](docs/zh/README.md)（中文）。CI 按改动范围运行，并缓存 pnpm、Next.js、Rust 依赖及 Docker 构建层；四端安装包与完整候选仍手动触发。
+完整索引见 [docs](docs/README.md)（英文）与 [docs/zh](docs/zh/README.md)（中文）。项目由所有者独立开发，不接受外部 PR。版本标签触发可用平台的候选构建和发行草稿；正式发布由所有者手动确认。
 
 ## 开发快速开始
 
@@ -51,4 +52,4 @@ apps/web、apps/desktop → packages（界面、状态、客户端）
 
 ## 授权
 
-本软件闭源，保留全部权利。使用与分发须依据权利人的单独书面授权，详见 [LICENSE](LICENSE)。第三方组件遵循各自许可证，其声明及所需源码材料应随发行提供。
+本项目采用 [Apache License 2.0](LICENSE)。第三方组件遵循各自许可证，其声明及所需源码材料应随发行提供。

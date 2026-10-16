@@ -1,43 +1,37 @@
-// Applies the GitHub side policy of the push gate.
-//
-// The repository must make the gate the only way into main and develop:
-//
-//   1. Auto-merge is on, so the local gate can hand the merge to GitHub.
-//   2. Only a merge commit can join the main branch. The job `merged` reads
-//      the second parent of that commit.
-//   3. A pull request is required, so a direct push to either branch fails.
-//   4. The status check `verify` is required, and the branch must be current.
-//   5. The label `gate-change` exists, so a person can approve a change to the
-//      gate itself. A label must exist before a pull request can carry it.
+// Applies the owner-maintained branch and release policy.
+// The owner pushes to develop directly or merges an internal feature branch.
+// Promotion to main uses an internal PR with CI.
 //
 // The default is a dry run. Pass --apply to change the repository.
 
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gateChangeLabel } from './checks.mjs';
-
-export const rulesetName = 'dBrain protected branches gate';
-export const legacyRulesetName = 'dBrain main gate';
-export const requiredCheck = 'verify';
+export const rulesetName = 'dBrain open source main';
+export const tagRulesetName = 'dBrain version tags';
+export const developRulesetName = 'dBrain develop';
+export const legacyRulesetName = 'dBrain protected branches gate';
+export const olderRulesetName = 'dBrain main gate';
+export const requiredCheck = 'checks';
 // The GitHub Actions application. A required check from another application
 // cannot satisfy the rule.
 export const actionsAppId = 15368;
 
 export const usage = `Usage: node scripts/gate/apply-ruleset.mjs [options]
 
-Print the GitHub policy of the push gate. Pass --apply to write it.
+Print the GitHub repository policy. Pass --apply to write it.
 
 Options:
   --apply              Write the repository settings and the ruleset.
   --repo OWNER/NAME    The repository. The default is the current gh repository.
-  --branch NAME        Protect one branch. The default protects main and develop.
+  --branch NAME        Protect one branch. The default protects main.
   --check NAME         The required status check. The default is ${requiredCheck}.
+  --reviewer LOGIN     Release environment reviewer. Defaults to a personal repository owner.
   -h, --help           Print this text.
 `;
 
 export function parseArgs(argv) {
-  const options = { apply: false, repository: null, branch: null, check: requiredCheck, help: false };
+  const options = { apply: false, repository: null, branch: null, check: requiredCheck, reviewer: null, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--apply') options.apply = true;
@@ -47,32 +41,40 @@ export function parseArgs(argv) {
     else if (arg.startsWith('--branch=')) options.branch = arg.slice('--branch='.length);
     else if (arg === '--check') options.check = argv[(index += 1)];
     else if (arg.startsWith('--check=')) options.check = arg.slice('--check='.length);
+    else if (arg === '--reviewer') options.reviewer = argv[(index += 1)];
+    else if (arg.startsWith('--reviewer=')) options.reviewer = arg.slice('--reviewer='.length);
     else if (arg === '-h' || arg === '--help') options.help = true;
     else throw new Error(`Unknown option: ${arg}`);
   }
   return options;
 }
 
-// The repository settings that make a merge commit the only merge method and
-// let the local gate ask for the merge.
+// Merge commits preserve the tagged develop commit in main history.
 export function repoSettings() {
   return {
-    allow_auto_merge: true,
+    allow_auto_merge: false,
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: false,
+    delete_branch_on_merge: true,
+    has_issues: true,
+    has_discussions: false,
   };
 }
 
-// The label that records the human approval of a change to the gate itself.
-// The verifier reads it, and the repository must hold the label before a pull
-// request can carry it.
-export function labelPayload() {
+export function workflowPermissions() {
   return {
-    name: gateChangeLabel,
-    color: 'fbca04',
-    description: 'A change to the push gate. The verifier asks for a review.',
+    default_workflow_permissions: 'read',
+    can_approve_pull_request_reviews: false,
+  };
+}
+
+export function releaseEnvironment(reviewerId) {
+  return {
+    wait_timer: 0,
+    prevent_self_review: false,
+    reviewers: [{ type: 'User', id: reviewerId }],
+    deployment_branch_policy: null,
   };
 }
 
@@ -81,7 +83,7 @@ export function rulesetPayload({ branch = null, check = requiredCheck } = {}) {
     name: rulesetName,
     target: 'branch',
     enforcement: 'active',
-    conditions: { ref_name: { include: (branch ? [branch] : ['main', 'develop']).map(name => `refs/heads/${name}`), exclude: [] } },
+    conditions: { ref_name: { include: (branch ? [branch] : ['main']).map(name => `refs/heads/${name}`), exclude: [] } },
     rules: [
       {
         type: 'pull_request',
@@ -90,7 +92,7 @@ export function rulesetPayload({ branch = null, check = requiredCheck } = {}) {
           dismiss_stale_reviews_on_push: false,
           require_code_owner_review: false,
           require_last_push_approval: false,
-          required_review_thread_resolution: false,
+          required_review_thread_resolution: true,
         },
       },
       {
@@ -108,9 +110,30 @@ export function rulesetPayload({ branch = null, check = requiredCheck } = {}) {
   };
 }
 
+export function developRulesetPayload() {
+  return {
+    name: developRulesetName,
+    target: 'branch',
+    enforcement: 'active',
+    conditions: { ref_name: { include: ['refs/heads/develop'], exclude: [] } },
+    rules: [{ type: 'non_fast_forward' }, { type: 'deletion' }],
+  };
+}
+
+export function tagRulesetPayload() {
+  return {
+    name: tagRulesetName,
+    target: 'tag',
+    enforcement: 'active',
+    conditions: { ref_name: { include: ['refs/tags/v*'], exclude: [] } },
+    rules: [{ type: 'non_fast_forward' }, { type: 'deletion' }],
+  };
+}
+
 export function planRuleset(existing, payload) {
   const found = (existing ?? []).find(entry => entry.name === payload.name) ??
-    (existing ?? []).find(entry => entry.name === legacyRulesetName);
+    (payload.target === 'branch' ? (existing ?? []).find(entry => entry.name === legacyRulesetName) : null) ??
+    (payload.target === 'branch' ? (existing ?? []).find(entry => entry.name === olderRulesetName) : null);
   return found ? { action: 'update', id: found.id } : { action: 'create', id: null };
 }
 
@@ -134,9 +157,8 @@ export function describe(payload, settings, plan) {
   }
   lines.push('Repository settings:');
   for (const [key, value] of Object.entries(settings)) lines.push(`    - ${key}=${value}`);
-  const label = labelPayload();
-  lines.push('Label:');
-  lines.push(`    - ${label.name}: ${label.description}`);
+  lines.push('Actions permissions:');
+  for (const [key, value] of Object.entries(workflowPermissions())) lines.push(`    - ${key}=${value}`);
   lines.push(
     plan.action === 'create'
       ? 'The ruleset does not exist. The script creates it.'
@@ -186,6 +208,8 @@ export async function main(argv, deps = {}) {
   }
 
   const payload = rulesetPayload({ branch: options.branch, check: options.check });
+  const developPayload = developRulesetPayload();
+  const tagPayload = tagRulesetPayload();
   const settings = repoSettings();
   let existing = [];
   try {
@@ -195,11 +219,31 @@ export async function main(argv, deps = {}) {
     io.log(`Note: the ruleset list is unavailable (${error.message}). The plan assumes none.`);
   }
   const plan = planRuleset(existing, payload);
+  const developPlan = planRuleset(existing, developPayload);
+  const tagPlan = planRuleset(existing, tagPayload);
   io.log(describe(payload, settings, plan));
+  io.log(`Develop ruleset: ${developPayload.name} (${developPlan.action}) allows direct pushes but blocks force pushes and deletion.`);
+  io.log(`Tag ruleset: ${tagPayload.name} (${tagPlan.action}) protects ${tagPayload.conditions.ref_name.include.join(', ')} from updates and deletion.`);
+  io.log(`Release environment: requires review by ${options.reviewer ?? 'the personal repository owner'}.`);
+  io.log('Private vulnerability reporting: enabled.');
+  io.log('Dependabot vulnerability alerts and security fixes: enabled; version-update PRs are disabled.');
 
   if (!options.apply) {
     io.log('\nDry run. Pass --apply to write the policy.');
     return 0;
+  }
+
+  const reviewerLogin = options.reviewer ?? repository.split('/')[0];
+  let reviewer;
+  try {
+    reviewer = apiJson(run, ['api', `users/${reviewerLogin}`]);
+  } catch (error) {
+    io.log(`The release reviewer lookup failed: ${error.message}`);
+    return 1;
+  }
+  if (reviewer?.type !== 'User' || !Number.isSafeInteger(reviewer.id)) {
+    io.log('The release reviewer must be a GitHub user. Pass --reviewer LOGIN for an organization repository.');
+    return 1;
   }
 
   const patch = Object.entries(settings).flatMap(([key, value]) => ['-F', `${key}=${value}`]);
@@ -210,48 +254,55 @@ export async function main(argv, deps = {}) {
   }
   io.log('Repository settings applied.');
 
-  const ruleset =
-    plan.action === 'create'
-      ? run('gh', [
-          'api',
-          '-X',
-          'POST',
-          `repos/${repository}/rulesets`,
-          '--input',
-          '-',
-        ], { input: JSON.stringify(payload) })
-      : run('gh', [
-          'api',
-          '-X',
-          'PUT',
-          `repos/${repository}/rulesets/${plan.id}`,
-          '--input',
-          '-',
-        ], { input: JSON.stringify(payload) });
-  if (ruleset.status !== 0) {
-    io.log(`The ruleset failed: ${describeFailure(ruleset)}`);
+  const workflow = run('gh', [
+    'api', '-X', 'PUT', `repos/${repository}/actions/permissions/workflow`,
+    '--input', '-',
+  ], { input: JSON.stringify(workflowPermissions()) });
+  if (workflow.status !== 0) {
+    io.log(`The Actions permissions failed: ${describeFailure(workflow)}`);
     return 1;
   }
-  io.log(`The ruleset is ${plan.action === 'create' ? 'created' : 'updated'}.`);
+  io.log('Actions permissions applied.');
 
-  const label = labelPayload();
-  const labelled = run('gh', [
-    'label',
-    'create',
-    label.name,
-    '--repo',
-    repository,
-    '--color',
-    label.color,
-    '--description',
-    label.description,
-    '--force',
-  ]);
-  if (labelled.status !== 0) {
-    io.log(`The label failed: ${describeFailure(labelled)}`);
+  for (const [item, itemPlan] of [[payload, plan], [developPayload, developPlan], [tagPayload, tagPlan]]) {
+    const ruleset = itemPlan.action === 'create'
+      ? run('gh', ['api', '-X', 'POST', `repos/${repository}/rulesets`, '--input', '-'], { input: JSON.stringify(item) })
+      : run('gh', ['api', '-X', 'PUT', `repos/${repository}/rulesets/${itemPlan.id}`, '--input', '-'], { input: JSON.stringify(item) });
+    if (ruleset.status !== 0) {
+      io.log(`The ruleset ${item.name} failed: ${describeFailure(ruleset)}`);
+      return 1;
+    }
+    io.log(`The ruleset ${item.name} is ${itemPlan.action === 'create' ? 'created' : 'updated'}.`);
+  }
+
+  const environment = run('gh', [
+    'api', '-X', 'PUT', `repos/${repository}/environments/release`, '--input', '-',
+  ], { input: JSON.stringify(releaseEnvironment(reviewer.id)) });
+  if (environment.status !== 0) {
+    io.log(`The release environment failed: ${describeFailure(environment)}`);
     return 1;
   }
-  io.log(`The label ${label.name} is ready.`);
+  io.log(`Release environment review assigned to ${reviewerLogin}.`);
+
+  const vulnerability = run('gh', ['api', '-X', 'PUT', `repos/${repository}/private-vulnerability-reporting`]);
+  if (vulnerability.status !== 0) {
+    io.log(`Private vulnerability reporting failed: ${describeFailure(vulnerability)}`);
+    return 1;
+  }
+  io.log('Private vulnerability reporting enabled.');
+
+  for (const [path, name] of [
+    ['vulnerability-alerts', 'Dependabot vulnerability alerts'],
+    ['automated-security-fixes', 'Dependabot security fixes'],
+  ]) {
+    const security = run('gh', ['api', '-X', 'PUT', `repos/${repository}/${path}`]);
+    if (security.status !== 0) {
+      io.log(`${name} failed: ${describeFailure(security)}`);
+      return 1;
+    }
+    io.log(`${name} enabled.`);
+  }
+
   return 0;
 }
 

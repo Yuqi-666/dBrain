@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import {
+  candidateTargets,
   prepareReleaseAssets,
   verifyPublishableCandidate,
   assembleCandidate,
@@ -23,6 +24,11 @@ const expected = {
   desktopTargets: ["linux-x64", "win32-x64", "darwin-x64", "darwin-arm64"],
   containerPlatforms: ["linux/amd64", "linux/arm64"],
 };
+
+test('an explicit none selection keeps skipped desktop targets out of a candidate', () => {
+  assert.deepEqual(candidateTargets('none', expected.desktopTargets, 'desktop target'), []);
+  assert.deepEqual(candidateTargets('linux-x64', expected.desktopTargets, 'desktop target'), ['linux-x64']);
+});
 async function fixture(signed = true, plan = expected) {
   const dir = await mkdtemp(join(tmpdir(), "dbrain-candidate-test-"));
   const incoming = join(dir, "incoming"),
@@ -66,7 +72,7 @@ async function fixture(signed = true, plan = expected) {
       installers,
       updater,
     });
-    files.LICENSE = "All rights reserved.";
+    files.LICENSE = "Apache License\nVersion 2.0, January 2004";
     const sums = [];
     for (const [name, data] of Object.entries(files)) {
       await writeFile(join(path, name), data);

@@ -6,7 +6,7 @@ A web deployment has four parts: PocketBase, the Node server, the web app, and t
 
 `DBRAIN_ADMIN_EMAIL` and the password belong to the PocketBase operator superuser. They are not a user login account. The app reads the database with an end-user token. The container creates or updates the operator account from the configuration before the start. To change the password for the long term, change the deployment configuration and restart the service.
 
-## Build an internal test environment from the source
+## Build a self-hosted environment from the source
 
 Configure and start the stack in the repository root.
 
@@ -62,7 +62,7 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-The updater checks the latest successful `main` Gate push every 15 seconds. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits until all application services are healthy.
+The updater checks the latest successful tag-triggered `release-candidate.yml` run every 15 seconds. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits until all application services are healthy.
 
 If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed. Remove that marker only after recovery.
 

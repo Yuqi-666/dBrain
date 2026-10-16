@@ -14,7 +14,7 @@ The root file `docker-compose.yml` wires the services together.
 | `pocketbase/entrypoint.sh` | Start script. It refuses to start without an operator account, then applies the account and starts PocketBase. |
 | `pocketbase/prepare-migrations.sh` | Builds the durable run directory before PocketBase starts. |
 | `update.sh` | Pulls one candidate or release image set, backs up the data volume, and restarts the stack. |
-| `updater/` | Separate container that polls successful main candidates every 15 seconds and calls `update.sh`. Its image holds a copy of `watch.sh`. |
+| `updater/` | Separate container that polls successful manually started release candidates every 15 seconds and calls `update.sh`. Its image holds a copy of `watch.sh`. |
 | `nginx.conf` | Gateway. It publishes port 8080 and routes `/health`, `/pb/`, `/trpc`, and `/`. |
 | `compose.test.yml` | CI-only overlay. It publishes test ports and adds a probe network. |
 | `.env.example` | Deployment variables. Copy it and fill real values. |
