@@ -358,6 +358,15 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           // The viewer is a read-only surface: no cookies, no credentials, so a
           // cross-origin file is either public or it degrades.
           withCredentials: false,
+          // Where the browser viewer finds pdf.js's own data trees. A CID-keyed
+          // font that names a predefined CMap needs the CMap file before it can
+          // map character codes to glyph ids; without one pdf.js fails
+          // `translateFont` and draws every glyph of that font blank, which
+          // reads as a corrupt document because the latin text still draws.
+          // Both trees are copied out of pdfjs-dist into the apps' `public/`
+          // by scripts/lib/pdfjs-assets.mjs.
+          cMapUrl: "/pdfjs/cmaps/",
+          standardFontDataUrl: "/pdfjs/standard_fonts/",
           // Read the file on demand instead of streaming all of it.
           //
           // By default pdf.js opens the file with one request for the whole

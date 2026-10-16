@@ -3,8 +3,8 @@
   "version": "0.1.6",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
-    "build": "next build --webpack",
+    "dev": "node ../../scripts/copy-pdfjs-assets.mjs desktop && next dev -p 3002",
+    "build": "node ../../scripts/copy-pdfjs-assets.mjs desktop && next build --webpack",
     "lint": "eslint",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",

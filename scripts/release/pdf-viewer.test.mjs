@@ -194,4 +194,8 @@ test("the viewer keeps asking pdfjs for on-demand reads", () => {
   assert.match(call, /disableAutoFetch:\s*true/);
   // Ranges must stay enabled: with `disableRange` pdf.js cannot read on demand.
   assert.doesNotMatch(call, /disableRange:\s*true/);
+  // A CID-keyed font with a predefined CMap renders blank without the CMap
+  // data, and a non-embedded font needs pdf.js's own standard-font files.
+  assert.match(call, /cMapUrl:\s*"\/pdfjs\/cmaps\/"/);
+  assert.match(call, /standardFontDataUrl:\s*"\/pdfjs\/standard_fonts\/"/);
 });
