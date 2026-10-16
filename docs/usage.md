@@ -58,6 +58,8 @@ Before you remove content, check whether the menu applies to a node, a relation,
 
 The graph and the Dashboard use the data of the same workspace. Database content supports table, kanban, calendar, and chart data views. The available configuration follows the interface entry and the content type. The analysis, the cover, and the transcode of media take time. On a failure, keep the error and the file type for the maintainer.
 
+The Dashboard keeps its chrome in two sidebars. The left sidebar holds the pages and the workspace. The right sidebar holds the component library. Use the two header buttons to open them. To add the open node to the component library, select the dashboard button in the node editor header.
+
 ### Attachment upload
 
 The largest single attachment is 2 GiB. The app selects the upload method from the size. The user does not configure it.
@@ -73,6 +75,8 @@ A PDF larger than 256 MiB skips the analysis. The app stores the file only. You 
 
 The PDF viewer reads only the parts of the current page. It does not download the whole file first. The first page of a large scan therefore appears fast. The viewer reads the later pages when you scroll to them.
 
+The app remembers the last page for each reader and each node. Reopen the node and the viewer continues from that page. The outline folds by level. Select a parent entry to open or close it. A long title wraps to the next line.
+
 ## Data location and backup
 
 The desktop app keeps the database, the attachments, the local identity, and the logs in the system application data directory. Locate it usually by the identifier `cn.dbrain.desktop`. The platform interface and the log give the real directory. On Linux, the common path is `$XDG_DATA_HOME/cn.dbrain.desktop`. Without that variable, the path is `~/.local/share/cn.dbrain.desktop`.
@@ -87,7 +91,7 @@ The maintainer backs up the data of a web user. A browser cache is not a server 
 
 On each start, an installed desktop app checks the latest published release over HTTPS. If a newer signed update exists for its platform, the app downloads it, verifies the updater signature, installs it, and restarts. The app remains usable offline if the check fails. The first version built with this updater must be installed manually.
 
-Tauri currently transfers a complete update bundle. This is a version update, not a byte-level delta patch. An upgrade does not replace the application data directory. The desktop runtime backs up the data before a version migration. That backup does not replace your external backup.
+Tauri currently transfers a complete update bundle. This is a version update, not a byte-level delta patch. An upgrade does not replace the application data directory. The desktop runtime backs up the data before a version migration. It keeps the two newest migration snapshots in the `backups` directory and removes the older ones. That backup does not replace your external backup.
 
 Uninstall and data removal are two different operations. Do not assume that the uninstaller removes the data. To remove the data, exit the app, inspect the application data directory, back it up, and remove it by hand. For a rollback, use the data backup of the old version. An old version cannot always open a migrated database.
 
