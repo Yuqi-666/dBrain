@@ -108,7 +108,7 @@ export class EdgeDirection {
   /**
    * Checks if direction is undirected.
    */
-  isUnidirectional(): boolean {
+  isUndirected(): boolean {
     return this.value === "undirected";
   }
 
