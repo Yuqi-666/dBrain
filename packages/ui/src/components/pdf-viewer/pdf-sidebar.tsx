@@ -21,6 +21,7 @@ import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { outlineActiveKeys, outlinePathIsOnActiveChain } from "./pdf-outline";
 import { pdfSpreadStep, type PdfSpread } from "./types";
 import type {
   PdfOutlineEntry,
@@ -176,22 +177,29 @@ function PdfThumbnail({
  * now folds with a chevron so a long table of contents is navigable, and the
  * label wraps (`whitespace-normal` / `break-words`) instead of being clipped at
  * the fixed rail width once indentation has eaten into it.
+ *
+ * A row on the active chain opens itself (`override` starts as `null`, meaning
+ * "follow the reader") until the reader folds it by hand, so the lit chapter is
+ * visible without expanding the whole tree.
  */
 function OutlineItem({
   entry,
-  depth,
-  activePages,
+  path,
+  activeKeys,
   onSelectPage,
 }: {
   entry: PdfOutlineEntry;
-  depth: number;
-  activePages: ReadonlySet<number>;
+  /** Sibling-index path of this row, for example `"0.2"`. */
+  path: string;
+  activeKeys: ReadonlySet<string>;
   onSelectPage: (page: number) => void;
 }) {
   const { t } = useI18n();
-  const [expanded, setExpanded] = useState(false);
   const hasChildren = entry.items.length > 0;
-  const active = entry.page !== null && activePages.has(entry.page);
+  const active = activeKeys.has(path);
+  const onActiveChain = outlinePathIsOnActiveChain(activeKeys, path);
+  const [override, setOverride] = useState<boolean | null>(null);
+  const expanded = override ?? onActiveChain;
 
   return (
     <li className="flex min-w-0 flex-col">
@@ -201,7 +209,7 @@ function OutlineItem({
             type="button"
             aria-expanded={expanded}
             aria-label={t(expanded ? "收起大纲" : "展开大纲")}
-            onClick={() => setExpanded((current) => !current)}
+            onClick={() => setOverride(!expanded)}
             className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ChevronRight
@@ -235,8 +243,8 @@ function OutlineItem({
       {hasChildren && expanded && (
         <OutlineList
           entries={entry.items}
-          depth={depth + 1}
-          activePages={activePages}
+          path={path}
+          activeKeys={activeKeys}
           onSelectPage={onSelectPage}
         />
       )}
@@ -246,25 +254,26 @@ function OutlineItem({
 
 function OutlineList({
   entries,
-  depth,
-  activePages,
+  path,
+  activeKeys,
   onSelectPage,
 }: {
   entries: readonly PdfOutlineEntry[];
-  depth: number;
-  activePages: ReadonlySet<number>;
+  /** Sibling-index path of this list's parent, or `""` at the root. */
+  path: string;
+  activeKeys: ReadonlySet<string>;
   onSelectPage: (page: number) => void;
 }) {
   useI18n();
 
   return (
-    <ul className={cn("flex flex-col", depth > 0 && "pl-3")}>
+    <ul className={cn("flex flex-col", path !== "" && "pl-3")}>
       {entries.map((entry, index) => (
         <OutlineItem
           key={`${entry.title}-${index}`}
           entry={entry}
-          depth={depth}
-          activePages={activePages}
+          path={path === "" ? String(index) : `${path}.${index}`}
+          activeKeys={activeKeys}
           onSelectPage={onSelectPage}
         />
       ))}
@@ -292,6 +301,14 @@ export function PdfSidebar({
   const activePages = new Set(
     Array.from({ length: pagesPerSlot }, (_, index) => page + index),
   );
+  /**
+   * The outline's active chain. It is derived from the leading page alone: the
+   * right half of a spread must not light the *next* section before the reader
+   * has scrolled into it, and the section that started earlier stays lit.
+   */
+  const activeOutlineKeys = outline
+    ? outlineActiveKeys(outline, page)
+    : new Set<string>();
 
   return (
     <aside
@@ -355,8 +372,8 @@ export function PdfSidebar({
             {outline && outline.length > 0 ? (
               <OutlineList
                 entries={outline}
-                depth={0}
-                activePages={activePages}
+                path=""
+                activeKeys={activeOutlineKeys}
                 onSelectPage={onSelectPage}
               />
             ) : (

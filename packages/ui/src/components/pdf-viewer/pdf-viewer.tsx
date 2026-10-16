@@ -820,6 +820,15 @@ export function PdfViewer({
 
   useEffect(() => {
     if (readyUrl === null || readyUrl !== url || !progressKey) return;
+    // The slots `goToPage` measures are laid out from `viewport`. On the very
+    // first `ready` commit the scroller has only just mounted, so the
+    // measurement effect below has not run yet: 适配 resolves against a 0×0 box,
+    // i.e. the minimum multiplier, and every slot is a fraction of its real
+    // height. Seating the stored page against *that* layout lands the reader
+    // early once the measurement grows the strip by the ratio of the two scales
+    // (a stored 18 opened at 3, a stored 116 at 15). Waiting one commit for a
+    // real box is what keeps the jump on the page that was stored.
+    if (viewport.width <= 0 || viewport.height <= 0) return;
     const restored = restoredProgress.current;
     if (restored && restored.url === readyUrl && restored.key === progressKey) {
       return;
@@ -845,7 +854,16 @@ export function PdfViewer({
     // url-reset effect firing, and a node with no saved position must still open
     // at its first page rather than inherit the previous node's.
     goToPage(requested, "auto");
-  }, [readyUrl, url, progressKey, pageCount, mode.spread, goToPage]);
+  }, [
+    readyUrl,
+    url,
+    progressKey,
+    pageCount,
+    mode.spread,
+    goToPage,
+    viewport.width,
+    viewport.height,
+  ]);
 
   /**
    * The reading position, written as the reader moves.
