@@ -16,7 +16,7 @@ A user records content in nodes and connects nodes with edges.
 The user reads and edits the result as a graph, a data view, or a dashboard.
 The web app talks to a self-hosted server.
 The desktop app runs the full backend and PocketBase on the local machine.
-The product version is 0.1.0 and the project is in internal test.
+The product is in early public development. The source version is in `scripts/release/release.json`.
 
 ## Repository map
 
@@ -65,8 +65,8 @@ pnpm lint:gate
 pnpm test:release
 pnpm build                    # builds the server and the web app
 pnpm gate --until=plan        # prints the check plan without changing files
-pnpm gate:policy              # prints the GitHub policy of the push gate
-pnpm gate:hooks               # installs the local pre-push brake. `pnpm gate` does it too.
+pnpm gate:policy              # prints the public GitHub repository policy
+pnpm gate:hooks               # installs the optional legacy pre-push hook
 pnpm dev:desktop              # needs Rust and the native libraries
 ```
 
@@ -77,13 +77,13 @@ pnpm dev:desktop              # needs Rust and the native libraries
 3. Change business behavior in `backend/domain` or `backend/application` first. Then update the adapters and the UI.
 4. Add a JavaScript dependency in the correct workspace package and update `pnpm-lock.yaml`. Add a Rust dependency and update `Cargo.lock`.
 5. Write a user-facing manual in `docs/` and its Chinese version in `docs/zh/`. Keep the two files in step.
-6. Use Conventional Commits. Example: `fix(server): reject a stale token`.
+6. Use Conventional Commits for commits and internal pull request titles. Example: `fix(server): reject a stale token`.
 7. Do not point a smoke test at a live service. The server smoke test needs an isolated test database.
 
 ## Before you finish
 
-1. Run `pnpm gate --until=plan` to see the checks selected for the changed paths. A person can run `pnpm gate` and answer the prompts.
-2. Run those checks. `pnpm gate` runs them before a commit; for a read-only task, run only the checks needed to verify the work.
-3. Use `pnpm gate --until=check --full` for a full check run. `pnpm lint:gate` blocks new diagnostics against a baseline.
+1. Run `pnpm gate --until=plan` to see the legacy local check plan.
+2. Run the checks relevant to your change. CI runs the required checks on pushes to develop and main and on internal pull requests.
+3. Run `pnpm release:check`, `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, and `pnpm build` for a full check. `pnpm lint:gate` blocks new diagnostics against a baseline.
 4. If you changed the desktop app, also run the desktop checks in [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md).
-5. To push work into `develop` through a PR, run `pnpm gate --until=pr -m "type(scope): subject"` on a development branch. Use `--until=merge` to request auto-merge too. Hotfix and release branches need version inputs; promotion runs from clean `develop`. Read [docs/ci-cd.md](docs/ci-cd.md) first.
+5. The owner develops on `develop` directly or through internal feature/fix branches. Tag on `develop`, merge it to `main` with a merge commit, and publish the automatically drafted release manually. External PRs are not accepted. Read [docs/ci-cd.md](docs/ci-cd.md) first.

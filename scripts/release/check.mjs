@@ -18,8 +18,7 @@ export async function checkRelease(tag) {
     /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/,
   );
   // The declaration of the release: the version above and the platforms of the
-  // next candidate. This check runs in the local gate, so a bad name fails
-  // before a tag exists.
+  // next candidate. CI and the tag workflow run this before a tag exists.
   declarationOf(release);
   for (const file of [
     "apps/desktop/package.json",
@@ -68,9 +67,11 @@ export async function checkRelease(tag) {
       ),
       "PocketBase checksum drift",
     );
+  assert.equal((await json("package.json")).license, "Apache-2.0");
   assert.ok(
-    (await read("LICENSE")).includes("All rights reserved."),
-    "Distribution license missing",
+    (await read("LICENSE")).includes("Apache License") &&
+      (await read("LICENSE")).includes("Version 2.0, January 2004"),
+    "Apache-2.0 distribution license missing",
   );
   if (tag)
     assert.equal(

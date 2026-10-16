@@ -16,12 +16,14 @@ The two trees address three reader groups: the user, the developer, and the oper
 | `development.md` | Environment, project layout, web and desktop development, quality gates, and maintenance. |
 | `operations.md` | Source and image deployment, access configuration, backup and restore, and troubleshooting. |
 | `usage.md` | Install, accounts, workspaces, graph, dashboard, and upgrade steps. |
-| `ci-cd.md` | The push gate, the trailer, the verifier, the merge gate, the tag, the declared platforms, the release candidate, the publication gate, the repository policy, and caches. |
+| `ci-cd.md` | Pull request checks, versioning, candidate builds, publication, and repository policy. |
+| `contributing.md` | The English contribution guide. |
 | `zh/README.md` | The index of the Chinese tree. |
 | `zh/development.md` | The Chinese `development.md`. |
 | `zh/operations.md` | The Chinese `operations.md`. |
 | `zh/usage.md` | The Chinese `usage.md`. |
 | `zh/ci-cd.md` | The Chinese `ci-cd.md`. |
+| `zh/contributing.md` | The Chinese contribution guide. |
 
 ## Conventions
 

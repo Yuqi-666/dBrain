@@ -1,10 +1,13 @@
 name: Publish release
-# Publish a verified Gate candidate from main by run ID and version tag.
+# Create a draft after a successful tag candidate; publish only on owner request.
 on:
+  workflow_run:
+    workflows: [Release candidate]
+    types: [completed]
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Successful Gate run ID on the main branch
+        description: Successful release-candidate run ID
         type: string
         required: true
       tag:
@@ -14,7 +17,7 @@ on:
       publish:
         description: Publish now (false creates a draft)
         type: boolean
-        default: true
+        default: false
 permissions:
   contents: read
   actions: read
@@ -23,19 +26,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch' && !inputs.publish && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    environment: release
     permissions:
       contents: write
       actions: read
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
-      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+      CANDIDATE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.candidate_run_id }}
       RELEASE_TAG: ${{ inputs.tag }}
-      PUBLISH_RELEASE: ${{ inputs.publish }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -49,18 +50,20 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$CANDIDATE_RUN_ID" =~ ^[0-9]+$ ]]
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
-          default_branch=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef --jq '.defaultBranchRef.name')
-          [ "$GITHUB_REF" = "refs/heads/$default_branch" ] || { echo "Run publication from the default branch"; exit 1; }
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" > candidate-run.json
           node scripts/release/validate-run.mjs candidate-run.json
-          [ "$(node -p "require('./candidate-run.json').head_branch")" = "$default_branch" ] || { echo "The candidate run is not on the default branch"; exit 1; }
           source_sha=$(node -p "require('./candidate-run.json').head_sha")
           attempt=$(node -p "require('./candidate-run.json').run_attempt")
-          [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ] || { echo "Tag does not match the candidate"; exit 1; }
-          git merge-base --is-ancestor "$source_sha" HEAD
           git show "$source_sha:scripts/release/release.json" > tag-release.json
-          [ "$(node -p "'v'+require('./tag-release.json').version")" = "$RELEASE_TAG" ]
+          version_tag=$(node -p "'v'+require('./tag-release.json').version")
+          if [ -n "$RELEASE_TAG" ] && [ "$RELEASE_TAG" != "$version_tag" ]; then
+            echo "The requested tag differs from the candidate version"; exit 1
+          fi
+          RELEASE_TAG="$version_tag"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
+          [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ] || { echo "Tag does not match the candidate"; exit 1; }
+          git merge-base --is-ancestor "$source_sha" refs/remotes/origin/develop
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "DBRAIN_CANDIDATE_SHA=$source_sha" >> "$GITHUB_ENV"
           echo "DBRAIN_CANDIDATE_RUN_ID=$CANDIDATE_RUN_ID" >> "$GITHUB_ENV"
           echo "DBRAIN_CANDIDATE_RUN_ATTEMPT=$attempt" >> "$GITHUB_ENV"
@@ -88,12 +91,49 @@ jobs:
           # Ship .env.example as well as the visible, checksummed assets.
           shopt -s dotglob
           gh release create "$RELEASE_TAG" assets/* --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "dBrain $RELEASE_TAG" --notes-file assets/RELEASE-NOTES.md "${flags[@]}"
-      - name: Publish release
-        if: inputs.publish
-        run: |
-          if [ -f candidate/containers/container-report.json ]; then
-            node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
-          fi
-          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
       - if: always()
         run: docker logout ghcr.io
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-22.04
+    environment: release
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Publish the draft after promotion to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" > candidate-run.json
+          node scripts/release/validate-run.mjs candidate-run.json
+          source_sha=$(node -p "require('./candidate-run.json').head_sha")
+          attempt=$(node -p "require('./candidate-run.json').run_attempt")
+          [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ]
+          git merge-base --is-ancestor "$source_sha" HEAD
+          git show "$source_sha:scripts/release/release.json" > tag-release.json
+          [ "$(node -p "'v'+require('./tag-release.json').version")" = "$RELEASE_TAG" ]
+          gh run download "$CANDIDATE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "candidate-$CANDIDATE_RUN_ID-$attempt" --dir candidate
+          node scripts/release/candidate.mjs publish candidate assets --release-json=tag-release.json
+          [ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true ]
+          if [ -f candidate/containers/container-report.json ]; then
+            printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            node scripts/release/verify-images.mjs candidate/containers/container-report.json
+            node scripts/release/promote-images.mjs candidate/containers/container-report.json "$RELEASE_TAG"
+            docker logout ghcr.io
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false

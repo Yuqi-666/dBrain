@@ -9,7 +9,7 @@ etag_file="$state_dir/etag"
 body_file="$state_dir/runs.json"
 header_file="$state_dir/headers"
 auth_file="$state_dir/auth.conf"
-api='https://api.github.com/repos/Yuqi-666/dBrain/actions/workflows/gate.yml/runs?branch=main&event=push&status=success&per_page=1'
+api='https://api.github.com/repos/Yuqi-666/dBrain/actions/workflows/release-candidate.yml/runs?event=push&status=success&per_page=1'
 
 env_value() {
   [ -f .env ] || return 0
@@ -75,12 +75,12 @@ check_once() {
   fetch_runs || fetch_status=$?
   [ "$fetch_status" -ne 3 ] || return 0
   [ "$fetch_status" -eq 0 ] || return 1
-  result="$(jq -er '.workflow_runs[0] | select(.conclusion == "success" and .head_branch == "main" and .event == "push") | "\(.id) \(.run_attempt)"' "$body_file")" || return 1
+  result="$(jq -er '.workflow_runs[0] | select(.conclusion == "success" and .event == "push") | "\(.id) \(.run_attempt)"' "$body_file")" || return 1
   read -r run attempt <<EOF
 $result
 EOF
   case "$run:$attempt" in
-    *[!0-9:]*|:*|*:) echo '[updater] invalid Gate run identity' >&2; return 1 ;;
+    *[!0-9:]*|:*|*:) echo '[updater] invalid candidate run identity' >&2; return 1 ;;
   esac
   target="candidate-$run-$attempt"
   current="$(cat .current-version 2>/dev/null || true)"
@@ -98,14 +98,14 @@ EOF
       return 0
     fi
   elif [ -n "$current" ]; then
-    # A manual release has no candidate run ID. Record the current Gate run as
+    # A manual release has no candidate run ID. Record the current candidate run as
     # the starting point so that the watcher cannot replace it with an older candidate.
     printf '%s\n' "$target" > .auto-update-last-run
     echo "[updater] tracking from $target; waiting for a newer run"
     return 0
   fi
 
-  echo "[updater] new successful main candidate: $target"
+  echo "[updater] new successful tag candidate: $target"
   if sh update.sh "$target"; then
     printf '%s\n' "$target" > .auto-update-last-run
     echo "[updater] deployed $target"
@@ -130,7 +130,7 @@ fi
 if [ -z "$github_token" ]; then
   echo '[updater] no DBRAIN_GITHUB_TOKEN; the GitHub API allows 60 requests per hour' >&2
 fi
-echo "[updater] watching successful main candidates every ${interval}s"
+echo "[updater] watching successful tag candidates every ${interval}s"
 last_state=''
 while :; do
   if enabled; then

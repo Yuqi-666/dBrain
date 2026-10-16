@@ -53,7 +53,7 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
-    environment: ${{ inputs.signed && 'release' || 'candidate' }}
+    environment: candidate
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       CARGO_BUILD_JOBS: "2"

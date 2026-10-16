@@ -1,0 +1,5 @@
+# Release and repository policy changes need a maintainer review.
+/.github/ @Yuqi-666
+/scripts/release/ @Yuqi-666
+/scripts/gate/ @Yuqi-666
+/deploy/ @Yuqi-666

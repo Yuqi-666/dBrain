@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: checks
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.0.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install media tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/release/download-pocketbase.mjs
+      - run: pnpm release:check
+      - run: pnpm check-types
+      - run: pnpm lint:gate
+      - run: pnpm test:release
+      - run: pnpm build
+      - run: bash scripts/release/check-workflows.sh

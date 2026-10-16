@@ -42,7 +42,9 @@ cp .env.example .env
 pnpm dev
 ```
 
-Only two development commands exist. `pnpm dev` starts PocketBase, the web app, and the server on this machine. `pnpm dev:remote` adds the gateway `scripts/dev-gateway.mjs` for a remote domain. Both commands start the child processes in parallel. The exit of one process stops the group. The ports come from the root `.env`. A shell variable of the same name has priority.
+Only two development commands exist. `pnpm dev` starts PocketBase, the web app, and the server on this machine. `pnpm dev:remote` adds the gateway `scripts/dev-gateway.mjs` for a remote domain. Both commands start the child processes in parallel. The exit of one process stops the group.
+
+The ports come from the root `.env`. A shell variable of the same name has priority.
 
 | Service | Variable | Default | Address |
 | --- | --- | --- | --- |
@@ -53,7 +55,7 @@ Only two development commands exist. `pnpm dev` starts PocketBase, the web app, 
 
 Two services on the same port fail at the start with an error. PocketBase does not wait in a loop.
 
-Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it; when you change the PocketBase address, verify the backend `PB_URL` too. A database from before the `0000000001_base_schema.js` baseline is rejected.
+Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it. When you change the PocketBase address, check the backend `PB_URL` too. The launcher rejects a database from before the `0000000001_base_schema.js` baseline.
 
 `DBRAIN_ADMIN_EMAIL` and the password in `.env` belong to the operator account. The app identity uses the normal `users` collection. A shell variable of the same name has priority over the file. After an admin configuration change, run `pnpm pb:admin` to synchronize the development database account.
 
@@ -77,7 +79,9 @@ The gateway keeps the browser Host header. The server compares the Host header w
 
 The gateway is necessary because the client uses only `/trpc` and `/pb` on the same domain. It does not connect to 3001 or 8090 on the browser machine. See `packages/api-client/src/backend-urls.ts`. The same-domain entry must accept these two paths.
 
-All ports come from the root `.env`. `DBRAIN_GATEWAY_PORT` (default 8080) is the gateway and the port in the address `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>`. `DBRAIN_WEB_PORT`, `DBRAIN_SERVER_PORT`, and `DBRAIN_PB_HTTP` are the three upstreams. In the remote form, Next binds to loopback only. Only the gateway listens externally (`DBRAIN_GATEWAY_HOST`, default 0.0.0.0). `DBRAIN_DEV_DOMAIN` only prints the address at the start. It does not control a listener.
+All ports come from the root `.env`. `DBRAIN_GATEWAY_PORT` (default 8080) is the gateway and the port in the address `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>`. `DBRAIN_WEB_PORT`, `DBRAIN_SERVER_PORT`, and `DBRAIN_PB_HTTP` are the three upstreams.
+
+In the remote form, Next binds to loopback only. Only the gateway listens externally (`DBRAIN_GATEWAY_HOST`, default 0.0.0.0). `DBRAIN_DEV_DOMAIN` only prints the address at the start. It does not control a listener.
 
 The command sets the upstream addresses itself (`DBRAIN_WEB_URL`, `DBRAIN_SERVER_URL`, `DBRAIN_PB_URL`). Do not set them by hand. `DBRAIN_GATEWAY_LOG=1` prints every request. By default, the gateway prints only `/trpc`, `/pb`, and the upgrade requests.
 
@@ -114,7 +118,7 @@ The current release targets are Linux x64, Windows x64, and macOS x64 / arm64. T
 
 ## Before you commit
 
-Use `pnpm gate` in a terminal and answer the prompts. For automation, use `pnpm gate --until=plan` to see the checks selected for the changed paths. The later stages run those checks before a commit. Use the commands below when diagnosing a specific check or preparing a full release run.
+The owner commits directly to `develop` or merges an internal `feature/*` or `fix/*` branch. External PRs are not accepted. Run relevant checks locally:
 
 ```bash
 pnpm release:check
@@ -124,49 +128,14 @@ pnpm test:release
 pnpm build
 ```
 
-Add the desktop backend verification for the changed scope.
+For desktop changes, also prepare the runtime, run the backend smoke test, and run the Rust library tests as described in [the desktop instructions](../apps/desktop/AGENTS.md). Use only isolated test data for server smoke tests. `pnpm lint:gate` blocks new diagnostics against the stored baseline.
 
-```bash
-pnpm --filter desktop runtime:prepare
-node apps/desktop/scripts/backend-smoke.mjs
-cargo test --locked --release --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
-```
+## CI/CD operations
 
-Prepare the runtime and the frontend resources of the Tauri configuration before the Cargo verification. The server smoke test needs an isolated test database. Do not point it at a production service.
+CI runs on pushes to `develop` and `main` and internal PRs. The owner tags a version commit on `develop`; the tag builds declared containers and desktop targets with available signing secrets and creates a draft release after a successful candidate. Promote `develop` to `main` using a merge commit, then manually publish the draft. See [CI/CD and releases](ci-cd.md).
 
-`pnpm lint:gate` compares the result with the stored baseline. It blocks a new diagnostic. It does not mean that the repository has zero warnings. After you fix an old diagnostic, shrink the baseline with `node scripts/release/lint-gate.mjs --update-baseline`. Explain a baseline growth in the code review.
-
-## Choose a CI/CD operation
-
-Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) explains the gates and the release evidence.
-
-| Intent | Operation |
-| --- | --- |
-| Preview the checks for a change | `pnpm gate --until=plan` |
-| Diagnose one check | Run its command, such as `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, or `pnpm build`. |
-| Run checks without a commit | `pnpm gate --until=check` |
-| Check and commit without a push | `pnpm gate --until=commit -m "type(scope): subject"` |
-| Check, commit, and push | `pnpm gate --until=push -m "type(scope): subject"` |
-| Open a PR without requesting auto-merge | `pnpm gate --until=pr -m "type(scope): subject"` |
-| Request auto-merge after opening a PR | `pnpm gate --until=merge -m "type(scope): subject"` |
-| Run all local checks | Add `--full` to the chosen stage. |
-| Change the gate scripts or workflow | Use `--until=pr` or `--until=merge`. The PR also needs the `gate-change` label and a review. |
-| Develop a feature or fix | Branch from `develop`, then run `pnpm gate --until=merge -m "type(scope): subject"`. The PR targets `develop`. |
-| Fix production urgently | Branch as `hotfix/NAME` from `main`, then run `pnpm gate --until=merge -m "fix(scope): subject" --version=VERSION`. Gate synchronizes the version and opens PRs to both `main` and `develop`. |
-| Prepare a new version and platforms | Branch as `release/VERSION` from `develop`. Run `pnpm gate --until=merge -m "chore(release): prepare VERSION" --version=VERSION --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The PR targets `develop`. |
-| Promote develop to main | On a clean, current `develop`, run `pnpm gate --until=merge -m "chore(release): promote VERSION" --desktop-targets=linux-x64,win32-x64 --container-platforms=linux/amd64,linux/arm64`. The lists must match `release.json`. The main CI tags and builds the candidate. |
-| Repeat a publishable candidate build for an existing tag | Manually start `gate.yml` with `release=true`. Publication requires its Gate run ID. |
-| Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
-| Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
-| Publish a verified release directly | Manually start `release.yml` with the same inputs and `publish=true`. |
-| Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect; an administrator runs `pnpm gate:policy --apply` to apply. |
-
-`pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.
+`pnpm gate --until=plan` remains available for a local check plan. The old gate commit, push, PR, and auto-merge stages are optional legacy tools.
 
 ## Daily maintenance
 
-Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Promotion checks the planned merge. It needs a sync PR only if `main` has content missing from `develop` or the merge conflicts. A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
-
-When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and verify the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, verify the runtime, the installers, and the backup-restore of the affected platforms again.
-
-Select the version and platforms with `pnpm gate` on a `release/*` branch, then run `pnpm release:check` if you need to diagnose the version files. For the build and the release entry, see the [CI/CD pipeline](ci-cd.md). The remote CI holds caches for Next.js, the Rust dependencies, and the Docker layers. The caches hold intermediate data only and do not skip a verification. A cold build or an evicted cache still runs every step. See the cache section of that manual for the hit rates and the maintenance method.
+Update the correct workspace package and lockfile when changing dependencies. Add a new migration for schema changes; do not edit a released migration. Test native runtime and backup/restore behavior when an affected platform changes. The owner selects and commits dependency updates.

@@ -300,6 +300,9 @@ function option(args, name) {
   const found = args.find((arg) => arg.startsWith(prefix));
   return found ? found.slice(prefix.length) : "";
 }
+export function candidateTargets(spec, declared, label) {
+  return spec === 'none' ? [] : selectTargets(spec, declared, label);
+}
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
@@ -323,7 +326,7 @@ if (
   if (mode === "assemble") {
     // The candidate holds the platforms of this start. A start may narrow the
     // declaration of release.json, and it cannot add a platform.
-    expected.desktopTargets = selectTargets(
+    expected.desktopTargets = candidateTargets(
       option(args, "desktop"),
       release.desktopTargets,
       "desktop target",
@@ -340,13 +343,13 @@ if (
     const index = await readJSON(
       join(positional[0], "candidate-index.json"),
     );
-    expected.desktopTargets = selectTargets(
-      index.desktopTargets.join(","),
+    expected.desktopTargets = candidateTargets(
+      index.desktopTargets.length ? index.desktopTargets.join(",") : 'none',
       release.desktopTargets,
       "desktop target",
     );
-    expected.containerPlatforms = selectTargets(
-      index.containerPlatforms.join(","),
+    expected.containerPlatforms = candidateTargets(
+      index.containerPlatforms.length ? index.containerPlatforms.join(",") : 'none',
       release.containerPlatforms,
       "container platform",
     );

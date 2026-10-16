@@ -37,7 +37,7 @@ exit 0
 const runs = (id, attempt) =>
   JSON.stringify({
     workflow_runs: [
-      { id, run_attempt: attempt, conclusion: "success", head_branch: "main", event: "push" },
+      { id, run_attempt: attempt, conclusion: "success", head_branch: "v0.1.6", event: "push" },
     ],
   });
 
@@ -94,6 +94,10 @@ test("the updater polls every 15 seconds", async () => {
 test("a newer candidate runs update.sh and records it", async (t) => {
   const deployment = await scenario(t, { current: "candidate-100-1" });
   await once(deployment);
+  assert.match(
+    await readFile(join(deployment.root, "curl.log"), "utf8"),
+    /release-candidate\.yml\/runs\?event=push/,
+  );
   assert.equal((await readFile(join(deployment.root, "update.log"), "utf8")).trim(), "candidate-200-1");
   assert.equal(
     (await readFile(join(deployment.root, ".auto-update-last-run"), "utf8")).trim(),

@@ -6,7 +6,7 @@ A web deployment has four parts: PocketBase, the Node server, the web app, and t
 
 `DBRAIN_ADMIN_EMAIL` and the password belong to the PocketBase operator superuser. They are not a user login account. The app reads the database with an end-user token. The container creates or updates the operator account from the configuration before the start. To change the password for the long term, change the deployment configuration and restart the service.
 
-## Build an internal test environment from the source
+## Build a self-hosted environment from the source
 
 Configure and start the stack in the repository root.
 
@@ -19,11 +19,13 @@ docker compose -p dbrain up --build --wait
 docker compose -p dbrain ps
 ```
 
-Local Docker reuses the layers of the same builder. The GHA cache belongs to the remote workflows, and the local Compose does not download it. This build uses the current source. It is not a published release image. Open `http://localhost:3000` and verify the pages, the user login, and the file functions.
+Local Docker reuses the layers of the same builder. The GHA cache belongs to the remote workflows, and the local Compose does not download it. This build uses the current source. It is not a published release image. Open `http://localhost:3000` and check the pages, the user login, and the file functions.
 
 ## Use a candidate or a release image
 
-For releases after v0.1.3, download `dbrain-deploy-vVERSION.tar.gz` and `SHA256SUMS` from the matching release. Check the archive hash, then extract it into the deployment directory. The archive holds `docker-compose.yml`, `nginx.conf`, `update.sh`, `.env.example`, `compose.release.yml`, and `container-report.json` at its root. Newer archives also include `compose.updater.yml` and `deploy/updater/`. Keep these files together. v0.1.3 published the same deployment files as separate assets; download them individually and rename `default.env.example` to `.env.example`. Verify the source commit and image digests in the container report.
+For releases after v0.1.3, download `dbrain-deploy-vVERSION.tar.gz` and `SHA256SUMS` from the matching release. Check the archive hash, then extract it into the deployment directory. The archive holds `docker-compose.yml`, `nginx.conf`, `update.sh`, `.env.example`, `compose.release.yml`, and `container-report.json` at its root. Newer archives also include `compose.updater.yml` and `deploy/updater/`. Keep these files together.
+
+v0.1.3 published the same deployment files as separate assets. Download them individually and rename `default.env.example` to `.env.example`. Check the source commit and image digests in the container report.
 
 For a published release, the following manual commands use its fixed digest overlay. Run them in that deployment directory.
 
@@ -40,14 +42,16 @@ Use the same digest overlay for later Compose commands: `compose.release.yml` fo
 
 ## Update with one command
 
-Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env` in one deployment directory. The candidate contains the first three files; releases after v0.1.3 put them in the deployment archive. Run the script from that directory. For a private GHCR package, log in to `ghcr.io` first with a token that can read packages.
+Keep `docker-compose.yml`, `nginx.conf`, `update.sh`, and `.env` in one deployment directory. The candidate contains the first three files. Releases after v0.1.3 put them in the deployment archive. Run the script from that directory. For a private GHCR package, log in to `ghcr.io` first with a token that can read packages.
 
 ```bash
 sh update.sh candidate-RUN_ID-ATTEMPT
 sh update.sh vVERSION
 ```
 
-The argument selects exactly one tested image set. The script pulls the three images, resolves their registry digests, stops the stack, copies the complete PocketBase volume to `backups/`, writes `compose.current.yml`, starts the stack, and waits for health checks. PocketBase prepares its migration run directory before opening the database. Keep `compose.current.yml` with the deployment; use it for later manual Compose commands. If startup fails, the script leaves the stack stopped and prints the backup location. Restore the matching database backup before starting an older image; an old image alone cannot reverse a migration. The script uses the fixed Compose project `dbrain`.
+The argument selects exactly one tested image set. The script pulls the three images and resolves their registry digests. It stops the stack, copies the complete PocketBase volume to `backups/`, writes `compose.current.yml`, starts the stack, and waits until every service is healthy. PocketBase prepares its migration run directory before opening the database. Keep `compose.current.yml` with the deployment. Use it for later manual Compose commands.
+
+If startup fails, the script leaves the stack stopped and prints the backup location. Restore the matching database backup before you start an older image. An old image alone cannot reverse a migration. The script uses the fixed Compose project `dbrain`.
 
 ## Automatic candidate updates
 
@@ -58,13 +62,25 @@ docker compose -f compose.updater.yml up -d --build
 docker compose -f compose.updater.yml logs -f updater
 ```
 
-The updater checks the latest successful `main` Gate push every 15 seconds. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits for all application health checks. If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed; remove that marker only after recovery. Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory; give that access only to a trusted host. The GitHub API allows 60 requests per hour without authentication. Set `DBRAIN_GITHUB_TOKEN` in `.env` to a GitHub token to raise that limit to 5000. The updater sends a conditional request, so an unchanged result costs no body. It waits for the hourly reset when the limit is reached. The interval and the token handling live in the updater image. Rebuild that container after a change to `deploy/updater/watch.sh`: `docker compose -f compose.updater.yml up -d --build`. Stop it with `docker compose -f compose.updater.yml down`.
+The updater checks the latest successful tag-triggered `release-candidate.yml` run every 15 seconds. It ignores older run IDs and calls `update.sh` for a new candidate. That script backs up the database and waits until all application services are healthy.
+
+If an update fails, automatic attempts pause and `.auto-update-failed` records the target. Inspect the application and restore the matching backup if needed. Remove that marker only after recovery.
+
+Edit `.env` to set `DBRAIN_AUTO_UPDATE=false` to pause the update checks without restarting the updater. The updater runs in a separate Compose project so application restarts do not stop it. It needs the Docker socket and write access to the deployment directory. Give that access only to a trusted host.
+
+The GitHub API allows 60 requests per hour without authentication. Set `DBRAIN_GITHUB_TOKEN` in `.env` to a GitHub token to raise that limit to 5000. The updater sends a conditional request, so an unchanged result costs no body. After a failed request, it waits for the hourly reset when the remaining quota is almost zero. The interval and the token handling live in the updater image.
+
+Rebuild that container after a change to `deploy/updater/watch.sh`: `docker compose -f compose.updater.yml up -d --build`. Stop it with `docker compose -f compose.updater.yml down`.
 
 The updater calls Compose inside a container that mounts the deployment directory at `/deployment`. Compose resolves a relative path of a Compose file against its project directory. `update.sh` therefore passes the host path of the deployment directory as that project directory, so the `nginx.conf` bind mount stays on the host. It reads the path from the mount table of its own container. Set `DBRAIN_DEPLOYMENT_DIR` in `.env` to an absolute path only when that detection has no answer, for example with a named volume. A project directory inside the container makes the daemon create an empty directory on the host and the gateway then fails to start.
 
 ## PocketBase schema updates
 
-`pb/pb_migrations_base/0000000001_base_schema.js` is the genesis schema for a new database. The change directory starts empty; future scripts there are immutable upgrades for databases created from this baseline. `pb_migrations/` beside the database is the durable run directory. On first start, a new database receives only the base script. On later starts, only changes newer than that database's starting point are copied into its run directory. Keep that directory with the database and attachments in every backup. Databases predating this baseline are unsupported and startup refuses them; preserve a backup if you need to migrate their data separately. For each future schema change, edit the base script and add a new higher numbered change script. Test both a new database and an upgrade from the previous supported version.
+`pb/pb_migrations_base/0000000001_base_schema.js` is the genesis schema for a new database. The change directory starts empty. Future scripts there are immutable upgrades for databases created from this baseline. `pb_migrations/` beside the database is the durable run directory. On first start, a new database receives only the base script.
+
+On later starts, PocketBase copies only the changes that are newer than that database's starting point into its run directory. Keep that directory with the database and attachments in every backup. The project does not support a database from before this baseline, and startup refuses it. Preserve a backup if you need to migrate that data separately.
+
+For each future schema change, edit the base script and add a new higher numbered change script. Test both a new database and an upgrade from the previous supported version.
 
 ## Environment configuration
 
@@ -75,7 +91,7 @@ The updater calls Compose inside a container that mounts the deployment director
 | `DBRAIN_ADMIN_PASSWORD_FILE` | The password file has priority. The container needs a mount for that file. |
 | `DBRAIN_BIND_HOST` | The gateway host address. The default is `127.0.0.1`. |
 | `DBRAIN_PORT` | The gateway host port. The default is `3000`. |
-| `DBRAIN_AUTO_UPDATE` | `true` enables the separate updater; `false` pauses it. The default is `false`. |
+| `DBRAIN_AUTO_UPDATE` | `true` enables the separate updater. `false` pauses it. The default is `false`. |
 | `DBRAIN_GITHUB_TOKEN` | Optional token for the updater. It raises the GitHub API limit from 60 to 5000 requests per hour. A token for this public repository needs no scope. |
 | `DBRAIN_DEPLOYMENT_DIR` | The absolute host path of the deployment directory. It overrides the path that the updater detects. Usually empty. |
 | `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
@@ -98,9 +114,11 @@ For a source deployment, run `docker compose -p dbrain up --build --wait`. For a
 docker compose -p dbrain -f docker-compose.yml -f compose.release.yml up --no-build --wait
 ```
 
-Open `http://127.0.0.1:18080` on the host. A host HTTPS reverse proxy can forward to that address. Run up again after a change to rebuild the port mapping. A restart does not apply a new mapping. The ports 3001 and 8090 are internal container ports. Do not change them with the host port and do not publish them. The browser uses `/trpc` and `/pb/` on the gateway for the API and the files.
+Open `http://127.0.0.1:18080` on the host. A host HTTPS reverse proxy can forward to that address. Run up again after a change to rebuild the port mapping. A restart does not apply a new mapping.
 
-To connect to a host port directly, set `DBRAIN_BIND_HOST` to a named interface or to `0.0.0.0` under your network policy. The default loopback serves a proxy on the same host. A shell variable of the same name has priority over `.env`. If a port is in use, change `DBRAIN_PORT` and run up again. Use a different project name and different ports for a separate instance. Verify the data volume of each instance.
+The ports 3001 and 8090 are internal container ports. Do not change them with the host port and do not publish them. The browser uses `/trpc` and `/pb/` on the gateway for the API and the files.
+
+To connect to a host port directly, set `DBRAIN_BIND_HOST` to a named interface or to `0.0.0.0` under your network policy. The default loopback serves a proxy on the same host. A shell variable of the same name has priority over `.env`. If a port is in use, change `DBRAIN_PORT` and run up again. Use a different project name and different ports for a separate instance. Check the data volume of each instance.
 
 ## External access and HTTPS
 
@@ -118,9 +136,9 @@ docker compose -p dbrain logs --tail=100 pocketbase server web gateway
 curl -fsS http://127.0.0.1:3000/health
 ```
 
-For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.current.yml` to these commands. For a manually installed release, use `compose.release.yml` as the second file. The same configuration must apply. The health endpoint shows only that the service is reachable. Verify the login, the workspace, the attachments, and the media too.
+For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.current.yml` to these commands. For a manually installed release, use `compose.release.yml` as the second file. The same configuration must apply. The health endpoint shows only that the service is reachable. Check the login, the workspace, the attachments, and the media too.
 
-| Symptom | First verify |
+| Symptom | First check |
 | --- | --- |
 | Compose does not render | The `.env` file exists and the configuration holds the operator email. |
 | PocketBase restarts in a loop | The password, the mount of the password file and its permission, the volume permission, the start log. |
@@ -130,11 +148,13 @@ For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.c
 | An automatic update stops the gateway | The project directory of the updater and a stray `/deployment` path on the host. |
 | A video or a PDF fails | The related backend log, the attachment access permission, and the runtime dependencies. |
 
-Logs can contain business information. Remove private data before you share a log. The admin CLI needs the correct data directory, `/pb_data` in the container. A wrong directory creates an empty database by accident.
+Logs can contain business information. Remove private data before you share a log. Point the admin CLI at the data directory, `/pb_data` in the container. A wrong directory creates an empty database by accident.
 
 ## Backup and restore
 
-Stop the writes first, then stop the full service group. Back up the complete `pb_data` volume in the stopped state. The volume holds the SQLite database and the attachments. Record the real volume name. Keep the deployment configuration of the same version, the image digests, and the secret configuration. Limit the access to the backup. Verify a restore regularly.
+Stop the writes first, then stop the full service group. Back up the complete `pb_data` volume in the stopped state. The volume holds the SQLite database and the attachments. Record the real volume name.
+
+Keep the deployment configuration of the same version, the image digests, and the secret configuration. Limit the access to the backup. Check a restore regularly.
 
 The next example backs up the files of a source deployment. For an image deployment, add `-f docker-compose.yml` and the matching digest overlay to every Compose command.
 
@@ -145,11 +165,13 @@ mkdir -p "$backup_dir"
 pb_container=$(docker compose -p dbrain ps -aq pocketbase)
 test -n "$pb_container"
 docker cp "$pb_container:/pb_data/." "$backup_dir/"
-# Verify the copy, the database, and the attachments. Save the deployment configuration, then start the stack.
+# Check the copy, the database, and the attachments. Save the deployment configuration, then start the stack.
 docker compose -p dbrain start
 ```
 
-The directory name uses UTC time. Do not put a backup in Git. Move the copy to a backup storage with limited access. Before a restore, verify the source volume, the target volume, and the backup version. Restore the complete backup to a dedicated target volume in the stopped state. Do not mix an old backup with a directory that holds newer data. Do not run `down -v`. That command removes the data volume.
+The directory name uses UTC time. Do not put a backup in Git. Move the copy to a backup storage with limited access.
+
+Before a restore, check the source volume, the target volume, and the backup version. Restore the complete backup to a dedicated target volume in the stopped state. Do not mix an old backup with a directory that holds newer data. Do not run `down -v`. That command removes the data volume.
 
 The upgrade sequence has six steps.
 
@@ -157,9 +179,9 @@ The upgrade sequence has six steps.
 2. Make a full backup.
 3. Test the migration and the permissions of the new version on an isolated copy.
 4. Switch to the new release overlay.
-5. Start the stack and verify the users, the attachments, and the media.
+5. Start the stack and check the users, the attachments, and the media.
 6. Restore the traffic.
 
-A rollback needs the old data and the old image digest. An old image alone does not undo a database migration. Run a restore test with a separate project and volume. Operate on the production data after the test verifies the data and the attachments.
+A rollback needs the old data and the old image digest. An old image alone does not undo a database migration. Run a restore test with a separate project and volume. Operate on the production data after the test checks the data and the attachments.
 
 For the backup and the restore of the desktop personal data, see the [usage manual](usage.md). For the release and the acceptance process, see the [CI/CD pipeline](ci-cd.md).

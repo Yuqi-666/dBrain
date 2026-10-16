@@ -1,6 +1,6 @@
 # dBrain manuals
 
-These manuals describe the current 0.1.0 internal-test code and workflows. They address three readers: the developer, the deployment operator, and the user.
+These manuals describe the current code and workflows for developers, operators, and users.
 
 Chinese versions of these manuals are in [`zh/`](zh/README.md).
 
@@ -9,7 +9,8 @@ Chinese versions of these manuals are in [`zh/`](zh/README.md).
 | [Development](development.md) | Environment, project layout, web and desktop development, quality gates, and maintenance |
 | [Operations](operations.md) | Source deployment, image deployment, access configuration, backup, restore, and troubleshooting |
 | [Usage](usage.md) | Installation, accounts and data, workspace, graph, dashboard, and upgrade |
-| [CI/CD pipeline](ci-cd.md) | The push gate, the trailer, the verifier, the merge gate, the tag, the declared platforms, the release candidate, the publication gate, the repository policy, and caches |
+| [CI/CD pipeline](ci-cd.md) | Pull request checks, versioning, release candidates, publication, and repository policy |
+| [Contributing](contributing.md) | How to propose and verify a change |
 
 ## Manual maintenance
 
