@@ -164,6 +164,16 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
 
 export interface PdfDocumentApi {
   status: "loading" | "ready" | "error";
+  /**
+   * The url whose document is currently ready, or `null` while none is.
+   *
+   * It exists as one value rather than as `status === "ready"` alone because a
+   * url change re-renders the host with the *previous* document's ready status
+   * and the new url before this hook has published `loading`. A host that
+   * restores per-document state (the reading position) can therefore only trust
+   * "the document I am looking at is ready" when this equals `url`.
+   */
+  readyUrl: string | null;
   pageCount: number;
   metrics: ReadonlyMap<number, PdfPageMetrics>;
   failure: PdfLoadFailure | null;
@@ -195,6 +205,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
   const [progress, setProgress] = useState<number | null>(null);
   const [module, setModule] = useState<PdfJsModule | null>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
+  const [readyUrl, setReadyUrl] = useState<string | null>(null);
 
   const pageCache = useRef(new Map<number, Promise<PDFPageProxy | null>>());
   const textCache = useRef(new Map<number, Promise<PdfTextSnapshot | null>>());
@@ -213,6 +224,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
     setProgress(null);
     setModule(null);
     setDocument(null);
+    setReadyUrl(null);
 
     const commitMetrics = (
       refined: Map<number, PdfPageMetrics>,
@@ -413,6 +425,9 @@ export function usePdfDocument(url: string): PdfDocumentApi {
         setMetrics(seed);
         setProgress(1);
         setStatus("ready");
+        // Published last, as one value: every other ready-state field above is
+        // already set, so a host that reacts to this one sees the whole document.
+        setReadyUrl(url);
 
         void refineMetrics(doc, seed);
       } catch (error) {
@@ -532,6 +547,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
 
   return {
     status,
+    readyUrl,
     pageCount,
     metrics,
     failure,

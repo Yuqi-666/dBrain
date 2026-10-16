@@ -302,6 +302,13 @@ export interface PdfViewerProps {
   onPageChange?: (page: number, pageCount: number) => void;
   /** pdfjs could not be used — the host is expected to degrade. */
   onError?: (failure: PdfLoadFailure) => void;
+  /**
+   * Remembers the reading position under this key, and restores it on the next
+   * mount. The host passes a per-user, per-node value; absent means the viewer
+   * persists nothing, which is the default for an embedded or throwaway
+   * document.
+   */
+  progressKey?: string;
 }
 
 export interface PdfToolbarProps {

@@ -83,6 +83,7 @@ import { PdfPage } from "./pdf-page";
 import { PdfSidebar } from "./pdf-sidebar";
 import { PdfToolbar } from "./pdf-toolbar";
 import { usePdfDocument } from "./use-pdf-document";
+import { readPdfProgress, writePdfProgress } from "./pdf-progress";
 import { usePdfSearch } from "./use-pdf-search";
 import {
   PDF_DEFAULT_MODE,
@@ -182,11 +183,13 @@ export function PdfViewer({
   toolbarExtras,
   onPageChange,
   onError,
+  progressKey,
 }: PdfViewerProps) {
   const { t } = useI18n();
 
   const {
     status,
+    readyUrl,
     pageCount,
     metrics,
     failure,
@@ -795,6 +798,77 @@ export function PdfViewer({
     },
     [pageCount, horizontal, mode.spread, fit],
   );
+
+  /**
+   * The reading position, restored once per loaded document.
+   *
+   * `readyUrl` rather than `status` is the trigger: a url change re-renders with
+   * the previous document's `ready` status and the new url before
+   * `usePdfDocument` has published `loading`, so a restore gated on `status`
+   * alone would run against a document that is not there yet and then be
+   * consumed. `readyUrl` only equals `url` once the new document is the one
+   * that is ready.
+   */
+  const restoredProgress = useRef<{
+    url: string;
+    key: string;
+    /** Where the restore jump lands, so the write below can wait for it. */
+    page: number;
+    /** The jump has landed; after this the write is free to follow the reader. */
+    landed: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (readyUrl === null || readyUrl !== url || !progressKey) return;
+    const restored = restoredProgress.current;
+    if (restored && restored.url === readyUrl && restored.key === progressKey) {
+      return;
+    }
+    const stored = readPdfProgress(progressKey);
+    const requested =
+      stored !== null && stored > 1 && stored <= pageCount ? stored : 1;
+    // `goToPage` seats the slot's *leading* page in 双页, so remember where the
+    // jump lands rather than what was asked for: the write below waits for that
+    // page, which is the state `goToPage` actually commits.
+    const landing = pdfSlotStartPage(
+      pdfSlotOf(requested, mode.spread),
+      mode.spread,
+    );
+    restoredProgress.current = {
+      url: readyUrl,
+      key: progressKey,
+      page: landing,
+      landed: false,
+    };
+    // Always seat, even at page 1: the host keys the viewer by url, so switching
+    // between two nodes that share one file reuses this instance without the
+    // url-reset effect firing, and a node with no saved position must still open
+    // at its first page rather than inherit the previous node's.
+    goToPage(requested, "auto");
+  }, [readyUrl, url, progressKey, pageCount, mode.spread, goToPage]);
+
+  /**
+   * The reading position, written as the reader moves.
+   *
+   * It waits for the restore above to land: the first ready commit still holds
+   * page 1, and writing there would erase the very position being restored.
+   */
+  useEffect(() => {
+    if (readyUrl === null || readyUrl !== url || !progressKey) return;
+    const restored = restoredProgress.current;
+    if (
+      !restored ||
+      restored.url !== readyUrl ||
+      restored.key !== progressKey
+    ) {
+      return;
+    }
+    if (!restored.landed) {
+      if (page !== restored.page) return;
+      restored.landed = true;
+    }
+    writePdfProgress(progressKey, page);
+  }, [page, readyUrl, url, progressKey]);
 
   useLayoutEffect(() => {
     const target = navigationTargetRef.current;

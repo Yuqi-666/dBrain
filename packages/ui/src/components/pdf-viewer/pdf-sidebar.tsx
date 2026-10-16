@@ -14,7 +14,7 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  */
 import { useEffect, useRef, useState } from "react";
 import type { PDFPageProxy } from "pdfjs-dist";
-import { FileWarning, X } from "lucide-react";
+import { ChevronRight, FileWarning, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/ui/button";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
@@ -168,6 +168,82 @@ function PdfThumbnail({
   );
 }
 
+/**
+ * One outline row: an optional fold control, the clickable title, and the
+ * children below when it is open.
+ *
+ * Replaces the flat `truncate` row that rendered every level at once. A parent
+ * now folds with a chevron so a long table of contents is navigable, and the
+ * label wraps (`whitespace-normal` / `break-words`) instead of being clipped at
+ * the fixed rail width once indentation has eaten into it.
+ */
+function OutlineItem({
+  entry,
+  depth,
+  activePages,
+  onSelectPage,
+}: {
+  entry: PdfOutlineEntry;
+  depth: number;
+  activePages: ReadonlySet<number>;
+  onSelectPage: (page: number) => void;
+}) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const hasChildren = entry.items.length > 0;
+  const active = entry.page !== null && activePages.has(entry.page);
+
+  return (
+    <li className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 items-start">
+        {hasChildren ? (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={t(expanded ? "收起大纲" : "展开大纲")}
+            onClick={() => setExpanded((current) => !current)}
+            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight
+              className={cn(
+                "size-3.5 transition-transform",
+                expanded && "rotate-90",
+              )}
+            />
+          </button>
+        ) : (
+          // Keeps a leaf's label aligned with its siblings' labels without
+          // drawing a control that does nothing.
+          <span className="size-5 shrink-0" aria-hidden />
+        )}
+        <button
+          type="button"
+          disabled={entry.page === null}
+          onClick={() => entry.page !== null && onSelectPage(entry.page)}
+          className={cn(
+            "min-w-0 flex-1 whitespace-normal break-words rounded-sm px-1.5 py-1 text-left text-sm leading-snug transition-colors",
+            entry.page === null
+              ? "cursor-default text-muted-foreground/60"
+              : "hover:bg-muted",
+            active ? "bg-primary/10 font-medium" : undefined,
+          )}
+          title={entry.title}
+        >
+          {entry.title}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <OutlineList
+          entries={entry.items}
+          depth={depth + 1}
+          activePages={activePages}
+          onSelectPage={onSelectPage}
+        />
+      )}
+    </li>
+  );
+}
+
 function OutlineList({
   entries,
   depth,
@@ -184,33 +260,13 @@ function OutlineList({
   return (
     <ul className={cn("flex flex-col", depth > 0 && "pl-3")}>
       {entries.map((entry, index) => (
-        <li key={`${entry.title}-${index}`} className="flex flex-col">
-          <button
-            type="button"
-            disabled={entry.page === null}
-            onClick={() => entry.page !== null && onSelectPage(entry.page)}
-            className={cn(
-              "truncate rounded-sm px-2 py-1 text-left text-sm transition-colors",
-              entry.page === null
-                ? "cursor-default text-muted-foreground/60"
-                : "hover:bg-muted",
-              entry.page !== null && activePages.has(entry.page)
-                ? "bg-primary/10 font-medium"
-                : undefined,
-            )}
-            title={entry.title}
-          >
-            {entry.title}
-          </button>
-          {entry.items.length > 0 && (
-            <OutlineList
-              entries={entry.items}
-              depth={depth + 1}
-              activePages={activePages}
-              onSelectPage={onSelectPage}
-            />
-          )}
-        </li>
+        <OutlineItem
+          key={`${entry.title}-${index}`}
+          entry={entry}
+          depth={depth}
+          activePages={activePages}
+          onSelectPage={onSelectPage}
+        />
       ))}
     </ul>
   );
