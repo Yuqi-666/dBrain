@@ -42,7 +42,9 @@ cp .env.example .env
 pnpm dev
 ```
 
-Only two development commands exist. `pnpm dev` starts PocketBase, the web app, and the server on this machine. `pnpm dev:remote` adds the gateway `scripts/dev-gateway.mjs` for a remote domain. Both commands start the child processes in parallel. The exit of one process stops the group. The ports come from the root `.env`. A shell variable of the same name has priority.
+Only two development commands exist. `pnpm dev` starts PocketBase, the web app, and the server on this machine. `pnpm dev:remote` adds the gateway `scripts/dev-gateway.mjs` for a remote domain. Both commands start the child processes in parallel. The exit of one process stops the group.
+
+The ports come from the root `.env`. A shell variable of the same name has priority.
 
 | Service | Variable | Default | Address |
 | --- | --- | --- | --- |
@@ -53,7 +55,7 @@ Only two development commands exist. `pnpm dev` starts PocketBase, the web app, 
 
 Two services on the same port fail at the start with an error. PocketBase does not wait in a loop.
 
-Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it; when you change the PocketBase address, verify the backend `PB_URL` too. A database from before the `0000000001_base_schema.js` baseline is rejected.
+Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it. When you change the PocketBase address, check the backend `PB_URL` too. The launcher rejects a database from before the `0000000001_base_schema.js` baseline.
 
 `DBRAIN_ADMIN_EMAIL` and the password in `.env` belong to the operator account. The app identity uses the normal `users` collection. A shell variable of the same name has priority over the file. After an admin configuration change, run `pnpm pb:admin` to synchronize the development database account.
 
@@ -77,7 +79,9 @@ The gateway keeps the browser Host header. The server compares the Host header w
 
 The gateway is necessary because the client uses only `/trpc` and `/pb` on the same domain. It does not connect to 3001 or 8090 on the browser machine. See `packages/api-client/src/backend-urls.ts`. The same-domain entry must accept these two paths.
 
-All ports come from the root `.env`. `DBRAIN_GATEWAY_PORT` (default 8080) is the gateway and the port in the address `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>`. `DBRAIN_WEB_PORT`, `DBRAIN_SERVER_PORT`, and `DBRAIN_PB_HTTP` are the three upstreams. In the remote form, Next binds to loopback only. Only the gateway listens externally (`DBRAIN_GATEWAY_HOST`, default 0.0.0.0). `DBRAIN_DEV_DOMAIN` only prints the address at the start. It does not control a listener.
+All ports come from the root `.env`. `DBRAIN_GATEWAY_PORT` (default 8080) is the gateway and the port in the address `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>`. `DBRAIN_WEB_PORT`, `DBRAIN_SERVER_PORT`, and `DBRAIN_PB_HTTP` are the three upstreams.
+
+In the remote form, Next binds to loopback only. Only the gateway listens externally (`DBRAIN_GATEWAY_HOST`, default 0.0.0.0). `DBRAIN_DEV_DOMAIN` only prints the address at the start. It does not control a listener.
 
 The command sets the upstream addresses itself (`DBRAIN_WEB_URL`, `DBRAIN_SERVER_URL`, `DBRAIN_PB_URL`). Do not set them by hand. `DBRAIN_GATEWAY_LOG=1` prints every request. By default, the gateway prints only `/trpc`, `/pb`, and the upgrade requests.
 
@@ -159,14 +163,16 @@ Run these commands from the repository root. The [CI/CD pipeline](ci-cd.md) expl
 | Diagnose selected candidate platforms | Manually start `release-candidate.yml` with `desktop_targets` or `container_platforms` set to a subset of the declared platforms. This standalone run cannot be passed to `release.yml`. |
 | Create a release draft | Manually start `release.yml` from `main` with the candidate Gate run ID, tag, and `publish=false`. |
 | Publish a verified release directly | Manually start `release.yml` with the same inputs and `publish=true`. |
-| Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect; an administrator runs `pnpm gate:policy --apply` to apply. |
+| Inspect or apply repository gate policy | Run `pnpm gate:policy` to inspect. An administrator runs `pnpm gate:policy --apply` to apply it. |
 
 `pnpm gate` commits every change in the workspace. Commit or stash unrelated work before running it.
 
 ## Daily maintenance
 
-Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Promotion checks the planned merge. It needs a sync PR only if `main` has content missing from `develop` or the merge conflicts. A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
+Create a short development branch from `develop`. Gate routes it back to `develop`. A hotfix branch starts at `main` and has two PRs. Promotion checks the planned merge. It needs a sync PR only if `main` has content missing from `develop` or the merge conflicts.
 
-When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and verify the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, verify the runtime, the installers, and the backup-restore of the affected platforms again.
+A non-draft PR runs the Gate verifier. A push to either protected branch runs merge verification. Every main push also starts the candidate build.
+
+When you add a JavaScript dependency, update the workspace package and `pnpm-lock.yaml`. When you add a Rust dependency, update `Cargo.lock`. Do not change a released migration. Add a migration and check the upgrade of the old data, the permissions, and the attachment ownership. After a change to Node, PocketBase, FFmpeg, Tauri, or a native dependency, check the runtime, the installers, and the backup-restore of the affected platforms again.
 
 Select the version and platforms with `pnpm gate` on a `release/*` branch, then run `pnpm release:check` if you need to diagnose the version files. For the build and the release entry, see the [CI/CD pipeline](ci-cd.md). The remote CI holds caches for Next.js, the Rust dependencies, and the Docker layers. The caches hold intermediate data only and do not skip a verification. A cold build or an evicted cache still runs every step. See the cache section of that manual for the hit rates and the maintenance method.

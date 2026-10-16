@@ -2,7 +2,7 @@
 
 本手册是 [CI/CD 流水线（英文）](../ci-cd.md) 的中文版本。它保留 ASD-STE100 的结构规则。中文手册索引见 [README](README.md)。
 
-流水线在两个地方运行。本地工作区检查改动并推送。GitHub 验证工作、构建产物并发布已验证的发行。
+流水线在两个地方运行。本地工作区检查改动并推送。GitHub 读取 trailer、构建产物并发布已验证的发行。
 
 流水线有三道门。
 
@@ -19,7 +19,7 @@ flowchart TD
     A["开发者运行 pnpm gate"] --> B["按改动路径运行本地检查"]
     B -->|失败| X["提交和推送前停止"]
     B -->|通过| C["签名提交并写入 Gate trailer"]
-    C --> D["pre-push 钩子检查提交；推送分支并创建 PR"]
+    C --> D["pre-push 钩子检查提交，然后推送分支并创建 PR"]
     D --> E{"分支路由"}
     E -->|feature、fix、release| E1["PR 进入 develop"]
     E -->|hotfix| E2["PR 同时进入 main 和 develop"]
@@ -56,15 +56,19 @@ pnpm gate
 pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 ```
 
-两种方式都走同一条直线：`plan → check → commit → push → pr → merge`。`--until` 在指定阶段后停止。分支决定目标：普通开发分支进入 `develop`；`hotfix/*` 同时创建面向 `main` 和 `develop` 的 PR；在干净的 `develop` 上运行 gate 会创建面向 `main` 的晋升 PR。晋升沿用已有的合并历史，因此提交和推送阶段会报告无需新提交或直接推送。
+两种方式都走同一条直线：`plan → check → commit → push → pr → merge`。`--until` 在指定阶段后停止。分支决定目标。普通开发分支进入 `develop`。`hotfix/*` 同时创建面向 `main` 和 `develop` 的 PR。在干净的 `develop` 上运行 gate 会创建面向 `main` 的晋升 PR。
 
-在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。对本次不构建的产品类别传入 `none`；至少保留一类。先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台选择创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
+晋升沿用已有的合并历史。其提交和推送阶段因此报告没有新提交，也不直接推送。
 
-写入发布或热修复版本前，gate 检查新版本高于目标分支版本，且 `origin` 上的 `vVERSION` 尚未占用。晋升时再与 `main` 比较一次。不要提前创建版本标签；由 main 的 CI 在完成验证的提交上创建它。
+在 `release/*` 分支准备版本。gate 接收 `--version`、`--desktop-targets` 和 `--container-platforms`，同步版本文件并在检查前写入平台声明。对本次不构建的产品类别传入 `none`。至少保留一类。
+
+先将该分支合入 `develop`，再在 `develop` 上运行 gate，使用相同的平台选择创建晋升 PR。每次合并进 `main` 都需要新版本。`main` 的 CI 会创建标签并立即构建候选。
+
+写入发布或热修复版本前，gate 检查新版本高于目标分支版本，且 `origin` 上的 `vVERSION` 尚未占用。晋升时再与 `main` 比较一次。不要提前创建版本标签。由 main 的 CI 在完成验证的提交上创建它。
 
 首次上线需要一次初始化。在受信任的 `main` 提交还没有 `scripts/gate/branches.mjs` 时，在门控变更分支传入 `--base=main`，先让新验证器进入 `main`。随后通过 PR 把门控带入 `develop`。在 `develop` 尚无自己的验证器时，其 CI 读取受保护的 `main` 上的验证器，绝不读取 PR 头部分支的副本。两个分支都有新验证器后，普通开发分支只进入 `develop`。
 
-`plan` 不改动文件。在工作分支上，`check` 阶段暂存工作区并写入 `.gate/last-run.json`；在这里停止时，文件仍处于暂存状态。在 `develop` 上，晋升要求工作区干净，不暂存文件。从 `commit` 阶段起需要标题。每个阶段在进入下一阶段前打印简短结果。
+`plan` 不改动文件。在工作分支上，`check` 阶段暂存工作区并写入 `.gate/last-run.json`。在这里停止时，文件仍处于暂存状态。在 `develop` 上，晋升要求工作区干净，不暂存文件。从 `commit` 阶段起需要标题。每个阶段在进入下一阶段前打印简短结果。
 
 工作流 `gate.yml` 是第二道门。它只回答一个问题。作者是否对本次改动要并入的那棵树使用了本地入口？它不重跑任何检查。
 
@@ -76,8 +80,8 @@ pnpm gate --until=pr -m "feat(graph): 添加密度滑块"
 | `-m "text"` | 提交标题。从 `commit` 阶段起必填。重复该选项可增加正文段落。 |
 | `--base BRANCH` | 确认由当前分支路由选出的目标分支。 |
 | `--version VERSION` | 在 `release/*` 或 `hotfix/*` 分支同步版本。 |
-| `--desktop-targets LIST\|none` | 在 `release/*` 分支选择桌面目标或关闭桌面构建；在 `develop` 上确认。 |
-| `--container-platforms LIST\|none` | 在 `release/*` 分支选择容器平台或关闭容器构建；在 `develop` 上确认。 |
+| `--desktop-targets LIST\|none` | 在 `release/*` 分支选择桌面目标或关闭桌面构建。在 `develop` 上，取值必须与声明一致。 |
+| `--container-platforms LIST\|none` | 在 `release/*` 分支选择容器平台或关闭容器构建。在 `develop` 上，取值必须与声明一致。 |
 | `--full` | 运行全部本地检查，而不只是范围内的检查。 |
 | `--no-sign` | 不对提交签名。验证器会拒绝未签名的提交。 |
 | `--allow-protected` | 允许在 `main` 或 `develop` 上本地运行。 |
@@ -124,7 +128,7 @@ pnpm gate:hooks
 | 标签 | 标签必须指向已过门控的提交，或指向合并提交。 |
 | 删除 | 接受。 |
 
-钩子用本地 Git 读取顶端提交的签名。没有签名的提交被拒绝。本检出没有签名者名单时，钩子只报告签名，由作业 `verify` 判定。
+钩子用本地 Git 读取顶端提交的签名。它拒绝没有签名的提交。本检出没有签名者名单时，钩子只报告签名，由作业 `verify` 判定。
 
 有两条应急路径。
 
@@ -172,9 +176,9 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 每个检查有路径范围。只有改动触及其范围时，门控才运行该检查。选项 `--full` 运行全部检查。
 
-检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它校验两个固定的 SHA256 值，因此缓存被改就会拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
+检查 `workflow-lint` 把 actionlint 二进制缓存在 `.gate/tools`。它检查两个固定的 SHA256 值，缓存被改就拒绝。缓存为空时只下载一次发行包。变量 `DBRAIN_GATE_TOOLS` 可以移动缓存位置。
 
-每个检查都在本地门控中运行，每个检查 id 都进入 trailer。清单里没有为干净 runner 准备的检查。产物由发布候选构建并验证。
+每个检查都在本地门控中运行，每个检查 id 都进入 trailer。清单里没有为干净 runner 准备的检查。产物由发布候选构建并检查。
 
 ### 验证器
 
@@ -185,14 +189,14 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 验证器约需 30 秒。它不安装任何依赖。它做以下判定。
 
-1. 头部提交带有 trailer，且协议版本已知。
+1. 头部提交带有 trailer，且协议版本受支持。
 2. 头部提交的树等于 `Gate-Tree`。
 3. trailer 列出改动路径所要求的每一个检查。
 4. 没有已跟踪文件落在禁止清单上。禁止清单包含本地 `.env` 文件、依赖、本地数据库、构建产物和密钥文件。
 5. 改动 `scripts/gate/**`、`scripts/gate.mjs` 或 `.github/workflows/gate.yml` 需要标签 `gate-change` 和一次复核。标签由 `pnpm gate:policy --apply` 创建。添加或移除该标签会重新运行作业，因此结论跟随标签变化。
 6. 提交签名有效。验证器从 GitHub API 读取结果。
 
-被拒绝的提交会让作业失败。ruleset 把作业 `verify` 设为必需状态检查，因此合并被阻止。
+被拒绝的提交会让作业失败。ruleset 把作业 `verify` 设为必需状态检查，因此它会阻止合并。
 
 在没有 ruleset 的仓库上，该检查无法被设为必需。此时合并不再被自动阻止。请添加标签、等作业通过，然后手工合并。
 
@@ -200,11 +204,11 @@ Gate-Run: 2026-05-05T09:12:44Z
 
 ### 合并门
 
-每个改动都以 merge commit 进入 `main` 或 `develop`。作业 `merged` 读取该提交。晋升 PR 会验证 `develop` 第一父历史中的每个新增合并。门控还会确认 `main` 与 `develop` 的合并结果恰好等于 `develop` 的文件树。`main` 上次晋升产生的合并提交不再需要同步 PR。如果 `main` 有独立内容，或合并发生冲突，需要先同步或解决差异。
+每个改动都以 merge commit 进入 `main` 或 `develop`。作业 `merged` 读取该提交。晋升 PR 会检查 `develop` 第一父历史中的每个新增合并。门控还会确认 `main` 与 `develop` 的合并结果恰好等于 `develop` 的文件树。`main` 上次晋升产生的合并提交不再需要同步 PR。如果 `main` 有独立内容，或合并发生冲突，需要先同步或解决差异。
 
 该提交必须有两个父提交。第一个父提交是 `main` 的上一个顶端提交，它已由更早的一次运行接受。第二个父提交是 PR 的头部。作业对第一个之后的每个父提交做以下判定。
 
-1. 该父提交带有 trailer，且协议版本已知。
+1. 该父提交带有 trailer，且协议版本受支持。
 2. 该父提交的树等于 `Gate-Tree`。
 3. 该提交签名有效。
 
@@ -241,7 +245,7 @@ PR 不构建任何产物。每次成功合并到 `main` 都会启动干净机器
 | 输入 | 含义 | 默认值 |
 | --- | --- | --- |
 | `tag` | 版本标签，例如 `v0.1.1` | 无 |
-| `signed` | 验证 Windows 与 macOS 签名及公证 | `true` |
+| `signed` | 检查 Windows 与 macOS 签名及公证 | `true` |
 | `desktop_targets` | 已声明桌面目标中的一部分 | 空 |
 | `container_platforms` | 已声明容器平台中的一部分 | 空 |
 
@@ -262,15 +266,17 @@ PR 不构建任何产物。每次成功合并到 `main` 都会启动干净机器
 }
 ```
 
-gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查验证它，合并到 `develop` 时携带它，main 标签将其固定。对不构建的类别传入 `none` 后，gate 写入 `desktopEnabled: false` 或 `containerEnabled: false`，同时保留其平台清单供后续版本使用。候选只构建已启用的类别。仅容器候选没有桌面安装包及更新元数据；仅桌面候选没有容器镜像及 Compose 文件。
+gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查接受它，合并到 `develop` 时携带它，main 标签将其固定。对不构建的类别传入 `none`。gate 随后写入 `desktopEnabled: false` 或 `containerEnabled: false`，同时保留其平台清单供后续版本使用。候选只构建已启用的类别。
+
+仅容器候选没有桌面安装包及更新元数据。仅桌面候选没有容器镜像及 Compose 文件。
 
 脚本 `scripts/release/platforms.mjs` 保存每个平台对应的 runner。该表是全集。声明的名称不在其中时，本地门控和作业 `verify-tag` 都会在 runner 启动之前停止。
 
-输入 `desktop_targets` 与 `container_platforms` 只用于收窄声明，例如某个平台构建失败后的重试。名称不在声明中时会被拒绝。runner 表不包含的名称同样会被拒绝。
+输入 `desktop_targets` 与 `container_platforms` 只用于收窄声明，例如某个平台构建失败后的重试。脚本 `scripts/release/platforms.mjs` 会拒绝不在声明中的名称。它也会拒绝 runner 表不包含的名称。
 
 候选随后只保存已声明的平台。发布闸门只发布该候选包含的平台。
 
-随后作业 `desktop` 构建已启用的目标。每个矩阵作业的时限为 90 分钟。未启用的类别及其组装、发布资产都会跳过。
+随后作业 `desktop` 构建已启用的目标。每个矩阵作业的时限为 90 分钟。矩阵会跳过未启用的类别，包括其组装和发布资产。
 
 | Runner | 目标 |
 | --- | --- |
@@ -288,9 +294,9 @@ gate 根据 `release/*` 分支上的平台参数写入该文件。本地检查�
 5. 运行桌面后端 smoke 测试。
 6. 用 `cargo test --locked --release --lib` 运行 Rust 库测试。
 7. 用 `pnpm --filter desktop tauri build --ci` 构建安装包。
-8. 验证 Linux 包。
-9. 用 `codesign` 和 `spctl` 验证 macOS 签名。
-10. 用 `Get-AuthenticodeSignature` 验证 Windows 签名。
+8. 检查 Linux 包。
+9. 用 `codesign` 和 `spctl` 检查 macOS 签名。
+10. 用 `Get-AuthenticodeSignature` 检查 Windows 签名。
 11. 收集安装包、运行时清单和哈希。
 12. 上传制品 `desktop-TARGET-RUN_ID-ATTEMPT`。
 
@@ -321,7 +327,9 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 配置机密后，在 `main` 上为已有标签启动签名候选：`gh workflow run gate.yml --ref main -f release=true`。确认 macOS 和 Windows 作业通过签名验证，且 `assemble` 上传 `candidate-RUN_ID-ATTEMPT`。未签名的诊断构建不能通过发布闸门。[GitHub 环境机密指南](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)说明了添加位置。
 
-桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`；若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。已签名桌面候选包含更新包和 `.sig` 文件。发布时，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包；它不支持按字节差异传输的补丁。
+桌面更新器使用独立的 Tauri 签名密钥。运行 `pnpm --filter desktop tauri signer generate -w PATH/TO/updater.key` 生成。仅将 `.pub` 内容写入 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。把私钥设为 `release` 环境中的 `TAURI_SIGNING_PRIVATE_KEY`。若私钥有密码，再设置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要提交私钥。
+
+已签名桌面候选包含更新包和 `.sig` 文件。发布时，`release.yml` 生成 `latest.json` 并与已签名更新包一起发布。已安装应用启动时检查最新已发布 Release。[Tauri 更新器指南](https://v2.tauri.app/plugin/updater/)规定了签名和元数据格式。更新器下载完整更新包。它不支持按字节差异传输的补丁。
 
 容器构建通过冒烟测试后推送 `candidate-RUN_ID-ATTEMPT` 镜像。启用独立更新容器的服务器会轮询 `main` 上成功的 Gate 推送，并用 `deploy/update.sh` 应用较新的候选。设置方法和手动命令见[运维手册](operations.md)。桌面构建失败不会阻止容器构建，但更新容器会等待整个 Gate 运行成功。发布 Release 时，已验证的容器 digest 也会获得 `vVERSION` 标签，因此同一更新脚本可以选择 Release。
 
@@ -342,7 +350,7 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 ## 候选组装
 
-作业 `assemble` 等待作业 `desktop` 和 `containers`。它下载同一个 run ID 和同一个 attempt 的制品。随后脚本 `scripts/release/candidate.mjs` 组装候选。该脚本验证以下内容。
+作业 `assemble` 等待作业 `desktop` 和 `containers`。它下载同一个 run ID 和同一个 attempt 的制品。随后脚本 `scripts/release/candidate.mjs` 组装候选。该脚本检查以下内容。
 
 - 版本、提交、run ID 和 attempt 在每份报告中一致。
 - 每个桌面目标包含预期的安装包格式。
@@ -365,7 +373,7 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 
 `release.yml` 只能从默认分支运行。作业使用环境 `release`。
 
-作业按以下顺序验证运行和标签。
+作业按以下顺序检查运行和标签。
 
 1. run ID 是数字。
 2. 标签匹配 `vMAJOR.MINOR.PATCH` 模式。
@@ -374,10 +382,10 @@ Windows：取得受信任的 Authenticode 代码签名证书，并连同私钥�
 5. 标签所在的提交等于候选运行的 head SHA。
 6. head SHA 是当前提交的祖先。
 7. 标签指向的源提交中，`release.json` 的版本等于标签。当前默认分支已进入新版本时，旧候选仍可发布。
-8. `scripts/release/candidate.mjs publish` 验证候选身份、文件清单、构建报告和桌面更新包签名。
+8. `scripts/release/candidate.mjs publish` 检查候选身份、文件清单、构建报告和桌面更新包签名。
 9. 报告中的每个镜像 digest 都有效。脚本 `scripts/release/verify-images.mjs` 做此判定。
 
-作业拒绝覆盖已存在的 Release。默认在同次运行中创建草稿并发布；设置 `publish=false` 可仅保留草稿。无需验收文件或人工测试记录。
+作业拒绝覆盖已存在的 Release。默认在同次运行中创建草稿并发布，设置 `publish=false` 可仅保留草稿。该作业不要求验收文件或人工测试记录。
 
 v0.1.3 之后的 Release 把容器部署文件合并为一个 `dbrain-deploy-vVERSION.tar.gz` 制品。归档包含 Compose 文件、网关配置、更新脚本、环境变量模板和镜像 digest 报告。桌面安装包和签名更新文件保留为带平台前缀的独立制品，因为桌面更新器通过 URL 下载它们。`latest.json`、`candidate-index.json`、发行说明和 `SHA256SUMS` 仍位于 Release 根目录。v0.1.3 保留原有的独立制品。
 

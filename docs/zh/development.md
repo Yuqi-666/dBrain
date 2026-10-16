@@ -42,7 +42,9 @@ cp .env.example .env
 pnpm dev
 ```
 
-只有两个开发命令。`pnpm dev` 在本机启动 PocketBase、Web 和 Server。`pnpm dev:remote` 为远程域名增加网关 `scripts/dev-gateway.mjs`。两个命令都并行启动子进程。任一进程退出会停止整组。端口来自根 `.env`。同名的 shell 变量优先。
+只有两个开发命令。`pnpm dev` 在本机启动 PocketBase、Web 和 Server。`pnpm dev:remote` 为远程域名增加网关 `scripts/dev-gateway.mjs`。两个命令都并行启动子进程。任一进程退出会停止整组。
+
+端口来自根 `.env`。同名的 shell 变量优先。
 
 | 服务 | 变量 | 默认 | 地址 |
 | --- | --- | --- | --- |
@@ -53,7 +55,7 @@ pnpm dev
 
 两个服务占用同一端口时启动直接报错。PocketBase 不会一直等待。
 
-开发数据默认写入仓库目录 `pb/pb_data`，迁移运行目录为 `pb/pb_data/pb_migrations`。PocketBase 启动器先准备该目录，再创建管理员账号，并显式指定数据、迁移和 hooks 目录。当前 shell 目录不会改变它们。设置 `DBRAIN_PB_DATA_DIR` 时，运行目录也会随之移动；修改 PocketBase 地址时，同时验证后端 `PB_URL`。早于 `0000000001_base_schema.js` 基线的数据库会被拒绝。
+开发数据默认写入仓库目录 `pb/pb_data`，迁移运行目录为 `pb/pb_data/pb_migrations`。PocketBase 启动器先准备该目录，再创建管理员账号，并显式指定数据、迁移和 hooks 目录。当前 shell 目录不会改变它们。设置 `DBRAIN_PB_DATA_DIR` 时，运行目录也会随之移动。修改 PocketBase 地址时，同时检查后端 `PB_URL`。启动器会拒绝早于 `0000000001_base_schema.js` 基线的数据库。
 
 `.env` 中的 `DBRAIN_ADMIN_EMAIL` 与密码属于运维账号。应用身份使用普通 `users` 集合。同名的 shell 变量优先于文件。管理员配置更改后，运行 `pnpm pb:admin` 同步开发库账号。
 
@@ -77,7 +79,9 @@ pnpm dev
 
 网关是必需的，因为客户端只访问同域的 `/trpc` 与 `/pb`。它不连接浏览器本机的 3001 或 8090。见 `packages/api-client/src/backend-urls.ts`。同域入口必须接住这两个路径。
 
-端口全部来自根 `.env`。`DBRAIN_GATEWAY_PORT`（默认 8080）是网关，也是地址 `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>` 中的端口。`DBRAIN_WEB_PORT`、`DBRAIN_SERVER_PORT`、`DBRAIN_PB_HTTP` 是三个上游。远程形态下 Next 只绑回环。只有网关对外监听（`DBRAIN_GATEWAY_HOST`，默认 0.0.0.0）。`DBRAIN_DEV_DOMAIN` 只在启动时打印地址。它不参与监听。
+端口全部来自根 `.env`。`DBRAIN_GATEWAY_PORT`（默认 8080）是网关，也是地址 `https://p<DBRAIN_GATEWAY_PORT>.<DBRAIN_DEV_DOMAIN>` 中的端口。`DBRAIN_WEB_PORT`、`DBRAIN_SERVER_PORT`、`DBRAIN_PB_HTTP` 是三个上游。
+
+远程形态下 Next 只绑回环。只有网关对外监听（`DBRAIN_GATEWAY_HOST`，默认 0.0.0.0）。`DBRAIN_DEV_DOMAIN` 只在启动时打印地址。它不参与监听。
 
 命令自己注入上游地址（`DBRAIN_WEB_URL`、`DBRAIN_SERVER_URL`、`DBRAIN_PB_URL`）。不要手工设置它们。`DBRAIN_GATEWAY_LOG=1` 打印每个请求。默认只打印 `/trpc`、`/pb` 和升级请求。
 
@@ -159,14 +163,16 @@ Cargo 验证前准备 Tauri 配置要求的运行时和前端资源。Server smo
 | 诊断候选的部分平台 | 手动启动 `release-candidate.yml`，用 `desktop_targets` 或 `container_platforms` 选择已声明平台的子集。这次独立运行不能传给 `release.yml`。 |
 | 创建发布草稿 | 从 `main` 手动启动 `release.yml`，提供候选 Gate run ID、标签和 `publish=false`。 |
 | 直接发布已验证版本 | 用相同输入手动启动 `release.yml`，并设置 `publish=true`。 |
-| 查看或应用仓库门控策略 | 用 `pnpm gate:policy` 查看；管理员用 `pnpm gate:policy --apply` 应用。 |
+| 查看或应用仓库门控策略 | 用 `pnpm gate:policy` 查看。管理员用 `pnpm gate:policy --apply` 应用。 |
 
 `pnpm gate` 会提交工作区中的全部改动。运行前先提交或暂存无关工作。
 
 ## 日常维护
 
-从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升会检查计划中的合并结果。只有 `main` 有 `develop` 缺少的内容，或合并发生冲突时，才需要同步 PR。非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
+从 `develop` 创建短期开发分支。Gate 将其路由回 `develop`。热修复分支从 `main` 创建，并有两个 PR。晋升会检查计划中的合并结果。只有 `main` 有 `develop` 缺少的内容，或合并发生冲突时，才需要同步 PR。
 
-新增 JavaScript 依赖时，更新对应 workspace 包和 `pnpm-lock.yaml`。新增 Rust 依赖时，更新 `Cargo.lock`。不要修改已发行迁移。新增 migration 并验证旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新验证受影响平台。验证运行时、安装包和备份恢复。
+非草稿 PR 运行 Gate 验证器。推送到任一受保护分支后运行合并验证。每次推送到 main 还会启动候选构建。
+
+新增 JavaScript 依赖时，更新对应 workspace 包和 `pnpm-lock.yaml`。新增 Rust 依赖时，更新 `Cargo.lock`。不要修改已发行迁移。新增 migration 并检查旧数据升级、权限和附件归属。修改 Node、PocketBase、FFmpeg、Tauri 或原生依赖后，重新检查受影响平台的运行时、安装包和备份恢复。
 
 在 `release/*` 分支用 `pnpm gate` 选择版本和平台；需要诊断版本文件时再运行 `pnpm release:check`。构建和发布入口见 [CI/CD 流水线](ci-cd.md)。远端 CI 保存 Next.js、Rust 依赖和 Docker 层缓存。缓存只保存中间数据，不跳过验证。冷构建或被淘汰的缓存仍执行每一步。命中和维护方法见该手册的缓存章节。
