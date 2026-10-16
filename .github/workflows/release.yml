@@ -123,6 +123,11 @@ jobs:
           node scripts/release/validate-run.mjs candidate-run.json
           source_sha=$(node -p "require('./candidate-run.json').head_sha")
           attempt=$(node -p "require('./candidate-run.json').run_attempt")
+          # The candidate is the tagged commit, not this run. Name the
+          # candidate identity, or a merge-commit promotion fails validation.
+          export DBRAIN_CANDIDATE_SHA="$source_sha"
+          export DBRAIN_CANDIDATE_RUN_ID="$CANDIDATE_RUN_ID"
+          export DBRAIN_CANDIDATE_RUN_ATTEMPT="$attempt"
           [ "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$source_sha" ]
           git merge-base --is-ancestor "$source_sha" HEAD
           git show "$source_sha:scripts/release/release.json" > tag-release.json
