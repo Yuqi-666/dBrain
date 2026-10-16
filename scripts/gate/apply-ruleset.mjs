@@ -56,7 +56,7 @@ export function repoSettings() {
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: true,
+    delete_branch_on_merge: false,
     has_issues: true,
     has_discussions: false,
   };

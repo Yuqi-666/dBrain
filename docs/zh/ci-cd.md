@@ -35,7 +35,7 @@ gh workflow run release.yml --ref main -f candidate_run_id=RUN_ID -f tag=vVERSIO
 
 ## 仓库策略
 
-`pnpm gate:policy --repo Yuqi-666/dBrain` 打印计划。工作流合并且 GitHub 上首次出现 `checks` 后，所有者运行 `pnpm gate:policy --apply --repo Yuqi-666/dBrain`。脚本设置合并提交及合并后删除分支；启用 Issues、保持 Discussions 关闭；将默认 `GITHUB_TOKEN` 权限设为只读，并禁止 Actions 批准 PR。`develop` ruleset 允许所有者直接推送，但禁止强推和删除。`main` ruleset 要求内部 PR、最新 `checks` 和讨论已解决，并禁止强推和删除。`v*` 标签 ruleset 禁止重写和删除标签。脚本把所有者设为 `release` 环境审查者。签名密钥放在无需审查的 `candidate` 环境，使标签构建能自动启动；`release` 环境只控制正式发布。私下漏洞报告、Dependabot 安全提醒和安全修复仍启用。
+`pnpm gate:policy --repo Yuqi-666/dBrain` 打印计划。工作流合并且 GitHub 上首次出现 `checks` 后，所有者运行 `pnpm gate:policy --apply --repo Yuqi-666/dBrain`。脚本设置合并提交并保留长期使用的 `develop` 分支；启用 Issues、保持 Discussions 关闭；将默认 `GITHUB_TOKEN` 权限设为只读，并禁止 Actions 批准 PR。`develop` ruleset 允许所有者直接推送，但禁止强推和删除。`main` ruleset 要求内部 PR、最新 `checks` 和讨论已解决，并禁止强推和删除。`v*` 标签 ruleset 禁止重写和删除标签。脚本把所有者设为 `release` 环境审查者。签名密钥放在无需审查的 `candidate` 环境，使标签构建能自动启动；`release` 环境只控制正式发布。私下漏洞报告、Dependabot 安全提醒和安全修复仍启用。
 
 若要包含所有桌面目标，在 `candidate` 环境配置 `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`WINDOWS_CERTIFICATE`、`WINDOWS_CERTIFICATE_PASSWORD`、`APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_API_PRIVATE_KEY`、`APPLE_API_KEY` 和 `APPLE_API_ISSUER` 密钥。某桌面目标缺少所需签名密钥时，对应构建会跳过，作业摘要会列出被跳过的目标；其他桌面目标和容器构建继续。若没有任何产品可构建，候选会给出明确错误。当前仓库没有签名密钥，因此标签候选目前只有容器产物。
 
