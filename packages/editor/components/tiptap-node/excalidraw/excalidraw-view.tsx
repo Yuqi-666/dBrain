@@ -8,7 +8,6 @@ import type {
   ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
 import clsx from "clsx";
-import { Pencil } from "lucide-react";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { getFileUrl, loadExcalidrawData } from "./excalidraw-utils";
@@ -130,8 +129,14 @@ export default function ExcalidrawView(props: NodeViewProps) {
       <Dialog open={opened} onOpenChange={setOpened}>
         <DialogContent
           showCloseButton={false}
-          className="p-0 gap-0 sm:max-w-2xl flex flex-col"
-          style={{ height: "90vh", width: "90vw" }}
+          className={clsx(
+            // The same shell as the node editor dialog: one window size for
+            // every "open a node" surface, so a diagram does not open a second,
+            // differently proportioned dialog.
+            "p-0 gap-0 sm:max-w-[80%] w-[1200px] h-[80vh] flex flex-col",
+            "rounded-2xl bg-popover",
+            "ring-1 ring-foreground/5 shadow-2xl shadow-foreground/5",
+          )}
         >
           <div className="flex items-center justify-end gap-2 p-2 shrink-0">
             <Button onClick={handleSave} size="sm">
@@ -156,47 +161,42 @@ export default function ExcalidrawView(props: NodeViewProps) {
         </DialogContent>
       </Dialog>
 
+      {/*
+        One gesture for both states — double-click opens the editor on the image
+        and on the placeholder alike, so the little pencil button is gone. The
+        image gets the placeholder's affordance in exchange: a hairline that
+        appears on hover, and a ring while the block is selected.
+      */}
       {previewSrc ? (
-        <div className="relative">
+        <div
+          onDoubleClick={handleOpen}
+          className={clsx(
+            "relative w-fit max-w-full cursor-pointer rounded-md ring-1 ring-transparent transition-colors",
+            "hover:ring-border",
+            selected ? "ProseMirror-selectednode ring-2 ring-primary" : "",
+          )}
+        >
           <img
-            onClick={(e) => e.detail === 2 && handleOpen()}
             src={previewSrc}
             alt={title}
             width={imgWidth}
-            className={clsx(
-              selected ? "ProseMirror-selectednode" : "",
-              "alignCenter max-w-full h-auto rounded-md",
-            )}
+            className="alignCenter block max-w-full h-auto rounded-md"
           />
-
-          {selected && (
-            <Button
-              onClick={handleOpen}
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2"
-            >
-              <Pencil className="size-4" />
-            </Button>
-          )}
         </div>
       ) : (
         <div
-          onClick={(e) => e.detail === 2 && handleOpen()}
+          onDoubleClick={handleOpen}
           className={clsx(
             "flex items-center justify-center p-4 rounded-md border border-dashed cursor-pointer",
-            "hover:bg-muted/50 transition-colors",
-            selected ? "ProseMirror-selectednode" : "",
+            "hover:bg-muted/50 hover:border-muted-foreground/60 transition-colors",
+            selected
+              ? "ProseMirror-selectednode border-primary ring-2 ring-primary/30"
+              : "",
           )}
         >
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="cursor-pointer">
-              <Pencil className="size-4" />
-            </Button>
-            <span className="text-muted-foreground">
-              {t("Double-click to edit Excalidraw diagram")}{" "}
-            </span>
-          </div>
+          <span className="text-muted-foreground">
+            {t("Double-click to edit Excalidraw diagram")}{" "}
+          </span>
         </div>
       )}
     </NodeViewWrapper>
