@@ -125,7 +125,7 @@ export function GraphSidebar() {
   return (
     <aside
       className={cn(
-        "flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
+        "flex h-dvh w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
         "border-r border-sidebar-border",
         sidebarMode === "temp" && "rounded-lg",
       )}

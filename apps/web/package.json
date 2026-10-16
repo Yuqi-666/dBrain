@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
-    "build": "next build --webpack",
+    "dev": "node ../../scripts/copy-pdfjs-assets.mjs web && next dev -p 3000",
+    "build": "node ../../scripts/copy-pdfjs-assets.mjs web && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",

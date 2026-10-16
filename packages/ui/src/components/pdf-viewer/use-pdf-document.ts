@@ -95,6 +95,23 @@ function loadPdfjs(): Promise<PdfJsModule> {
   return modulePromise;
 }
 
+/**
+ * The origin pdf.js has to prefix its asset URLs with.
+ *
+ * Both trees are fetched by *the worker*, and a worker cannot resolve a
+ * root-relative path: `fetch("/pdfjs/cmaps/x.bcmap")` throws
+ * `Failed to parse URL` inside a WorkerGlobalScope. pdf.js only logs that as
+ * `Error during font loading` and then draws every glyph of the font blank,
+ * so the failure reads as a corrupt document. The worker shares the page's
+ * origin, which is therefore all the URL needs. Read lazily because the hook is
+ * also evaluated during a server render, where `window` does not exist.
+ */
+function pdfjsAssetOrigin(): string {
+  if (typeof window === "undefined") return "";
+  const origin = window.location.origin;
+  return origin && origin !== "null" ? origin : "";
+}
+
 /** One worker for one document; the caller terminates it. */
 function createWorker(): Worker {
   try {
@@ -164,6 +181,16 @@ export function classifyPdfFailure(error: unknown): PdfLoadFailure {
 
 export interface PdfDocumentApi {
   status: "loading" | "ready" | "error";
+  /**
+   * The url whose document is currently ready, or `null` while none is.
+   *
+   * It exists as one value rather than as `status === "ready"` alone because a
+   * url change re-renders the host with the *previous* document's ready status
+   * and the new url before this hook has published `loading`. A host that
+   * restores per-document state (the reading position) can therefore only trust
+   * "the document I am looking at is ready" when this equals `url`.
+   */
+  readyUrl: string | null;
   pageCount: number;
   metrics: ReadonlyMap<number, PdfPageMetrics>;
   failure: PdfLoadFailure | null;
@@ -195,6 +222,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
   const [progress, setProgress] = useState<number | null>(null);
   const [module, setModule] = useState<PdfJsModule | null>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
+  const [readyUrl, setReadyUrl] = useState<string | null>(null);
 
   const pageCache = useRef(new Map<number, Promise<PDFPageProxy | null>>());
   const textCache = useRef(new Map<number, Promise<PdfTextSnapshot | null>>());
@@ -213,6 +241,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
     setProgress(null);
     setModule(null);
     setDocument(null);
+    setReadyUrl(null);
 
     const commitMetrics = (
       refined: Map<number, PdfPageMetrics>,
@@ -346,6 +375,16 @@ export function usePdfDocument(url: string): PdfDocumentApi {
           // The viewer is a read-only surface: no cookies, no credentials, so a
           // cross-origin file is either public or it degrades.
           withCredentials: false,
+          // Where the browser viewer finds pdf.js's own data trees. A CID-keyed
+          // font that names a predefined CMap needs the CMap file before it can
+          // map character codes to glyph ids; without one pdf.js fails
+          // `translateFont` and draws every glyph of that font blank, which
+          // reads as a corrupt document because the latin text still draws.
+          // Both trees are copied out of pdfjs-dist into the apps' `public/`
+          // by scripts/lib/pdfjs-assets.mjs. The URL has to be absolute: see
+          // pdfjsAssetOrigin above.
+          cMapUrl: `${pdfjsAssetOrigin()}/pdfjs/cmaps/`,
+          standardFontDataUrl: `${pdfjsAssetOrigin()}/pdfjs/standard_fonts/`,
           // Read the file on demand instead of streaming all of it.
           //
           // By default pdf.js opens the file with one request for the whole
@@ -413,6 +452,9 @@ export function usePdfDocument(url: string): PdfDocumentApi {
         setMetrics(seed);
         setProgress(1);
         setStatus("ready");
+        // Published last, as one value: every other ready-state field above is
+        // already set, so a host that reacts to this one sees the whole document.
+        setReadyUrl(url);
 
         void refineMetrics(doc, seed);
       } catch (error) {
@@ -532,6 +574,7 @@ export function usePdfDocument(url: string): PdfDocumentApi {
 
   return {
     status,
+    readyUrl,
     pageCount,
     metrics,
     failure,

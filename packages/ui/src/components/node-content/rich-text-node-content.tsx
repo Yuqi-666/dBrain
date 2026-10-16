@@ -27,6 +27,9 @@ import { useNodeContentWriter } from "./use-node-content-writer";
 /** How many nodes 「从节点选」offers before the search narrows it. */
 const CANDIDATE_LIMIT = 24;
 
+/** How long typing has to pause before the body is written. */
+const RICH_TEXT_WRITE_DEBOUNCE_MS = 400;
+
 interface RichTextNodeContentProps {
   node: RichTextNodeData;
   className?: string;
@@ -48,16 +51,51 @@ export function RichTextNodeContent({
     node.content,
   );
 
-  // `patchContent` changes identity whenever the store does; the editor keeps the
-  // first `onContentChange` closure it was given, so hand it a stable one.
-  const patchBody = useRef(writer.patchContent);
+  // The document the editor is about to persist, **together with the writer that
+  // owns it**, and the timer that will send it — the same shape as the text
+  // node's host (`text-node-content.tsx`). Carrying the writer is what makes a
+  // node switch safe: a debounce armed for the old node cannot fire through the
+  // new node's writer and copy one node's body into another.
+  const pending = useRef<{
+    patchContent: (patch: Partial<RichTextContent>) => void;
+    docs: RichTextContent["docs"];
+  } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // `patchContent` changes identity whenever the store does (its live-content
+  // reader depends on this render's node), so hold it in a ref instead of
+  // rebuilding the flush callback — the unmount cleanup has to stay stable.
+  const patchRef = useRef(writer.patchContent);
   useEffect(() => {
-    patchBody.current = writer.patchContent;
+    patchRef.current = writer.patchContent;
   }, [writer.patchContent]);
 
-  const handleBodyChange = useCallback((docs: unknown) => {
-    patchBody.current({ docs: docs as RichTextContent["docs"] });
+  const flush = useCallback(() => {
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const queued = pending.current;
+    if (queued === null) return;
+    pending.current = null;
+    queued.patchContent({ docs: queued.docs });
   }, []);
+
+  const handleBodyChange = useCallback(
+    (docs: unknown) => {
+      pending.current = {
+        patchContent: patchRef.current,
+        docs: docs as RichTextContent["docs"],
+      };
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = setTimeout(flush, RICH_TEXT_WRITE_DEBOUNCE_MS);
+    },
+    [flush],
+  );
+
+  // Unmount (closing the dialog, switching the node) persists whatever the
+  // debounce still holds, so the last keystrokes survive an immediate close.
+  useEffect(() => flush, [flush]);
 
   const listNodes = useCallback(
     (query: string): NodeData[] => {
@@ -156,6 +194,7 @@ export function RichTextNodeContent({
       />
 
       <NotionEditor
+        key={node.id}
         placeholder={t("开始写作...")}
         onContentChange={handleBodyChange}
         getInitialContent={() =>

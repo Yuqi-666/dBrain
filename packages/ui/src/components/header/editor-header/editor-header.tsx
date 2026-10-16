@@ -1,6 +1,7 @@
 "use client";
 
 import { ToggleSidebarButton } from "../toggle-sidebar-button";
+import { DashboardCandidateButton } from "./dashboard-candidate-button";
 import { FullscreenButton } from "./fullscreen-button";
 import { PinButton } from "./pin-button";
 import { NodeTitle } from "./node-title";
@@ -59,6 +60,7 @@ export function EditorHeader({ className }: EditorHeaderProps) {
       <div
         className={`flex flex-1 justify-end items-center gap-0 p-0.5 transition-all rounded-lg border-none z-10 pointer-events-auto text-foreground `}
       >
+        <DashboardCandidateButton nodeId={currentEditingNodeId} />
         <PinButton />
         <Button
           variant="ghost"

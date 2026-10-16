@@ -1,8 +1,12 @@
 import { useWorkspaceStore } from "@workspace/store";
-import { useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import type { IAttachment } from "@workspace/interfaces";
-import { DIRECT_UPLOAD_MAX_BYTES, MAX_UPLOAD_BYTES, PDF_ANALYZE_MAX_BYTES } from "@workspace/utils/upload";
+import {
+  DIRECT_UPLOAD_MAX_BYTES,
+  MAX_UPLOAD_BYTES,
+  PDF_ANALYZE_MAX_BYTES,
+} from "@workspace/utils/upload";
 import { getPocketbaseClient } from "./pocketbase-client";
 import { readAuthSessionToken } from "./auth/session";
 
@@ -80,6 +84,18 @@ export interface UploadOptions {
    * @example ".jpg,.png,image/jpeg" or "image/*"
    */
   accept: string;
+  /**
+   * Stable identity for this upload list.
+   *
+   * When set, in-progress and finished items live in module-level state under
+   * this key, so a component that unmounts (the edit dialog closing) and mounts
+   * again (the dialog reopening) observes the same upload instead of an empty
+   * list. Callers that mount more than one zone for the same entity must include
+   * the variant in the key. Omit it to keep the list private to the hook
+   * instance.
+   * @optional
+   */
+  key?: string;
   /**
    * Function that handles the actual file upload process
    * @param {File} file - The file to be uploaded
@@ -179,7 +195,8 @@ export function resolveFileUrl(src?: string | null): string {
 
   // Stored gateway paths must not duplicate /pb or retain an old desktop
   // session prefix when resolved against the active backend.
-  const path = src.replace(/^\/pb(?=\/api\/files\/)/, "")
+  const path = src
+    .replace(/^\/pb(?=\/api\/files\/)/, "")
     .replace(/^\/session\/[a-f0-9]+(?=\/api\/files\/)/, "");
   return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
@@ -189,7 +206,10 @@ function buildUploadUrl(
   storedName: string,
 ): string {
   const pb = getPocketbaseClient();
-  if (process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop" || process.env.NEXT_PUBLIC_DBRAIN_BACKEND_MODE === "same-origin") {
+  if (
+    process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop" ||
+    process.env.NEXT_PUBLIC_DBRAIN_BACKEND_MODE === "same-origin"
+  ) {
     return `/api/files/${record.collectionId || FILES_COLLECTION}/${record.id}/${storedName}`;
   }
   try {
@@ -311,9 +331,10 @@ const uploadDirectAttachment = (
     // Web login uses the session cookie; desktop initializes the PB auth store.
     // Read the web cookie for every upload so renewal/logout cannot leave a
     // stale SDK token in use. PB requires Authorization for record creation.
-    const token = process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop"
-      ? pb.authStore?.token
-      : readAuthSessionToken();
+    const token =
+      process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop"
+        ? pb.authStore?.token
+        : readAuthSessionToken();
     if (token) xhr.setRequestHeader("Authorization", token);
 
     xhr.send(formData);
@@ -366,11 +387,87 @@ export const uploadFile: UploadOptions["upload"] = async (
   return attachment.url;
 };
 
+/** One key's upload list plus the components watching it. */
+interface UploadStore {
+  items: FileItem[];
+  listeners: Set<() => void>;
+}
+
+/** Shared immutable snapshot for a key that has never stored an upload. */
+const EMPTY_FILE_ITEMS: FileItem[] = [];
+
+/**
+ * Module-level so an upload started inside the node edit dialog survives the
+ * dialog closing. Closing unmounts the drop zone while the in-flight upload
+ * promise keeps running; reopening mounts a zone that subscribes to this same
+ * entry and renders the live progress, including the finished success / error
+ * item and its `url`.
+ */
+const uploadStores = new Map<string, UploadStore>();
+
+function getUploadStore(key: string): UploadStore {
+  let store = uploadStores.get(key);
+  if (!store) {
+    store = { items: EMPTY_FILE_ITEMS, listeners: new Set() };
+    uploadStores.set(key, store);
+  }
+  return store;
+}
+
+function subscribeToUploads(key: string, listener: () => void): () => void {
+  const store = getUploadStore(key);
+  store.listeners.add(listener);
+  return () => {
+    store.listeners.delete(listener);
+  };
+}
+
+function getUploadItems(key: string): FileItem[] {
+  return uploadStores.get(key)?.items ?? EMPTY_FILE_ITEMS;
+}
+
+function updateUploadItems(
+  key: string,
+  update: (items: FileItem[]) => FileItem[],
+): void {
+  const store = getUploadStore(key);
+  const next = update(store.items);
+  if (next === store.items) return;
+  store.items = next;
+  store.listeners.forEach((listener) => listener());
+}
+
 /**
  * Custom hook for managing multiple file uploads with progress tracking and cancellation
+ *
+ * State is keyed by {@link UploadOptions.key} and kept outside React, so a
+ * remount with the same key observes the upload it started before it unmounted
+ * (see {@link UploadStore}). A caller that passes no key — the Tiptap image node
+ * — gets a private key per hook instance, matching the previous component-local
+ * behaviour.
  */
 export function useFileUpload(options: UploadOptions) {
-  const [fileItems, setFileItems] = useState<FileItem[]>([]);
+  // Lazy initializer, so the fallback key is stable for the hook's lifetime
+  // even though it is unused when the caller supplies a key.
+  const [fallbackKey] = useState(() => `__file-upload-${crypto.randomUUID()}`);
+  const key = options.key ?? fallbackKey;
+
+  // Drop the private entry of a key-less caller with the component: explicit
+  // keys are the ones whose whole purpose is to outlive the component.
+  useEffect(() => {
+    if (options.key !== undefined) return;
+    return () => {
+      uploadStores.delete(fallbackKey);
+    };
+  }, [options.key, fallbackKey]);
+
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeToUploads(key, listener),
+    [key],
+  );
+  const getSnapshot = useCallback(() => getUploadItems(key), [key]);
+
+  const fileItems = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!matchesAccept(file, options.accept)) {
@@ -401,7 +498,7 @@ export function useFileUpload(options: UploadOptions) {
       abortController,
     };
 
-    setFileItems((prev) => [...prev, newFileItem]);
+    updateUploadItems(key, (prev) => [...prev, newFileItem]);
 
     try {
       if (!options.upload) {
@@ -411,7 +508,7 @@ export function useFileUpload(options: UploadOptions) {
       const url = await options.upload(
         file,
         (event: { progress: number }) => {
-          setFileItems((prev) =>
+          updateUploadItems(key, (prev) =>
             prev.map((item) =>
               item.id === fileId ? { ...item, progress: event.progress } : item,
             ),
@@ -423,7 +520,7 @@ export function useFileUpload(options: UploadOptions) {
       if (!url) throw new Error("Upload failed: No URL returned");
 
       if (!abortController.signal.aborted) {
-        setFileItems((prev) =>
+        updateUploadItems(key, (prev) =>
           prev.map((item) =>
             item.id === fileId
               ? { ...item, status: "success", url, progress: 100 }
@@ -437,7 +534,7 @@ export function useFileUpload(options: UploadOptions) {
       return null;
     } catch (error) {
       if (!abortController.signal.aborted) {
-        setFileItems((prev) =>
+        updateUploadItems(key, (prev) =>
           prev.map((item) =>
             item.id === fileId
               ? {
@@ -484,7 +581,7 @@ export function useFileUpload(options: UploadOptions) {
   };
 
   const removeFileItem = (fileId: string) => {
-    setFileItems((prev) => {
+    updateUploadItems(key, (prev) => {
       const fileToRemove = prev.find((item) => item.id === fileId);
       fileToRemove?.abortController?.abort();
       revokeIfObjectUrl(fileToRemove?.url);
@@ -493,11 +590,11 @@ export function useFileUpload(options: UploadOptions) {
   };
 
   const clearAllFiles = () => {
-    fileItems.forEach((item) => {
+    getUploadItems(key).forEach((item) => {
       item.abortController?.abort();
       revokeIfObjectUrl(item.url);
     });
-    setFileItems([]);
+    updateUploadItems(key, () => EMPTY_FILE_ITEMS);
   };
 
   return {

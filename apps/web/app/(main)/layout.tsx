@@ -65,7 +65,7 @@ export default function MainLayout({
       return null;
     }
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+      <div className="flex min-h-dvh items-center justify-center text-muted-foreground">
         {t("Loading…")}{" "}
       </div>
     );

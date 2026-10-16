@@ -35,7 +35,7 @@ import type {
   PdfNodeData,
 } from "@workspace/interfaces";
 import { NodeService } from "@workspace/services";
-import { useUIStore } from "@workspace/store";
+import { useAuthStore, useUIStore } from "@workspace/store";
 import { resolveFileUrl } from "@workspace/api-client";
 import { PdfViewer } from "@workspace/ui/components/pdf-viewer/pdf-viewer";
 import type { PdfLoadFailure } from "@workspace/ui/components/pdf-viewer/types";
@@ -65,6 +65,15 @@ export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
    * host-agnostic by construction and must not learn what a `mainViewType` is.
    */
   const compact = useUIStore((state) => state.mainViewType !== "editor");
+
+  /**
+   * The reading position is per reader as well as per node: one account on a
+   * shared browser must not resume on the page another account left off. The
+   * viewer owns the page and only needs the key; this host knows the user and
+   * the node.
+   */
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const progressKey = `${userId ?? "anonymous"}:${node.id}`;
 
   /** A new file is a new attempt — the previous fallback must not stick to it. */
   useEffect(() => {
@@ -128,6 +137,7 @@ export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
             key={url}
             url={url}
             title={node.title}
+            progressKey={progressKey}
             annotations={node.content?.annotations?.items}
             onAnnotationsChange={handleAnnotationsChange}
             compact={compact}

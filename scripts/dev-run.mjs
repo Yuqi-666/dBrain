@@ -18,6 +18,7 @@ import {
   readDevStack,
   stackEnv,
 } from "./lib/dev-ports.mjs";
+import { copyPdfjsAssets } from "./lib/pdfjs-assets.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const envPath = fileURLToPath(new URL("../.env", import.meta.url));
@@ -96,6 +97,11 @@ for (const [name, value] of Object.entries(stackEnv(stack, process.env))) {
   if (value === undefined) delete process.env[name];
   else process.env[name] = String(value);
 }
+
+// The viewer fetches its CMap and standard-font data from the web app's
+// `public/` tree, and this script starts Next directly (`exec next dev`), so it
+// never runs the app's own `dev` script — which is what does the copy.
+await copyPdfjsAssets("web");
 
 const { result } = concurrently(commands, {
   cwd: root,

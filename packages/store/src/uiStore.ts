@@ -178,6 +178,37 @@ export interface UIStore {
   /** 设置 sidebar 激活的 tab */
   setSidebarActiveTab: (tab: string) => void;
 
+  // ==================== Dashboard Sidebar Section ====================
+  /**
+   * Dashboard 左侧栏（标题、工作空间、页面 tab）显示模式。与图的
+   * `sidebarMode` 分开，因为两个界面各自维护自己的侧栏，互不干扰。
+   */
+  dashboardSidebarMode: SidebarMode;
+  /** 切换 dashboard 左侧栏（closed <-> fixed） */
+  toggleDashboardSidebar: () => void;
+  /** 设置 dashboard 左侧栏模式 */
+  setDashboardSidebarMode: (mode: SidebarMode) => void;
+  /** 切换到固定显示模式 */
+  convertDashboardTempToFixed: () => void;
+  /** 关闭 dashboard 左侧栏 */
+  closeDashboardSidebar: () => void;
+  /** 临时显示 dashboard 左侧栏（浮动面板） */
+  showTempDashboardSidebar: () => void;
+  /**
+   * Dashboard 右侧组件库的显示模式。与左侧栏一样是三态：`closed`；
+   * `temp`（指针滑到右边缘时浮出，离开即收回，不推挤内容）；`fixed`
+   * （点标题栏的「组件库」按钮后固定下来，不随指针离开消失）。
+   */
+  dashboardLibraryMode: SidebarMode;
+  /** 切换 dashboard 右侧组件库（closed/temp <-> fixed） */
+  toggleDashboardLibrary: () => void;
+  /** 设置 dashboard 右侧组件库模式 */
+  setDashboardLibraryMode: (mode: SidebarMode) => void;
+  /** 关闭 dashboard 右侧组件库 */
+  closeDashboardLibrary: () => void;
+  /** 临时显示 dashboard 右侧组件库（浮动面板） */
+  showTempDashboardLibrary: () => void;
+
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
   mainViewType: MainViewType;
@@ -389,6 +420,28 @@ export const useUIStore = create<UIStore>()(
       showTempSidebar: () => set({ sidebarMode: "temp" }),
       sidebarActiveTab: "nodes",
       setSidebarActiveTab: (tab) => set({ sidebarActiveTab: tab }),
+
+      // ==================== Dashboard Sidebar ====================
+      dashboardSidebarMode: "closed",
+      toggleDashboardSidebar: () =>
+        set((state) => ({
+          dashboardSidebarMode:
+            state.dashboardSidebarMode === "fixed" ? "closed" : "fixed",
+        })),
+      setDashboardSidebarMode: (mode) => set({ dashboardSidebarMode: mode }),
+      convertDashboardTempToFixed: () =>
+        set({ dashboardSidebarMode: "fixed" }),
+      closeDashboardSidebar: () => set({ dashboardSidebarMode: "closed" }),
+      showTempDashboardSidebar: () => set({ dashboardSidebarMode: "temp" }),
+      dashboardLibraryMode: "closed",
+      toggleDashboardLibrary: () =>
+        set((state) => ({
+          dashboardLibraryMode:
+            state.dashboardLibraryMode === "fixed" ? "closed" : "fixed",
+        })),
+      setDashboardLibraryMode: (mode) => set({ dashboardLibraryMode: mode }),
+      closeDashboardLibrary: () => set({ dashboardLibraryMode: "closed" }),
+      showTempDashboardLibrary: () => set({ dashboardLibraryMode: "temp" }),
 
       // ==================== Main View ====================
       mainViewType: "graph",
