@@ -1,13 +1,16 @@
 # Dashboard
 
-Web route: `/dashboard`. Open it from **Dynamic Island**; the dashboard has no
-main sidebar. The graph sidebar retains its original workspace/view navigation.
-The dashboard header switches workspaces.
+Web route: `/dashboard`. Open it from **Dynamic Island**. The dashboard has its
+own left sidebar (title, workspace and page tabs) and right sidebar (the node
+component library); both follow the graph sidebar's open/close pattern. The
+content header holds the left-sidebar button, the page title and the
+right-sidebar button.
 
-1. In the node editor's **更多选项**, choose **添加到 Dashboard 备选**.
-2. Create a page, then choose **添加组件** to open the right-hand library and
-   enter layout editing. Drag candidates onto the grid, or use the add buttons.
-   On narrow screens the library appears above the content.
+1. In the node editor's header, choose **添加到 Dashboard 备选** — the dashboard
+   icon in the right-hand button bar.
+2. Create a page, then choose **添加组件** or the right-sidebar button to open
+   the library and enter layout editing. Drag candidates onto the grid, or use
+   the add buttons. On narrow screens the library appears above the content.
 3. Choose **编辑布局** to move widgets by their title bars and resize at the bottom-right corner.
    **自动布局** packs widgets while retaining their sizes.
 4. **完成布局** hides layout controls and closes the library. Pages initially open

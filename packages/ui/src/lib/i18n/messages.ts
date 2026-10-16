@@ -4679,4 +4679,28 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "不介于",
     en: "not between",
   },
+  展开大纲: {
+    "zh-CN": "展开大纲",
+    en: "Expand outline",
+  },
+  收起大纲: {
+    "zh-CN": "收起大纲",
+    en: "Collapse outline",
+  },
+  "关闭侧边栏": {
+    "zh-CN": "关闭侧边栏",
+    en: "Close sidebar",
+  },
+  "打开组件库": {
+    "zh-CN": "打开组件库",
+    en: "Open component library",
+  },
+  "打开 Dashboard 侧边栏": {
+    "zh-CN": "打开 Dashboard 侧边栏",
+    en: "Open dashboard sidebar",
+  },
+  "还没有页面": {
+    "zh-CN": "还没有页面",
+    en: "No pages yet",
+  },
 };

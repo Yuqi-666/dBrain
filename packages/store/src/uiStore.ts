@@ -178,6 +178,29 @@ export interface UIStore {
   /** 设置 sidebar 激活的 tab */
   setSidebarActiveTab: (tab: string) => void;
 
+  // ==================== Dashboard Sidebar Section ====================
+  /**
+   * Dashboard 左侧栏（标题、工作空间、页面 tab）显示模式。与图的
+   * `sidebarMode` 分开，因为两个界面各自维护自己的侧栏，互不干扰。
+   */
+  dashboardSidebarMode: SidebarMode;
+  /** 切换 dashboard 左侧栏（closed <-> fixed） */
+  toggleDashboardSidebar: () => void;
+  /** 设置 dashboard 左侧栏模式 */
+  setDashboardSidebarMode: (mode: SidebarMode) => void;
+  /** 切换到固定显示模式 */
+  convertDashboardTempToFixed: () => void;
+  /** 关闭 dashboard 左侧栏 */
+  closeDashboardSidebar: () => void;
+  /** 临时显示 dashboard 左侧栏（浮动面板） */
+  showTempDashboardSidebar: () => void;
+  /** Dashboard 右侧组件库是否展开 */
+  dashboardLibraryOpen: boolean;
+  /** 切换 dashboard 右侧组件库 */
+  toggleDashboardLibrary: () => void;
+  /** 设置 dashboard 右侧组件库展开状态 */
+  setDashboardLibraryOpen: (open: boolean) => void;
+
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
   mainViewType: MainViewType;
@@ -389,6 +412,23 @@ export const useUIStore = create<UIStore>()(
       showTempSidebar: () => set({ sidebarMode: "temp" }),
       sidebarActiveTab: "nodes",
       setSidebarActiveTab: (tab) => set({ sidebarActiveTab: tab }),
+
+      // ==================== Dashboard Sidebar ====================
+      dashboardSidebarMode: "closed",
+      toggleDashboardSidebar: () =>
+        set((state) => ({
+          dashboardSidebarMode:
+            state.dashboardSidebarMode === "fixed" ? "closed" : "fixed",
+        })),
+      setDashboardSidebarMode: (mode) => set({ dashboardSidebarMode: mode }),
+      convertDashboardTempToFixed: () =>
+        set({ dashboardSidebarMode: "fixed" }),
+      closeDashboardSidebar: () => set({ dashboardSidebarMode: "closed" }),
+      showTempDashboardSidebar: () => set({ dashboardSidebarMode: "temp" }),
+      dashboardLibraryOpen: false,
+      toggleDashboardLibrary: () =>
+        set((state) => ({ dashboardLibraryOpen: !state.dashboardLibraryOpen })),
+      setDashboardLibraryOpen: (open) => set({ dashboardLibraryOpen: open }),
 
       // ==================== Main View ====================
       mainViewType: "graph",
