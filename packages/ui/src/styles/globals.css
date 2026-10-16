@@ -14,6 +14,22 @@
    the data views (text-[11px], w-[4.5rem], min-h-9, ...) is silently missing
    from the stylesheet. */
 @source "../../../dataview/src/**/*.{ts,tsx}";
+/* @workspace/editor is skipped by automatic content detection for the same
+   reason as dataview: the app reaches it through a symlinked workspace
+   dependency. Without these lines a class used only by an editor node never
+   reaches the stylesheet, so the excalidraw block's frame (hover:ring-2,
+   hover:ring-border, hover:border-muted-foreground/60) was silently missing
+   and the block had no pointer affordance at all.
+
+   The paths are listed one directory at a time on purpose: `editor/**` also
+   matches `editor/node_modules`, whose symlinks point back into the workspace
+   and into the pnpm store. The scanner follows them, so the single broad glob
+   handed webpack a dependency list big enough to fail the whole build with
+   `RangeError: Invalid array length` in `FileSystemInfo`. These three hold the
+   editor's Tailwind classes. */
+@source "../../../editor/components/**/*.{ts,tsx}";
+@source "../../../editor/hooks/**/*.{ts,tsx}";
+@source "../../../editor/lib/**/*.{ts,tsx}";
 
 
 :root {

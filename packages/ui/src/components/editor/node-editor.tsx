@@ -2,7 +2,11 @@
 
 import { cn } from "@workspace/ui/lib/utils";
 import { useUIStore, useDataStore } from "@workspace/store";
-import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@workspace/ui/components/ui/dialog";
 import { NodeContentEditor } from "@workspace/ui/components/node-content/node-content-editor";
 import { EditorHeader } from "@workspace/ui/components/header/editor-header/editor-header";
 import { AttributesSidebar } from "@workspace/ui/components/header/editor-header/attributes-sidebar";
@@ -51,6 +55,9 @@ export function NodeEditor({ className }: NodeEditorProps) {
           <DialogContent
             showCloseButton={false}
             autoFocus={false}
+            // The dialog has no visible description; without this Radix logs
+            // a missing-description warning on every open.
+            aria-describedby={undefined}
             className={cn(
               "sm:max-w-[80%] w-[1200px] h-[80vh] flex flex-col p-2 pt-0",
               "rounded-2xl bg-popover",
@@ -60,6 +67,8 @@ export function NodeEditor({ className }: NodeEditorProps) {
               className,
             )}
           >
+            {/* Radix requires a title; the dialog's own header shows it. */}
+            <DialogTitle className="sr-only">{node.title}</DialogTitle>
             <NodeEditorContent node={node} />
           </DialogContent>
         </Dialog>

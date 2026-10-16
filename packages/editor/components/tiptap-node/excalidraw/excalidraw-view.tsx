@@ -8,7 +8,12 @@ import type {
   ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
 import clsx from "clsx";
-import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { getFileUrl, loadExcalidrawData } from "./excalidraw-utils";
 import { ExcalidrawWrapper } from "./excalidraw-wrapper";
@@ -138,6 +143,14 @@ export default function ExcalidrawView(props: NodeViewProps) {
             "ring-1 ring-foreground/5 shadow-2xl shadow-foreground/5",
           )}
         >
+          {/* Radix requires a title on every dialog; the window shows the
+              canvas itself, so it stays visually hidden. */}
+          <DialogTitle className="sr-only">
+            {t("Excalidraw diagram")}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("Double-click to edit Excalidraw diagram")}
+          </DialogDescription>
           <div className="flex items-center justify-end gap-2 p-2 shrink-0">
             <Button onClick={handleSave} size="sm">
               {t("Save & Exit")}{" "}
@@ -162,18 +175,22 @@ export default function ExcalidrawView(props: NodeViewProps) {
       </Dialog>
 
       {/*
-        One gesture for both states — double-click opens the editor on the image
-        and on the placeholder alike, so the little pencil button is gone. The
-        image gets the placeholder's affordance in exchange: a hairline that
-        appears on hover, and a ring while the block is selected.
+        One gesture and one frame for both states: double-click opens the editor
+        on the image and on the placeholder alike (the pencil button is gone),
+        and both draw the same frame — a hairline that grows into a primary ring
+        on hover, and a primary ring while the block is selected. The frame is
+        applied here instead of through ProseMirror's
+        `ProseMirror-selectednode` because `paragraph-node.scss` paints that
+        class with a selection background, which read as a second, ugly border
+        stacked on the ring.
       */}
       {previewSrc ? (
         <div
           onDoubleClick={handleOpen}
           className={clsx(
-            "relative w-fit max-w-full cursor-pointer rounded-md ring-1 ring-transparent transition-colors",
-            "hover:ring-border",
-            selected ? "ProseMirror-selectednode ring-2 ring-primary" : "",
+            "relative w-fit max-w-full cursor-pointer rounded-lg ring-1 ring-transparent",
+            "transition-[box-shadow] duration-150 hover:ring-2 hover:ring-primary/40",
+            selected && "ring-2 ring-primary/60",
           )}
         >
           <img
@@ -187,11 +204,10 @@ export default function ExcalidrawView(props: NodeViewProps) {
         <div
           onDoubleClick={handleOpen}
           className={clsx(
-            "flex items-center justify-center p-4 rounded-md border border-dashed cursor-pointer",
-            "hover:bg-muted/50 hover:border-muted-foreground/60 transition-colors",
-            selected
-              ? "ProseMirror-selectednode border-primary ring-2 ring-primary/30"
-              : "",
+            "flex cursor-pointer items-center justify-center rounded-lg bg-muted/25 px-4 py-6",
+            "ring-1 ring-border/70 transition-[box-shadow,background-color] duration-150",
+            "hover:bg-muted/45 hover:ring-2 hover:ring-primary/40",
+            selected && "ring-2 ring-primary/60",
           )}
         >
           <span className="text-muted-foreground">
