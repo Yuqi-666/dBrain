@@ -17,6 +17,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
 import { Progress } from "@workspace/ui/components/ui/progress";
+import { toast } from "@workspace/ui/components/ui/toast";
 import {
   MAX_UPLOAD_BYTES,
   PDF_ANALYZE_MAX_BYTES,
@@ -283,6 +284,19 @@ function buildNodeUpdates(
 }
 
 /**
+ * Tells the user the upload and the node write both succeeded.
+ *
+ * Reached from the upload promise's closure, so it also runs when the dialog
+ * that started the upload has already closed.
+ */
+function showUploadSuccessToast(file: File): void {
+  toast({
+    title: translate("上传成功"),
+    description: file.name,
+  });
+}
+
+/**
  * Parses a freshly uploaded PDF on the backend and returns the content half the
  * node should end up with.
  *
@@ -409,6 +423,9 @@ function UploadDropZone({
     maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
+    // Outlives this dialog: the key lets a reopened zone subscribe to the
+    // upload that started before it unmounted.
+    key: `${nodeId}:${variant}`,
     upload: uploadFile,
     // `file` comes straight from the uploader — reading `fileItems[0]` here
     // would see the pre-upload state and silently skip post-processing.
@@ -421,6 +438,7 @@ function UploadDropZone({
           const patch = await analyzePdfUpload(url, file);
           await writeContentPatch(nodeId, liveContent(), patch);
           onUploaded?.();
+          showUploadSuccessToast(file);
           return;
         }
 
@@ -438,6 +456,7 @@ function UploadDropZone({
             setPackaging(false);
           }
           onUploaded?.();
+          showUploadSuccessToast(file);
           return;
         }
 
@@ -446,6 +465,7 @@ function UploadDropZone({
         const patch = buildNodeUpdates(variant, url, file, preview);
         await writeContentPatch(nodeId, liveContent(), patch);
         onUploaded?.();
+        showUploadSuccessToast(file);
       } catch (error) {
         onUploadError?.(
           error instanceof Error ? error : new Error("Upload failed"),
@@ -714,8 +734,11 @@ function DisplayFieldDropZone({
     maxSize: MAX_UPLOAD_BYTES,
     limit: 1,
     accept: accept,
+    // Keyed by the display field too: one node can mount the icon and the
+    // cover zone at the same time.
+    key: `${nodeId}:${variant}`,
     upload: uploadFile,
-    onSuccess: async (url: string) => {
+    onSuccess: async (url: string, file: File) => {
       try {
         // Only the top-level display field is written; `content` is not touched
         // at all (sel §6.1). Nothing is cleared before the upload, so a failed
@@ -734,6 +757,7 @@ function DisplayFieldDropZone({
 
         await NodeService.upsert(nodeId, updates);
         onUploaded?.();
+        showUploadSuccessToast(file);
       } catch (error) {
         onUploadError?.(
           error instanceof Error ? error : new Error("Upload failed"),
