@@ -196,6 +196,13 @@ test("the viewer keeps asking pdfjs for on-demand reads", () => {
   assert.doesNotMatch(call, /disableRange:\s*true/);
   // A CID-keyed font with a predefined CMap renders blank without the CMap
   // data, and a non-embedded font needs pdf.js's own standard-font files.
-  assert.match(call, /cMapUrl:\s*"\/pdfjs\/cmaps\/"/);
-  assert.match(call, /standardFontDataUrl:\s*"\/pdfjs\/standard_fonts\/"/);
+  // The URL must be absolute: pdf.js fetches these trees from inside its
+  // worker, where a root-relative path throws `Failed to parse URL` and the
+  // page draws with the font's glyphs missing.
+  assert.match(source, /function pdfjsAssetOrigin\(\): string/);
+  assert.match(call, /cMapUrl:\s*`\$\{pdfjsAssetOrigin\(\)\}\/pdfjs\/cmaps\/`/);
+  assert.match(
+    call,
+    /standardFontDataUrl:\s*`\$\{pdfjsAssetOrigin\(\)\}\/pdfjs\/standard_fonts\/`/,
+  );
 });
