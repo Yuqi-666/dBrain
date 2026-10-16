@@ -214,6 +214,11 @@ export function EditorProvider(props: EditorProviderProps) {
       handleContentChange(json);
     },
     onCreate({ editor }) {
+      // Tiptap emits `create` from a timeout (`Editor.mount`), so a first
+      // keystroke can land before this runs. Only an empty document may be
+      // seeded: writing over a non-empty one would erase that keystroke and
+      // persist the blank document the user is about to close.
+      if (!editor.isEmpty) return;
       const initialContent = getInitialContent?.();
       if (initialContent) {
         // tiptap turns a missing document into an empty one; its parameter type

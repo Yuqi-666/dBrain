@@ -7,13 +7,22 @@ import type {
   ExcalidrawImperativeAPI,
   ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
-import type { IAttachment } from "@workspace/interfaces";
 import clsx from "clsx";
 import { Pencil } from "lucide-react";
 import { Dialog, DialogContent } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
-import { getFileUrl } from "./excalidraw-utils";
+import { getFileUrl, loadExcalidrawData } from "./excalidraw-utils";
 import { ExcalidrawWrapper } from "./excalidraw-wrapper";
+
+/**
+ * Nodes saved before the preview existed point `src` at the scene JSON
+ * (`diagram.excalidraw.json`). An `<img>` can never render that, so such a node
+ * is treated as "no preview": the placeholder shows and the scene is recovered
+ * from the JSON on open instead of a broken image.
+ */
+function isLegacyJsonSource(src: string | null | undefined): boolean {
+  return typeof src === "string" && src.toLowerCase().endsWith(".json");
+}
 
 export default function ExcalidrawView(props: NodeViewProps) {
   const { t } = useI18n();
@@ -44,6 +53,11 @@ export default function ExcalidrawView(props: NodeViewProps) {
         const files = jsonData.files || {};
 
         setExcalidrawData({ elements, files });
+      } else if (isLegacyJsonSource(src)) {
+        // A node written before the raster preview existed kept its scene in a
+        // JSON attachment and no `data`; recover it so the block stays editable
+        // instead of rendering a broken image.
+        setExcalidrawData(await loadExcalidrawData(src));
       }
     } catch (err) {
       console.error(err);
@@ -61,35 +75,55 @@ export default function ExcalidrawView(props: NodeViewProps) {
       return;
     }
 
-    const jsonData = {
+    // The scene JSON stays in `data`: it is the editable source of truth, so
+    // the block survives even when the preview upload below fails.
+    const jsonString = JSON.stringify({
       elements: excalidrawAPI.getSceneElements(),
       files: excalidrawAPI.getFiles(),
-    };
-
-    const jsonString = JSON.stringify(jsonData);
-    const fileName = "diagram.excalidraw.json";
-    const excalidrawFile = new File([jsonString], fileName, {
-      type: "application/json",
     });
 
-    let attachment: IAttachment | null = null;
     try {
-      attachment = await uploadAttachment(excalidrawFile);
-    } catch (error) {
-      console.error("Failed to save Excalidraw diagram:", error);
-      return;
-    }
+      // The node view renders an <img>, so `src` must point at a raster image.
+      // Render one from the live scene (a JSON file can never be displayed)
+      // and upload that as the preview.
+      const { exportToBlob } = await import("@excalidraw/excalidraw");
+      const blob = await exportToBlob({
+        elements: excalidrawAPI.getSceneElements(),
+        appState: excalidrawAPI.getAppState(),
+        files: excalidrawAPI.getFiles(),
+        mimeType: "image/png",
+      });
+      const previewFile = new File([blob], "diagram.png", {
+        type: "image/png",
+      });
+      const attachment = await uploadAttachment(previewFile);
 
-    updateAttributes({
-      data: jsonString,
-      src: attachment.url,
-      title: attachment.fileName,
-      size: attachment.fileSize,
-      attachmentId: attachment.id,
-    });
+      updateAttributes({
+        data: jsonString,
+        src: attachment.url,
+        title: attachment.fileName,
+        size: attachment.fileSize,
+        attachmentId: attachment.id,
+      });
+    } catch (error) {
+      console.error("Failed to save Excalidraw preview:", error);
+      // Keep the scene editable and leave any existing preview untouched.
+      updateAttributes({ data: jsonString });
+    }
 
     setOpened(false);
   };
+
+  // A legacy JSON `src` is not an image: fall back to the placeholder, while
+  // `handleOpen` still recovers the scene from it.
+  const previewSrc = src && !isLegacyJsonSource(src) ? getFileUrl(src) : "";
+  // The stored `width` is the layout string "100%"; only a real pixel number
+  // belongs in the img width attribute (a bad value draws a thin strip).
+  const numericWidth = Number(width);
+  const imgWidth =
+    Number.isFinite(numericWidth) && numericWidth > 0
+      ? numericWidth
+      : undefined;
 
   return (
     <NodeViewWrapper>
@@ -122,13 +156,13 @@ export default function ExcalidrawView(props: NodeViewProps) {
         </DialogContent>
       </Dialog>
 
-      {src ? (
+      {previewSrc ? (
         <div className="relative">
           <img
             onClick={(e) => e.detail === 2 && handleOpen()}
-            src={getFileUrl(src)}
+            src={previewSrc}
             alt={title}
-            width={width}
+            width={imgWidth}
             className={clsx(
               selected ? "ProseMirror-selectednode" : "",
               "alignCenter max-w-full h-auto rounded-md",
