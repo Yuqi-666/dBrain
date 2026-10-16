@@ -143,7 +143,7 @@ export class PocketBaseEdgeRepository implements IEdgeRepository {
     }
 
     if (query.direction) {
-      conditions.push(`direction = "${query.direction}"`);
+      conditions.push(`direction = "${query.direction.getValue()}"`);
     }
 
     if (query.workspaceId) {

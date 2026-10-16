@@ -70,6 +70,11 @@ export class EdgeMapper {
         return EdgeDirection.bidirectional();
       case "undirected":
         return EdgeDirection.undirected();
+      // Spelling written before the direction rename migration. A database
+      // that has not run the change script must still read as undirected,
+      // not fall through to the forward default.
+      case "unidirectional":
+        return EdgeDirection.undirected();
       default:
         return EdgeDirection.forward();
     }

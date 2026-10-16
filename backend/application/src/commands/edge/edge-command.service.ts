@@ -94,7 +94,7 @@ export class EdgeCommandService {
     let updated = edge;
 
     if (cmd.direction) {
-      updated = updated.flip();
+      updated = updated.changeDirection(parseEdgeDirection(cmd.direction));
     }
 
     if (cmd.stateData !== undefined) {

@@ -206,7 +206,7 @@ migrate(
           name: "direction",
           type: "select",
           required: true,
-          values: ["forward", "reverse", "bidirectional", "unidirectional"],
+          values: ["forward", "reverse", "bidirectional", "undirected"],
         },
         { name: "semanticId", type: "text" },
         { name: "stateData", type: "json" },
