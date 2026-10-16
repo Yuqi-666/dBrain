@@ -25,7 +25,13 @@ interface DashboardSidebarProps {
   onCreate: () => void;
   onRename: (page: DashboardPage) => void;
   onDelete: (page: DashboardPage) => void;
-  onClose: () => void;
+  /**
+   * 侧栏内的开关按钮：浮动（`temp`）时把侧栏钉住，固定时关闭侧栏。
+   * 与图侧栏的 `SidebarHeader` 同一套行为。
+   */
+  onToggle: () => void;
+  /** 当前是否固定显示（决定按钮的提示文字）。 */
+  pinned: boolean;
 }
 
 /**
@@ -41,7 +47,8 @@ export function DashboardSidebar({
   onCreate,
   onRename,
   onDelete,
-  onClose,
+  onToggle,
+  pinned,
 }: DashboardSidebarProps) {
   const { t } = useI18n();
 
@@ -59,9 +66,9 @@ export function DashboardSidebar({
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
-          aria-label={t("关闭侧边栏")}
-          title={t("关闭侧边栏")}
+          onClick={onToggle}
+          aria-label={pinned ? t("关闭侧边栏") : t("固定侧边栏")}
+          title={pinned ? t("关闭侧边栏") : t("固定侧边栏")}
           className="size-8 rounded-lg text-sidebar-foreground/60 transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <PanelLeftIcon className="size-4" />

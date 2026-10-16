@@ -409,11 +409,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Edit filter",
   },
   "这个 collection 显示「已勾选节点」与「命中筛选条件的节点」的并集； 两者都为空时显示全部节点。":
-  {
-    "zh-CN":
-      "这个 collection 显示「已勾选节点」与「命中筛选条件的节点」的并集； 两者都为空时显示全部节点。",
-    en: "This collection shows selected nodes and nodes matching the filter. When both are empty, it shows all nodes.",
-  },
+    {
+      "zh-CN":
+        "这个 collection 显示「已勾选节点」与「命中筛选条件的节点」的并集； 两者都为空时显示全部节点。",
+      en: "This collection shows selected nodes and nodes matching the filter. When both are empty, it shows all nodes.",
+    },
   筛选条件: {
     "zh-CN": "筛选条件",
     en: "Filter conditions",
@@ -623,11 +623,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "e.g., Tasks",
   },
   "视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。":
-  {
-    "zh-CN":
-      "视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。",
-    en: "The view shows selected nodes and nodes matching the filter. When both are empty, it shows all nodes.",
-  },
+    {
+      "zh-CN":
+        "视图显示「已勾选节点」与「命中筛选条件的节点」的并集；两者都为空时显示全部节点。",
+      en: "The view shows selected nodes and nodes matching the filter. When both are empty, it shows all nodes.",
+    },
   "创建中…": {
     "zh-CN": "创建中…",
     en: "Creating…",
@@ -2167,11 +2167,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Choose the event start date in Fields on the toolbar to place records on their dates.",
   },
   "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。":
-  {
-    "zh-CN":
-      "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。",
-    en: "The calendar places rows by a date field. Add a Date field, such as Due date, in the table view, then select it here.",
-  },
+    {
+      "zh-CN":
+        "日历把行按某个日期字段铺开。先用表格视图添加一个「日期」字段（例如「截止日」），再回到日历选择它。",
+      en: "The calendar places rows by a date field. Add a Date field, such as Due date, in the table view, then select it here.",
+    },
   列表: {
     "zh-CN": "列表",
     en: "List",
@@ -2298,11 +2298,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Charts need a Dimension field",
   },
   "维度决定图表怎么分组（分类轴、扇区或词条）。先用表格视图添加一个文本或单选字段。":
-  {
-    "zh-CN":
-      "维度决定图表怎么分组（分类轴、扇区或词条）。先用表格视图添加一个文本或单选字段。",
-    en: "Dimensions group chart data into categories, slices, or terms. Add a Text or Single select field in the table view.",
-  },
+    {
+      "zh-CN":
+        "维度决定图表怎么分组（分类轴、扇区或词条）。先用表格视图添加一个文本或单选字段。",
+      en: "Dimensions group chart data into categories, slices, or terms. Add a Text or Single select field in the table view.",
+    },
   区间图需要两个度量: {
     "zh-CN": "区间图需要两个度量",
     en: "Range charts need two measures",
@@ -2673,11 +2673,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Masonry",
   },
   "先在表格视图中添加字段（例如「标题」和「封面」），再回到画廊把它们排成卡片墙。":
-  {
-    "zh-CN":
-      "先在表格视图中添加字段（例如「标题」和「封面」），再回到画廊把它们排成卡片墙。",
-    en: "Add fields, such as Title and Cover, in the table view, then return to display them as cards.",
-  },
+    {
+      "zh-CN":
+        "先在表格视图中添加字段（例如「标题」和「封面」），再回到画廊把它们排成卡片墙。",
+      en: "Add fields, such as Title and Cover, in the table view, then return to display them as cards.",
+    },
   "点下方按钮新增一条记录，新卡片会立刻出现在这里。": {
     "zh-CN": "点下方按钮新增一条记录，新卡片会立刻出现在这里。",
     en: "Click below to add a record. Its card will appear here immediately.",
@@ -2727,11 +2727,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Gantt charts need a Date field",
   },
   "甘特图把每行画成一条起止日期之间的任务条。先用表格视图添加一个「日期」字段（例如「开始日」），再回到甘特图选择它。":
-  {
-    "zh-CN":
-      "甘特图把每行画成一条起止日期之间的任务条。先用表格视图添加一个「日期」字段（例如「开始日」），再回到甘特图选择它。",
-    en: "Gantt charts display rows as task bars between start and end dates. Add a Date field, such as Start date, in the table view, then select it here.",
-  },
+    {
+      "zh-CN":
+        "甘特图把每行画成一条起止日期之间的任务条。先用表格视图添加一个「日期」字段（例如「开始日」），再回到甘特图选择它。",
+      en: "Gantt charts display rows as task bars between start and end dates. Add a Date field, such as Start date, in the table view, then select it here.",
+    },
   "在上方工具条的「字段配置」里选择任务的开始日期，记录就会落到时间轴上。": {
     "zh-CN":
       "在上方工具条的「字段配置」里选择任务的开始日期，记录就会落到时间轴上。",
@@ -2742,11 +2742,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "No records with dates yet",
   },
   "在开始日期字段里填上日期，任务就会画在时间轴上；结束日期留空的任务按单日显示。":
-  {
-    "zh-CN":
-      "在开始日期字段里填上日期，任务就会画在时间轴上；结束日期留空的任务按单日显示。",
-    en: "Enter start dates to show tasks on the timeline. Tasks without end dates appear as single days.",
-  },
+    {
+      "zh-CN":
+        "在开始日期字段里填上日期，任务就会画在时间轴上；结束日期留空的任务按单日显示。",
+      en: "Enter start dates to show tasks on the timeline. Tasks without end dates appear as single days.",
+    },
   "在开始日期字段里填上日期，任务就会画在时间轴上。": {
     "zh-CN": "在开始日期字段里填上日期，任务就会画在时间轴上。",
     en: "Enter start dates to show tasks on the timeline.",
@@ -2882,11 +2882,11 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     en: "Choose a field in Group on the toolbar. Cards will appear in columns by option.",
   },
   "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。":
-  {
-    "zh-CN":
-      "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。",
-    en: "Kanban groups rows into columns by field options. Add a Single select field, such as Status, in the table view, then select it here.",
-  },
+    {
+      "zh-CN":
+        "看板把行按某个字段的选项分列。先用表格视图添加一个「单选」字段（例如「状态」），再回到看板选择它。",
+      en: "Kanban groups rows into columns by field options. Add a Single select field, such as Status, in the table view, then select it here.",
+    },
   分组字段: {
     "zh-CN": "分组字段",
     en: "Grouping field",
@@ -4687,11 +4687,15 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "收起大纲",
     en: "Collapse outline",
   },
-  "关闭侧边栏": {
+  关闭侧边栏: {
     "zh-CN": "关闭侧边栏",
     en: "Close sidebar",
   },
-  "打开组件库": {
+  固定侧边栏: {
+    "zh-CN": "固定侧边栏",
+    en: "Pin sidebar",
+  },
+  打开组件库: {
     "zh-CN": "打开组件库",
     en: "Open component library",
   },
@@ -4699,8 +4703,12 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "打开 Dashboard 侧边栏",
     en: "Open dashboard sidebar",
   },
-  "还没有页面": {
+  还没有页面: {
     "zh-CN": "还没有页面",
     en: "No pages yet",
+  },
+  上传成功: {
+    "zh-CN": "上传成功",
+    en: "Upload successful",
   },
 };

@@ -58,7 +58,7 @@ Before you remove content, check whether the menu applies to a node, a relation,
 
 The graph and the Dashboard use the data of the same workspace. Database content supports table, kanban, calendar, and chart data views. The available configuration follows the interface entry and the content type. The analysis, the cover, and the transcode of media take time. On a failure, keep the error and the file type for the maintainer.
 
-The Dashboard keeps its chrome in two sidebars. The left sidebar holds the pages and the workspace. The right sidebar holds the component library. Use the two header buttons to open them. To add the open node to the component library, select the dashboard button in the node editor header.
+The Dashboard keeps its chrome in two sidebars. The left sidebar holds the pages and the workspace. The right sidebar holds the component library. Move the pointer to a screen edge to float the matching sidebar. Use the two header buttons to pin a sidebar. The button inside the sidebar pins a floating sidebar and closes a pinned one. The header button is hidden while its sidebar is pinned. To add the open node to the component library, select the dashboard button in the node editor header.
 
 ### Attachment upload
 

@@ -194,12 +194,20 @@ export interface UIStore {
   closeDashboardSidebar: () => void;
   /** 临时显示 dashboard 左侧栏（浮动面板） */
   showTempDashboardSidebar: () => void;
-  /** Dashboard 右侧组件库是否展开 */
-  dashboardLibraryOpen: boolean;
-  /** 切换 dashboard 右侧组件库 */
+  /**
+   * Dashboard 右侧组件库的显示模式。与左侧栏一样是三态：`closed`；
+   * `temp`（指针滑到右边缘时浮出，离开即收回，不推挤内容）；`fixed`
+   * （点标题栏的「组件库」按钮后固定下来，不随指针离开消失）。
+   */
+  dashboardLibraryMode: SidebarMode;
+  /** 切换 dashboard 右侧组件库（closed/temp <-> fixed） */
   toggleDashboardLibrary: () => void;
-  /** 设置 dashboard 右侧组件库展开状态 */
-  setDashboardLibraryOpen: (open: boolean) => void;
+  /** 设置 dashboard 右侧组件库模式 */
+  setDashboardLibraryMode: (mode: SidebarMode) => void;
+  /** 关闭 dashboard 右侧组件库 */
+  closeDashboardLibrary: () => void;
+  /** 临时显示 dashboard 右侧组件库（浮动面板） */
+  showTempDashboardLibrary: () => void;
 
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
@@ -425,10 +433,15 @@ export const useUIStore = create<UIStore>()(
         set({ dashboardSidebarMode: "fixed" }),
       closeDashboardSidebar: () => set({ dashboardSidebarMode: "closed" }),
       showTempDashboardSidebar: () => set({ dashboardSidebarMode: "temp" }),
-      dashboardLibraryOpen: false,
+      dashboardLibraryMode: "closed",
       toggleDashboardLibrary: () =>
-        set((state) => ({ dashboardLibraryOpen: !state.dashboardLibraryOpen })),
-      setDashboardLibraryOpen: (open) => set({ dashboardLibraryOpen: open }),
+        set((state) => ({
+          dashboardLibraryMode:
+            state.dashboardLibraryMode === "fixed" ? "closed" : "fixed",
+        })),
+      setDashboardLibraryMode: (mode) => set({ dashboardLibraryMode: mode }),
+      closeDashboardLibrary: () => set({ dashboardLibraryMode: "closed" }),
+      showTempDashboardLibrary: () => set({ dashboardLibraryMode: "temp" }),
 
       // ==================== Main View ====================
       mainViewType: "graph",

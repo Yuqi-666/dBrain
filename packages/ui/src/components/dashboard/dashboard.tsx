@@ -3,7 +3,7 @@ import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
   useContainerWidth,
   verticalCompactor,
@@ -14,6 +14,7 @@ import { DashboardService } from "@workspace/services";
 import { DashboardLibrary } from "./dashboard-library";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { useDashboard } from "@workspace/ui/hooks/use-dashboard";
+import { useFloatingPanel } from "@workspace/ui/hooks/use-floating-panel";
 import { NodeContentEditor } from "@workspace/ui/components/node-content/node-content-editor";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -41,50 +42,6 @@ import {
 import "react-grid-layout/css/styles.css";
 import "./dashboard.css";
 
-/**
- * Closes a hover-opened panel once the pointer has really left it.
- *
- * The delay is what makes crossing a gap survivable — the space between the
- * edge strip and the panel, or between a trigger and its portalled menu — and
- * `holdForMenus` keeps the panel up while a Radix menu is open, because that
- * menu lives in a portal *outside* the panel and therefore reports a leave the
- * moment the pointer moves into it.
- */
-function useHoverClose(onClose: () => void, holdForMenus = false) {
-  const inside = useRef(false);
-  const timer = useRef(0);
-  const cancel = useCallback(() => {
-    inside.current = true;
-    if (!timer.current) return;
-    window.clearTimeout(timer.current);
-    timer.current = 0;
-  }, []);
-  const schedule = useCallback(() => {
-    inside.current = false;
-    if (timer.current) return;
-    const attempt = () => {
-      timer.current = 0;
-      if (inside.current) return;
-      if (
-        holdForMenus &&
-        document.querySelector("[data-radix-popper-content-wrapper]")
-      ) {
-        timer.current = window.setTimeout(attempt, 250);
-        return;
-      }
-      onClose();
-    };
-    timer.current = window.setTimeout(attempt, 220);
-  }, [onClose, holdForMenus]);
-  useEffect(
-    () => () => {
-      if (timer.current) window.clearTimeout(timer.current);
-    },
-    [],
-  );
-  return { onMouseEnter: cancel, onMouseLeave: schedule };
-}
-
 export function Dashboard() {
   const { t } = useI18n();
 
@@ -93,8 +50,8 @@ export function Dashboard() {
   const dashboardSidebarMode = useUIStore(
     (state) => state.dashboardSidebarMode,
   );
-  const dashboardLibraryOpen = useUIStore(
-    (state) => state.dashboardLibraryOpen,
+  const dashboardLibraryMode = useUIStore(
+    (state) => state.dashboardLibraryMode,
   );
   const toggleDashboardSidebar = useUIStore(
     (state) => state.toggleDashboardSidebar,
@@ -111,15 +68,21 @@ export function Dashboard() {
   const toggleDashboardLibrary = useUIStore(
     (state) => state.toggleDashboardLibrary,
   );
-  const setDashboardLibraryOpen = useUIStore(
-    (state) => state.setDashboardLibraryOpen,
+  const setDashboardLibraryMode = useUIStore(
+    (state) => state.setDashboardLibraryMode,
   );
-  const sidebarHover = useHoverClose(closeDashboardSidebar, true);
-  const closeLibrary = useCallback(
-    () => setDashboardLibraryOpen(false),
-    [setDashboardLibraryOpen],
+  const closeDashboardLibrary = useUIStore(
+    (state) => state.closeDashboardLibrary,
   );
-  const libraryHover = useHoverClose(closeLibrary);
+  const showTempDashboardLibrary = useUIStore(
+    (state) => state.showTempDashboardLibrary,
+  );
+  // Both panels share the graph sidebar's rule: stay up while the pointer is
+  // on them (or on a menu they opened), close the moment it is not.
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const libraryRef = useRef<HTMLDivElement | null>(null);
+  useFloatingPanel(dashboardSidebarMode, sidebarRef, closeDashboardSidebar);
+  useFloatingPanel(dashboardLibraryMode, libraryRef, closeDashboardLibrary);
   const [search, setSearch] = useState("");
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"create" | "rename" | "delete" | null>(
@@ -141,14 +104,13 @@ export function Dashboard() {
     );
   const store = DashboardService;
   useEffect(() => {
-    setDashboardLibraryOpen(false);
+    closeDashboardLibrary();
     setDragNodeId(null);
     setSearch("");
     setDialog(null);
-  }, [scope, setDashboardLibraryOpen]);
-  const openLibrary = () => {
-    setDashboardLibraryOpen(true);
-  };
+  }, [scope, closeDashboardLibrary]);
+  /** 空状态里的「组件库」按钮：点开即固定显示，不是悬浮预览。 */
+  const openLibrary = () => setDashboardLibraryMode("fixed");
   const handleSidebarToggle = () => {
     if (dashboardSidebarMode === "temp") convertDashboardTempToFixed();
     else if (dashboardSidebarMode === "fixed") closeDashboardSidebar();
@@ -158,6 +120,20 @@ export function Dashboard() {
     if (!scope || !page || !nodes.has(nodeId)) return;
     store.addWidget(scope, page.id, nodeId, position);
   };
+  // One node, two homes: the docked column and the floating overlay differ
+  // only in their wrapper.
+  const libraryPanel = (
+    <DashboardLibrary
+      candidates={candidates}
+      page={page}
+      enabled={canEdit}
+      search={search}
+      onSearch={setSearch}
+      onClose={closeDashboardLibrary}
+      onAdd={addNode}
+      onDragNode={setDragNodeId}
+    />
+  );
   const openDialog = (kind: "create" | "rename" | "delete", target = page) => {
     setDialogPageId(kind === "create" ? null : (target?.id ?? null));
     setName(kind === "create" ? "" : (target?.name ?? ""));
@@ -181,8 +157,8 @@ export function Dashboard() {
     >
       {dashboardSidebarMode === "temp" && (
         <div
+          ref={sidebarRef}
           className="fixed top-0 left-0 z-40 h-full w-64 shadow-lg"
-          {...sidebarHover}
         >
           <DashboardSidebar
             pages={pages}
@@ -190,7 +166,8 @@ export function Dashboard() {
             onCreate={() => openDialog("create")}
             onRename={(target) => openDialog("rename", target)}
             onDelete={(target) => openDialog("delete", target)}
-            onClose={closeDashboardSidebar}
+            onToggle={handleSidebarToggle}
+            pinned={false}
           />
         </div>
       )}
@@ -212,30 +189,37 @@ export function Dashboard() {
               onCreate={() => openDialog("create")}
               onRename={(target) => openDialog("rename", target)}
               onDelete={(target) => openDialog("delete", target)}
-              onClose={closeDashboardSidebar}
+              onToggle={handleSidebarToggle}
+              pinned
             />
           </div>
         )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 sm:px-6">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleSidebarToggle}
-              aria-label={
-                dashboardSidebarMode === "closed"
-                  ? t("打开 Dashboard 侧边栏")
-                  : t("关闭侧边栏")
-              }
-              title={
-                dashboardSidebarMode === "closed"
-                  ? t("打开 Dashboard 侧边栏")
-                  : t("关闭侧边栏")
-              }
-              aria-expanded={dashboardSidebarMode !== "closed"}
-            >
-              <PanelLeftIcon className="size-4" />
-            </Button>
+            {/*
+              Hidden while the sidebar is pinned — the graph header does the
+              same, and the pin is released from the sidebar's own button.
+            */}
+            {dashboardSidebarMode !== "fixed" && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSidebarToggle}
+                aria-label={
+                  dashboardSidebarMode === "temp"
+                    ? t("固定侧边栏")
+                    : t("打开 Dashboard 侧边栏")
+                }
+                title={
+                  dashboardSidebarMode === "temp"
+                    ? t("固定侧边栏")
+                    : t("打开 Dashboard 侧边栏")
+                }
+                aria-expanded={dashboardSidebarMode !== "closed"}
+              >
+                <PanelLeftIcon className="size-4" />
+              </Button>
+            )}
             <div className="min-w-0 flex-1">
               {page ? (
                 <DashboardTitle
@@ -279,10 +263,16 @@ export function Dashboard() {
               variant="outline"
               onClick={toggleDashboardLibrary}
               aria-label={
-                dashboardLibraryOpen ? t("关闭组件库") : t("打开组件库")
+                dashboardLibraryMode === "fixed"
+                  ? t("关闭组件库")
+                  : t("打开组件库")
               }
-              title={dashboardLibraryOpen ? t("关闭组件库") : t("打开组件库")}
-              aria-expanded={dashboardLibraryOpen}
+              title={
+                dashboardLibraryMode === "fixed"
+                  ? t("关闭组件库")
+                  : t("打开组件库")
+              }
+              aria-expanded={dashboardLibraryMode !== "closed"}
               aria-controls="dashboard-library"
               className="gap-2"
             >
@@ -362,29 +352,26 @@ export function Dashboard() {
             </div>
           </TabsContent>
         </div>
+        {dashboardLibraryMode === "fixed" && (
+          <div className="relative z-30 h-full w-80 shrink-0 border-l bg-background">
+            {libraryPanel}
+          </div>
+        )}
       </div>
 
       {/*
-        The library floats over the content instead of taking a column: an edge
-        hover must not reflow the dashboard, and leaving the panel closes it.
-        Keeping it out of the flex row also keeps the grid's measured width
-        stable while the pointer crosses the edge strip.
+        A hover-opened library floats over the content instead of taking a
+        column: crossing the edge strip must not reflow the dashboard, and
+        keeping it out of the flex row also keeps the grid's measured width
+        stable. Only the pinned (`fixed`) library is docked — see the row
+        above.
       */}
-      {dashboardLibraryOpen && (
+      {dashboardLibraryMode === "temp" && (
         <div
+          ref={libraryRef}
           className="fixed top-0 right-0 z-40 h-dvh w-80 border-l bg-background shadow-lg"
-          {...libraryHover}
         >
-          <DashboardLibrary
-            candidates={candidates}
-            page={page}
-            enabled={canEdit}
-            search={search}
-            onSearch={setSearch}
-            onClose={() => setDashboardLibraryOpen(false)}
-            onAdd={addNode}
-            onDragNode={setDragNodeId}
-          />
+          {libraryPanel}
         </div>
       )}
 
@@ -395,10 +382,10 @@ export function Dashboard() {
         />
       )}
 
-      {!dashboardLibraryOpen && (
+      {dashboardLibraryMode === "closed" && (
         <div
           className="absolute top-0 right-0 z-30 h-full w-3"
-          onMouseEnter={openLibrary}
+          onMouseEnter={showTempDashboardLibrary}
         />
       )}
 
