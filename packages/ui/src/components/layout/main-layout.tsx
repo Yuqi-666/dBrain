@@ -86,7 +86,7 @@ export function MainLayout({ children, sidebar }: CognitiveGraphLayoutProps) {
   const hasSidebar = Boolean(sidebar);
 
   return (
-    <div className="relative flex min-h-screen w-full overflow-hidden">
+    <div className="relative flex h-dvh w-full overflow-hidden">
       {hasSidebar && !isFixedMode && (
         <div
           className="absolute left-0 top-0 z-30 h-full w-3 "

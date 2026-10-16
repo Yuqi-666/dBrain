@@ -164,8 +164,15 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* 整页锁定视口高度：应用外壳自己占满视口，只有内部面板（图谱、
+       侧栏、对话框）滚动。否则移动端上 100vh 大于可见视口，整页会
+       被上滑、在底部露出一块异常图像。 */
+    height: 100%;
+    overflow: hidden;
     }
   html {
     @apply font-sans;
+    height: 100%;
+    overflow: hidden;
     }
 }

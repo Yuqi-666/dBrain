@@ -99,14 +99,14 @@ export function WorkspaceShell(): ReactNode {
       <div className="absolute inset-0 z-0">
         {error ? (
           <div
-            className="flex h-screen flex-col items-center justify-center gap-4"
+            className="flex h-full flex-col items-center justify-center gap-4"
             role="alert"
           >
             <p>{error}</p>
             <Button onClick={retry}>{t("重试")}</Button>
           </div>
         ) : !isInitialized ? (
-          <div className="flex h-screen items-center justify-center text-muted-foreground">
+          <div className="flex h-full items-center justify-center text-muted-foreground">
             {t("加载工作空间…")}{" "}
           </div>
         ) : (
