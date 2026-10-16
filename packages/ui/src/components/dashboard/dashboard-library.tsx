@@ -42,7 +42,7 @@ export function DashboardLibrary({
   return (
     <aside
       id="dashboard-library"
-      className="order-1 flex max-h-80 shrink-0 flex-col border-b bg-background lg:order-2 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-l"
+      className="flex h-full w-full flex-col bg-background"
       aria-label={t("节点组件库")}
     >
       <div className="flex items-center justify-between px-4 pt-4">

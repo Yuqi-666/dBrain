@@ -3,7 +3,7 @@ import { translate } from "@workspace/ui/lib/i18n/runtime";
 
 import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
   useContainerWidth,
   verticalCompactor,
@@ -32,16 +32,58 @@ import {
   LoaderCircle,
   Maximize2,
   GripVertical,
-  WandSparkles,
   LayoutDashboard,
   Library,
   Plus,
   PanelLeftIcon,
-  PanelRightIcon,
   X,
 } from "lucide-react";
 import "react-grid-layout/css/styles.css";
 import "./dashboard.css";
+
+/**
+ * Closes a hover-opened panel once the pointer has really left it.
+ *
+ * The delay is what makes crossing a gap survivable — the space between the
+ * edge strip and the panel, or between a trigger and its portalled menu — and
+ * `holdForMenus` keeps the panel up while a Radix menu is open, because that
+ * menu lives in a portal *outside* the panel and therefore reports a leave the
+ * moment the pointer moves into it.
+ */
+function useHoverClose(onClose: () => void, holdForMenus = false) {
+  const inside = useRef(false);
+  const timer = useRef(0);
+  const cancel = useCallback(() => {
+    inside.current = true;
+    if (!timer.current) return;
+    window.clearTimeout(timer.current);
+    timer.current = 0;
+  }, []);
+  const schedule = useCallback(() => {
+    inside.current = false;
+    if (timer.current) return;
+    const attempt = () => {
+      timer.current = 0;
+      if (inside.current) return;
+      if (
+        holdForMenus &&
+        document.querySelector("[data-radix-popper-content-wrapper]")
+      ) {
+        timer.current = window.setTimeout(attempt, 250);
+        return;
+      }
+      onClose();
+    };
+    timer.current = window.setTimeout(attempt, 220);
+  }, [onClose, holdForMenus]);
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  return { onMouseEnter: cancel, onMouseLeave: schedule };
+}
 
 export function Dashboard() {
   const { t } = useI18n();
@@ -72,6 +114,12 @@ export function Dashboard() {
   const setDashboardLibraryOpen = useUIStore(
     (state) => state.setDashboardLibraryOpen,
   );
+  const sidebarHover = useHoverClose(closeDashboardSidebar, true);
+  const closeLibrary = useCallback(
+    () => setDashboardLibraryOpen(false),
+    [setDashboardLibraryOpen],
+  );
+  const libraryHover = useHoverClose(closeLibrary);
   const [search, setSearch] = useState("");
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"create" | "rename" | "delete" | null>(
@@ -131,22 +179,10 @@ export function Dashboard() {
       onValueChange={(id) => scope && canEdit && store.selectPage(scope, id)}
       className="relative flex h-dvh min-w-0 gap-0 bg-background"
     >
-      {dashboardSidebarMode === "fixed" && (
-        <div className="relative z-30 h-full w-64 shrink-0">
-          <DashboardSidebar
-            pages={pages}
-            enabled={canEdit}
-            onCreate={() => openDialog("create")}
-            onRename={(target) => openDialog("rename", target)}
-            onDelete={(target) => openDialog("delete", target)}
-            onClose={closeDashboardSidebar}
-          />
-        </div>
-      )}
       {dashboardSidebarMode === "temp" && (
         <div
           className="fixed top-0 left-0 z-40 h-full w-64 shadow-lg"
-          onMouseLeave={closeDashboardSidebar}
+          {...sidebarHover}
         >
           <DashboardSidebar
             pages={pages}
@@ -159,16 +195,44 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+      {/*
+        The tab root is a *column*: the `Tabs` primitive adds
+        `data-horizontal:flex-col`, and a data variant outranks a plain
+        `flex-row`. So the sidebar and the content cannot both be its children —
+        an `h-full` sidebar takes the whole viewport height and pushes the
+        content out of the overflow-hidden shell, which is the blank page the
+        reader saw after opening the sidebar. One row child holds both.
+      */}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {dashboardSidebarMode === "fixed" && (
+          <div className="relative z-30 h-full w-64 shrink-0">
+            <DashboardSidebar
+              pages={pages}
+              enabled={canEdit}
+              onCreate={() => openDialog("create")}
+              onRename={(target) => openDialog("rename", target)}
+              onDelete={(target) => openDialog("delete", target)}
+              onClose={closeDashboardSidebar}
+            />
+          </div>
+        )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 sm:px-6">
             <Button
               variant="outline"
               size="icon"
               onClick={handleSidebarToggle}
-              aria-label={t("打开 Dashboard 侧边栏")}
-              title={t("打开 Dashboard 侧边栏")}
-              className={cn(dashboardSidebarMode === "fixed" && "opacity-0")}
+              aria-label={
+                dashboardSidebarMode === "closed"
+                  ? t("打开 Dashboard 侧边栏")
+                  : t("关闭侧边栏")
+              }
+              title={
+                dashboardSidebarMode === "closed"
+                  ? t("打开 Dashboard 侧边栏")
+                  : t("关闭侧边栏")
+              }
+              aria-expanded={dashboardSidebarMode !== "closed"}
             >
               <PanelLeftIcon className="size-4" />
             </Button>
@@ -213,7 +277,6 @@ export function Dashboard() {
             </span>
             <Button
               variant="outline"
-              size="icon"
               onClick={toggleDashboardLibrary}
               aria-label={
                 dashboardLibraryOpen ? t("关闭组件库") : t("打开组件库")
@@ -221,8 +284,10 @@ export function Dashboard() {
               title={dashboardLibraryOpen ? t("关闭组件库") : t("打开组件库")}
               aria-expanded={dashboardLibraryOpen}
               aria-controls="dashboard-library"
+              className="gap-2"
             >
-              <PanelRightIcon className="size-4" />
+              <Library className="size-4" />
+              <span className="hidden sm:inline">{t("组件库")}</span>
             </Button>
           </header>
           {syncState?.error && (
@@ -246,31 +311,6 @@ export function Dashboard() {
               aria-label={page?.name ?? t("Dashboard 内容")}
             >
               <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-8">
-                {page && (
-                  <div className="mb-8 flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={!canEdit || !page.widgets.length}
-                      onClick={() => scope && store.arrangePage(scope, page.id)}
-                    >
-                      <WandSparkles className="size-4" />
-                      {t("自动布局")}{" "}
-                    </Button>
-                    <Button
-                      disabled={!canEdit}
-                      onClick={() =>
-                        dashboardLibraryOpen
-                          ? setDashboardLibraryOpen(false)
-                          : openLibrary()
-                      }
-                      aria-expanded={dashboardLibraryOpen}
-                      aria-controls="dashboard-library"
-                    >
-                      <Plus className="size-4" />
-                      {t("添加组件")}{" "}
-                    </Button>
-                  </div>
-                )}
                 {!ready ? (
                   <div className="flex min-h-80 items-center justify-center gap-3 text-sm text-muted-foreground">
                     {scope && (
@@ -322,7 +362,19 @@ export function Dashboard() {
             </div>
           </TabsContent>
         </div>
-        {dashboardLibraryOpen && (
+      </div>
+
+      {/*
+        The library floats over the content instead of taking a column: an edge
+        hover must not reflow the dashboard, and leaving the panel closes it.
+        Keeping it out of the flex row also keeps the grid's measured width
+        stable while the pointer crosses the edge strip.
+      */}
+      {dashboardLibraryOpen && (
+        <div
+          className="fixed top-0 right-0 z-40 h-dvh w-80 border-l bg-background shadow-lg"
+          {...libraryHover}
+        >
           <DashboardLibrary
             candidates={candidates}
             page={page}
@@ -333,8 +385,8 @@ export function Dashboard() {
             onAdd={addNode}
             onDragNode={setDragNodeId}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {dashboardSidebarMode === "closed" && (
         <div
