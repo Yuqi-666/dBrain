@@ -96,8 +96,26 @@ GitHub API 未认证时每小时只允许 60 次请求。在 `.env` 中设置 `D
 | `DBRAIN_DEPLOYMENT_DIR` | 部署目录的宿主机绝对路径。它覆盖更新容器探测到的路径。通常留空。 |
 | `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
+| `DBRAIN_STORAGE_USER_QUOTA_BYTES` | 每个用户可存储的总字节数。`0` 关闭配额。默认 `10737418240`（10 GiB）。 |
+| `DBRAIN_STORAGE_MAX_IMAGE_BYTES` | 单张图片上限，字节。默认 `33554432`（32 MiB）。 |
+| `DBRAIN_STORAGE_MAX_VIDEO_BYTES` | 单个视频上限，字节。默认 `2147483648`（2 GiB）。 |
+| `DBRAIN_STORAGE_MAX_AUDIO_BYTES` | 单个音频上限，字节。默认 `536870912`（512 MiB）。 |
+| `DBRAIN_STORAGE_MAX_PDF_BYTES` | 单个 PDF 上限，字节。默认 `536870912`（512 MiB）。 |
+| `DBRAIN_STORAGE_MAX_OTHER_BYTES` | 其他类单个文件上限，字节。默认 `268435456`（256 MiB）。 |
 
 使用密码文件时，添加 Compose override，只挂载 PocketBase 服务。把文件只读挂载到容器内路径，例如 `/run/secrets/pb-admin-password`。把变量设为该容器路径。只设置宿主机路径不会创建挂载。限制 `.env` 和密码文件的读取权限。
+
+### 存储策略
+
+六个变量控制一个用户可占用的存储。`DBRAIN_STORAGE_USER_QUOTA_BYTES` 是每个用户一份的总预算，覆盖整个账号，所以服务端为 PDF 封面或 HLS 打包写出的文件也计入。五个分类变量各自限制单个文件。分类先看浏览器上报的 MIME 类型，再看文件扩展名：图片、视频、音频、PDF、其他。
+
+值写成整数字节，不支持单位后缀，例如 `10737418240` 是 10 GiB。留空或值无效时回落到内置默认值；笔误不会锁死存储。只有 `DBRAIN_STORAGE_USER_QUOTA_BYTES` 接受 `0`，表示关闭总配额。分类上限必须为正数。高于上传通道 2 GiB 上限的值不会带来额外效果，因为通道会先拒绝更大的文件。
+
+API 与 PocketBase 都会执行这些值，所以 `docker-compose.yml` 把同一个 `.env` 中的值同时传给两个服务。API 在暂存分片之前拒绝过大的文件，PocketBase hook 拒绝每一次写入，包括浏览器直传和服务端自己生成的派生文件。两份配置必须保持一致；compose 文件已经这样处理。
+
+已有数据库第一次收到媒体库变更时，迁移会记录它能在本地存储中读到的每个文件的大小。文件存放在 S3 的部署无法在那里读取，因此这些旧记录保持 0 字节，配额只统计新文件。0 字节不会阻止新的上传。
+
+调低配额在下次上传时生效。它不会删除已有文件。资源库界面显示用量，在那里删除资源才会释放字节；删除节点不会删除它的附件。
 
 ## 指定部署端口
 

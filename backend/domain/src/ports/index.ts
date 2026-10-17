@@ -8,3 +8,4 @@
 export * from "./document-analysis";
 export * from "./video-transcode";
 export * from "./file-upload";
+export * from "./storage-usage";

@@ -232,6 +232,13 @@ migrate(
           maxSelect: 1,
           maxSize: 104857600,
         },
+        // Server-owned media metadata (see the hook in `pb_hooks/files.pb.js`):
+        // the stored byte length the quota counts, and the MIME type the resource
+        // library groups by. `displayName` is the one user-editable label; the
+        // stored file bytes never change when a resource is renamed.
+        { name: "size", type: "number", min: 0 },
+        { name: "mimeType", type: "text", max: 200 },
+        { name: "displayName", type: "text", max: 300 },
         { name: "created", type: "autodate", onCreate: true },
         { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
       ],
@@ -357,7 +364,14 @@ migrate(
       files.viewRule = files.listRule;
       files.createRule =
         auth + ' && (workspaceId = "" || (' + owner + ") || (" + editor + "))";
-      files.updateRule = null;
+      files.updateRule =
+        auth +
+        " && ownerId = @request.auth.id" +
+        " && @request.body.ownerId:changed = false" +
+        " && @request.body.workspaceId:changed = false" +
+        " && @request.body.size:changed = false" +
+        " && @request.body.mimeType:changed = false" +
+        " && @request.body.file:changed = false";
       files.deleteRule =
         auth +
         " && (ownerId = @request.auth.id || (" +

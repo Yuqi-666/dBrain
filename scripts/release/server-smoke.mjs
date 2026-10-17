@@ -238,6 +238,22 @@ try {
   );
   const record = await upload(alice.token);
   assert.equal(record.ownerId, alice.user.id);
+  // Server-owned media metadata, written by the PocketBase upload hook.
+  assert.equal(record.size, Buffer.byteLength("private file"));
+  assert.equal(record.mimeType, "application/octet-stream");
+  assert.equal(record.displayName, "中文 sample.txt");
+  // The resource library reads the deployment policy from the API.
+  assert.deepEqual(await a.storage.limits.query(), {
+    userQuotaBytes: 10 * 1024 ** 3,
+    maxFileBytes: {
+      image: 32 * 1024 ** 2,
+      video: 2 * 1024 ** 3,
+      audio: 512 * 1024 ** 2,
+      pdf: 512 * 1024 ** 2,
+      other: 256 * 1024 ** 2,
+    },
+  });
+  console.log("PASS storage limits and server-stamped file metadata");
   const path = `/api/files/${record.collectionId}/${record.id}/${record.file}`;
   const direct = await fetch(`${pbUrl}${path}`);
   assert.equal(direct.status, 404, await direct.text());

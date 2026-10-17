@@ -1,9 +1,11 @@
 import type {
   IFileStore,
+  IStorageUsageReader,
   IUploadSessionStore,
   UploadSession,
 } from "@workspace/domain";
 import type { UploadSessionDTO } from "@workspace/interfaces";
+import { maxFileBytesFor, storageCategoryFor } from "@workspace/utils/storage-limits";
 import { toUploadSessionDTO } from "../../dto/upload-dto.mapper";
 import {
   UploadError,
@@ -60,6 +62,13 @@ export class UploadCommandService {
     private readonly sessions: IUploadSessionStore,
     private readonly fileStore: IFileStore,
     private readonly limits: UploadLimits,
+    /**
+     * Reads the owner's stored byte total for the quota check. Only the
+     * `start` call uses it: the final write is guarded again by the PocketBase
+     * hook, which is what closes the race between two concurrent uploads that
+     * each fit the quota alone.
+     */
+    private readonly usage: IStorageUsageReader,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -83,6 +92,7 @@ export class UploadCommandService {
         `The file is ${cmd.fileSize} bytes; the limit is ${this.limits.maxUploadBytes}`,
       );
     }
+    await this.assertWithinLimits(cmd, fileName);
     const fingerprint = cmd.fingerprint.trim();
     if (!fingerprint || fingerprint.length > 200) {
       throw new UploadError("invalid", "An upload fingerprint is required");
@@ -258,6 +268,41 @@ export class UploadCommandService {
   /** Deletes sessions nobody touched inside the TTL. Called on a timer. */
   async sweepExpired(): Promise<number> {
     return this.sessions.sweep(new Date(this.now().getTime() - UPLOAD_SESSION_TTL_MS));
+  }
+
+  /**
+   * Rejects a file before a session is opened when policy forbids storing it.
+   *
+   * Two rules apply, in this order: the category's single-file ceiling, then the
+   * owner's remaining quota. The PocketBase hook enforces both again when the
+   * record is written — this call exists so a file that cannot be accepted is
+   * refused before 2 GiB of chunks are spooled to disk, and it is also the only
+   * place that can explain the quota failure to the browser in transport terms.
+   */
+  private async assertWithinLimits(
+    cmd: StartUploadCommand,
+    fileName: string,
+  ): Promise<void> {
+    const categoryLimit = maxFileBytesFor(this.limits, fileName, cmd.contentType);
+    if (cmd.fileSize > categoryLimit) {
+      const category = storageCategoryFor(fileName, cmd.contentType);
+      throw new UploadError(
+        "too_large",
+        `The file is ${cmd.fileSize} bytes; the ${category} limit is ${categoryLimit}`,
+      );
+    }
+
+    if (this.limits.userQuotaBytes <= 0) return;
+    const used = await this.usage.usageFor(cmd.ownerId);
+    if (used + cmd.fileSize > this.limits.userQuotaBytes) {
+      throw new UploadError(
+        "quota",
+        `The file needs ${cmd.fileSize} bytes but only ${Math.max(
+          0,
+          this.limits.userQuotaBytes - used,
+        )} of the ${this.limits.userQuotaBytes} byte quota remain`,
+      );
+    }
   }
 
   private async require(ref: UploadSessionRef): Promise<UploadSession> {

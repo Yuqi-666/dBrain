@@ -55,6 +55,8 @@ pnpm dev
 
 两个服务占用同一端口时启动直接报错。PocketBase 不会一直等待。
 
+存储策略变量（`DBRAIN_STORAGE_*`）在开发环境同样生效。`pnpm dev` 用根 `.env` 启动 PocketBase 与 Server，因此不上容器也能检查上传上限或配额。具体值与默认值见运维手册。
+
 开发数据默认写入仓库目录 `pb/pb_data`，迁移运行目录为 `pb/pb_data/pb_migrations`。PocketBase 启动器先准备该目录，再创建管理员账号，并显式指定数据、迁移和 hooks 目录。当前 shell 目录不会改变它们。设置 `DBRAIN_PB_DATA_DIR` 时，运行目录也会随之移动。修改 PocketBase 地址时，同时检查后端 `PB_URL`。启动器会拒绝早于 `0000000001_base_schema.js` 基线的数据库。
 
 `.env` 中的 `DBRAIN_ADMIN_EMAIL` 与密码属于运维账号。应用身份使用普通 `users` 集合。同名的 shell 变量优先于文件。管理员配置更改后，运行 `pnpm pb:admin` 同步开发库账号。

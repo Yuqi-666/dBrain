@@ -272,6 +272,10 @@ importers:
         version: 5.9.3
 
   backend/adapter-tauri:
+    dependencies:
+      '@workspace/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
     devDependencies:
       '@types/node':
         specifier: ^25.1.0
@@ -986,6 +990,9 @@ importers:
         specifier: ^8.14.4
         version: 8.14.4(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1)
     devDependencies:
+      '@types/node':
+        specifier: ^25.1.0
+        version: 25.3.5
       typescript:
         specifier: ^5.0.0
         version: 5.9.3

@@ -6,13 +6,25 @@
  * from a verified token, and every read is scoped to it, so one user can never
  * see or continue another user's upload.
  */
+import type { StorageCategory } from "@workspace/utils/storage-limits";
 
-/** Size limits the composition root injects, from the shared upload contract. */
+/**
+ * Limits the composition root injects.
+ *
+ * The transport ceiling and the chunk size come from the shared upload
+ * contract; the category ceilings and the quota come from the shared storage
+ * contract (`@workspace/utils/storage-limits`), which the client and the
+ * PocketBase hook read as well.
+ */
 export interface UploadLimits {
   /** Largest file the pipeline accepts. */
   maxUploadBytes: number;
   /** Bytes per chunk; the client is told this value and must honour it. */
   chunkSize: number;
+  /** Largest single file per media category. */
+  maxFileBytes: Record<StorageCategory, number>;
+  /** Total bytes one user may store; `0` disables the quota. */
+  userQuotaBytes: number;
 }
 
 /** Body of `POST /upload/sessions`. */
@@ -45,8 +57,10 @@ export type UploadErrorCode =
   | "invalid"
   /** No such session for this owner (also used for an expired one). */
   | "not_found"
-  /** The file exceeds {@link UploadLimits.maxUploadBytes}. */
+  /** The file exceeds {@link UploadLimits.maxUploadBytes} or its category ceiling. */
   | "too_large"
+  /** The file would take the owner past {@link UploadLimits.userQuotaBytes}. */
+  | "quota"
   /** `complete` was asked for while chunks are still missing. */
   | "incomplete"
   /** The file is already being assembled; the caller should keep polling. */

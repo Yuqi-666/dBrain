@@ -55,6 +55,8 @@ The ports come from the root `.env`. A shell variable of the same name has prior
 
 Two services on the same port fail at the start with an error. PocketBase does not wait in a loop.
 
+The storage policy variables (`DBRAIN_STORAGE_*`) also work in development. `pnpm dev` starts PocketBase and the server with the root `.env`, so an upload limit or a quota can be checked without a container. Read the Operations manual for the values and the defaults.
+
 Development data goes to the repository directory `pb/pb_data` by default, with its migration run directory at `pb/pb_data/pb_migrations`. The PocketBase launcher prepares that directory before creating the operator account and sets the data, migration, and hook directories explicitly. The current shell directory does not change them. When you set `DBRAIN_PB_DATA_DIR`, the run directory moves with it. When you change the PocketBase address, check the backend `PB_URL` too. The launcher rejects a database from before the `0000000001_base_schema.js` baseline.
 
 `DBRAIN_ADMIN_EMAIL` and the password in `.env` belong to the operator account. The app identity uses the normal `users` collection. A shell variable of the same name has priority over the file. After an admin configuration change, run `pnpm pb:admin` to synchronize the development database account.

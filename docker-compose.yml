@@ -15,6 +15,15 @@ services:
       DBRAIN_ADMIN_EMAIL: ${DBRAIN_ADMIN_EMAIL:?Set DBRAIN_ADMIN_EMAIL in .env (copy .env.example)}
       DBRAIN_ADMIN_PASSWORD: ${DBRAIN_ADMIN_PASSWORD:-}
       DBRAIN_ADMIN_PASSWORD_FILE: ${DBRAIN_ADMIN_PASSWORD_FILE:-}
+      # Storage policy. PocketBase's upload hook enforces these values, so the
+      # store itself needs them as well as the API. Empty means "use the built-in
+      # default"; see `.env.example` for the units and the defaults.
+      DBRAIN_STORAGE_USER_QUOTA_BYTES: ${DBRAIN_STORAGE_USER_QUOTA_BYTES:-}
+      DBRAIN_STORAGE_MAX_IMAGE_BYTES: ${DBRAIN_STORAGE_MAX_IMAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_VIDEO_BYTES: ${DBRAIN_STORAGE_MAX_VIDEO_BYTES:-}
+      DBRAIN_STORAGE_MAX_AUDIO_BYTES: ${DBRAIN_STORAGE_MAX_AUDIO_BYTES:-}
+      DBRAIN_STORAGE_MAX_PDF_BYTES: ${DBRAIN_STORAGE_MAX_PDF_BYTES:-}
+      DBRAIN_STORAGE_MAX_OTHER_BYTES: ${DBRAIN_STORAGE_MAX_OTHER_BYTES:-}
     volumes:
       - pb_data:/pb_data
     networks: [backend]
@@ -33,6 +42,15 @@ services:
       # directory; point it at a mounted volume when /tmp is too small for one
       # upload in flight (up to 2 GiB).
       DBRAIN_UPLOAD_DIR: ${DBRAIN_UPLOAD_DIR:-}
+      # Storage policy. The API rejects an upload before it spools any chunk and
+      # reports the same limits to the resource library. Keep these values equal
+      # to the PocketBase service above.
+      DBRAIN_STORAGE_USER_QUOTA_BYTES: ${DBRAIN_STORAGE_USER_QUOTA_BYTES:-}
+      DBRAIN_STORAGE_MAX_IMAGE_BYTES: ${DBRAIN_STORAGE_MAX_IMAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_VIDEO_BYTES: ${DBRAIN_STORAGE_MAX_VIDEO_BYTES:-}
+      DBRAIN_STORAGE_MAX_AUDIO_BYTES: ${DBRAIN_STORAGE_MAX_AUDIO_BYTES:-}
+      DBRAIN_STORAGE_MAX_PDF_BYTES: ${DBRAIN_STORAGE_MAX_PDF_BYTES:-}
+      DBRAIN_STORAGE_MAX_OTHER_BYTES: ${DBRAIN_STORAGE_MAX_OTHER_BYTES:-}
     depends_on:
       pocketbase:
         condition: service_healthy

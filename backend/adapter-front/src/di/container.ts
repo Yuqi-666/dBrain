@@ -34,6 +34,7 @@ import {
   createDocumentAnalyzer,
   createFileStore,
   createFileUploadSessionStore,
+  createStorageUsageReader,
   createVideoTranscoder,
   createWorkspaceRepository,
   createDashboardRepository,
@@ -61,6 +62,10 @@ import {
   PDF_ANALYZE_MAX_BYTES,
   UPLOAD_CHUNK_BYTES,
 } from "@workspace/utils/upload";
+import {
+  resolveStorageLimits,
+  type StorageLimits,
+} from "@workspace/utils/storage-limits";
 import { initializeEventBridge } from "./event-bridge";
 
 export class AppContainer {
@@ -80,6 +85,14 @@ export class AppContainer {
   readonly nodeSemanticDao = createNodeSemanticDao();
   readonly edgeSemanticDao = createEdgeSemanticDao();
   readonly nodeTagDao = createNodeTagDao();
+
+  /**
+   * Storage policy resolved once, at startup: the per-user quota and the
+   * per-category single-file ceilings come from the operator's `.env`, and the
+   * same values are exposed to the clients through `storage.limits` so the
+   * management page displays the policy that is actually enforced.
+   */
+  readonly storageLimits: StorageLimits;
 
   // Application Command Services (require repository + eventBus)
   readonly nodeCommandService: NodeCommandService;
@@ -104,6 +117,7 @@ export class AppContainer {
 
   private constructor() {
     this.eventBus = new InMemoryEventBus();
+    this.storageLimits = resolveStorageLimits(process.env);
 
     this.nodeCommandService = new NodeCommandService(
       this.nodeDao,
@@ -132,12 +146,20 @@ export class AppContainer {
       PDF_ANALYZE_MAX_BYTES,
     );
 
-    // The limits come from the shared upload contract, so the client's
-    // direct/chunked decision and the server's guards cannot drift apart.
+    // The transport limits come from the shared upload contract and the storage
+    // policy from the shared storage contract, so the client's direct/chunked
+    // decision, the server's early guards and the PocketBase hook cannot drift
+    // apart.
     this.uploadCommandService = new UploadCommandService(
       createFileUploadSessionStore(),
       createFileStore(),
-      { maxUploadBytes: MAX_UPLOAD_BYTES, chunkSize: UPLOAD_CHUNK_BYTES },
+      {
+        maxUploadBytes: MAX_UPLOAD_BYTES,
+        chunkSize: UPLOAD_CHUNK_BYTES,
+        maxFileBytes: this.storageLimits.maxFileBytes,
+        userQuotaBytes: this.storageLimits.userQuotaBytes,
+      },
+      createStorageUsageReader(),
     );
 
     this.nodeQueryService = new NodeQueryService(this.nodeDao);

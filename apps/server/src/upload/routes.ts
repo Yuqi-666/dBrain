@@ -236,7 +236,11 @@ function statusFor(code: UploadError["code"]): number {
       return 400;
     case "not_found":
       return 404;
+    // The quota is also a "the file does not fit" rejection, and `413` keeps the
+    // client's retry rule intact: a `5xx` would be retried forever, and repeating
+    // a request the account cannot accept wastes the upload twice.
     case "too_large":
+    case "quota":
       return 413;
     case "incomplete":
     case "busy":

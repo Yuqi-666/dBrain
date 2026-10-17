@@ -1,8 +1,12 @@
-onRecordCreateRequest((e) => {
-  if (!e.auth) throw new UnauthorizedError("Authentication required");
-  e.record.set("ownerId", e.auth.id);
-  return e.next();
-}, "files");
+// Every create request on `files` goes through one enforcement point: it sets
+// the owner from the verified token, applies the per-category file ceiling and
+// the per-user storage quota, and stamps the size / MIME type / default display
+// name the resource library reads. The module also serves the API's own store
+// writes, so a derived artifact (a PDF cover, an HLS segment) is accounted too.
+onRecordCreateRequest(
+  (e) => require(`${__hooks}/lib/storage-limits.js`).enforceFileCreate(e),
+  "files",
+);
 // Keep native Range/media support while authorizing every direct file download.
 onFileDownloadRequest((e) => {
   if (e.collection.name !== "files") return e.next();

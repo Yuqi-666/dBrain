@@ -1,4 +1,6 @@
 /** Desktop procedure adapter. Storage and the future sync transport stay outside this engine. */
+import { DEFAULT_STORAGE_LIMITS } from "@workspace/utils/storage-limits";
+
 export type Entity = Record<string, unknown> & { id: string };
 export const collections = [
   "workspace",
@@ -162,6 +164,14 @@ export function executeLocal(
     throw new LocalProcedureError(
       "此功能需要桌面文件处理适配器，目前可保留原始文件。",
     );
+  // The desktop local mode has no operator `.env` to read a storage policy from,
+  // so it answers with the shared built-in limits. The resource library then
+  // renders the same quota bar as the server deployment, and the local
+  // PocketBase hook enforces the same defaults.
+  if (name === "storage") {
+    if (action === "limits") return DEFAULT_STORAGE_LIMITS;
+    throw new LocalProcedureError(`Unsupported local procedure: ${path}`);
+  }
   if (!collections.includes(name as Collection))
     throw new LocalProcedureError(`Unsupported local procedure: ${path}`);
   const collection = name as Collection;

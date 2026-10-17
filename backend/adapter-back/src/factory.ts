@@ -18,6 +18,7 @@ import {
   PocketBaseWorkspaceMemberRepository,
   PdfDocumentAnalyzer,
   PocketBaseFileStore,
+  PocketBaseStorageUsage,
   FileUploadSessionStore,
   FfmpegVideoTranscoder,
 } from "@workspace/infrastructure";
@@ -35,6 +36,7 @@ import type {
   IWorkspaceMemberRepository,
   IDocumentAnalyzer,
   IFileStore,
+  IStorageUsageReader,
   IUploadSessionStore,
   IVideoTranscoder,
 } from "@workspace/domain";
@@ -180,6 +182,20 @@ export const createFileUploadSessionStore = (
   return uploadSessionStore;
 };
 
+let storageUsageReader: IStorageUsageReader | null = null;
+
+/**
+ * Per-user byte total for the quota check. Reads the `files` collection through
+ * the request-scoped PocketBase client, so it sees exactly the records the
+ * current caller is allowed to write.
+ */
+export const createStorageUsageReader = (): IStorageUsageReader => {
+  if (!storageUsageReader) {
+    storageUsageReader = new PocketBaseStorageUsage(getPocketBaseClient());
+  }
+  return storageUsageReader;
+};
+
 let videoTranscoder: IVideoTranscoder | null = null;
 
 export const createVideoTranscoder = (): IVideoTranscoder => {
@@ -207,6 +223,7 @@ export const createAll = () => ({
   nodeTagDao: createNodeTagDao(),
   documentAnalyzer: createDocumentAnalyzer(),
   fileStore: createFileStore(),
+  storageUsageReader: createStorageUsageReader(),
   videoTranscoder: createVideoTranscoder(),
 });
 

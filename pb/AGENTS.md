@@ -26,11 +26,12 @@ Never commit, print, or copy that file.
 `pb_hooks/edges.pb.js` calls `pb_hooks/lib/edge.js`.
 It rejects an edge when the endpoints or the semantic link belong to another workspace.
 
-`pb_hooks/files.pb.js` sets the file owner from the authenticated user.
-It authorizes a download for the file owner, the workspace owner, or a workspace member.
+`pb_hooks/files.pb.js` calls `pb_hooks/lib/storage-limits.js` for every create request.
+The module sets the file owner from the authenticated user, enforces the per-category file ceiling and the per-user storage quota, and stamps the `size`, `mimeType`, and default `displayName` that the resource library reads.
+The same file authorizes a download for the file owner, the workspace owner, or a workspace member.
 It also accepts a `pb_token` cookie, because media elements cannot send an authorization header.
 
-`0000000001_base_schema.js` is the genesis migration. The change directory starts empty; future changes use higher numbers and are immutable after release.
+`0000000001_base_schema.js` is the genesis migration. Future changes use higher numbers and are immutable after release; `0000000003_media_library.js` adds the media metadata fields, the owner update rule, and the size backfill.
 Databases created before this baseline are unsupported. The launcher refuses them instead of silently skipping schema work.
 The `files.file` cap is 2 GiB, which must stay equal to `MAX_UPLOAD_BYTES` in `packages/utils/src/upload.ts`.
 
