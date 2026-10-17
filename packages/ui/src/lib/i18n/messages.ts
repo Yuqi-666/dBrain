@@ -1316,6 +1316,10 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "导入文件",
     en: "Import file",
   },
+  导入文件失败: {
+    "zh-CN": "导入文件失败",
+    en: "Failed to import file",
+  },
   "在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…": {
     "zh-CN": "在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…",
     en: "Write HTML or code here, or click Import file above to load a local file…",

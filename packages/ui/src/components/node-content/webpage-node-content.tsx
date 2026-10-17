@@ -20,6 +20,7 @@ import {
   CodeEditor,
 } from "@workspace/ui/components/code-editor/code-editor";
 import { EmptyHint } from "./empty-hint";
+import { toast } from "@workspace/ui/components/ui/toast";
 import { FileDropZone } from "./file-drop-zone";
 
 /**
@@ -106,6 +107,16 @@ export function WebpageNodeContent({
           onUploaded={() => {
             setImporting(false);
             setView("preview");
+          }}
+          // The zone also shows the reason inline, but the import screen can be
+          // replaced as soon as the read finishes, so the host raises the toast
+          // for a failure the user must not miss.
+          onUploadError={(error) => {
+            toast({
+              title: t("导入文件失败"),
+              description: error.message,
+              variant: "destructive",
+            });
           }}
           className="h-full w-full"
         />

@@ -4,7 +4,7 @@ import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
 import * as React from "react";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import {
   Dialog,
@@ -41,6 +41,40 @@ interface UploadMenuProps {
    */
   onError?: (error: Error) => void;
 }
+
+/**
+ * The 「本地上传」 entry is a `<label>`, not a button with a scripted
+ * `input.click()`: Safari (WebKit) ignores a programmatic click on a file input
+ * that is not rendered, so the dialog never opened there. A label gets native
+ * activation instead, which every engine routes to the associated input.
+ */
+const MenuItemLabel = ({
+  htmlFor,
+  onActivate,
+  children,
+}: {
+  htmlFor: string;
+  /** Opens the picker from the keyboard; a focused label has no native action. */
+  onActivate: () => void;
+  children: React.ReactNode;
+}) => (
+  <label
+    htmlFor={htmlFor}
+    role="menuitem"
+    tabIndex={0}
+    onKeyDown={(event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onActivate();
+    }}
+    className={cn(
+      "group/menu-item relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none",
+      "hover:bg-accent hover:text-accent-foreground",
+    )}
+  >
+    {children}
+  </label>
+);
 
 const MenuItemButton = ({
   onClick,
@@ -80,6 +114,7 @@ export function UploadMenu({
   const [urlLoading, setUrlLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -106,13 +141,6 @@ export function UploadMenu({
   const closeMenu = useCallback(() => {
     onClose();
   }, [onClose]);
-
-  const handleLocalUpload = () => {
-    // Open while the click still has browser user activation and the input is
-    // mounted. Closing first can unmount it before a deferred click runs.
-    fileInputRef.current?.click();
-    closeMenu();
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -229,11 +257,21 @@ export function UploadMenu({
     <>
       <Input
         ref={fileInputRef}
+        id={fileInputId}
         type="file"
         accept={accept}
         onChange={handleFileChange}
-        onClick={(event) => event.stopPropagation()}
-        className="hidden"
+        onClick={(event) => {
+          // The label's native activation dispatches this click; the picker's
+          // default action runs after the event, so dismissing the menu here
+          // still opens it (and also covers a cancelled picker).
+          event.stopPropagation();
+          closeMenu();
+        }}
+        // Not `display: none` (class `hidden`): WebKit refuses to open the
+        // picker for an unrendered file input. The input must stay rendered and
+        // only be made invisible, hence the off-screen 1px box.
+        className="absolute -left-[9999px] h-px w-px overflow-hidden opacity-0"
       />
 
       {open &&
@@ -264,9 +302,12 @@ export function UploadMenu({
                 top: position.y,
               }}
             >
-              <MenuItemButton onClick={handleLocalUpload}>
+              <MenuItemLabel
+                htmlFor={fileInputId}
+                onActivate={() => fileInputRef.current?.click()}
+              >
                 {t("本地上传")}{" "}
-              </MenuItemButton>
+              </MenuItemLabel>
               {allowPasteImage && (
                 <MenuItemButton onClick={handlePasteUpload}>
                   {t("粘贴图片")}{" "}
