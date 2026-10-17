@@ -35,6 +35,8 @@ import { useScrollToHash } from "@workspace/editor/components/tiptap-ui/copy-anc
 
 // --- Custom Extensions ---
 import { PasteMarkdown } from "@workspace/editor/components/tiptap-extension/paste-markdown-extension";
+import { CopyMarkdown } from "@workspace/editor/components/tiptap-extension/copy-markdown-extension";
+import { SelectBlockOrAll } from "@workspace/editor/components/tiptap-extension/select-block-or-all-extension";
 import { HorizontalRule } from "@workspace/editor/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension";
 import { UiState } from "@workspace/editor/components/tiptap-extension/ui-state-extension";
 import { Image } from "@workspace/editor/components/tiptap-node/image-node/image-node-extension";
@@ -238,6 +240,8 @@ export function EditorProvider(props: EditorProviderProps) {
       }),
       Markdown,
       PasteMarkdown,
+      CopyMarkdown,
+      SelectBlockOrAll,
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Collaboration.configure({ document: ydoc }),
