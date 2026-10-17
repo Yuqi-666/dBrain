@@ -4,6 +4,7 @@ import { useI18n } from "@workspace/ui/lib/i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Dashboard } from "@workspace/ui/components/dashboard/dashboard";
+import { ResourceLibrary } from "@workspace/ui/components/resources/resource-library";
 import { Graph } from "@workspace/graph";
 import { useUIStore } from "@workspace/store";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
@@ -72,17 +73,17 @@ export function WorkspaceShell(): ReactNode {
     }
   }, [routeView]);
 
-  // The dashboard has no sidebar. A *transient* (temp) sidebar must not stay
-  // open behind it; a `fixed` one is the user's own preference and is restored
-  // with the graph, so it is deliberately left alone.
+  // A full-page surface (the dashboard, the resource library) has no sidebar.
+  // A *transient* (temp) sidebar must not stay open behind it; a `fixed` one is
+  // the user's own preference and is restored with the graph, so it is
+  // deliberately left alone.
+  const isFullPageSurface =
+    activeView === "dashboard" || activeView === "resources";
   useEffect(() => {
-    if (
-      activeView === "dashboard" &&
-      useUIStore.getState().sidebarMode === "temp"
-    ) {
+    if (isFullPageSurface && useUIStore.getState().sidebarMode === "temp") {
       useUIStore.getState().closeSidebar();
     }
-  }, [activeView]);
+  }, [isFullPageSurface]);
 
   // Mount the dashboard on its first visit, then keep it — a database widget
   // drags a whole VTable stack in with it, so it must not be paid for on the
@@ -94,8 +95,15 @@ export function WorkspaceShell(): ReactNode {
     if (activeView === "dashboard") setDashboardVisited(true);
   }, [activeView]);
 
+  // Same rule for the resource library: mount on the first visit, then keep it,
+  // so switching back and forth does not re-read the media collection.
+  const [resourcesVisited, setResourcesVisited] = useState(false);
+  useEffect(() => {
+    if (activeView === "resources") setResourcesVisited(true);
+  }, [activeView]);
+
   return (
-    <MainLayout sidebar={activeView === "dashboard" ? null : <GraphSidebar />}>
+    <MainLayout sidebar={isFullPageSurface ? null : <GraphSidebar />}>
       <div className="absolute inset-0 z-0">
         {error ? (
           <div
@@ -119,6 +127,12 @@ export function WorkspaceShell(): ReactNode {
             {(dashboardVisited || activeView === "dashboard") && (
               <WorkspaceSurface active={activeView === "dashboard"}>
                 <Dashboard />
+              </WorkspaceSurface>
+            )}
+
+            {(resourcesVisited || activeView === "resources") && (
+              <WorkspaceSurface active={activeView === "resources"}>
+                <ResourceLibrary />
               </WorkspaceSurface>
             )}
 

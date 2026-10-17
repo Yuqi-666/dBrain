@@ -201,7 +201,15 @@ export function resolveFileUrl(src?: string | null): string {
   return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-function buildUploadUrl(
+/**
+ * Address of a stored blob, in the shape a client writes into node content.
+ *
+ * Exported because the resource library resolves the same address from a record
+ * it read with the PocketBase list API; keeping one builder means a referenced
+ * blob and a freshly uploaded one are addressed identically. A caller that
+ * renders the URL must pass it through {@link resolveFileUrl}.
+ */
+export function buildUploadUrl(
   record: Record<string, unknown>,
   storedName: string,
 ): string {

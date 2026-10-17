@@ -34,6 +34,14 @@ interface UploadMenuProps {
    */
   urlDialogTitle?: string;
   urlDialogPlaceholder?: string;
+  /**
+   * Whether the host can also reference a blob that is already in the resource
+   * library. The host owns that flow (it knows which node fields to write), so
+   * this only controls whether the entry is shown.
+   */
+  showResourcePicker?: boolean;
+  /** Opens the host's resource selector; the menu closes itself first. */
+  onOpenResourcePicker?: () => void;
   onFilesSelected: (files: File[]) => void;
   /**
    * Called when a menu-initiated action fails (clipboard denied, CORS-blocked
@@ -104,6 +112,8 @@ export function UploadMenu({
   allowPasteImage = false,
   urlDialogTitle = translate("输入文件URL"),
   urlDialogPlaceholder = "https://example.com/file.pdf",
+  showResourcePicker = false,
+  onOpenResourcePicker,
   onFilesSelected,
   onError,
 }: UploadMenuProps) {
@@ -321,6 +331,16 @@ export function UploadMenu({
               >
                 {t("输入URL")}{" "}
               </MenuItemButton>
+              {showResourcePicker && (
+                <MenuItemButton
+                  onClick={() => {
+                    closeMenu();
+                    onOpenResourcePicker?.();
+                  }}
+                >
+                  {t("从资源库选择")}
+                </MenuItemButton>
+              )}
             </div>
           </div>,
           document.body,

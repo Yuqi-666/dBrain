@@ -254,6 +254,73 @@ try {
     },
   });
   console.log("PASS storage limits and server-stamped file metadata");
+  // The gateway admits the files collection so the library can list, rename and
+  // delete; PocketBase's rules still scope every row to the verified caller.
+  const listedFiles = await fetch(
+    `${serverUrl}/pb/api/collections/files/records?perPage=50`,
+    { headers: { Authorization: alice.token } },
+  );
+  assert.equal(listedFiles.status, 200, await listedFiles.clone().text());
+  assert.ok(
+    (await listedFiles.json()).items.some((item) => item.id === record.id),
+    "the owner lists the uploaded file",
+  );
+  const disposable = await upload(alice.token, "rename me");
+  const rename = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: alice.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "renamed.txt" }),
+    },
+  );
+  assert.equal(rename.status, 200, await rename.clone().text());
+  assert.equal((await rename.json()).displayName, "renamed.txt");
+  const tamper = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: alice.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ size: 1 }),
+    },
+  );
+  assert.equal(tamper.status, 404, await tamper.text());
+  const foreignRename = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: bob.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "stolen.txt" }),
+    },
+  );
+  assert.equal(foreignRename.status, 404, await foreignRename.text());
+  const removed = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    { method: "DELETE", headers: { Authorization: alice.token } },
+  );
+  assert.equal(removed.status, 204, await removed.text());
+  assert.equal(
+    (
+      await fetch(
+        `${serverUrl}/pb/api/files/${disposable.collectionId}/${disposable.id}/${disposable.file}`,
+        { headers: { Authorization: alice.token } },
+      )
+    ).status,
+    404,
+    "a deleted resource stops being readable",
+  );
+  console.log(
+    "PASS files-collection management through the gateway (list, rename, delete)",
+  );
   const path = `/api/files/${record.collectionId}/${record.id}/${record.file}`;
   const direct = await fetch(`${pbUrl}${path}`);
   assert.equal(direct.status, 404, await direct.text());

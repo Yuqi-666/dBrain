@@ -11,10 +11,35 @@ test("gateway requires the exact session secret and rejects arbitrary browser or
   assert.equal(allowedOrigin("https://hostile.example"), false);
   assert.equal(allowedOrigin("null"), false);
 });
-test("file gateway permits only file reads and upload creates", () => {
+test("file gateway permits only file reads, upload creates, and the files collection", () => {
   assert.equal(allowedFileRequest("/api/files/files/abcdef/file.png", "GET"), true);
   assert.equal(allowedFileRequest("/api/files/files/abcdef/file.mp4", "HEAD"), true);
   assert.equal(allowedFileRequest("/api/collections/files/records", "POST"), true);
+  // The resource library lists, renames and deletes on the record itself.
+  assert.equal(allowedFileRequest("/api/collections/files/records", "GET"), true);
+  assert.equal(
+    allowedFileRequest("/api/collections/files/records/abcdef", "PATCH"),
+    true,
+  );
+  assert.equal(
+    allowedFileRequest("/api/collections/files/records/abcdef", "DELETE"),
+    true,
+  );
   for (const path of ["/_/", "/api/collections/users/records", "/api/files/files/abcdef/../file.png"]) assert.equal(allowedFileRequest(path, "GET"), false);
   assert.equal(allowedFileRequest("/api/collections/files/records", "DELETE"), false);
+  // The boundary is still the one collection: no other collection, and no
+  // write to a blob URL or a record through another method.
+  assert.equal(
+    allowedFileRequest("/api/collections/users/records/abcdef", "PATCH"),
+    false,
+  );
+  assert.equal(
+    allowedFileRequest("/api/collections/files/records/abcdef/other", "PATCH"),
+    false,
+  );
+  assert.equal(allowedFileRequest("/api/collections/files/records", "PUT"), false);
+  assert.equal(
+    allowedFileRequest("/api/files/files/abcdef/file.png", "DELETE"),
+    false,
+  );
 });

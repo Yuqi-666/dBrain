@@ -1,5 +1,16 @@
+import { resourceLibraryMessages } from "./messages-resources.ts";
+import { resourceSelectorMessages } from "./messages-resource-selector.ts";
+
 // Interface copy only. Never pass user-authored content through this catalog.
+//
+// The catalog is one map, so `translate` stays a single lookup. Copy that a
+// feature owns lives in its own module and is spread in here: that keeps the
+// feature file reviewable on its own and this file free of a merge conflict
+// between two features written at the same time. Every module uses the same
+// `key → { zh-CN, en }` shape, and `runtime.test.ts` validates them together.
 export const messages: Record<string, { "zh-CN": string; en: string }> = {
+  ...resourceLibraryMessages,
+  ...resourceSelectorMessages,
   "Sign In": {
     "zh-CN": "登录",
     en: "Sign In",
@@ -4714,5 +4725,15 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
   上传成功: {
     "zh-CN": "上传成功",
     en: "Upload successful",
+  },
+  // Page destinations of the dynamic island. The host owns the route table; the
+  // label lives in the shared catalog because the island renders it.
+  资源库: {
+    "zh-CN": "资源库",
+    en: "Resources",
+  },
+  打开资源库: {
+    "zh-CN": "打开资源库",
+    en: "Open resources",
   },
 };

@@ -7,6 +7,7 @@ export type {
   ContextMenuType,
   ContextMenuContext,
   MainViewType,
+  SurfaceViewType,
   SidebarMode,
   IslandPanel,
   NodeSemanticAfterCreate,

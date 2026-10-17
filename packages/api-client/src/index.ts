@@ -9,6 +9,7 @@ export {
   FILES_FIELD,
   MAX_UPLOAD_BYTES,
   PDF_ANALYZE_MAX_BYTES,
+  buildUploadUrl,
   matchesAccept,
   resolveFileUrl,
   uploadAttachment,
@@ -17,6 +18,29 @@ export {
 } from "./upload";
 export type { FileItem, UploadOptions } from "./upload";
 export { analyzePdf, transcodeVideo } from "./file-analysis";
+export {
+  STORAGE_CATEGORIES,
+  checkResourceLimit,
+  currentResourceOwnerId,
+  deleteResource,
+  listResources,
+  prettyStoredFileName,
+  renameResource,
+  resourceDisplayName,
+  storageUsageOf,
+  uploadResource,
+  useResources,
+  useStorageLimits,
+} from "./resources";
+export type {
+  ResourceLimitViolation,
+  ResourceRecord,
+  ResourceScope,
+  StorageCategory,
+  StorageLimits,
+  StorageUsage,
+  UseResourcesResult,
+} from "./resources";
 export type { PdfAnalysis, VideoTranscode } from "./file-analysis";
 export {
   createPocketbaseClient,

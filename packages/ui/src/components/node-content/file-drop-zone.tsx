@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
+import { ResourceSelectorDialog } from "@workspace/ui/components/selector/resource-selector";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import { toast } from "@workspace/ui/components/ui/toast";
 import {
@@ -27,6 +28,7 @@ import {
   analyzePdf,
   transcodeVideo,
 } from "@workspace/api-client";
+import type { ResourceRecord } from "@workspace/api-client";
 import { languageFromFilename } from "@workspace/ui/components/code-editor/code-editor";
 import { NodeService } from "@workspace/services";
 import { useDataStore } from "@workspace/store";
@@ -158,56 +160,61 @@ async function withObjectUrl<T>(
   }
 }
 
-function readImageSize(file: File): Promise<FilePreview> {
-  return withObjectUrl(
-    file,
-    (url) =>
-      new Promise<FilePreview>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () =>
-          resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        img.onerror = () => reject(new Error("Image load failed"));
-        img.src = url;
-      }),
-  );
+/**
+ * Intrinsic size of the image at `src`.
+ *
+ * No `crossOrigin` is set: only the natural width / height are read here (never
+ * the pixels through a canvas), and demanding CORS would make a perfectly
+ * displayable stored image fail to measure on a deployment that does not send
+ * the headers.
+ */
+function readImageSize(src: string): Promise<FilePreview> {
+  return new Promise<FilePreview>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error("Image load failed"));
+    img.src = src;
+  });
 }
 
-function readAudioDuration(file: File): Promise<FilePreview> {
-  return withObjectUrl(
-    file,
-    (url) =>
-      new Promise<FilePreview>((resolve, reject) => {
-        const audio = document.createElement("audio");
-        audio.preload = "metadata";
-        audio.src = url;
-        audio.onloadedmetadata = () =>
-          resolve({
-            duration: Number.isFinite(audio.duration) ? audio.duration : 0,
-          });
-        audio.onerror = () => reject(new Error("Audio load failed"));
-      }),
-  );
+/** Duration of the audio at `src`, read from metadata only. */
+function readAudioDuration(src: string): Promise<FilePreview> {
+  return new Promise<FilePreview>((resolve, reject) => {
+    const audio = document.createElement("audio");
+    audio.preload = "metadata";
+    audio.src = src;
+    audio.onloadedmetadata = () =>
+      resolve({
+        duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+      });
+    audio.onerror = () => reject(new Error("Audio load failed"));
+  });
 }
 
 /**
- * Best-effort metadata extraction. Never rejects: a missing preview only means
- * the node falls back to its placeholder rendering.
+ * Best-effort metadata extraction from an address. Never rejects: a missing
+ * preview only means the node falls back to its placeholder rendering.
+ *
+ * Shared by the upload path (an object URL of the picked file) and the
+ * reference path (the resource's stored URL): both end up as a `src` the browser
+ * can measure directly.
  *
  * Video is absent on purpose. Its cover used to be grabbed here from a canvas,
  * which only works for a codec the browser can decode — precisely what an upload
  * cannot be relied on to be. The backend now measures the video and renders its
  * cover while packaging it (`FileCommandService.transcodeVideo`).
  */
-async function generatePreview(
-  file: File,
+async function generatePreviewFromUrl(
+  src: string,
   variant: LocalVariant,
 ): Promise<FilePreview> {
   try {
     switch (variant) {
       case "audio":
-        return await readAudioDuration(file);
+        return await readAudioDuration(src);
       case "image":
-        return await readImageSize(file);
+        return await readImageSize(src);
     }
   } catch (error) {
     console.warn(
@@ -216,6 +223,14 @@ async function generatePreview(
     );
     return {};
   }
+}
+
+/** The preview of a freshly picked file: it has no address yet, so give it one. */
+function generatePreview(
+  file: File,
+  variant: LocalVariant,
+): Promise<FilePreview> {
+  return withObjectUrl(file, (src) => generatePreviewFromUrl(src, variant));
 }
 
 /**
@@ -258,11 +273,17 @@ async function writeContentPatch<C extends object>(
   } as unknown as Partial<NodeData>);
 }
 
-/** Maps the stored file onto the node fields the matching node type expects. */
+/**
+ * Maps the stored file onto the node fields the matching node type expects.
+ *
+ * `source` only carries the byte length: an upload passes its `File`, a resource
+ * passes `{ size: resource.fileSize }`, and neither path has to know the other's
+ * shape.
+ */
 function buildNodeUpdates(
   variant: LocalVariant,
   url: string,
-  file: File,
+  source: { size: number },
   preview: FilePreview,
 ): ContentPatch<ImageContent | AudioContent> {
   switch (variant) {
@@ -270,7 +291,7 @@ function buildNodeUpdates(
       return {
         contentHalf: { url },
         meta: {
-          fileSize: file.size,
+          fileSize: source.size,
           width: preview.width ?? 0,
           height: preview.height ?? 0,
         },
@@ -278,32 +299,38 @@ function buildNodeUpdates(
     case "audio":
       return {
         contentHalf: { url },
-        meta: { fileSize: file.size, duration: preview.duration ?? 0 },
+        meta: { fileSize: source.size, duration: preview.duration ?? 0 },
       };
   }
 }
 
 /**
- * Tells the user the upload and the node write both succeeded.
+ * Tells the user the blob and the node write both succeeded.
  *
  * Reached from the upload promise's closure, so it also runs when the dialog
- * that started the upload has already closed.
+ * that started the upload has already closed. A referenced resource passes its
+ * record (`{ name }`) where an upload passes its `File` — both name the blob the
+ * same way.
  */
-function showUploadSuccessToast(file: File): void {
+function showUploadSuccessToast(upload: { name: string }): void {
   toast({
     title: translate("上传成功"),
-    description: file.name,
+    description: upload.name,
   });
 }
 
 /**
- * Parses a freshly uploaded PDF on the backend and returns the content half the
- * node should end up with.
+ * Parses an uploaded (or referenced) PDF on the backend and returns the content
+ * half the node should end up with.
  *
  * Best-effort on purpose: the blob is already stored, so a document the backend
  * cannot parse (password protected, corrupt) must still leave the node pointing
  * at its file — it just keeps `pageCount: 0` and no cover, which is what the
  * node renders before any metadata arrives.
+ *
+ * A reference re-runs the analysis instead of copying another node's fields:
+ * the resource record carries no page count or cover, and the cover the backend
+ * stores on a fresh analysis belongs to the record it parsed.
  *
  * A document past the analysis cap is skipped without asking: the server would
  * have to stream the whole file to disk only to refuse it, and the node is
@@ -311,16 +338,16 @@ function showUploadSuccessToast(file: File): void {
  */
 async function analyzePdfUpload(
   url: string,
-  file: File,
+  source: { size: number },
 ): Promise<ContentPatch<PdfContent>> {
   let coverUrl = "";
   let pageCount = 0;
-  let fileSize = file.size;
+  let fileSize = source.size;
 
-  if (file.size > PDF_ANALYZE_MAX_BYTES) {
+  if (source.size > PDF_ANALYZE_MAX_BYTES) {
     console.warn(
       "[FileDropZone] PDF is larger than the analysis cap; keeping the file without parsing it",
-      file.size,
+      source.size,
     );
   } else {
     try {
@@ -340,8 +367,12 @@ async function analyzePdfUpload(
 }
 
 /**
- * Packages a freshly uploaded video as HLS and returns the content half the node
- * should end up with.
+ * Packages an uploaded (or referenced) video as HLS and returns the content half
+ * the node should end up with.
+ *
+ * A reference is re-packaged for the same reason a PDF is re-parsed: the
+ * resource record has no playlist or cover, so the node needs the backend's
+ * answer for this blob before it can play it.
  *
  * A transcode that fails must not lose the upload: the node then simply keeps
  * the original blob as its only representation — what every upload did before
@@ -350,7 +381,7 @@ async function analyzePdfUpload(
  */
 async function packageVideoUpload(
   url: string,
-  file: File,
+  source: { size: number },
 ): Promise<ContentPatch<VideoContent>> {
   try {
     const transcoded = await transcodeVideo(url);
@@ -362,7 +393,7 @@ async function packageVideoUpload(
         hlsUrl: transcoded.hlsUrl,
       },
       meta: {
-        fileSize: file.size,
+        fileSize: source.size,
         duration: transcoded.duration,
         source: "local",
       },
@@ -375,7 +406,7 @@ async function packageVideoUpload(
 
     return {
       contentHalf: { url, coverUrl: "", hlsUrl: "" },
-      meta: { fileSize: file.size, duration: 0, source: "local" },
+      meta: { fileSize: source.size, duration: 0, source: "local" },
     };
   }
 }
@@ -399,6 +430,10 @@ function UploadDropZone({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   /** Set while the backend is packaging an uploaded video as HLS. */
   const [packaging, setPackaging] = useState(false);
+  /** Name of the library resource being referenced, shown while it is applied. */
+  const [referencing, setReferencing] = useState<string | null>(null);
+  /** Set while the 「从资源库选择」 dialog is open. */
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
@@ -489,23 +524,99 @@ function UploadDropZone({
     uploadFiles(files);
   };
 
+  /**
+   * Writes a referenced library resource onto this node, variant by variant.
+   *
+   * It must leave the node in exactly the state an upload would: the node stores
+   * the resource's `storedUrl` (never its bytes), and the metadata an upload
+   * derives is re-derived here — the resource record carries no width, duration,
+   * page count, cover or playlist, so there is nothing to copy from it.
+   * `liveContent()` is read at write time so a concurrent writer's content half
+   * survives, exactly as in the upload path.
+   */
+  const handleResourceSelected = async (resource: ResourceRecord) => {
+    onUploadStart?.();
+    setReferencing(resource.name);
+
+    try {
+      if (variant === "pdf") {
+        // Parsing happens on the server (PDF parser + rasterizer): hand the
+        // stored address over and keep whatever comes back.
+        const patch = await analyzePdfUpload(resource.storedUrl, {
+          size: resource.fileSize,
+        });
+        await writeContentPatch(nodeId, liveContent(), patch);
+      } else if (variant === "video") {
+        // Same as the upload path: the drop zone stays up with a packaging note
+        // until the backend has built the playlist and cover.
+        setPackaging(true);
+        try {
+          const patch = await packageVideoUpload(resource.storedUrl, {
+            size: resource.fileSize,
+          });
+          await writeContentPatch(nodeId, liveContent(), patch);
+        } finally {
+          setPackaging(false);
+        }
+      } else {
+        // Image / audio: measure the stored blob itself. The resource address is
+        // already what `<img>` / `<audio>` needs, so no object URL is involved.
+        const preview = await generatePreviewFromUrl(resource.url, variant);
+        const patch = buildNodeUpdates(
+          variant,
+          resource.storedUrl,
+          { size: resource.fileSize },
+          preview,
+        );
+        await writeContentPatch(nodeId, liveContent(), patch);
+      }
+
+      onUploaded?.();
+      showUploadSuccessToast(resource);
+    } catch (error) {
+      onUploadError?.(
+        error instanceof Error ? error : new Error(t("引用资源失败")),
+      );
+    } finally {
+      setReferencing(null);
+    }
+  };
+
   if (fileItems.length === 0) {
     return (
       <>
-        <div
-          onClick={handleClick}
-          className={cn(
-            "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-            config.minHeight,
-            className,
-          )}
-        >
-          <Icon className="size-12 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {t("点击添加")}
-            {config.label}
-          </span>
-        </div>
+        {referencing ? (
+          <div
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg",
+              config.minHeight,
+              className,
+            )}
+          >
+            <Icon className="size-10 text-muted-foreground" />
+            <span className="max-w-full truncate px-4 text-sm">
+              {referencing}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {packaging ? t("正在转码为 HLS…") : t("正在应用资源…")}
+            </span>
+          </div>
+        ) : (
+          <div
+            onClick={handleClick}
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+              config.minHeight,
+              className,
+            )}
+          >
+            <Icon className="size-12 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {t("点击添加")}
+              {config.label}
+            </span>
+          </div>
+        )}
 
         <UploadMenu
           position={menuPosition}
@@ -513,8 +624,19 @@ function UploadDropZone({
           onClose={() => setMenuOpen(false)}
           accept={accept}
           allowPasteImage={variant === "image"}
+          showResourcePicker
+          onOpenResourcePicker={() => setResourcePickerOpen(true)}
           onFilesSelected={handleFilesSelected}
           onError={onUploadError}
+        />
+
+        <ResourceSelectorDialog
+          open={resourcePickerOpen}
+          onOpenChange={setResourcePickerOpen}
+          accept={accept}
+          onSelect={(resource) => {
+            void handleResourceSelected(resource);
+          }}
         />
       </>
     );
@@ -750,6 +872,10 @@ function DisplayFieldDropZone({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  /** Name of the library resource being referenced, shown while it is applied. */
+  const [referencing, setReferencing] = useState<string | null>(null);
+  /** Set while the 「从资源库选择」 dialog is open. */
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
@@ -805,23 +931,74 @@ function DisplayFieldDropZone({
     uploadFiles(files);
   };
 
+  /**
+   * Writes a referenced library resource into the node's **top-level** display
+   * field, exactly like the upload path above — never into `content`.
+   *
+   * The icon half merges over the live value so the stored colour survives; the
+   * cover half carries only `url` (its `{kind:"image"}` union member has no other
+   * field).
+   */
+  const handleResourceSelected = async (resource: ResourceRecord) => {
+    onUploadStart?.();
+    setReferencing(resource.name);
+
+    try {
+      const liveIcon = useDataStore.getState().getNode(nodeId)?.icon;
+      const updates: Partial<NodeData> =
+        variant === "cover"
+          ? { cover: { kind: "image", url: resource.storedUrl } }
+          : {
+              icon: { ...liveIcon, kind: "image", value: resource.storedUrl },
+            };
+
+      await NodeService.upsert(nodeId, updates);
+      onUploaded?.();
+      showUploadSuccessToast(resource);
+    } catch (error) {
+      onUploadError?.(
+        error instanceof Error ? error : new Error(t("引用资源失败")),
+      );
+    } finally {
+      setReferencing(null);
+    }
+  };
+
   if (fileItems.length === 0) {
     return (
       <>
-        <div
-          onClick={handleClick}
-          className={cn(
-            "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-            config.minHeight,
-            className,
-          )}
-        >
-          <Icon className="size-12 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {t("点击添加")}
-            {config.label}
-          </span>
-        </div>
+        {referencing ? (
+          <div
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg",
+              config.minHeight,
+              className,
+            )}
+          >
+            <Icon className="size-10 text-muted-foreground" />
+            <span className="max-w-full truncate px-4 text-sm">
+              {referencing}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("正在应用资源…")}
+            </span>
+          </div>
+        ) : (
+          <div
+            onClick={handleClick}
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+              config.minHeight,
+              className,
+            )}
+          >
+            <Icon className="size-12 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {t("点击添加")}
+              {config.label}
+            </span>
+          </div>
+        )}
 
         <UploadMenu
           position={menuPosition}
@@ -831,8 +1008,19 @@ function DisplayFieldDropZone({
           // The zone only ever takes a picture, so a pasted image is a valid
           // source for both variants (same reason `variant="image"` allows it).
           allowPasteImage
+          showResourcePicker
+          onOpenResourcePicker={() => setResourcePickerOpen(true)}
           onFilesSelected={handleFilesSelected}
           onError={onUploadError}
+        />
+
+        <ResourceSelectorDialog
+          open={resourcePickerOpen}
+          onOpenChange={setResourcePickerOpen}
+          accept={accept}
+          onSelect={(resource) => {
+            void handleResourceSelected(resource);
+          }}
         />
       </>
     );

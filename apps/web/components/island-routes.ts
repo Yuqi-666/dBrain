@@ -1,6 +1,6 @@
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import type { ComponentType } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { FolderOpen, LayoutDashboard } from "lucide-react";
 import { GraphIcon } from "@workspace/ui/components/brand/brand-icons";
 import type { MainViewType } from "@workspace/store";
 
@@ -33,27 +33,28 @@ export interface IslandRoute {
 }
 
 /**
- * The island's page list — the **single source of truth** for it (design §5.1;
- * plan `docs/plan/dynamic-island.md` §M4.1 第 8 行). Three things about it are
- * load-bearing:
+ * The island's page list — the **single source of truth** for it (design
+ * `docs/dynamic-island/README.md` §5.1; plan `docs/plan/dynamic-island.md` §M4.1
+ * 第 8 行). Three things about it are load-bearing:
  *
  * 1. **It lives in the host, not in `packages/ui`.** A route table written into
  *    the shared package would hard-code `/dashboard` into a component that
  *    renders on every page, and the shared package has no way to know which
  *    pages this app ships — the first navigation would be a 404 (design
- *    §0.3-5). The host owns `/graph` vs `/dashboard`, so the host owns this
- *    table. It is also the app's route ↔ surface mapping, not just the island's
- *    nav list: `WorkspaceShell` resolves the visible surface through it.
- * 2. **`/dashboard` is enabled.** It renders a workspace-scoped dashboard
- *    without the graph sidebar.
- * 3. **`/settings` is deliberately absent.** It is the other middleware-only
- *    path. P0's capsule has exactly three slots — graph / dashboard / 搜索 — and
- *    only the first two are destinations; `搜索` is not a route at all, it opens
- *    the `search` panel (see `dynamic-island-host.tsx`).
+ *    §0.3-5). The host owns `/graph`, `/dashboard` and `/resources`, so the host
+ *    owns this table. It is also the app's route ↔ surface mapping, not just the
+ *    island's nav list: `WorkspaceShell` resolves the visible surface through it.
+ * 2. **`/dashboard` and `/resources` are enabled.** They render a workspace
+ *    surface without the graph sidebar; the resource library manages the media
+ *    assets the workspace nodes reference.
+ * 3. **`/settings` is deliberately absent.** It is the middleware-only path the
+ *    edge guard names but this app does not ship. The page destinations are the
+ *    three above; `搜索` is not a route at all, it opens the `search` panel (see
+ *    `dynamic-island-host.tsx`).
  *
- * Both routes share one persistent shell (`(main)/layout.tsx`), so following one
- * switches the visible surface rather than reloading; the URL stays the honest
- * address of the surface either way.
+ * Every destination shares one persistent shell (`(main)/layout.tsx`), so
+ * following one switches the visible surface rather than reloading; the URL
+ * stays the honest address of the surface either way.
  *
  * **Array order is the capsule's order**: the page items come first, then search.
  * The 1px separator that splits navigation from search is not inferred by the
@@ -80,6 +81,16 @@ export const ISLAND_ROUTES: IslandRoute[] = [
     icon: LayoutDashboard,
     enabled: true,
     view: "dashboard",
+  },
+  {
+    key: "resources",
+    get label() {
+      return translate("资源库");
+    },
+    href: "/resources",
+    icon: FolderOpen,
+    enabled: true,
+    view: "resources",
   },
 ];
 

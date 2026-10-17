@@ -22,7 +22,15 @@ export type ContextMenuContext =
   | { nodeIds: string[]; edgeIds: string[] }
   | { sourceIds: string[]; targetId: string | null };
 
-export type MainViewType = "graph" | "editor" | "dashboard";
+/**
+ * The workspace surfaces the shell keeps alive, plus the fullscreen editor,
+ * which is an overlay on the surface it was opened from rather than a
+ * destination of its own.
+ */
+export type MainViewType = "graph" | "editor" | "dashboard" | "resources";
+
+/** A surface a fullscreen editor can return to (`MainViewType` minus itself). */
+export type SurfaceViewType = Exclude<MainViewType, "editor">;
 
 /**
  * 灵动岛当前面板（`idle` 即收起）。定义在 `@workspace/interfaces`（唯一真源），
@@ -212,7 +220,7 @@ export interface UIStore {
   // ==================== Main View Section ====================
   /** 当前主视图类型：节点图 或 节点编辑页面 */
   mainViewType: MainViewType;
-  editorReturnViewType: "graph" | "dashboard";
+  editorReturnViewType: SurfaceViewType;
   /** 设置主视图类型 */
   setMainViewType: (type: MainViewType) => void;
 

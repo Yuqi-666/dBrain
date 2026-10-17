@@ -79,6 +79,18 @@ The PDF viewer shows the stored cover of the first page immediately, then replac
 
 The app remembers the last page for each reader and each node. Reopen the node and the viewer continues from that page. The outline folds by level. Select a parent entry to open or close it. A long title wraps to the next line.
 
+## Resource library and references
+
+Select 资源库 in the island to open the resource library. The page lists every file that you uploaded, in the category of the file: image, video, audio, PDF, or other. Search by name and filter by category. The storage panel shows the bytes in use, the total quota, and the share of each category. The maintainer sets the quota and the per-file limits (see the Operations and Development manuals). The built-in defaults give one user 10 GiB in total, 32 MiB per image, 512 MiB per audio file, 512 MiB per PDF, 2 GiB per video, and 256 MiB per other file.
+
+The library can also upload a file, rename its label, copy its address, and delete it. A rename changes the label only; it does not change the stored bytes or the address. Deleting a resource deletes the stored bytes and frees the quota. Deleting a node does **not** delete its file, so an orphaned file stays in the library until you delete it there. Check the storage panel when the quota looks full.
+
+To reference a file that is already stored, open the node that accepts a media file and click its add area. Select 「从资源库选择」. Select a file in the dialog; the node stores a reference to that file instead of a copy. A node in a shared workspace can reference a teammate's resource; the selector marks such a file as 共享. For an image or an audio file, the node reads the size and the duration from the file. For a PDF or a video, the server analyses or packages the file again when you reference it, so the node shows the page count, the cover, or the playlist.
+
+A reference is not a copy. If you delete the resource later, every node that references it stops loading the file. Keep a resource that a node still uses.
+
+In the desktop app the library manages the files of the local workspace. The total quota is the built-in default; there is no deployment operator to change it.
+
 ## Data location and backup
 
 The desktop app keeps the database, the attachments, the local identity, and the logs in the system application data directory. Locate it usually by the identifier `cn.dbrain.desktop`. The platform interface and the log give the real directory. On Linux, the common path is `$XDG_DATA_HOME/cn.dbrain.desktop`. Without that variable, the path is `~/.local/share/cn.dbrain.desktop`.

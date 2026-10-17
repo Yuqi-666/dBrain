@@ -16,7 +16,7 @@ It contains no business logic.
 | Path | Content |
 | --- | --- |
 | `app/(auth)/` | The login and register pages with their own layout |
-| `app/(main)/` | The authenticated layout, plus the graph and dashboard pages |
+| `app/(main)/` | The authenticated layout, plus the graph, dashboard, and resources pages |
 | `components/` | Six app-level components, for example `workspace-shell.tsx` and `dynamic-island-host.tsx` |
 | `hooks/` | `use-workspace-initialization.ts` |
 | `lib/` | Empty |
@@ -25,7 +25,7 @@ It contains no business logic.
 ## Mechanisms
 
 `middleware.ts` runs on the edge.
-It guards `/graph`, `/dashboard`, and `/settings`.
+It guards `/graph`, `/dashboard`, `/resources`, and `/settings`.
 It decodes the `pb_token` cookie and reads the expiry only.
 It does not call the server, so it cannot detect a user that no longer exists.
 
@@ -35,7 +35,7 @@ The layout mounts `WorkspaceShell` and `DynamicIslandHost` only after that query
 The edge middleware alone is not sufficient, and the layout clears the cookie on a rejected token.
 
 `WorkspaceShell` lives in the layout, not in a page, because a layout survives a soft navigation.
-The graph and the dashboard therefore keep their state during a switch.
+The graph, the dashboard, and the resource library therefore keep their state during a switch.
 The shell reads the active surface from the pathname through `components/island-routes.ts`.
 The `/graph` and `/dashboard` pages render `null`.
 
