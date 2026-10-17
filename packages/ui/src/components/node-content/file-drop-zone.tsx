@@ -577,32 +577,45 @@ function LocalTextDropZone({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [reading, setReading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const config = VARIANT_CONFIG["webpage-source"];
   const Icon = config.icon;
+
+  /**
+   * Reports a rejected or failed import to the host **and** inline.
+   *
+   * The zone is the last screen the user sees when an import does not produce a
+   * node, so the message cannot depend on a host opting into `onUploadError`:
+   * without the inline line every rejection looked like a click that did
+   * nothing (a source file can be filtered, too large, empty, or the write can
+   * fail).
+   */
+  const reportImportError = (message: string) => {
+    setError(message);
+    onUploadError?.(new Error(message));
+  };
 
   const handleFilesSelected = async (files: File[]) => {
     const file = files[0];
     if (!file) return;
 
+    setError(null);
+
     if (!matchesAccept(file, accept)) {
-      onUploadError?.(
-        new Error(
-          translate("不支持的文件类型：{value1}（期望 {value2}）", {
-            value1: file.name,
-            value2: accept,
-          }),
-        ),
+      reportImportError(
+        translate("不支持的文件类型：{value1}（期望 {value2}）", {
+          value1: file.name,
+          value2: accept,
+        }),
       );
       return;
     }
     if (file.size > MAX_SOURCE_BYTES) {
-      onUploadError?.(
-        new Error(
-          translate("源码文件超过 {value1}MB，无法载入编辑器", {
-            value1: MAX_SOURCE_BYTES / 1024 / 1024,
-          }),
-        ),
+      reportImportError(
+        translate("源码文件超过 {value1}MB，无法载入编辑器", {
+          value1: MAX_SOURCE_BYTES / 1024 / 1024,
+        }),
       );
       return;
     }
@@ -618,10 +631,13 @@ function LocalTextDropZone({
           language: languageFromFilename(file.name),
         },
       });
+      setError(null);
       onUploaded?.();
-    } catch (error) {
-      onUploadError?.(
-        error instanceof Error ? error : new Error(t("读取文件失败")),
+    } catch (cause) {
+      reportImportError(
+        cause instanceof Error && cause.message
+          ? cause.message
+          : t("读取文件失败"),
       );
     } finally {
       setReading(null);
@@ -668,6 +684,14 @@ function LocalTextDropZone({
         <span className="text-xs text-muted-foreground/70">
           {t("上传 .html 或代码文件，内容会载入源码编辑器")}{" "}
         </span>
+        {error && (
+          <span
+            role="alert"
+            className="max-w-[80%] text-center text-xs text-destructive"
+          >
+            {error}
+          </span>
+        )}
       </div>
 
       <UploadMenu

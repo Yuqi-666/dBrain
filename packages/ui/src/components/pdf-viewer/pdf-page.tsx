@@ -52,7 +52,7 @@ import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { runsForRange } from "./pdf-text";
-import { pdfRasterDpr, pdfZoomIsCrisp } from "./types";
+import { pdfPageCover, pdfRasterDpr, pdfZoomIsCrisp } from "./types";
 import type { PdfTextSnapshot } from "./use-pdf-document";
 import type {
   PdfPageMetrics,
@@ -69,6 +69,13 @@ export interface PdfPageProps {
   scale: number;
   /** Multiplier the bitmap and the text layer were rasterised at. */
   renderScale: number;
+  /**
+   * Host-provided cover of page 1. Only page 1 paints it, and only until its
+   * first bitmap lands: it is the page, just too small to read, so it is a better
+   * first screen than a pulsing white rectangle while pdf.js fetches the real
+   * page's bytes.
+   */
+  coverUrl?: string;
   /** Mount canvas + text layer; the viewer gates this on the viewport. */
   active: boolean;
   getPage: (page: number) => Promise<PDFPageProxy | null>;
@@ -122,6 +129,7 @@ export function PdfPage({
   metrics,
   scale,
   renderScale,
+  coverUrl,
   active,
   getPage,
   getTextContent,
@@ -142,6 +150,14 @@ export function PdfPage({
    * jank on a document with a few hundred pages.
    */
   const paintedRef = useRef(false);
+  /**
+   * Whether this mount has ever painted a real bitmap. The cover stands in for
+   * page 1 only until then — after the first paint it is a stale, low-resolution
+   * copy, so a later release/repaint must fall back to the ordinary skeleton.
+   * A ref because the `setStage("ready")` that follows the first paint already
+   * commits the render this flag needs to affect.
+   */
+  const paintedOnceRef = useRef(false);
 
   const [stage, setStage] = useState<"idle" | "loading" | "ready">("idle");
   const [snapshot, setSnapshot] = useState<PdfTextSnapshot | null>(null);
@@ -169,6 +185,8 @@ export function PdfPage({
   const base = measuredBase ?? metrics;
   const width = base.width * scale;
   const height = base.height * scale;
+  /** The page-1 stand-in, or `null` for every other page and every cover-less file. */
+  const cover = pdfPageCover(coverUrl, pageNumber);
   /**
    * Either the box has moved past the bitmap (a zoom gesture is streaming, so the
    * canvas is stretched and the two positioned layers have nothing valid to say),
@@ -323,6 +341,7 @@ export function PdfPage({
       canvas.width = buffer.width;
       canvas.height = buffer.height;
       canvas.getContext("2d")?.drawImage(buffer, 0, 0);
+      paintedOnceRef.current = true;
       setStage("ready");
 
       const next = await getTextContent(pageNumber);
@@ -578,9 +597,23 @@ export function PdfPage({
           there — trivially read as a *black page fading in and out*, which is how
           one reader reported the (slow) repaint at a large multiplier. A fixed
           light tint on the same white reads as a page still sharpening instead.
+
+          Page 1 instead shows the upload-time cover, which is the same page at a
+          readable size: it is what makes the node's first screen appear before
+          pdf.js has finished opening the document. After the first real paint it
+          is stale, so the skeleton takes over again (see `paintedOnceRef`).
         */
         <div className="absolute inset-0 flex items-center justify-center bg-white">
-          <Skeleton className="size-full rounded-none bg-black/5" />
+          {cover && !paintedOnceRef.current ? (
+            <img
+              src={cover}
+              alt=""
+              aria-hidden="true"
+              className="size-full object-contain"
+            />
+          ) : (
+            <Skeleton className="size-full rounded-none bg-black/5" />
+          )}
         </div>
       )}
     </div>

@@ -32,6 +32,7 @@ test('main requires CI and an internal PR', () => {
     { context: requiredCheck, integration_id: actionsAppId },
   ]);
   const pullRequest = payload.rules.find(rule => rule.type === 'pull_request').parameters;
+  assert.deepEqual(pullRequest.allowed_merge_methods, ['merge']);
   assert.equal(pullRequest.required_approving_review_count, 0);
   assert.equal(pullRequest.required_review_thread_resolution, true);
   assert.equal(pullRequest.require_last_push_approval, false);
@@ -43,7 +44,7 @@ test('the repository settings preserve tagged commits with merge commits', () =>
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: false,
+    delete_branch_on_merge: true,
     has_issues: true,
     has_discussions: false,
   });

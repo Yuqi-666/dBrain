@@ -3,14 +3,14 @@ set -euo pipefail
 # Version and digests come from the official rhysd/actionlint release assets.
 # Linux amd64 validation tool; container arm64 jobs do not invoke it.
 #
-# The script caches the binary under .gate/tools. The gate runs this check on
-# every push that touches a workflow file, and a download takes minutes on a
-# slow network. Both digests are pinned, so a changed cache is refused and
-# replaced. The variable DBRAIN_GATE_TOOLS moves the cache.
+# The script caches the binary under .cache/actionlint. CI runs this on every
+# push, and a download takes minutes on a slow network. Both digests are
+# pinned, so a changed cache is refused and replaced. The variable
+# DBRAIN_ACTIONLINT_CACHE moves the cache.
 version=1.7.12
 archive_digest=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
 binary_digest=c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4
-cache="${DBRAIN_GATE_TOOLS:-.gate/tools}"
+cache="${DBRAIN_ACTIONLINT_CACHE:-.cache/actionlint}"
 binary="$cache/actionlint-$version-linux-amd64"
 
 check() {

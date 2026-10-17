@@ -20,8 +20,8 @@ coverage
 # Turbo
 .turbo
 
-# Push gate run report
-.gate/
+# Cached check tools, e.g. the pinned actionlint binary
+.cache/
 
 # docs/plan/baseline.sh 的原始输出（归一化快照已入库：docs/plan/baseline/）
 .baseline-raw/

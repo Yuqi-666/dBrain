@@ -276,6 +276,21 @@ export interface PdfViewerProps {
   /** Already resolved against the API origin by the host. */
   url: string;
   title?: string;
+  /**
+   * Optional host-provided image of page 1, such as the cover stored alongside
+   * the file. It is shown while the document opens and while page 1 is
+   * rasterised, so the first screen is the real page instead of a spinner.
+   *
+   * It exists because pdf.js's *open* time is not decided by file size. Resolving
+   * page 1 makes pdf.js pre-fetch every top-level kid of the page tree
+   * (`Catalog.getPageDict`); on a scan with a flat page tree the page dictionaries
+   * sit megabytes apart, so that pre-fetch turns into hundreds of scattered range
+   * reads before `getDocument` resolves. The cover needs none of that.
+   *
+   * Empty/absent is the ordinary case for a file that was not analysed: the
+   * viewer then shows its plain loading state.
+   */
+  coverUrl?: string;
   className?: string;
   /** Initial layout — the viewer owns it afterwards. Defaults to 垂直 + 连续 + 单页. */
   defaultMode?: PdfViewMode;
@@ -309,6 +324,20 @@ export interface PdfViewerProps {
    * document.
    */
   progressKey?: string;
+}
+
+/**
+ * The cover a page may paint while its own bitmap is still loading.
+ *
+ * Only page 1 has one: the cover is rendered from page 1 at upload. An empty
+ * string is what the backend stores when its own render failed, so it must not
+ * become a broken `<img>` in the page box.
+ */
+export function pdfPageCover(
+  coverUrl: string | undefined,
+  pageNumber: number,
+): string | null {
+  return pageNumber === 1 && coverUrl ? coverUrl : null;
 }
 
 export interface PdfToolbarProps {
