@@ -73,7 +73,7 @@ The server rejects a file larger than 2 GiB before the upload starts. An image i
 
 A PDF larger than 256 MiB skips the analysis. The app stores the file only. You can still download and open it, but it has no page count and no cover. A video transcodes as a disk stream. The size does not affect the HLS generation.
 
-The PDF viewer shows the stored cover of the first page immediately, then replaces it with the rendered page. The viewer reads only the parts of the current page. It does not download the whole file first. A large scan can still take a moment to open when its internal layout forces many small reads, but the cover is visible from the start. The viewer reads the later pages when you scroll to them.
+The PDF viewer shows the stored cover of the first page immediately, then replaces it with the rendered page. The viewer reads only the parts it needs. It does not download the whole file first, and it locates a page through that page's entry in the document's page tree instead of reading every entry, so a large scan opens quickly even when its pages are stored far apart. The viewer reads the later pages when you scroll to them.
 
 The app remembers the last page for each reader and each node. Reopen the node and the viewer continues from that page. The outline folds by level. Select a parent entry to open or close it. A long title wraps to the next line.
 

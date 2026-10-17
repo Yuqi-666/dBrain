@@ -813,8 +813,10 @@ export function PdfViewer({
   const restoredProgress = useRef<{
     url: string;
     key: string;
-    /** Where the restore jump lands, so the write below can wait for it. */
+    /** The page the restore jump targets. */
     page: number;
+    /** The page that was current before the jump was queued. */
+    before: number;
     /** The jump has landed; after this the write is free to follow the reader. */
     landed: boolean;
   } | null>(null);
@@ -838,8 +840,8 @@ export function PdfViewer({
     const requested =
       stored !== null && stored > 1 && stored <= pageCount ? stored : 1;
     // `goToPage` seats the slot's *leading* page in 双页, so remember where the
-    // jump lands rather than what was asked for: the write below waits for that
-    // page, which is the state `goToPage` actually commits.
+    // jump plans to land rather than what was asked for: the write below uses it
+    // to tell the pre-restore page apart from a landing it did not name.
     const landing = pdfSlotStartPage(
       pdfSlotOf(requested, mode.spread),
       mode.spread,
@@ -848,6 +850,7 @@ export function PdfViewer({
       url: readyUrl,
       key: progressKey,
       page: landing,
+      before: page,
       landed: false,
     };
     // Always seat, even at page 1: the host keys the viewer by url, so switching
@@ -864,13 +867,17 @@ export function PdfViewer({
     goToPage,
     viewport.width,
     viewport.height,
+    // `page` is read as the pre-restore position, and a scroll that changes it
+    // before a real viewport exists has to be the position the write gate sees.
+    page,
   ]);
 
   /**
    * The reading position, written as the reader moves.
    *
-   * It waits for the restore above to land: the first ready commit still holds
-   * page 1, and writing there would erase the very position being restored.
+   * It skips the first ready commit, which still holds the pre-restore page
+   * while the jump is only queued; writing there would erase the position being
+   * restored. From the first page the reader actually lands on it persists.
    */
   useEffect(() => {
     if (readyUrl === null || readyUrl !== url || !progressKey) return;
@@ -883,7 +890,16 @@ export function PdfViewer({
       return;
     }
     if (!restored.landed) {
-      if (page !== restored.page) return;
+      // The commit that publishes `ready` still holds the pre-restore page while
+      // `goToPage` has only queued the jump; writing that page would erase the
+      // stored position. Wait for the first page that is not that pre-restore
+      // one, and then persist it — including a landing the jump did not name
+      // exactly. Requiring `page === restored.page` here froze persistence for a
+      // document whose jump landed a slot off (mixed page sizes, a clamped end
+      // of document, a layout switch while the document opened): the guard never
+      // cleared, so nothing was ever written again and the next open started at
+      // page 1.
+      if (page === restored.before && page !== restored.page) return;
       restored.landed = true;
     }
     writePdfProgress(progressKey, page);

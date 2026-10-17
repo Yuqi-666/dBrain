@@ -11,12 +11,15 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  * 1. **pdfjs is imported dynamically and exactly once per session.** It is
  *    ~660KB of parser plus a 1.3MB worker; a static import would put both in
  *    every route's chunk, including the ones that never open a pdf node.
- * 2. **The worker is created from a URL the bundler can see**
- *    (`new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`), which
- *    is the same shape `@workspace/graph` uses for its force worker. Assigning
- *    it to `GlobalWorkerOptions.workerPort` must happen *before*
- *    `getDocument`, otherwise pdfjs resolves a `workerSrc` path that does not
- *    exist in the bundle and silently falls back to parsing on the main thread.
+ * 2. **The worker is the patched copy of pdf.js's own worker**, served from
+ *    `<origin>/pdfjs/pdf.worker.patched.mjs`. The `scripts/lib/pdfjs-assets.mjs`
+ *    copy step writes it into both client apps' `public/` trees; the patch adds
+ *    the page-tree fast path that a flat `/Kids` array needs (see
+ *    `scripts/lib/pdfjs-worker-patch.mjs`). Creating the worker from that URL,
+ *    rather than from a bundler trace, is what keeps the patch in every build;
+ *    `GlobalWorkerOptions.workerPort` is still assigned before `getDocument`,
+ *    because otherwise pdfjs resolves a `workerSrc` path that does not exist in
+ *    the bundle and silently parses on the main thread.
  * 3. **One text fetch serves both consumers.** The text layer needs a
  *    `TextContent` to lay spans out and search needs the same strings to match
  *    against; sharing the cached value is what guarantees a highlight lands on
@@ -116,7 +119,7 @@ function pdfjsAssetOrigin(): string {
 function createWorker(): Worker {
   try {
     return new Worker(
-      new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url),
+      `${pdfjsAssetOrigin()}/pdfjs/pdf.worker.patched.mjs`,
       { type: "module" },
     );
   } catch (error) {

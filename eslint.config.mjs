@@ -11,6 +11,7 @@ export default [
       "**/runtime/**",
       "**/.runtime-staging/**",
       ".scratch/**",
+      "**/public/pdfjs/**",
       "pb/pb_data/**",
       "pb/pb_migrations/**",
       "pb/pb_hooks/**",
