@@ -126,6 +126,7 @@ pnpm check-types
 pnpm lint:gate
 pnpm test:release
 pnpm build
+pnpm smoke:server
 ```
 
 桌面改动还需准备运行时、运行后端 smoke 测试和 Rust 库测试，见[桌面说明](../../apps/desktop/AGENTS.md)。Server smoke 测试只能使用隔离数据。`pnpm lint:gate` 会按已保存基线阻止新增诊断。
@@ -134,7 +135,7 @@ pnpm build
 
 推送到 `develop`、`main` 和仓库内部 PR 会运行 CI。所有者在 `develop` 上为版本提交打标签；标签触发容器平台及签名密钥齐全的桌面目标构建，成功后自动创建发行草稿。用合并提交把 `develop` 晋升到 `main`，再手动公开草稿。详见 [CI/CD 与版本发布](ci-cd.md)。
 
-`pnpm gate --until=plan` 仍可生成本地检查计划。旧 gate 的提交、推送、PR 和自动合并阶段只是可选的历史工具。
+上面的命令就是 `checks` 作业运行的命令，本地全绿即可预期 PR 全绿。请让本清单与 [CI/CD 与版本发布](ci-cd.md) 同 `.github/workflows/ci.yml` 保持一致。
 
 ## 日常维护
 

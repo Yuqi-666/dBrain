@@ -126,6 +126,7 @@ pnpm check-types
 pnpm lint:gate
 pnpm test:release
 pnpm build
+pnpm smoke:server
 ```
 
 For desktop changes, also prepare the runtime, run the backend smoke test, and run the Rust library tests as described in [the desktop instructions](../apps/desktop/AGENTS.md). Use only isolated test data for server smoke tests. `pnpm lint:gate` blocks new diagnostics against the stored baseline.
@@ -134,7 +135,7 @@ For desktop changes, also prepare the runtime, run the backend smoke test, and r
 
 CI runs on pushes to `develop` and `main` and internal PRs. The owner tags a version commit on `develop`; the tag builds declared containers and desktop targets with available signing secrets and creates a draft release after a successful candidate. Promote `develop` to `main` using a merge commit, then manually publish the draft. See [CI/CD and releases](ci-cd.md).
 
-`pnpm gate --until=plan` remains available for a local check plan. The old gate commit, push, PR, and auto-merge stages are optional legacy tools.
+The commands above are the ones the `checks` job runs, so a green local run predicts a green pull request. Keep this list and [CI/CD and releases](ci-cd.md) in step with `.github/workflows/ci.yml`.
 
 ## Daily maintenance
 

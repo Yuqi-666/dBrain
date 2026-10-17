@@ -64,9 +64,8 @@ pnpm check-types
 pnpm lint:gate
 pnpm test:release
 pnpm build                    # builds the server and the web app
-pnpm gate --until=plan        # prints the check plan without changing files
-pnpm gate:policy              # prints the public GitHub repository policy
-pnpm gate:hooks               # installs the optional legacy pre-push hook
+pnpm smoke:server             # isolated two-user regression; needs the built server
+pnpm policy                   # prints the public GitHub repository policy
 pnpm dev:desktop              # needs Rust and the native libraries
 ```
 
@@ -82,8 +81,8 @@ pnpm dev:desktop              # needs Rust and the native libraries
 
 ## Before you finish
 
-1. Run `pnpm gate --until=plan` to see the legacy local check plan.
+1. Run the checks that CI runs. The `checks` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is the only check pipeline; run its commands locally so a green run predicts a green pull request.
 2. Run the checks relevant to your change. CI runs the required checks on pushes to develop and main and on internal pull requests.
-3. Run `pnpm release:check`, `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, and `pnpm build` for a full check. `pnpm lint:gate` blocks new diagnostics against a baseline.
+3. Run `pnpm release:check`, `pnpm check-types`, `pnpm lint:gate`, `pnpm test:release`, `pnpm build`, `pnpm smoke:server`, and `bash scripts/release/check-workflows.sh` for a full check. `pnpm lint:gate` blocks new diagnostics against a baseline. Build before the smoke test.
 4. If you changed the desktop app, also run the desktop checks in [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md).
-5. The owner develops on `develop` directly or through internal feature/fix branches. Tag on `develop`, merge it to `main` with a merge commit, and publish the automatically drafted release manually. External PRs are not accepted. Read [docs/ci-cd.md](docs/ci-cd.md) first.
+5. The owner develops on `develop` directly or through internal feature/fix branches. Tag on `develop`, merge it to `main` with a merge commit, and publish the automatically drafted release manually. An urgent fix uses the `hotfix/*` flow. External PRs are not accepted. Read [docs/ci-cd.md](docs/ci-cd.md) first.

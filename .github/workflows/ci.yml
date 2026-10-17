@@ -1,4 +1,6 @@
 name: CI
+# This job is the single source of truth for the checks that judge a change.
+# Keep the steps, the `checks` context, and the list in docs/ci-cd.md together.
 
 on:
   pull_request:
@@ -40,4 +42,8 @@ jobs:
       - run: pnpm lint:gate
       - run: pnpm test:release
       - run: pnpm build
+      # The built server runs the isolated two-user smoke test here. A version
+      # tag cannot be moved or deleted, so a server regression must fail on the
+      # pull request, not on the tag build.
+      - run: pnpm smoke:server
       - run: bash scripts/release/check-workflows.sh
