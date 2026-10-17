@@ -17,7 +17,7 @@ export const requiredCheck = 'checks';
 // cannot satisfy the rule.
 export const actionsAppId = 15368;
 
-export const usage = `Usage: node scripts/gate/apply-ruleset.mjs [options]
+export const usage = `Usage: node scripts/policy/apply-ruleset.mjs [options]
 
 Print the GitHub repository policy. Pass --apply to write it.
 
@@ -56,7 +56,7 @@ export function repoSettings() {
     allow_merge_commit: true,
     allow_squash_merge: false,
     allow_rebase_merge: false,
-    delete_branch_on_merge: false,
+    delete_branch_on_merge: true,
     has_issues: true,
     has_discussions: false,
   };
@@ -88,6 +88,10 @@ export function rulesetPayload({ branch = null, check = requiredCheck } = {}) {
       {
         type: 'pull_request',
         parameters: {
+          // The ruleset itself must refuse a squash or a rebase. The repository
+          // settings below are the second line of defence, not the only one: a
+          // squash or rebase would drop the tagged commit from main history.
+          allowed_merge_methods: ['merge'],
           required_approving_review_count: 0,
           dismiss_stale_reviews_on_push: false,
           require_code_owner_review: false,
