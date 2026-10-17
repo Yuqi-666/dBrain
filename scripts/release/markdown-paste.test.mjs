@@ -14,11 +14,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  * 1. `marked`'s GFM `del` tokenizer accepts a *single* tilde pair, so a range
  *    such as `0~9 … 10~15` became a strike mark running between the two tildes.
  *    GFM defines strikethrough as `~~text~~`, so a lone `~` must stay literal.
- * 2. CommonMark flanking rules can produce nested `<strong>` around the text
- *    between two bold runs (e.g. `…**（Decimal）**和**（Hexadecimal）**`), which
- *    Tiptap maps to two `bold` marks on one text node. ProseMirror allows one
- *    mark per type, so `insertContent` threw
+ * 2. Full-width punctuation defeats CommonMark's closing-delimiter rule, so
+ *    `**（Decimal）**和**（Hexadecimal）**` came out as one `<strong>` wrapping
+ *    `和` (with a nested second `<strong>`), which Tiptap maps to two `bold`
+ *    marks on one text node. ProseMirror allows one mark per type, so
+ *    `insertContent` threw
  *    `RangeError: Invalid collection of marks for node text: bold,bold`.
+ *    `repairEmphasisBoundaries` pairs the runs and pads only the delimiters the
+ *    flanking rules reject, so the paste keeps `和` plain.
  *
  * The end-to-end cases below run the real parser and the real editor; the
  * structural cases pin the normaliser itself, which is what has to keep holding
@@ -41,9 +44,11 @@ const EXTENSION = fileURLToPath(
   ),
 );
 
-const { protectLoneTildes, normalizePastedMarkdown } = await import(
-  pathToFileURL(NORMALIZER).href
-);
+const {
+  protectLoneTildes,
+  normalizePastedMarkdown,
+  repairEmphasisBoundaries,
+} = await import(pathToFileURL(NORMALIZER).href);
 
 /** Imports a workspace package by the name `packages/editor` resolves. */
 async function importFromEditor(name) {
@@ -65,7 +70,7 @@ function pasteMarkdown(text) {
   });
   try {
     const doc = normalizePastedMarkdown(
-      editor.markdown.parse(protectLoneTildes(text)),
+      editor.markdown.parse(protectLoneTildes(repairEmphasisBoundaries(text))),
     );
     editor.commands.insertContent(doc);
     return editor.getJSON();
@@ -124,10 +129,8 @@ test("a double tilde still becomes a strike mark", () => {
   );
 });
 
-test("nested emphasis does not leave duplicate marks behind", () => {
-  const json = pasteMarkdown(
-    "数制是按进位方式计数的系统。在数字逻辑中，最常用的数制有**二进制（Binary）**、**八进制（Octal）**、**十进制（Decimal）**和**十六进制（Hexadecimal）**。",
-  );
+test("full-width punctuation keeps a bold run separate from the next one", () => {
+  const json = pasteMarkdown("**（Decimal）**和**（Hexadecimal）**");
 
   for (const node of textNodes(json)) {
     const types = (node.marks ?? []).map((mark) => mark.type);
@@ -139,9 +142,48 @@ test("nested emphasis does not leave duplicate marks behind", () => {
   }
   const bold = textNodes(json)
     .filter((node) => node.marks?.some((mark) => mark.type === "bold"))
+    .map((node) => node.text);
+  // The reported failure was one outer strong across all three runs: `和` must
+  // stay plain and each parenthesised label must be its own bold run.
+  assert.deepEqual(bold, ["（Decimal）", "（Hexadecimal）"]);
+  assert.equal(
+    textNodes(json).find((node) => node.text === "和")?.marks,
+    undefined,
+  );
+});
+
+test("a Chinese sentence keeps every bold term separate", () => {
+  const json = pasteMarkdown(
+    "数制是按进位方式计数的系统。在数字逻辑中，最常用的数制有**二进制（Binary）**、**八进制（Octal）**、**十进制（Decimal）**和**十六进制（Hexadecimal）**。",
+  );
+  const bold = textNodes(json)
+    .filter((node) => node.marks?.some((mark) => mark.type === "bold"))
+    .map((node) => node.text);
+  assert.deepEqual(bold, [
+    "二进制（Binary）",
+    "八进制（Octal）",
+    "十进制（Decimal）",
+    "十六进制（Hexadecimal）",
+  ]);
+  // No sentinel may survive into the document the editor receives.
+  const text = textNodes(json)
     .map((node) => node.text)
     .join("");
-  assert.match(bold, /十六进制（Hexadecimal）/);
+  assert.doesNotMatch(text, /\u0000/);
+});
+
+test("the repair leaves ordinary Markdown and literal runs untouched", () => {
+  assert.equal(
+    repairEmphasisBoundaries("**Decimal** and **Hexadecimal**"),
+    "**Decimal** and **Hexadecimal**",
+  );
+  // Padded runs are arithmetic or prose, not emphasis, and `marked` keeps them
+  // literal today; the repair must not change that.
+  assert.equal(repairEmphasisBoundaries("2 ** 3 ** 4"), "2 ** 3 ** 4");
+  assert.equal(
+    repairEmphasisBoundaries("`a**（b）**c` and **（x）**"),
+    "`a**（b）**c` and **（x）**",
+  );
 });
 
 test("the normaliser restores the sentinel in attributes too", () => {
@@ -173,7 +215,7 @@ test("the normaliser restores the sentinel in attributes too", () => {
 
 test("the paste extension routes Markdown through the normaliser", () => {
   const source = readFileSync(EXTENSION, "utf8");
-  assert.match(source, /protectLoneTildes\(text\)/);
+  assert.match(source, /protectLoneTildes\(repairEmphasisBoundaries\(text\)\)/);
   assert.match(source, /normalizePastedMarkdown\(/);
   assert.match(source, /try \{/);
   // A rejected document must fall back to the browser's plain-text paste.
