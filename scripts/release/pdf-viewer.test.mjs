@@ -35,6 +35,18 @@ const PDFJS = pathToFileURL(
 const VIEWER_SOURCE = fileURLToPath(
   new URL("../../packages/ui/src/components/pdf-viewer/use-pdf-document.ts", import.meta.url),
 );
+const VIEWER_TSX = fileURLToPath(
+  new URL("../../packages/ui/src/components/pdf-viewer/pdf-viewer.tsx", import.meta.url),
+);
+const PAGE_SOURCE = fileURLToPath(
+  new URL("../../packages/ui/src/components/pdf-viewer/pdf-page.tsx", import.meta.url),
+);
+const TYPES_SOURCE = fileURLToPath(
+  new URL("../../packages/ui/src/components/pdf-viewer/types.ts", import.meta.url),
+);
+const HOST_SOURCE = fileURLToPath(
+  new URL("../../packages/ui/src/components/node-content/pdf-node-content.tsx", import.meta.url),
+);
 
 const pdfjs = await import(PDFJS);
 
@@ -205,4 +217,43 @@ test("the viewer keeps asking pdfjs for on-demand reads", () => {
     call,
     /standardFontDataUrl:\s*`\$\{pdfjsAssetOrigin\(\)\}\/pdfjs\/standard_fonts\/`/,
   );
+});
+
+test("the viewer paints the stored cover before the first page is ready", async () => {
+  // The cover answers the one wait the range options cannot remove: pdf.js
+  // resolves page 1 by pre-fetching every top-level kid of the page tree, so a
+  // scan whose page dictionaries are scattered (a flat page tree) needs hundreds
+  // of range reads before `getDocument` settles. A file being *larger* does not
+  // mean this — a nested page tree opens in a handful of reads.
+  const { pdfPageCover } = await import(pathToFileURL(TYPES_SOURCE).href);
+
+  // Only page 1 has a cover, and the empty string the backend stores after a
+  // failed cover render is "no cover", never a broken image.
+  assert.equal(pdfPageCover("https://api.test/pb/cover.jpg", 1), "https://api.test/pb/cover.jpg");
+  assert.equal(pdfPageCover("https://api.test/pb/cover.jpg", 2), null);
+  assert.equal(pdfPageCover("", 1), null);
+  assert.equal(pdfPageCover(undefined, 1), null);
+
+  const types = readFileSync(TYPES_SOURCE, "utf8");
+  assert.match(types, /coverUrl\?: string;/);
+  assert.match(types, /export function pdfPageCover\(/);
+
+  // The loading screen and the page-1 placeholder both use it: the loading
+  // screen covers the document open, the page box covers the first raster.
+  const viewer = readFileSync(VIEWER_TSX, "utf8");
+  assert.match(viewer, /coverUrl=\{coverUrl\}/);
+  const loading = /if \(status === "loading"\)[\s\S]*?\n  \}/.exec(viewer)?.[0];
+  assert.ok(loading, "pdf-viewer.tsx no longer has a loading branch");
+  assert.match(loading, /src=\{coverUrl\}/);
+
+  const page = readFileSync(PAGE_SOURCE, "utf8");
+  assert.match(page, /const cover = pdfPageCover\(coverUrl, pageNumber\)/);
+  assert.match(page, /src=\{cover\}/);
+  assert.match(page, /paintedOnceRef/);
+
+  // The viewer stays host-agnostic: the node host resolves the stored value and
+  // hands it over as a plain url.
+  const host = readFileSync(HOST_SOURCE, "utf8");
+  assert.match(host, /resolveFileUrl\(node\.content\?\.coverUrl\)/);
+  assert.match(host, /coverUrl=\{coverUrl \|\| undefined\}/);
 });

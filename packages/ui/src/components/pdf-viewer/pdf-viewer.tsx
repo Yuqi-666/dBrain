@@ -173,6 +173,7 @@ function downloadName(title: string | undefined): string {
 export function PdfViewer({
   url,
   title,
+  coverUrl,
   className,
   defaultMode,
   defaultScale,
@@ -1850,11 +1851,30 @@ export function PdfViewer({
           className,
         )}
       >
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-xs text-muted-foreground">
-          {t("正在加载 PDF")}{" "}
-          {progress !== null ? ` · ${Math.round(progress * 100)}%` : "…"}
-        </p>
+        {/*
+          The cover is the first screen. pdf.js can spend seconds opening a
+          perfectly ordinary scan before it has a page to paint (see `coverUrl`
+          on `PdfViewerProps`), and this image is already on the API origin, so
+          the reader sees page 1 while the parser works instead of an empty
+          spinner. `object-contain` because the cover and the viewport rarely
+          share an aspect; the scrim keeps the progress row readable on a busy
+          page.
+        */}
+        {coverUrl && (
+          <img
+            src={coverUrl}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 size-full object-contain p-3"
+          />
+        )}
+        <div className="relative z-10 flex flex-col items-center gap-3 rounded-lg bg-background/85 px-4 py-3 backdrop-blur-sm">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">
+            {t("正在加载 PDF")}{" "}
+            {progress !== null ? ` · ${Math.round(progress * 100)}%` : "…"}
+          </p>
+        </div>
       </div>
     );
   }
@@ -2022,6 +2042,7 @@ export function PdfViewer({
                         metrics={metrics.get(number) ?? FALLBACK_PAGE}
                         scale={effectiveScale}
                         renderScale={canvasScale}
+                        coverUrl={coverUrl}
                         active={render}
                         getPage={getPage}
                         getTextContent={getTextContent}

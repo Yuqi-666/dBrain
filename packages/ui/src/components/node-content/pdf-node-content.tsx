@@ -51,6 +51,14 @@ export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
 
   const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
+  /**
+   * The backend renders page 1 at upload. It is not the reading surface, but it
+   * is the viewer's first screen while pdf.js opens the file: resolving page 1
+   * can take hundreds of range reads on a scan with a flat page tree, and this
+   * image is already small and cacheable. Empty when analysis was skipped or the
+   * cover failed, which the viewer treats as "no cover".
+   */
+  const coverUrl = resolveFileUrl(node.content?.coverUrl);
   const [failure, setFailure] = useState<PdfLoadFailure | null>(null);
 
   const { patchContent } = useNodeContentWriter<PdfContent>(
@@ -137,6 +145,7 @@ export function PdfNodeContent({ node, className }: PdfNodeContentProps) {
             key={url}
             url={url}
             title={node.title}
+            coverUrl={coverUrl || undefined}
             progressKey={progressKey}
             annotations={node.content?.annotations?.items}
             onAnnotationsChange={handleAnnotationsChange}
