@@ -904,11 +904,22 @@ export class AudioNode extends Node {
 }
 
 export class WebpageNode extends Node {
+  protected readonly _fileSize: number;
   protected readonly _content: WebpageContent;
 
-  private constructor(props: NodeBaseProps & { content: WebpageContent }) {
+  private constructor(
+    props: NodeBaseProps & { fileSize: number; content: WebpageContent },
+  ) {
     super({ ...props, nodeType: new NodeType<"webpage">("webpage") });
+    if (props.fileSize < 0)
+      throw new Error("Webpage file size must be positive");
+    this._fileSize = props.fileSize;
     this._content = props.content;
+  }
+
+  /** Byte length of the stored document; 0 while the node has no file. */
+  get fileSize(): number {
+    return this._fileSize;
   }
 
   get content(): WebpageContent {
@@ -926,6 +937,7 @@ export class WebpageNode extends Node {
     stateData?: NodeStateData;
     icon?: NodeIcon | null;
     cover?: NodeCover | null;
+    fileSize?: number;
     content: WebpageContent;
     createdAt?: string;
     updatedAt?: string;
@@ -943,6 +955,7 @@ export class WebpageNode extends Node {
       stateData: props.stateData,
       icon: props.icon,
       cover: props.cover,
+      fileSize: props.fileSize ?? 0,
       content: props.content,
       createdAt: props.createdAt ?? now,
       updatedAt: props.updatedAt ?? now,
@@ -953,7 +966,19 @@ export class WebpageNode extends Node {
   updateContent(content: WebpageContent): WebpageNode {
     return new WebpageNode({
       ...this.baseProps(),
+      fileSize: this._fileSize,
       content,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /** See `ImageNode.updateFileMeta`. */
+  updateFileMeta(meta: { fileSize?: number }): WebpageNode {
+    if (meta.fileSize === undefined) return this;
+    return new WebpageNode({
+      ...this.baseProps(),
+      fileSize: meta.fileSize,
+      content: this._content,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -962,6 +987,7 @@ export class WebpageNode extends Node {
     return new WebpageNode({
       ...this.baseProps(),
       ...props,
+      fileSize: this._fileSize,
       content: this._content,
     });
   }

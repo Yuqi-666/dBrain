@@ -180,6 +180,7 @@ export class NodeCommandService {
           stateData: cmd.stateData,
           icon: cmd.icon,
           cover: cmd.cover,
+          fileSize: cmd.fileSize ?? 0,
           content: new WebpageContent(cmd.content),
           workspaceId: cmd.workspaceId,
         });
@@ -379,6 +380,9 @@ export class NodeCommandService {
     if (node instanceof AudioNode) {
       return node.updateFileMeta(cmd);
     }
+    if (node instanceof WebpageNode) {
+      return node.updateFileMeta(cmd);
+    }
     return node;
   }
 
@@ -446,14 +450,12 @@ export class NodeCommandService {
         ),
       );
     }
-    if (node instanceof WebpageNode) {
-      // The editor always writes source and language together; a partial patch
-      // keeps the stored half so a language switch cannot blank the source.
+    if (node instanceof WebpageNode && content.url !== undefined) {
+      // The node keeps only the address of the stored document, so there is one
+      // half to patch. `fileSize` rides along in the same update
+      // (`updateFileMeta`); an address written alone keeps the stored size.
       return node.updateContent(
-        new WebpageContent({
-          code: content.code ?? node.content.code,
-          language: content.language ?? node.content.language,
-        }),
+        new WebpageContent({ url: content.url ?? node.content.url }),
       );
     }
     if (node instanceof WebsiteNode && content.url !== undefined) {

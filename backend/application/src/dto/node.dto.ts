@@ -82,6 +82,8 @@ export interface AudioNodeDTO extends BaseNodeDTO {
 
 export interface WebpageNodeDTO extends BaseNodeDTO {
   nodeType: "webpage";
+  /** Byte length of the stored document; 0 while the node has no file. */
+  fileSize: number;
   content: WebpageContent;
 }
 

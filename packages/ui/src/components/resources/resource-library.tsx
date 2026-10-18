@@ -103,6 +103,7 @@ export function ResourceLibrary() {
       video: 0,
       audio: 0,
       pdf: 0,
+      webpage: 0,
       other: 0,
     };
     for (const resource of listedResources) next[resource.category] += 1;
@@ -115,7 +116,7 @@ export function ResourceLibrary() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/*
-        No `accept` filter on purpose: the library accounts for all five
+        No `accept` filter on purpose: the library accounts for all six
         categories, including the `other` catch-all that only exists for files
         outside the media and PDF families. Narrowing the picker would make that
         category impossible to fill; `checkResourceLimit` gates each file.
@@ -337,7 +338,7 @@ function ResourceLibrarySkeleton() {
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-40" />
         </div>
-        {/* The segmented storage bar and its five-item legend. */}
+        {/* The segmented storage bar and its six-item legend. */}
         <Skeleton className="mt-4 h-4 w-full rounded-full" />
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
           {Array.from({ length: STORAGE_CATEGORIES.length }, (_, index) => (

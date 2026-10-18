@@ -8,21 +8,34 @@
  * so the caller hides the option when this returns `null`.
  */
 
-/**
- * Largest JSON value PocketBase accepts in the `nodes.content` field.
- *
- * PocketBase caps a JSON field at 1 MiB unless the field sets a size. A web page
- * node keeps its whole HTML source in this field, so the schema raises the cap
- * to this value; `pb_migrations_base/0000000001_base_schema.js` and
- * `pb_migrations_changes/0000000006_node_content_size.js` must both carry it.
- * 24 MiB leaves room for JSON escaping over the default 16 MiB web page file
- * limit, which is the largest source the storage policy reads into a node.
- */
-export const NODE_CONTENT_MAX_BYTES = 24 * 1024 * 1024;
-
 /** A rich-text document with no blocks. Shared with the editor's normalizer. */
 export function emptyRichTextDocument(): Record<string, unknown> {
   return { type: "doc", content: [] };
+}
+
+/**
+ * The file name at the end of a stored address
+ * (`/api/files/<collection>/<record>/<name>`).
+ *
+ * Node content stores the address, so a reader that needs the original name —
+ * the source editor's language, a download label — reads it from here instead
+ * of keeping a second field that could disagree with the file. An address that
+ * carries no name reads as the empty string, which callers treat as unknown.
+ */
+export function storedFileName(storedUrl: string): string {
+  if (!storedUrl) return "";
+  const path = storedUrl.split(/[?#]/)[0] ?? "";
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
+/** True when a stored document is an HTML page, i.e. a page the preview renders. */
+export function isHtmlDocument(storedUrl: string): boolean {
+  return /\.(?:html?|xhtml)$/i.test(storedFileName(storedUrl));
 }
 
 /**
@@ -48,15 +61,10 @@ export function clearedNodeUpdates(node: {
         content: { referencedNodes: [], docs: emptyRichTextDocument() },
       };
     case "webpage":
-      return {
-        content: {
-          code: "",
-          language:
-            typeof content.language === "string" && content.language
-              ? content.language
-              : "html",
-        },
-      };
+      // The document is a stored object, not record content: clearing the node
+      // drops the address and the recorded byte length, and the resource itself
+      // stays in the library until the user deletes it there.
+      return { content: { url: "" }, fileSize: 0 };
     case "website":
       return { content: { url: "" } };
     case "image":

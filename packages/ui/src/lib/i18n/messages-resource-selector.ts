@@ -1,6 +1,6 @@
 /**
- * Interface copy of the resource selector and the upload menu's 「从资源库选择」
- * entry.
+ * Interface copy of the resource selector and the drop zone's 「从资源库选择」
+ * method card.
  *
  * Kept in its own module so the shared catalog file stays a merge-free region;
  * `messages.ts` spreads it into the one map `translate` reads. Every key must

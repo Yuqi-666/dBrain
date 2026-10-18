@@ -359,31 +359,27 @@ export class AudioContent {
 }
 
 /**
- * Webpage node content: the page source and the language it is written in.
+ * Webpage node content: the address of the stored web page.
  *
- * Source is the only representation a webpage node holds — a live address
- * belongs to a `website` node, and a screenshot is just an uploaded `image`,
- * so there is no mode to discriminate on any more.
+ * The document's bytes live in the object store (the `files` collection), not
+ * in a JSON column — a `pdf` node works the same way. The address is the only
+ * representation the node keeps, so there is no source text here to outgrow a
+ * column limit or to disagree with the stored file. A live address belongs to a
+ * `website` node, and a screenshot is just an uploaded `image`.
  */
 export class WebpageContent {
-  private readonly _code: string;
-  private readonly _language: string;
+  private readonly _url: string;
 
   constructor(data: WebpageContentData) {
-    this._code = data.code;
-    this._language = data.language;
+    this._url = data.url;
   }
 
-  get code(): string {
-    return this._code;
-  }
-
-  get language(): string {
-    return this._language;
+  get url(): string {
+    return this._url;
   }
 
   equals(other: WebpageContent): boolean {
-    return this._code === other._code && this._language === other._language;
+    return this._url === other._url;
   }
 }
 

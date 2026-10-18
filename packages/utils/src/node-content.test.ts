@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clearedNodeUpdates, emptyRichTextDocument } from "./node-content.ts";
+import {
+  clearedNodeUpdates,
+  emptyRichTextDocument,
+  isHtmlDocument,
+  storedFileName,
+} from "./node-content.ts";
 
 test("clears the editable document of a text or rich-text node", () => {
   assert.deepEqual(clearedNodeUpdates({ nodeType: "text", content: {} }), {
@@ -65,13 +70,13 @@ test("keeps the user's timeline when the media link is cleared", () => {
   );
 });
 
-test("clears the source of a webpage and the address of a website", () => {
+test("clears the stored document of a webpage and the address of a website", () => {
   assert.deepEqual(
     clearedNodeUpdates({
       nodeType: "webpage",
-      content: { code: "<p>hi</p>", language: "html" },
+      content: { url: "/api/files/files/rec1/page_ab12cd34ef.html" },
     }),
-    { content: { code: "", language: "html" } },
+    { content: { url: "" }, fileSize: 0 },
   );
   assert.deepEqual(
     clearedNodeUpdates({
@@ -80,6 +85,26 @@ test("clears the source of a webpage and the address of a website", () => {
     }),
     { content: { url: "" } },
   );
+});
+
+test("reads the stored name and the document kind from a stored address", () => {
+  assert.equal(
+    storedFileName("/api/files/files/rec1/page_ab12cd34ef.html"),
+    "page_ab12cd34ef.html",
+  );
+  assert.equal(
+    storedFileName(
+      "https://example.com/session/a/api/files/files/rec1/My%20Page.html?x=1",
+    ),
+    "My Page.html",
+  );
+  assert.equal(storedFileName(""), "");
+  assert.equal(isHtmlDocument("/api/files/files/rec1/page.html"), true);
+  assert.equal(isHtmlDocument("/api/files/files/rec1/page.HTM"), true);
+  assert.equal(isHtmlDocument("/api/files/files/rec1/page.xhtml"), true);
+  assert.equal(isHtmlDocument("/api/files/files/rec1/app.js"), false);
+  // A title that merely looks like an extension is not the stored name.
+  assert.equal(isHtmlDocument("/api/files/files/rec1"), false);
 });
 
 test("does not offer to clear a collection or a database", () => {

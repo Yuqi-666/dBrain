@@ -2,6 +2,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   FileAudioIcon,
+  FileCode2Icon,
   FileIcon,
   FileTextIcon,
   FileVideoIcon,
@@ -16,6 +17,7 @@ export const CATEGORY_LABEL_KEYS: Record<StorageCategory, string> = {
   video: "视频",
   audio: "音频",
   pdf: "PDF",
+  webpage: "网页",
   other: "其他",
 };
 
@@ -24,6 +26,7 @@ const CATEGORY_ICONS: Record<StorageCategory, LucideIcon> = {
   video: FileVideoIcon,
   audio: FileAudioIcon,
   pdf: FileTextIcon,
+  webpage: FileCode2Icon,
   other: FileIcon,
 };
 
@@ -53,7 +56,7 @@ export function CategoryIcon({
 /**
  * The color one category paints in the storage bar and in its legend dot.
  *
- * Five hues that stay distinguishable side by side, each lifted one step in
+ * Six hues that stay distinguishable side by side, each lifted one step in
  * dark mode so a segment keeps its contrast on a dark card. The legend reuses
  * the same class, so a dot can never drift from the segment it explains.
  */
@@ -62,6 +65,7 @@ export const CATEGORY_COLOR_CLASSES: Record<StorageCategory, string> = {
   video: "bg-violet-500 dark:bg-violet-400",
   audio: "bg-emerald-500 dark:bg-emerald-400",
   pdf: "bg-rose-500 dark:bg-rose-400",
+  webpage: "bg-cyan-500 dark:bg-cyan-400",
   other: "bg-amber-500 dark:bg-amber-400",
 };
 

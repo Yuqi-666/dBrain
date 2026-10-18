@@ -159,12 +159,15 @@ migrate(
         { name: "isPinned", type: "bool" },
         { name: "stateData", type: "json" },
         { name: "nodeType", type: "text", required: true },
-        // A web page node keeps its HTML source in `content`, and PocketBase caps
-        // a JSON field at 1 MiB unless a size is given. A source may be as large
-        // as the web page file category allows, so the ceiling is raised to
-        // `NODE_CONTENT_MAX_BYTES` (`packages/utils/src/node-content.ts`). The
-        // change migration `0000000006_node_content_size.js` raises it on an
-        // existing database.
+        // The shared JSON payload column. A web page node no longer keeps its
+        // document here — the document is a stored object and the node holds its
+        // address (see `0000000007_webpage_object_storage.js`) — but a database
+        // written by a build before that change may still hold the inline source
+        // until the migration runs, and that source may be as large as the web
+        // page file category allows. PocketBase caps a JSON field at 1 MiB unless
+        // a size is given, so the ceiling is raised to 24 MiB (the value
+        // `0000000006_node_content_size.js` applies to an existing database).
+        // New writes store an address well below this bound.
         {
           name: "content",
           type: "json",

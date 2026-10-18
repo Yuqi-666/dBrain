@@ -117,9 +117,9 @@ export function toNodeDTO(node: Node): NodeDTO {
       return {
         ...base,
         nodeType: "webpage" as const,
+        fileSize: webpage.fileSize,
         content: {
-          code: webpage.content.code,
-          language: webpage.content.language,
+          url: webpage.content.url,
         },
       };
     }

@@ -3,6 +3,7 @@ import { useI18n } from "@workspace/ui/lib/i18n";
 
 import { useEffect, useState } from "react";
 import {
+  FileCode2Icon,
   FileIcon,
   FileTextIcon,
   ImageIcon,
@@ -39,6 +40,7 @@ const CATEGORY_ICONS: Record<StorageCategory, LucideIcon> = {
   video: VideoIcon,
   audio: MusicIcon,
   pdf: FileTextIcon,
+  webpage: FileCode2Icon,
   other: FileIcon,
 };
 
@@ -48,6 +50,7 @@ const CATEGORY_LABELS: Record<StorageCategory, string> = {
   video: "视频",
   audio: "音频",
   pdf: "PDF",
+  webpage: "网页",
   other: "其他",
 };
 
@@ -158,7 +161,7 @@ export interface ResourceSelectorDialogProps {
  * which node fields to write (a media variant stores `content.url`, a cover
  * stores the top-level `cover`, …).
  *
- * Reached from {@link UploadMenu}'s 「从资源库选择」 entry in the media drop zones.
+ * Reached from the 「从资源库选择」 method card in the media drop zones.
  */
 export function ResourceSelectorDialog({
   open,

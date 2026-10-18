@@ -1137,10 +1137,6 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "连接到",
     en: "Connect To",
   },
-  输入文件URL: {
-    "zh-CN": "输入文件URL",
-    en: "Enter file URL",
-  },
   "当前浏览器不支持读取剪贴板，请改用「本地上传」": {
     "zh-CN": "当前浏览器不支持读取剪贴板，请改用「本地上传」",
     en: "Your browser cannot read the clipboard. Use local upload instead.",
@@ -1153,33 +1149,105 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "粘贴图片失败（剪贴板权限被拒绝？）",
     en: "Failed to paste image. Check clipboard permissions.",
   },
-  "无法访问该 URL（可能是跨域限制或网络问题）": {
-    "zh-CN": "无法访问该 URL（可能是跨域限制或网络问题）",
-    en: "Cannot access this URL. Check cross-origin restrictions or your connection.",
-  },
-  下载到的文件为空: {
-    "zh-CN": "下载到的文件为空",
-    en: "The downloaded file is empty",
-  },
-  "URL 上传失败": {
-    "zh-CN": "URL 上传失败",
-    en: "URL upload failed",
-  },
   本地上传: {
     "zh-CN": "本地上传",
     en: "Local upload",
+  },
+  从当前设备选择文件: {
+    "zh-CN": "从当前设备选择文件",
+    en: "Choose a file from this device",
+  },
+  编辑器: {
+    "zh-CN": "编辑器",
+    en: "Editor",
+  },
+  "直接在编辑器中编写 HTML 或代码": {
+    "zh-CN": "直接在编辑器中编写 HTML 或代码",
+    en: "Write HTML or code directly in the editor",
+  },
+  文件上传: {
+    "zh-CN": "文件上传",
+    en: "Upload file",
+  },
+  导入文件失败: {
+    "zh-CN": "导入文件失败",
+    en: "Failed to import file",
+  },
+  "导入本地 HTML 或代码文件": {
+    "zh-CN": "导入本地 HTML 或代码文件",
+    en: "Import a local HTML or code file",
+  },
+  网页: {
+    "zh-CN": "网页",
+    en: "Web page",
+  },
+  还没有源码: {
+    "zh-CN": "还没有源码",
+    en: "No source code yet",
+  },
+  重新初始化: {
+    "zh-CN": "重新初始化",
+    en: "Re-initialize",
+  },
+  载入资源库中的网页源码: {
+    "zh-CN": "载入资源库中的网页源码",
+    en: "Load webpage source from the library",
+  },
+  无法读取资源内容: {
+    "zh-CN": "无法读取资源内容",
+    en: "Could not read the resource content",
+  },
+  引用已上传的资源: {
+    "zh-CN": "引用已上传的资源",
+    en: "Reference a file already in the library",
+  },
+  使用剪贴板中的图片: {
+    "zh-CN": "使用剪贴板中的图片",
+    en: "Use an image from the clipboard",
+  },
+  松开即可上传: {
+    "zh-CN": "松开即可上传",
+    en: "Release to upload",
   },
   粘贴图片: {
     "zh-CN": "粘贴图片",
     en: "Paste image",
   },
-  输入URL: {
-    "zh-CN": "输入URL",
-    en: "Enter URL",
+  未保存: {
+    "zh-CN": "未保存",
+    en: "Unsaved",
   },
-  "下载中…": {
-    "zh-CN": "下载中…",
-    en: "Downloading…",
+  返回: {
+    "zh-CN": "返回",
+    en: "Back",
+  },
+  写入节点失败: {
+    "zh-CN": "写入节点失败",
+    en: "Could not write the node",
+  },
+  "正在加载网页…": {
+    "zh-CN": "正在加载网页…",
+    en: "Loading the web page…",
+  },
+  加载网页失败: {
+    "zh-CN": "加载网页失败",
+    en: "Could not load the web page",
+  },
+  无法保存网页: {
+    "zh-CN": "无法保存网页",
+    en: "Could not save the web page",
+  },
+  "网页文件超过 {value1}MB，无法导入": {
+    "zh-CN": "网页文件超过 {value1}MB，无法导入",
+    en: "The web page file is larger than {value1}MB and cannot be imported",
+  },
+  "导入本地 HTML 文件": {
+    "zh-CN": "导入本地 HTML 文件",
+    en: "Import a local HTML file",
+  },
+  引用资源库中的网页: {
+    "zh-CN": "引用资源库中的网页",
+    en: "Reference a web page from the library",
   },
   确认: {
     "zh-CN": "确认",
@@ -1241,13 +1309,9 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "点击导入",
     en: "Click to import",
   },
-  "上传 .html 或代码文件，内容会载入源码编辑器": {
-    "zh-CN": "上传 .html 或代码文件，内容会载入源码编辑器",
-    en: "Upload an HTML or code file to load it in the source editor",
-  },
-  "输入源码文件 URL": {
-    "zh-CN": "输入源码文件 URL",
-    en: "Enter source file URL",
+  "上传或选择 .html 与代码文件，内容会载入源码编辑器": {
+    "zh-CN": "上传或选择 .html 与代码文件，内容会载入源码编辑器",
+    en: "Upload or choose an HTML or code file; its content loads into the source editor",
   },
   "Unsupported node type:": {
     "zh-CN": "不支持的节点类型：",
@@ -1325,25 +1389,9 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "语言",
     en: "Language",
   },
-  导入文件: {
-    "zh-CN": "导入文件",
-    en: "Import file",
-  },
-  导入文件失败: {
-    "zh-CN": "导入文件失败",
-    en: "Failed to import file",
-  },
-  "在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…": {
-    "zh-CN": "在此编写 HTML 或代码，或点上方「导入文件」载入本地文件…",
-    en: "Write HTML or code here, or click Import file above to load a local file…",
-  },
-  还没有源码: {
-    "zh-CN": "还没有源码",
-    en: "No source code yet",
-  },
-  "切到「编辑」直接编写，或点「导入文件」载入本地 HTML / 代码文件。": {
-    "zh-CN": "切到「编辑」直接编写，或点「导入文件」载入本地 HTML / 代码文件。",
-    en: "Switch to Edit to write code, or import a local HTML or code file.",
+  "在此编写 HTML 或代码…": {
+    "zh-CN": "在此编写 HTML 或代码…",
+    en: "Write HTML or code here…",
   },
   "HTML 预览": {
     "zh-CN": "HTML 预览",
@@ -4387,10 +4435,6 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
   "跳到 {value1}：{value2}": {
     "zh-CN": "跳到 {value1}：{value2}",
     en: "Jump to {value1}: {value2}",
-  },
-  "下载失败：{value1} {value2}": {
-    "zh-CN": "下载失败：{value1} {value2}",
-    en: "Download failed: {value1} {value2}",
   },
   "上传失败：{value1}": {
     "zh-CN": "上传失败：{value1}",

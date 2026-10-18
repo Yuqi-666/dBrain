@@ -1,7 +1,7 @@
 /**
  * Storage accounting contract shared by the browser, the API and PocketBase.
  *
- * One uploaded blob is classified into one of five categories. Each category has
+ * One uploaded blob is classified into one of six categories. Each category has
  * a single-file ceiling, and the owner of the blob has one total quota that
  * counts every blob they stored (originals, PDF covers, HLS segments and
  * playlists alike). The defaults below are what a deployment gets without any
@@ -17,7 +17,13 @@
  */
 
 /** Category one stored blob is accounted under. */
-export type StorageCategory = "image" | "video" | "audio" | "pdf" | "other";
+export type StorageCategory =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "webpage"
+  | "other";
 
 /** Every category, in the order the management UI shows them. */
 export const STORAGE_CATEGORIES: readonly StorageCategory[] = [
@@ -25,6 +31,7 @@ export const STORAGE_CATEGORIES: readonly StorageCategory[] = [
   "video",
   "audio",
   "pdf",
+  "webpage",
   "other",
 ];
 
@@ -62,6 +69,7 @@ export const DEFAULT_STORAGE_LIMITS: StorageLimits = {
     video: 2 * GIB,
     audio: 512 * MIB,
     pdf: 512 * MIB,
+    webpage: 16 * MIB,
     other: 256 * MIB,
   },
 };
@@ -75,11 +83,15 @@ export const STORAGE_CATEGORY_ENV: Record<StorageCategory, string> = {
   video: "DBRAIN_STORAGE_MAX_VIDEO_BYTES",
   audio: "DBRAIN_STORAGE_MAX_AUDIO_BYTES",
   pdf: "DBRAIN_STORAGE_MAX_PDF_BYTES",
+  webpage: "DBRAIN_STORAGE_MAX_WEBPAGE_BYTES",
   other: "DBRAIN_STORAGE_MAX_OTHER_BYTES",
 };
 
 /** File extensions per category. Lower case, no leading dot. */
-const CATEGORY_EXTENSIONS: Record<Exclude<StorageCategory, "other">, string[]> = {
+const CATEGORY_EXTENSIONS: Record<
+  Exclude<StorageCategory, "other">,
+  string[]
+> = {
   image: [
     "png",
     "jpg",
@@ -123,6 +135,7 @@ const CATEGORY_EXTENSIONS: Record<Exclude<StorageCategory, "other">, string[]> =
     "aif",
   ],
   pdf: ["pdf"],
+  webpage: ["html", "htm", "xhtml"],
 };
 
 /** Reverse lookup: extension → category. Built once, at module load. */
@@ -160,6 +173,8 @@ export function storageCategoryFor(
   if (mime.startsWith("video/")) return "video";
   if (mime.startsWith("audio/")) return "audio";
   if (mime === "application/pdf" || mime === "application/x-pdf") return "pdf";
+  if (mime === "text/html" || mime === "application/xhtml+xml")
+    return "webpage";
 
   return EXTENSION_CATEGORY.get(fileExtension(fileName)) ?? "other";
 }
@@ -200,12 +215,14 @@ export function resolveStorageLimits(
   env: Record<string, string | undefined>,
   defaults: StorageLimits = DEFAULT_STORAGE_LIMITS,
 ): StorageLimits {
-  const resolveCategory = (
-    category: StorageCategory,
-  ): number =>
-    readBytes(env[STORAGE_CATEGORY_ENV[category]], defaults.maxFileBytes[category], {
-      allowZero: false,
-    });
+  const resolveCategory = (category: StorageCategory): number =>
+    readBytes(
+      env[STORAGE_CATEGORY_ENV[category]],
+      defaults.maxFileBytes[category],
+      {
+        allowZero: false,
+      },
+    );
 
   return {
     userQuotaBytes: readBytes(env[STORAGE_QUOTA_ENV], defaults.userQuotaBytes, {
@@ -216,6 +233,7 @@ export function resolveStorageLimits(
       video: resolveCategory("video"),
       audio: resolveCategory("audio"),
       pdf: resolveCategory("pdf"),
+      webpage: resolveCategory("webpage"),
       other: resolveCategory("other"),
     },
   };

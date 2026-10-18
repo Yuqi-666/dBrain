@@ -131,6 +131,8 @@ export interface CreateWebpageNodeCommand {
   stateData?: NodeStateData;
   icon?: NodeIcon | null;
   cover?: NodeCover | null;
+  /** Byte length of the stored document; 0 for a node created empty. */
+  fileSize?: number;
   content: WebpageContent;
   userId: string;
   sourceId?: string;

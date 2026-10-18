@@ -236,6 +236,17 @@ export function nodeWithoutFileReferences(
       }
       break;
     }
+    case "webpage": {
+      // The document is a stored object, so deleting the resource clears the
+      // address and the byte length the same way it does for a PDF. The node
+      // keeps its title, cover and edges.
+      if (isDeleted(content.url)) {
+        updates.content = { url: "" };
+        updates.fileSize = 0;
+        changed = true;
+      }
+      break;
+    }
     case "video": {
       const lostSource = isDeleted(content.url);
       const lostCover = lostSource || isDeleted(content.coverUrl);

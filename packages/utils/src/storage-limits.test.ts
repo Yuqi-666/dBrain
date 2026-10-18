@@ -24,6 +24,9 @@ test("classifies by reported MIME type before falling back to the extension", ()
   assert.equal(storageCategoryFor("clip.MOV"), "video");
   assert.equal(storageCategoryFor("voice.m4a"), "audio");
   assert.equal(storageCategoryFor("paper.pdf"), "pdf");
+  assert.equal(storageCategoryFor("page.html"), "webpage");
+  assert.equal(storageCategoryFor("page.htm"), "webpage");
+  assert.equal(storageCategoryFor("page.xhtml"), "webpage");
   assert.equal(storageCategoryFor("archive.zip"), "other");
   assert.equal(storageCategoryFor("no-extension"), "other");
   assert.equal(storageCategoryFor(".gitignore"), "other");
@@ -33,8 +36,16 @@ test("classifies by reported MIME type before falling back to the extension", ()
   assert.equal(storageCategoryFor("paper.bin", "application/pdf"), "pdf");
   assert.equal(storageCategoryFor("sound.dat", "audio/mpeg"), "audio");
   assert.equal(storageCategoryFor("movie.dat", "video/mp4"), "video");
+  assert.equal(storageCategoryFor("page.bin", "text/html"), "webpage");
+  assert.equal(
+    storageCategoryFor("page.bin", "application/xhtml+xml"),
+    "webpage",
+  );
   // An unknown MIME type still lets the name decide.
-  assert.equal(storageCategoryFor("diagram.png", "application/octet-stream"), "image");
+  assert.equal(
+    storageCategoryFor("diagram.png", "application/octet-stream"),
+    "image",
+  );
 });
 
 test("extracts a lower-case extension without trusting a leading dot", () => {
@@ -47,6 +58,7 @@ test("extracts a lower-case extension without trusting a leading dot", () => {
 
 test("defaults are internally consistent and usable", () => {
   assert.equal(DEFAULT_STORAGE_LIMITS.maxFileBytes.video, MAX_UPLOAD_BYTES);
+  assert.equal(DEFAULT_STORAGE_LIMITS.maxFileBytes.webpage, 16 * 1024 ** 2);
   assert.ok(DEFAULT_STORAGE_LIMITS.userQuotaBytes > 0);
   assert.ok(
     DEFAULT_STORAGE_LIMITS.userQuotaBytes >=
@@ -116,13 +128,19 @@ test("a per-category ceiling is resolved by the same classification", () => {
 });
 
 test("remaining quota is null when unlimited or already exceeded", () => {
-  assert.equal(remainingQuotaBytes({ ...DEFAULT_STORAGE_LIMITS, userQuotaBytes: 0 }, 5), null);
+  assert.equal(
+    remainingQuotaBytes({ ...DEFAULT_STORAGE_LIMITS, userQuotaBytes: 0 }, 5),
+    null,
+  );
   assert.equal(
     remainingQuotaBytes({ ...DEFAULT_STORAGE_LIMITS, userQuotaBytes: 100 }, 30),
     70,
   );
   assert.equal(
-    remainingQuotaBytes({ ...DEFAULT_STORAGE_LIMITS, userQuotaBytes: 100 }, 300),
+    remainingQuotaBytes(
+      { ...DEFAULT_STORAGE_LIMITS, userQuotaBytes: 100 },
+      300,
+    ),
     0,
   );
 });

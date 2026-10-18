@@ -236,7 +236,8 @@ function detachNode(e, record, needle) {
     nodeType === "image" ||
     nodeType === "pdf" ||
     nodeType === "video" ||
-    nodeType === "audio"
+    nodeType === "audio" ||
+    nodeType === "webpage"
   ) {
     var content = decodeJson(record.get("content"));
     if (containsNeedleInValue(content, needle)) {

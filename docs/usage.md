@@ -54,6 +54,8 @@ A web user opens the service address from the maintainer. The user creates an ap
 
 The node types are text, rich text, image, PDF, video, audio, web page, website, collection, and database. A relation connects two nodes. A tag and a semantic classify a node. A workspace is the scope of the content. A view is the way that the app shows the content.
 
+A web page node stores its page as a file in the resource library. The node keeps the file's address and byte length, as a PDF node keeps its PDF. Choose 文件上传 to upload an HTML file, or 从资源库选择 to reference a web page that is already in the library. The 编辑器 entry starts an empty document; 保存 stores it as a new file. 预览 renders the stored page in a sandboxed frame, and 编辑 reads the source back and saves the change to the stored file. A web page file is capped by the storage policy's web page limit (16 MiB by default). Deleting the resource clears the node's address and returns it to the empty state.
+
 In the rich-text editor, the first Ctrl+A (Command+A on macOS) selects the current block and the second selects the whole document. Copying writes Markdown to the plain-text clipboard. Nodes without a text form, such as images, stay out of the copied text.
 
 Before you remove content, check whether the menu applies to a node, a relation, or the selected collection. Back up important data first.
@@ -71,7 +73,7 @@ The largest single attachment is 2 GiB. The app selects the upload method from t
 - The server assembles the chunks on the local disk and stores the file in the file library. This step can take a long time. The page shows the progress. A page close during this step does not lose the file. The result is visible after the page opens again.
 - If you cancel the upload, the chunks stay on the server. Upload the same file again to continue.
 
-The server rejects a file larger than 2 GiB before the upload starts. An image in the editor and the source text of a web page keep their own smaller limits (5 MiB). These limits are different from the node attachment limit.
+The server rejects a file larger than 2 GiB before the upload starts. An image in the editor keeps its own smaller limit (5 MiB). This limit is different from the node attachment limit.
 
 A PDF larger than 256 MiB skips the analysis. The app stores the file only. You can still download and open it, but it has no page count and no cover. A video transcodes as a disk stream. The size does not affect the HLS generation.
 
@@ -81,7 +83,7 @@ The app remembers the last page for each reader and each node. Reopen the node a
 
 ## Resource library and references
 
-Select 资源库 in the island to open the resource library. The page lists the files that you uploaded, in the category of the file: image, video, audio, PDF, or other. The cover and the HLS parts the server derives from a file are not separate entries; they count in the storage panel and disappear with the resource. Search by name and filter by category. The storage panel shows the bytes in use against the total quota as one segmented bar, one color per category, with the byte count of each category in the legend below it. The maintainer sets the quota and the per-file limits (see the Operations and Development manuals). The built-in defaults give one user 10 GiB in total, 32 MiB per image, 512 MiB per audio file, 512 MiB per PDF, 2 GiB per video, and 256 MiB per other file.
+Select 资源库 in the island to open the resource library. The page lists the files that you uploaded, in the category of the file: image, video, audio, PDF, web page, or other. The cover and the HLS parts the server derives from a file are not separate entries; they count in the storage panel and disappear with the resource. Search by name and filter by category. The storage panel shows the bytes in use against the total quota as one segmented bar, one color per category, with the byte count of each category in the legend below it. The maintainer sets the quota and the per-file limits (see the Operations and Development manuals). The built-in defaults give one user 10 GiB in total, 32 MiB per image, 16 MiB per web page, 512 MiB per audio file, 512 MiB per PDF, 2 GiB per video, and 256 MiB per other file.
 
 The library can also upload a file, rename its label, copy its address, and delete it. A rename changes the label only; it does not change the stored bytes or the address. Deleting a resource deletes the stored bytes, its derived cover or HLS package, and frees all of that quota. The confirmation lists the nodes that reference the file. After the delete those nodes keep their content but lose the link, and their media area shows its empty state.
 

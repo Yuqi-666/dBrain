@@ -101,13 +101,14 @@ For each future schema change, edit the base script and add a new higher numbere
 | `DBRAIN_STORAGE_MAX_VIDEO_BYTES` | Largest single video, in bytes. The default is `2147483648` (2 GiB). |
 | `DBRAIN_STORAGE_MAX_AUDIO_BYTES` | Largest single audio file, in bytes. The default is `536870912` (512 MiB). |
 | `DBRAIN_STORAGE_MAX_PDF_BYTES` | Largest single PDF, in bytes. The default is `536870912` (512 MiB). |
+| `DBRAIN_STORAGE_MAX_WEBPAGE_BYTES` | Largest single web page, in bytes. The default is `16777216` (16 MiB). |
 | `DBRAIN_STORAGE_MAX_OTHER_BYTES` | Largest single file of the other category, in bytes. The default is `268435456` (256 MiB). |
 
 For a password file, add a Compose override that mounts the file into the PocketBase service only. Mount the file read-only at a path in the container, for example `/run/secrets/pb-admin-password`. Set the variable to that container path. A host path alone does not create a mount. Limit the read permission of `.env` and of the password file.
 
 ### Storage policy
 
-Six variables control the storage that a user may occupy. `DBRAIN_STORAGE_USER_QUOTA_BYTES` is one budget per user and covers the whole account, so it also counts the artifacts the server derives from a resource: a PDF cover, an HLS playlist and its segments. Those rows are kept out of the library cards, and deleting the resource deletes them with it, so the bytes the library reports as freed are the bytes the quota charged. The five category variables cap one file each. A category is chosen by the MIME type that the browser reports, then by the file extension: image, video, audio, PDF, and other.
+Seven variables control the storage that a user may occupy. `DBRAIN_STORAGE_USER_QUOTA_BYTES` is one budget per user and covers the whole account, so it also counts the artifacts the server derives from a resource: a PDF cover, an HLS playlist and its segments. Those rows are kept out of the library cards, and deleting the resource deletes them with it, so the bytes the library reports as freed are the bytes the quota charged. The six category variables cap one file each. A category is chosen by the MIME type that the browser reports, then by the file extension: image, video, audio, PDF, web page, and other.
 
 Write the values as whole bytes. There is no unit suffix, so `10737418240` is 10 GiB. An empty or invalid value falls back to the built-in default; a typo never locks the storage. Only `DBRAIN_STORAGE_USER_QUOTA_BYTES` accepts `0`, which disables the total quota. A category cap must be positive. A cap above the upload transport ceiling of 2 GiB has no additional effect, because the transport refuses a bigger file first.
 

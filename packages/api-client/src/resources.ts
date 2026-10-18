@@ -90,7 +90,7 @@ export interface ResourceRecord {
 export interface StorageUsage {
   /** Bytes across every category. */
   total: number;
-  /** Bytes per category, always carrying all five keys. */
+  /** Bytes per category, always carrying all six keys. */
   byCategory: Record<StorageCategory, number>;
   /** Number of records counted. */
   count: number;
@@ -108,7 +108,7 @@ export interface ResourceLimitViolation {
 function emptyUsage(): StorageUsage {
   return {
     total: 0,
-    byCategory: { image: 0, video: 0, audio: 0, pdf: 0, other: 0 },
+    byCategory: { image: 0, video: 0, audio: 0, pdf: 0, webpage: 0, other: 0 },
     count: 0,
   };
 }

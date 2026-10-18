@@ -202,6 +202,24 @@ test("clears an audio source but keeps the timeline", () => {
   assert.deepEqual(plain(node.values.get("timestamps")), timestamps);
 });
 
+test("clears a webpage document address and its byte length", () => {
+  const hook = loadHook();
+  const node = nodeRecord("n1", {
+    nodeType: "webpage",
+    content: "/api/files/files/file-1/page_ab12cd34ef.html",
+    fileSize: 4096,
+    title: "page",
+  });
+  const e = event([node]);
+
+  hook.detachNodeReferences(e);
+
+  assert.equal(node.values.get("content"), "");
+  assert.equal(node.values.get("fileSize"), 0);
+  // The title and every other column are not the file.
+  assert.equal(node.values.get("title"), "page");
+});
+
 test("removes embedded images and keeps the Excalidraw scene", () => {
   const hook = loadHook();
   const docs = {

@@ -70,6 +70,7 @@ test("the hook repeats the TypeScript defaults", () => {
       "aif",
     ],
     pdf: ["pdf"],
+    webpage: ["html", "htm", "xhtml"],
   });
 });
 
@@ -112,6 +113,7 @@ test("the hook resolves the same limits from the same environment", () => {
       DBRAIN_STORAGE_USER_QUOTA_BYTES: "0",
       DBRAIN_STORAGE_MAX_IMAGE_BYTES: "1024",
       DBRAIN_STORAGE_MAX_VIDEO_BYTES: "2048",
+      DBRAIN_STORAGE_MAX_WEBPAGE_BYTES: "123456",
     },
     {
       DBRAIN_STORAGE_USER_QUOTA_BYTES: "not-a-number",

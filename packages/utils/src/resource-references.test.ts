@@ -99,6 +99,16 @@ test("clears a media payload and its measurements", () => {
     duration: 0,
     fileSize: 0,
   });
+
+  const webpage = {
+    nodeType: "webpage",
+    content: { url: "/api/files/files/recPage901/page_ab12cd34ef.html" },
+    fileSize: 8192,
+  };
+  assert.deepEqual(
+    nodeWithoutFileReferences(webpage, new Set(["recPage901"])),
+    { content: { url: "" }, fileSize: 0 },
+  );
 });
 
 test("keeps a node that references none of the deleted records", () => {

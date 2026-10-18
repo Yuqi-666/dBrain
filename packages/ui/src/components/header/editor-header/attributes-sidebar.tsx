@@ -249,8 +249,8 @@ function MetadataTabContent({
     });
   };
 
-  // Helper to get content url based on node type. A webpage node holds source
-  // only, so it has no address field at all.
+  // Helper to get content url based on node type. A webpage node references its
+  // stored document the same way a PDF node does.
   const getContentUrl = () => {
     if (!node.content) return "";
     switch (node.nodeType) {
@@ -258,6 +258,7 @@ function MetadataTabContent({
       case "audio":
       case "image":
       case "pdf":
+      case "webpage":
         return (node.content as { url?: string }).url || "";
       case "website":
         return (node.content as { url?: string }).url || "";
@@ -272,6 +273,7 @@ function MetadataTabContent({
       case "audio":
       case "image":
       case "pdf":
+      case "webpage":
       case "website":
         return "url";
       default:
@@ -284,6 +286,7 @@ function MetadataTabContent({
     node.nodeType === "audio" ||
     node.nodeType === "image" ||
     node.nodeType === "pdf" ||
+    node.nodeType === "webpage" ||
     node.nodeType === "website";
 
   const showFaviconUrl = node.nodeType === "website";

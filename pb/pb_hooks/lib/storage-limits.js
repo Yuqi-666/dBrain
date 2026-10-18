@@ -31,6 +31,7 @@ var DEFAULT_LIMITS = {
     video: 2 * GIB,
     audio: 512 * MIB,
     pdf: 512 * MIB,
+    webpage: 16 * MIB,
     other: 256 * MIB,
   },
 };
@@ -41,6 +42,7 @@ var CATEGORY_ENV = {
   video: "DBRAIN_STORAGE_MAX_VIDEO_BYTES",
   audio: "DBRAIN_STORAGE_MAX_AUDIO_BYTES",
   pdf: "DBRAIN_STORAGE_MAX_PDF_BYTES",
+  webpage: "DBRAIN_STORAGE_MAX_WEBPAGE_BYTES",
   other: "DBRAIN_STORAGE_MAX_OTHER_BYTES",
 };
 
@@ -51,6 +53,7 @@ var CATEGORY_EXTENSIONS = {
   video: ["mp4", "m4v", "mov", "webm", "mkv", "avi", "mpg", "mpeg", "ogv", "3gp", "ts", "m3u8"],
   audio: ["mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "wma", "aiff", "aif"],
   pdf: ["pdf"],
+  webpage: ["html", "htm", "xhtml"],
 };
 
 // Extension → MIME type, used only to fill the stored `mimeType` field. An
@@ -94,6 +97,9 @@ var MIME_TYPES = {
   aiff: "audio/aiff",
   aif: "audio/aiff",
   pdf: "application/pdf",
+  html: "text/html",
+  htm: "text/html",
+  xhtml: "application/xhtml+xml",
 };
 
 var EXTENSION_CATEGORY = {};
@@ -144,6 +150,7 @@ function resolveLimits(getenv) {
       video: readBytes(read(CATEGORY_ENV.video), DEFAULT_LIMITS.maxFileBytes.video, false),
       audio: readBytes(read(CATEGORY_ENV.audio), DEFAULT_LIMITS.maxFileBytes.audio, false),
       pdf: readBytes(read(CATEGORY_ENV.pdf), DEFAULT_LIMITS.maxFileBytes.pdf, false),
+      webpage: readBytes(read(CATEGORY_ENV.webpage), DEFAULT_LIMITS.maxFileBytes.webpage, false),
       other: readBytes(read(CATEGORY_ENV.other), DEFAULT_LIMITS.maxFileBytes.other, false),
     },
   };

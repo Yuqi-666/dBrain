@@ -2,7 +2,7 @@
 
 `selector/` holds components that select a value or entity. Classification follows
 that purpose, even when the picker is rendered inside a dropdown menu.
-`menu/` holds action menus, such as the graph context menu and upload menu.
+`menu/` holds action menus, such as the graph context menu.
 
 ## Domain selectors
 

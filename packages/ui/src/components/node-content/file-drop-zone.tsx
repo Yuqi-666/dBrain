@@ -2,20 +2,24 @@
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
-  MusicIcon,
-  VideoIcon,
-  ImageIcon,
-  FileTextIcon,
+  ClipboardPasteIcon,
+  Code2Icon,
   FileCode2Icon,
+  FileTextIcon,
+  ImageIcon,
   ImagePlusIcon,
+  LibraryIcon,
+  MusicIcon,
   SmileIcon,
+  UploadIcon,
+  VideoIcon,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { UploadMenu } from "@workspace/ui/components/menu/upload-menu";
+import { Input } from "@workspace/ui/components/ui/input";
 import { ResourceSelectorDialog } from "@workspace/ui/components/selector/resource-selector";
 import { Progress } from "@workspace/ui/components/ui/progress";
 import { toast } from "@workspace/ui/components/ui/toast";
@@ -25,12 +29,13 @@ import {
   cacheResourceMeasurements,
   matchesAccept,
   useFileUpload,
+  useStorageLimits,
   uploadFile,
   analyzePdf,
   transcodeVideo,
 } from "@workspace/api-client";
+import { maxFileBytesFor } from "@workspace/utils/storage-limits";
 import type { ResourceRecord } from "@workspace/api-client";
-import { languageFromFilename } from "@workspace/ui/components/code-editor/code-editor";
 import { NodeService } from "@workspace/services";
 import { useDataStore } from "@workspace/store";
 import type {
@@ -45,11 +50,11 @@ import { useNodeContentWriter } from "./use-node-content-writer";
 /** Variants that store an uploaded blob. */
 type UploadVariant = "audio" | "video" | "image" | "pdf";
 /**
- * `webpage-source` is the odd one out: a source file is read locally into the
- * node's `code` field instead of being uploaded as a blob, because what the
- * editor needs is its text, not its address.
+ * `webpage` stores a document in the object store as well, but its upload is
+ * HTTP-only and its method list starts with the source editor, so it has its
+ * own zone ({@link WebpageDropZone}) instead of the media one.
  */
-type Variant = UploadVariant | "webpage-source" | DisplayVariant;
+type Variant = UploadVariant | "webpage" | DisplayVariant;
 
 /**
  * Display-field variants (R4): the uploaded blob becomes the node's **top-level**
@@ -78,6 +83,11 @@ interface FileDropZoneProps {
   /** Fired after a successful upload / source read, so hosts can react. */
   onUploaded?: () => void;
   onUploadError?: (error: Error) => void;
+  /**
+   * The 「编辑器」 method of the webpage zone: the host opens its code
+   * editor instead of importing a file. Other variants ignore it.
+   */
+  onEditSource?: () => void;
   className?: string;
 }
 
@@ -86,6 +96,11 @@ interface VariantConfig {
   icon: LucideIcon;
   label: string;
   minHeight: string;
+  /**
+   * Text colour of the resource-type logo. Each variant gets its own colour so
+   * the empty zone says which kind of file it accepts before the label is read.
+   */
+  tone: string;
 }
 
 const VARIANT_CONFIG = {
@@ -95,6 +110,7 @@ const VARIANT_CONFIG = {
       return translate("音频");
     },
     minHeight: "min-h-[100px]",
+    tone: "text-emerald-500",
   },
   video: {
     icon: VideoIcon,
@@ -102,6 +118,7 @@ const VARIANT_CONFIG = {
       return translate("视频");
     },
     minHeight: "min-h-[100px]",
+    tone: "text-violet-500",
   },
   image: {
     icon: ImageIcon,
@@ -109,18 +126,21 @@ const VARIANT_CONFIG = {
       return translate("图片");
     },
     minHeight: "min-h-[100px]",
+    tone: "text-sky-500",
   },
   pdf: {
     icon: FileTextIcon,
     label: "PDF",
     minHeight: "min-h-[400px]",
+    tone: "text-rose-500",
   },
-  "webpage-source": {
+  webpage: {
     icon: FileCode2Icon,
     get label() {
       return translate("HTML / 代码文件");
     },
     minHeight: "min-h-[300px]",
+    tone: "text-amber-500",
   },
   icon: {
     icon: SmileIcon,
@@ -128,6 +148,7 @@ const VARIANT_CONFIG = {
       return translate("图标");
     },
     minHeight: "min-h-[100px]",
+    tone: "text-amber-500",
   },
   cover: {
     icon: ImagePlusIcon,
@@ -135,11 +156,9 @@ const VARIANT_CONFIG = {
       return translate("封面");
     },
     minHeight: "min-h-[160px]",
+    tone: "text-sky-500",
   },
 } as const satisfies Record<Variant, VariantConfig>;
-
-/** Ceiling for locally read source files — past this the tab starts to stall. */
-const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
 /** Metadata read off the picked file. */
 interface FilePreview {
@@ -416,6 +435,257 @@ async function packageVideoUpload(
 }
 
 /**
+ * Colour of each add method's logo. Local picks are blue, clipboard amber, and
+ * the resource library green — the same family the menu used.
+ */
+const METHOD_TONES = {
+  edit: "text-violet-500",
+  local: "text-sky-500",
+  paste: "text-amber-500",
+  library: "text-emerald-500",
+} as const;
+
+/**
+ * One add method inside the drop zone, styled after the reference design: a
+ * bordered rounded card with the resource-type logo on the left, and the title
+ * with its one-line explanation on the right.
+ *
+ * The 「本地上传」 card is a `<label>`, not a button with a scripted
+ * `input.click()`: WebKit ignores a programmatic click on a file input that is
+ * not rendered, so the picker would never open there. The input stays rendered
+ * (see the zones below) and every engine routes a label activation to it.
+ */
+interface AddMethodCardProps {
+  icon: LucideIcon;
+  /** Text colour of the resource-type logo. */
+  tone: string;
+  title: string;
+  description: string;
+  /** Renders a label bound to this file input instead of a button. */
+  htmlFor?: string;
+  /** Opens the hidden file input from the keyboard; a label has no native key action. */
+  onActivate?: () => void;
+  onSelect?: () => void;
+}
+
+const addMethodCardClassName = cn(
+  "group/upload-method flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-background px-4 py-3 text-left outline-hidden select-none transition-colors",
+  "hover:border-border hover:bg-muted/40",
+  "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
+);
+
+function AddMethodCard({
+  icon: Icon,
+  tone,
+  title,
+  description,
+  htmlFor,
+  onActivate,
+  onSelect,
+}: AddMethodCardProps) {
+  const body = (
+    <>
+      <Icon className={cn("size-6 shrink-0", tone)} aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+          {description}
+        </span>
+      </span>
+    </>
+  );
+
+  if (htmlFor) {
+    return (
+      <label
+        htmlFor={htmlFor}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          onActivate?.();
+        }}
+        className={addMethodCardClassName}
+      >
+        {body}
+      </label>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onSelect} className={addMethodCardClassName}>
+      {body}
+    </button>
+  );
+}
+
+/**
+ * The empty state shared by every upload zone.
+ *
+ * The dashed border is the drag-and-drop affordance: the whole surface is a
+ * drop target, and dropping a file goes through the same path as a picked one,
+ * so validation and error reporting stay in one place per variant. The layout
+ * follows the reference design: the resource-type logo centred at the top, then
+ * the add-method cards stacked below it.
+ */
+interface DropZoneSurfaceProps {
+  config: VariantConfig;
+  /** The add-method cards, in display order. */
+  children: React.ReactNode;
+  /** Third line under the cards, e.g. what a source import does. */
+  hint?: string;
+  /** Inline rejection text; replaces the hint when present. */
+  error?: string | null;
+  /** A file dropped on the zone; the host validates it like a picked one. */
+  onDropFiles: (files: File[]) => void;
+  className?: string;
+}
+
+function DropZoneSurface({
+  config,
+  children,
+  hint,
+  error,
+  onDropFiles,
+  className,
+}: DropZoneSurfaceProps) {
+  const { t } = useI18n();
+  const Icon = config.icon;
+
+  /**
+   * Drag enter/leave also fire for every child element, so they are counted:
+   * leaving a card for the surface must not clear the highlight.
+   */
+  const dragDepth = useRef(0);
+  const [dragActive, setDragActive] = useState(false);
+
+  const carriesFiles = (event: React.DragEvent) =>
+    Array.from(event.dataTransfer.types).includes("Files");
+
+  const resetDrag = () => {
+    dragDepth.current = 0;
+    setDragActive(false);
+  };
+
+  const handleDragEnter = (event: React.DragEvent) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current += 1;
+    setDragActive(true);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    if (!carriesFiles(event)) return;
+    // Without this the browser opens the dropped file instead of uploading it.
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    resetDrag();
+
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length > 0) onDropFiles(files);
+  };
+
+  return (
+    <div
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "group/dropzone relative flex h-full w-full items-center justify-center overflow-y-auto rounded-2xl border border-dashed bg-background/60 p-4 transition-colors",
+        "hover:border-muted-foreground/40",
+        dragActive && "border-primary/70 bg-primary/5",
+        config.minHeight,
+        className,
+      )}
+    >
+      <div className="my-auto flex w-full max-w-md flex-col items-center gap-5">
+        {/* Resource-type logo: the colour names the file kind the zone accepts. */}
+        <div
+          className={cn(
+            "flex size-16 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30 shadow-xs transition-transform duration-150",
+            config.tone,
+            dragActive && "scale-105",
+          )}
+        >
+          <Icon className="size-6" aria-hidden="true" />
+        </div>
+
+        {/* The cards swallow the click, as the old zone did: choosing a file
+            must not also select or open the node behind it. */}
+        <div
+          className="flex w-full flex-col gap-2.5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
+
+        {error ? (
+          <p role="alert" className="text-center text-xs text-destructive">
+            {error}
+          </p>
+        ) : hint ? (
+          <p className="text-center text-xs text-muted-foreground/80">{hint}</p>
+        ) : null}
+      </div>
+
+      {dragActive && (
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-primary/5 text-sm font-medium text-primary">
+          {t("松开即可上传")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Reads the first image out of the clipboard.
+ *
+ * Throws when the browser has no async clipboard; returns `null` when the
+ * clipboard simply holds no picture. The caller turns both into interface copy.
+ */
+async function readClipboardImage(): Promise<File | null> {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
+    throw new Error("clipboard-unavailable");
+  }
+
+  const items = await navigator.clipboard.read();
+  for (const item of items) {
+    const type = item.types.find(
+      (candidate) => candidate === "image/png" || candidate === "image/jpeg",
+    );
+    if (!type) continue;
+
+    const blob = await item.getType(type);
+    const extension = type === "image/jpeg" ? "jpg" : "png";
+    return new File([blob], `pasted-image-${Date.now()}.${extension}`, {
+      type,
+    });
+  }
+
+  return null;
+}
+
+/**
  * Picks a file and uploads it to PocketBase. Used by every media variant, all
  * of which store the blob they uploaded.
  */
@@ -430,8 +700,10 @@ function UploadDropZone({
 }: FileDropZoneProps & { variant: UploadVariant }) {
   const { t } = useI18n();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  /** Rejection / clipboard error shown under the method cards. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
   /** Set while the backend is packaging an uploaded video as HLS. */
   const [packaging, setPackaging] = useState(false);
   /** Name of the library resource being referenced, shown while it is applied. */
@@ -520,16 +792,38 @@ function UploadDropZone({
     },
   });
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-    setMenuOpen(true);
-  };
-
   const handleFilesSelected = (files: File[]) => {
     onUploadStart?.();
     uploadFiles(files);
+  };
+
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length > 0) handleFilesSelected(files);
+    // Let the same file be picked twice in a row.
+    event.target.value = "";
+  };
+
+  const handlePasteImage = async () => {
+    setActionError(null);
+    try {
+      const file = await readClipboardImage();
+      if (!file) {
+        setActionError(t("剪贴板中没有图片"));
+        return;
+      }
+      handleFilesSelected([file]);
+    } catch (cause) {
+      const unavailable =
+        cause instanceof Error && cause.message === "clipboard-unavailable";
+      const message = unavailable
+        ? t("当前浏览器不支持读取剪贴板，请改用「本地上传」")
+        : t("粘贴图片失败（剪贴板权限被拒绝？）");
+      setActionError(message);
+      onUploadError?.(cause instanceof Error ? cause : new Error(message));
+    }
   };
 
   /**
@@ -658,33 +952,52 @@ function UploadDropZone({
             </span>
           </div>
         ) : (
-          <div
-            onClick={handleClick}
-            className={cn(
-              "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-              config.minHeight,
-              className,
-            )}
-          >
-            <Icon className="size-12 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {t("点击添加")}
-              {config.label}
-            </span>
-          </div>
-        )}
+          <>
+            <Input
+              ref={fileInputRef}
+              id={fileInputId}
+              type="file"
+              accept={accept}
+              onChange={handleFileInputChange}
+              // Not `display: none` (class `hidden`): WebKit refuses to open the
+              // picker for an unrendered file input. The input must stay rendered
+              // and only be made invisible, hence the off-screen 1px box.
+              className="absolute -left-[9999px] h-px w-px overflow-hidden opacity-0"
+            />
 
-        <UploadMenu
-          position={menuPosition}
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          accept={accept}
-          allowPasteImage={variant === "image"}
-          showResourcePicker
-          onOpenResourcePicker={() => setResourcePickerOpen(true)}
-          onFilesSelected={handleFilesSelected}
-          onError={onUploadError}
-        />
+            <DropZoneSurface
+              config={config}
+              error={actionError}
+              onDropFiles={handleFilesSelected}
+              className={className}
+            >
+              <AddMethodCard
+                icon={UploadIcon}
+                tone={METHOD_TONES.local}
+                title={t("本地上传")}
+                description={t("从当前设备选择文件")}
+                htmlFor={fileInputId}
+                onActivate={() => fileInputRef.current?.click()}
+              />
+              {variant === "image" && (
+                <AddMethodCard
+                  icon={ClipboardPasteIcon}
+                  tone={METHOD_TONES.paste}
+                  title={t("粘贴图片")}
+                  description={t("使用剪贴板中的图片")}
+                  onSelect={() => void handlePasteImage()}
+                />
+              )}
+              <AddMethodCard
+                icon={LibraryIcon}
+                tone={METHOD_TONES.library}
+                title={t("从资源库选择")}
+                description={t("引用已上传的资源")}
+                onSelect={() => setResourcePickerOpen(true)}
+              />
+            </DropZoneSurface>
+          </>
+        )}
 
         <ResourceSelectorDialog
           open={resourcePickerOpen}
@@ -737,48 +1050,98 @@ function UploadDropZone({
 }
 
 /**
- * Imports a source file by reading its text into the node's `code` field.
+ * The empty state of a `webpage` node: the document is a stored object.
  *
- * There is no blob to store — the source *is* the content — so this skips the
- * uploader entirely and only reuses the picker UI (and the URL entry, which
- * still downloads the remote file once).
+ * A webpage node keeps an HTML file in the resource library, the way a PDF node
+ * keeps a PDF, so this zone uploads a picked file (or references one already in
+ * the library) and writes the stored address onto the node. The 「编辑器」
+ * method opens the host's source editor; saving there creates the object.
+ *
+ * The category ceiling is the deployment's web page limit
+ * (`maxFileBytesFor`), the same bound the PocketBase hook enforces, so the zone
+ * cannot disagree with the server. A rejected file and a failed write both
+ * report here and to the host, which raises the toast: the import screen can be
+ * replaced as soon as the node is written, so an inline line alone is not
+ * always seen.
  */
-function LocalTextDropZone({
+function WebpageDropZone({
   nodeId,
   accept,
+  onUploadStart,
   onUploaded,
   onUploadError,
+  onEditSource,
   className,
 }: FileDropZoneProps) {
   const { t } = useI18n();
+  const limits = useStorageLimits();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const [reading, setReading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** Rejection / failed write shown under the method cards. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  /** Name of the library resource being referenced, shown while it is applied. */
+  const [referencing, setReferencing] = useState<string | null>(null);
+  /** Set while the 「从资源库选择」 dialog is open. */
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
 
-  const config = VARIANT_CONFIG["webpage-source"];
+  const config = VARIANT_CONFIG.webpage;
   const Icon = config.icon;
 
   /**
-   * Reports a rejected or failed import to the host **and** inline.
-   *
-   * The zone is the last screen the user sees when an import does not produce a
-   * node, so the message cannot depend on a host opting into `onUploadError`:
-   * without the inline line every rejection looked like a click that did
-   * nothing (a source file can be filtered, too large, empty, or the write can
-   * fail).
+   * The node's freshest `content`, read when a write is built. The address and
+   * the byte length are two halves of one write, so the update is awaited and
+   * its failure reaches `onUploadError`.
    */
+  const { liveContent } = useNodeContentWriter<Record<string, unknown>>(
+    nodeId,
+    "webpage",
+    NO_LIVE_CONTENT,
+  );
+
   const reportImportError = (message: string) => {
-    setError(message);
+    setActionError(message);
     onUploadError?.(new Error(message));
   };
 
-  const handleFilesSelected = async (files: File[]) => {
+  /** Writes the stored address and the byte length onto the node. */
+  const writeDocument = async (url: string, fileSize: number) => {
+    await writeContentPatch(nodeId, liveContent(), {
+      contentHalf: { url },
+      meta: { fileSize },
+    });
+  };
+
+  const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
+    // The pipeline's own ceiling; the category ceiling is checked below, where
+    // the file name and MIME type are known.
+    maxSize: MAX_UPLOAD_BYTES,
+    limit: 1,
+    accept,
+    // Outlives this dialog: the key lets a reopened zone subscribe to the
+    // upload that started before it unmounted.
+    key: `${nodeId}:webpage`,
+    upload: uploadFile,
+    onSuccess: async (url, file) => {
+      try {
+        await writeDocument(url, file.size);
+        onUploaded?.();
+        showUploadSuccessToast(file);
+      } catch (cause) {
+        onUploadError?.(
+          cause instanceof Error ? cause : new Error(t("写入节点失败")),
+        );
+      }
+    },
+    onError: (error) => onUploadError?.(error),
+  });
+
+  const handleFilesSelected = (files: File[]) => {
+    setActionError(null);
     const file = files[0];
     if (!file) return;
 
-    setError(null);
+    onUploadStart?.();
 
     if (!matchesAccept(file, accept)) {
       reportImportError(
@@ -789,108 +1152,180 @@ function LocalTextDropZone({
       );
       return;
     }
-    if (file.size > MAX_SOURCE_BYTES) {
+    if (file.size === 0) {
+      reportImportError(t("文件内容为空"));
+      return;
+    }
+
+    // The deployment's own ceiling for this file's category (web page by
+    // default), never a hard-coded size. Both sides are runtime policy.
+    const limit = maxFileBytesFor(limits, file.name, file.type);
+    if (file.size > limit) {
       reportImportError(
-        translate("源码文件超过 {value1}MB，无法载入编辑器", {
-          value1: MAX_SOURCE_BYTES / 1024 / 1024,
+        translate("网页文件超过 {value1}MB，无法导入", {
+          value1: Math.round(limit / 1024 / 1024),
         }),
       );
       return;
     }
 
-    setReading(file.name);
-    try {
-      const code = await file.text();
-      if (!code.trim()) throw new Error(t("文件内容为空"));
+    uploadFiles([file]);
+  };
 
-      await NodeService.upsert(nodeId, {
-        content: {
-          code,
-          language: languageFromFilename(file.name),
-        },
-      });
-      setError(null);
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length > 0) handleFilesSelected(files);
+    // Let the same file be picked twice in a row.
+    event.target.value = "";
+  };
+
+  /**
+   * References a web page resource the user picked from the library.
+   *
+   * The node stores the resource's `storedUrl`, never its bytes — exactly what
+   * the PDF variant does — so one resource can be shown by several nodes and
+   * deleting it clears this node's address (the PocketBase delete hook rewrites
+   * the record). No read, parse or copy happens here.
+   */
+  const handleResourceSelected = async (resource: ResourceRecord) => {
+    setActionError(null);
+    setReferencing(resource.name);
+    onUploadStart?.();
+
+    try {
+      if (!resource.storedUrl) throw new Error(t("无法读取资源内容"));
+      await writeDocument(resource.storedUrl, resource.fileSize);
       onUploaded?.();
-    } catch (cause) {
-      reportImportError(
-        cause instanceof Error && cause.message
-          ? cause.message
-          : t("读取文件失败"),
+      showUploadSuccessToast(resource);
+    } catch (error) {
+      onUploadError?.(
+        error instanceof Error ? error : new Error(t("引用资源失败")),
       );
     } finally {
-      setReading(null);
+      setReferencing(null);
     }
   };
 
-  if (reading) {
+  if (fileItems.length === 0) {
     return (
-      <div
-        className={cn(
-          "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg",
-          config.minHeight,
-          className,
+      <>
+        {referencing ? (
+          <div
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg",
+              config.minHeight,
+              className,
+            )}
+          >
+            <Icon className="size-10 text-muted-foreground" />
+            <span className="max-w-full truncate px-4 text-sm">
+              {referencing}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("正在应用资源…")}
+            </span>
+          </div>
+        ) : (
+          <>
+            <Input
+              ref={fileInputRef}
+              id={fileInputId}
+              type="file"
+              accept={accept}
+              onChange={handleFileInputChange}
+              // Not `display: none` (class `hidden`): WebKit refuses to open the
+              // picker for an unrendered file input. The input must stay rendered
+              // and only be made invisible, hence the off-screen 1px box.
+              className="absolute -left-[9999px] h-px w-px overflow-hidden opacity-0"
+            />
+
+            <DropZoneSurface
+              config={config}
+              error={actionError}
+              onDropFiles={handleFilesSelected}
+              className={className}
+            >
+              <AddMethodCard
+                icon={Code2Icon}
+                tone={METHOD_TONES.edit}
+                title={t("编辑器")}
+                description={t("直接在编辑器中编写 HTML 或代码")}
+                onSelect={() => onEditSource?.()}
+              />
+              <AddMethodCard
+                icon={UploadIcon}
+                tone={METHOD_TONES.local}
+                title={t("文件上传")}
+                description={t("导入本地 HTML 文件")}
+                htmlFor={fileInputId}
+                onActivate={() => fileInputRef.current?.click()}
+              />
+              <AddMethodCard
+                icon={LibraryIcon}
+                tone={METHOD_TONES.library}
+                title={t("从资源库选择")}
+                description={t("引用资源库中的网页")}
+                onSelect={() => setResourcePickerOpen(true)}
+              />
+            </DropZoneSurface>
+          </>
         )}
-      >
-        <Icon className="size-10 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          {t("正在读取")} {reading}…
-        </span>
-      </div>
+
+        <ResourceSelectorDialog
+          open={resourcePickerOpen}
+          onOpenChange={setResourcePickerOpen}
+          accept={accept}
+          onSelect={(resource) => {
+            void handleResourceSelected(resource);
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <>
-      <div
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setMenuPosition({ x: e.clientX, y: e.clientY });
-          setMenuOpen(true);
-        }}
-        className={cn(
-          "w-full h-full flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-          config.minHeight,
-          className,
-        )}
-      >
-        <Icon className="size-12 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          {t("点击导入")}
-          {config.label}
-        </span>
-        <span className="text-xs text-muted-foreground/70">
-          {t("上传 .html 或代码文件，内容会载入源码编辑器")}{" "}
-        </span>
-        {error && (
+    <div
+      className={cn(
+        "w-full h-full flex flex-col items-center justify-center gap-4",
+        className,
+      )}
+    >
+      {fileItems.map((item) => (
+        <div key={item.id} className="w-full max-w-md space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm truncate">{item.file.name}</span>
+            <button
+              onClick={() => removeFileItem(item.id)}
+              disabled={item.status === "success"}
+              className="p-1 hover:bg-muted rounded-sm disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <Progress value={item.progress} />
           <span
-            role="alert"
-            className="max-w-[80%] text-center text-xs text-destructive"
+            className="text-xs text-muted-foreground break-words"
+            title={item.status === "error" ? item.error : undefined}
           >
-            {error}
+            {item.status === "error"
+              ? translate("上传失败：{value1}", {
+                  value1: item.error ?? t("未知原因"),
+                })
+              : `${item.progress}%`}
           </span>
-        )}
-      </div>
-
-      <UploadMenu
-        position={menuPosition}
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        accept={accept}
-        urlDialogTitle={t("输入源码文件 URL")}
-        urlDialogPlaceholder="https://example.com/index.html"
-        onFilesSelected={handleFilesSelected}
-        onError={onUploadError}
-      />
-    </>
+        </div>
+      ))}
+    </div>
   );
 }
 
 export function FileDropZone(props: FileDropZoneProps) {
   useI18n();
 
-  if (props.variant === "webpage-source") {
-    return <LocalTextDropZone {...props} />;
+  if (props.variant === "webpage") {
+    return <WebpageDropZone {...props} />;
   }
 
   if (props.variant === "icon" || props.variant === "cover") {
@@ -926,8 +1361,10 @@ function DisplayFieldDropZone({
 }: FileDropZoneProps & { variant: DisplayVariant }) {
   const { t } = useI18n();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  /** Rejection / clipboard error shown under the method cards. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
   /** Name of the library resource being referenced, shown while it is applied. */
   const [referencing, setReferencing] = useState<string | null>(null);
   /** Set while the 「从资源库选择」 dialog is open. */
@@ -975,16 +1412,38 @@ function DisplayFieldDropZone({
     },
   });
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-    setMenuOpen(true);
-  };
-
   const handleFilesSelected = (files: File[]) => {
     onUploadStart?.();
     uploadFiles(files);
+  };
+
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length > 0) handleFilesSelected(files);
+    // Let the same file be picked twice in a row.
+    event.target.value = "";
+  };
+
+  const handlePasteImage = async () => {
+    setActionError(null);
+    try {
+      const file = await readClipboardImage();
+      if (!file) {
+        setActionError(t("剪贴板中没有图片"));
+        return;
+      }
+      handleFilesSelected([file]);
+    } catch (cause) {
+      const unavailable =
+        cause instanceof Error && cause.message === "clipboard-unavailable";
+      const message = unavailable
+        ? t("当前浏览器不支持读取剪贴板，请改用「本地上传」")
+        : t("粘贴图片失败（剪贴板权限被拒绝？）");
+      setActionError(message);
+      onUploadError?.(cause instanceof Error ? cause : new Error(message));
+    }
   };
 
   /**
@@ -1040,35 +1499,52 @@ function DisplayFieldDropZone({
             </span>
           </div>
         ) : (
-          <div
-            onClick={handleClick}
-            className={cn(
-              "w-full h-full flex flex-col items-center justify-center gap-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-              config.minHeight,
-              className,
-            )}
-          >
-            <Icon className="size-12 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {t("点击添加")}
-              {config.label}
-            </span>
-          </div>
-        )}
+          <>
+            <Input
+              ref={fileInputRef}
+              id={fileInputId}
+              type="file"
+              accept={accept}
+              onChange={handleFileInputChange}
+              // Not `display: none` (class `hidden`): WebKit refuses to open the
+              // picker for an unrendered file input. The input must stay rendered
+              // and only be made invisible, hence the off-screen 1px box.
+              className="absolute -left-[9999px] h-px w-px overflow-hidden opacity-0"
+            />
 
-        <UploadMenu
-          position={menuPosition}
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          accept={accept}
-          // The zone only ever takes a picture, so a pasted image is a valid
-          // source for both variants (same reason `variant="image"` allows it).
-          allowPasteImage
-          showResourcePicker
-          onOpenResourcePicker={() => setResourcePickerOpen(true)}
-          onFilesSelected={handleFilesSelected}
-          onError={onUploadError}
-        />
+            <DropZoneSurface
+              config={config}
+              error={actionError}
+              onDropFiles={handleFilesSelected}
+              className={className}
+            >
+              <AddMethodCard
+                icon={UploadIcon}
+                tone={METHOD_TONES.local}
+                title={t("本地上传")}
+                description={t("从当前设备选择文件")}
+                htmlFor={fileInputId}
+                onActivate={() => fileInputRef.current?.click()}
+              />
+              {/* Both variants only ever take a picture, so a pasted image is a
+                  valid source (same reason `variant="image"` allows it). */}
+              <AddMethodCard
+                icon={ClipboardPasteIcon}
+                tone={METHOD_TONES.paste}
+                title={t("粘贴图片")}
+                description={t("使用剪贴板中的图片")}
+                onSelect={() => void handlePasteImage()}
+              />
+              <AddMethodCard
+                icon={LibraryIcon}
+                tone={METHOD_TONES.library}
+                title={t("从资源库选择")}
+                description={t("引用已上传的资源")}
+                onSelect={() => setResourcePickerOpen(true)}
+              />
+            </DropZoneSurface>
+          </>
+        )}
 
         <ResourceSelectorDialog
           open={resourcePickerOpen}

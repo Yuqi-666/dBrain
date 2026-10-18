@@ -125,24 +125,20 @@ const audioContentSchema = z.object({
 });
 
 /**
- * Webpage source — the node's only representation, so there is no mode to
- * branch on: `code` plus the language it is highlighted as.
+ * Webpage content — the address of the stored document.
  *
- * `html` is accepted as a legacy alias for `code` so payloads built before the
- * node stored a single `code` field still round-trip instead of being silently
- * stripped. The retired `mode` / `url` / `screenshotUrl` keys are unknown to
- * this schema and simply drop out.
+ * The bytes live in the `files` collection; the node carries the address and
+ * the recorded byte length (a top-level field, like every other file-backed
+ * node type). A payload from the retired inline shape has no `url`, so it maps
+ * to an empty address instead of failing the request: the data migration
+ * `0000000007_webpage_object_storage.js` is what converts those records, and an
+ * empty address reads as "no page yet".
  */
 const webpageContentSchema = z
   .object({
-    code: z.string().optional(),
-    language: z.string().optional(),
-    html: z.string().optional(),
+    url: z.string().optional(),
   })
-  .transform((content) => ({
-    code: content.code ?? content.html ?? "",
-    language: content.language ?? "html",
-  }));
+  .transform((content) => ({ url: content.url ?? "" }));
 
 const websiteContentSchema = z.object({
   url: z.string(),
@@ -299,6 +295,7 @@ const addSchema = z.discriminatedUnion("nodeType", [
   z.object({
     ...baseNodeFields,
     nodeType: z.literal("webpage"),
+    fileSize: z.number().optional(),
     content: webpageContentSchema,
   }),
   z.object({
