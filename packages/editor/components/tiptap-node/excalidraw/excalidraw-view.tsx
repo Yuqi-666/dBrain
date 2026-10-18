@@ -2,7 +2,8 @@ import { useI18n } from "@workspace/ui/lib/i18n";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect } from "react";
-import { uploadAttachment } from "@workspace/api-client";
+import { replaceAttachment, uploadAttachment } from "@workspace/api-client";
+import type { IAttachment } from "@workspace/interfaces";
 import type {
   ExcalidrawImperativeAPI,
   ExcalidrawInitialDataState,
@@ -28,11 +29,43 @@ function isLegacyJsonSource(src: string | null | undefined): boolean {
   return typeof src === "string" && src.toLowerCase().endsWith(".json");
 }
 
+/**
+ * Stores the preview PNG as the block's one storage unit.
+ *
+ * The preview carries the scene in its PNG metadata, so the image and the raw
+ * scene share one `files` record. A block saved by this version keeps that
+ * record's id in `attachmentId`, and a save replaces the record in place: the
+ * id, the resource-library card and the quota charge all stay the same instead
+ * of accumulating one blob per save.
+ *
+ * The fallback covers a record deleted from the resource library, a quota or
+ * file-ceiling refusal, and an older server that does not accept a file
+ * replacement — the block still saves by creating a fresh record. A legacy
+ * `.excalidraw.json` block also has an `attachmentId` (the JSON blob's record),
+ * so its save replaces that record with the PNG and the old JSON unit is gone
+ * without an explicit delete.
+ */
+async function savePreviewAttachment(
+  attachmentId: string | undefined,
+  file: File,
+): Promise<IAttachment> {
+  if (attachmentId) {
+    try {
+      return await replaceAttachment(attachmentId, file);
+    } catch (error) {
+      // Not fatal on its own: the fallback below keeps the block saveable. The
+      // error explains why the record was replaced by a new one.
+      console.error("Failed to replace Excalidraw preview:", error);
+    }
+  }
+  return uploadAttachment(file);
+}
+
 export default function ExcalidrawView(props: NodeViewProps) {
   const { t } = useI18n();
 
   const { node, updateAttributes, editor, selected } = props;
-  const { src, title, width, data } = node.attrs;
+  const { src, title, width, data, attachmentId } = node.attrs;
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
@@ -57,10 +90,13 @@ export default function ExcalidrawView(props: NodeViewProps) {
         const files = jsonData.files || {};
 
         setExcalidrawData({ elements, files });
-      } else if (isLegacyJsonSource(src)) {
-        // A node written before the raster preview existed kept its scene in a
-        // JSON attachment and no `data`; recover it so the block stays editable
-        // instead of rendering a broken image.
+      } else if (src) {
+        // No inline scene: recover it from the stored attachment. A node
+        // written before the raster preview kept its scene JSON in a
+        // `.excalidraw.json` file; a preview PNG saved by this version embeds
+        // the same scene in its PNG metadata. `loadExcalidrawData` reads both,
+        // and an image without embedded scene data simply opens an empty
+        // canvas, so the block stays usable.
         setExcalidrawData(await loadExcalidrawData(src));
       }
     } catch (err) {
@@ -79,8 +115,10 @@ export default function ExcalidrawView(props: NodeViewProps) {
       return;
     }
 
-    // The scene JSON stays in `data`: it is the editable source of truth, so
-    // the block survives even when the preview upload below fails.
+    // The scene JSON also stays inline in `data`: it is the editable source of
+    // truth, so the block survives even when storing the preview below fails.
+    // It is deliberately not the storage path anymore — the preview PNG embeds
+    // the same scene, and the two must stay one `files` record.
     const jsonString = JSON.stringify({
       elements: excalidrawAPI.getSceneElements(),
       files: excalidrawAPI.getFiles(),
@@ -88,19 +126,23 @@ export default function ExcalidrawView(props: NodeViewProps) {
 
     try {
       // The node view renders an <img>, so `src` must point at a raster image.
-      // Render one from the live scene (a JSON file can never be displayed)
-      // and upload that as the preview.
+      // Export one with the scene embedded in the PNG metadata, so this single
+      // blob is both the preview and the raw scene; saving then replaces that
+      // one record instead of uploading a second one.
       const { exportToBlob } = await import("@excalidraw/excalidraw");
       const blob = await exportToBlob({
         elements: excalidrawAPI.getSceneElements(),
-        appState: excalidrawAPI.getAppState(),
+        appState: {
+          ...excalidrawAPI.getAppState(),
+          exportEmbedScene: true,
+        },
         files: excalidrawAPI.getFiles(),
         mimeType: "image/png",
       });
       const previewFile = new File([blob], "diagram.png", {
         type: "image/png",
       });
-      const attachment = await uploadAttachment(previewFile);
+      const attachment = await savePreviewAttachment(attachmentId, previewFile);
 
       updateAttributes({
         data: jsonString,
@@ -110,7 +152,7 @@ export default function ExcalidrawView(props: NodeViewProps) {
         attachmentId: attachment.id,
       });
     } catch (error) {
-      console.error("Failed to save Excalidraw preview:", error);
+      console.error("Failed to save Excalidraw diagram:", error);
       // Keep the scene editable and leave any existing preview untouched.
       updateAttributes({ data: jsonString });
     }
