@@ -11,13 +11,13 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Edit, Trash2, Link2 } from "lucide-react";
 import { useDataStore, useUIStore } from "@workspace/store";
+import { requestNodeDelete } from "@workspace/ui/lib/node-disposition";
 import { NodeSemanticSelector } from "@workspace/ui/components/selector/node-semantic-selector";
 
 export interface GraphContextMenuNodeProps {
   nodeId: string;
   onEditNode?: (id: string) => void;
   onStartAddEdge?: (nodeId: string) => void;
-  onDeleteNode?: (nodeId: string) => void;
   onChangeNodeSemantic?: (nodeId: string, semanticId: string) => void;
   onClose: () => void;
 }
@@ -26,7 +26,6 @@ export function GraphContextMenuNode({
   nodeId,
   onEditNode,
   onStartAddEdge,
-  onDeleteNode,
   onChangeNodeSemantic,
   onClose,
 }: GraphContextMenuNodeProps) {
@@ -107,7 +106,9 @@ export function GraphContextMenuNode({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
-          onDeleteNode?.(nodeId);
+          // The helper decides: a node with no uploaded file is deleted here,
+          // one that references a file opens the disposition dialog instead.
+          void requestNodeDelete(nodeId);
           onClose();
         }}
         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive rounded-md"

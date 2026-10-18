@@ -53,7 +53,6 @@ const GraphContextMenu = React.forwardRef<
 
   const {
     onEditNode,
-    onDeleteNode,
     onAddNode,
     onDeleteEdge,
     onDeleteSelected,
@@ -74,7 +73,7 @@ const GraphContextMenu = React.forwardRef<
         onEscapeKeyDown={onClose}
         onPointerDownOutside={onClose}
       >
-        {type === "node" && <GraphContextMenuNode nodeId={context.nodeId} onEditNode={onEditNode} onDeleteNode={onDeleteNode} onChangeNodeSemantic={onChangeNodeSemantic} onClose={onClose} />}
+        {type === "node" && <GraphContextMenuNode nodeId={context.nodeId} onEditNode={onEditNode} onChangeNodeSemantic={onChangeNodeSemantic} onClose={onClose} />}
         {type === "edge" && <GraphContextMenuEdge edgeId={context.edgeId} onDeleteEdge={onDeleteEdge} onChangeEdgeDirection={onChangeEdgeDirection} onChangeEdgeSemantic={onChangeEdgeSemantic} onClose={onClose} />}
         {type === "canvas" && <GraphContextMenuCanvas onAddNode={onAddNode} simX={context.simX} simY={context.simY} viewId={context.viewId} onClose={onClose} />}
         {type === "groupSelect" && <GraphContextMenuGroupSelect nodeIds={context.nodeIds} edgeIds={context.edgeIds} onDeleteSelected={onDeleteSelected} onClose={onClose} />}

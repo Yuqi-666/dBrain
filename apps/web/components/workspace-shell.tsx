@@ -15,6 +15,7 @@ import {
   NodeSemanticDialog,
   EdgeSemanticDialog,
 } from "@workspace/ui/components/dialog/semantic-dialog";
+import { NodeDispositionDialog } from "@workspace/ui/components/dialog/node-disposition-dialog";
 import { CreateWorkspaceDialog } from "@workspace/ui/components/dialog/workspace-dialog";
 import { ViewDialog } from "@workspace/ui/components/dialog/view-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -142,6 +143,7 @@ export function WorkspaceShell(): ReactNode {
             <NodeEditor />
             <NodeSemanticDialog />
             <EdgeSemanticDialog />
+            <NodeDispositionDialog />
             <CreateWorkspaceDialog />
             <ViewDialog />
           </>

@@ -23,18 +23,6 @@ export function formatBytes(bytes: number): string {
   return `${text} ${BYTE_UNITS[exponent]}`;
 }
 
-/**
- * Formats a percentage for the storage bar.
- *
- * Below 100 the fraction is kept — 90.4% must not render as a red "90%" — and
- * an over-quota occupation is shown as the rounded, unbounded number it is.
- */
-export function formatPercent(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "0";
-  if (value >= 100) return String(Math.round(value));
-  return value.toFixed(1).replace(/\.0$/, "");
-}
-
 /** Formats a stored timestamp for a card; an unreadable one renders a dash. */
 export function formatCreatedAt(value: string, locale: Locale): string {
   const timestamp = Date.parse(value);

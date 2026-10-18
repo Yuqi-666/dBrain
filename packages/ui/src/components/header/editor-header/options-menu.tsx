@@ -11,9 +11,14 @@ import {
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useDataStore, useUIStore } from "@workspace/store";
-import { NodeService } from "@workspace/services";
+import {
+  requestNodeClear,
+  requestNodeDelete,
+} from "@workspace/ui/lib/node-disposition";
+import { clearedNodeUpdates } from "@workspace/utils/node-content";
 import {
   CopyIcon,
+  EraserIcon,
   TrashIcon,
   DownloadIcon,
   ShareIcon,
@@ -27,7 +32,10 @@ interface OptionsMenuProps {
 }
 
 /**
- * 选项菜单 - 节点操作菜单（删除、复制、导出等）
+ * 选项菜单 - 节点操作菜单（删除、清空、复制、导出等）
+ *
+ * 「删除」与「清空」都交给 `node-disposition` 的两个 `request*`：节点引用已上传
+ * 资源时先弹出处置对话框（文件是否一起删），没有引用时保持原来的即时行为。
  */
 export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
   const { t } = useI18n();
@@ -36,18 +44,21 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
     (state) => state.currentEditingNodeId,
   );
   const nodes = useDataStore((state) => state.nodes);
-  const setCurrentEditingNodeId = useUIStore(
-    (state) => state.setCurrentEditingNodeId,
-  );
 
   const targetNodeId = nodeId || currentEditingNodeId;
   const currentNode = targetNodeId ? nodes.get(targetNodeId) : null;
+  // A type without one payload (`collection`, `database`) cannot be cleared,
+  // so the item is not offered at all — the dialog must never open on a no-op.
+  const canClear = currentNode
+    ? clearedNodeUpdates(currentNode) !== null
+    : false;
 
-  const handleDelete = async () => {
-    if (targetNodeId) {
-      await NodeService.delete(targetNodeId);
-      setCurrentEditingNodeId(null);
-    }
+  const handleDelete = () => {
+    if (targetNodeId) void requestNodeDelete(targetNodeId);
+  };
+
+  const handleClear = () => {
+    if (targetNodeId) void requestNodeClear(targetNodeId);
   };
 
   const handleCopy = () => {
@@ -93,6 +104,13 @@ export function OptionsMenu({ nodeId, className }: OptionsMenuProps) {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        {canClear && targetNodeId && (
+          <DropdownMenuItem onClick={handleClear} variant="destructive">
+            <EraserIcon className="size-4 mr-2" />
+            <span>{t("清空节点")}</span>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem onClick={handleDelete} variant="destructive">
           <TrashIcon className="size-4 mr-2" />

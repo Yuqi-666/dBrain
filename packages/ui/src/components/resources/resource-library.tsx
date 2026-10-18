@@ -333,12 +333,15 @@ function ResourceLibrarySkeleton() {
   return (
     <div aria-hidden="true" className="mt-6 space-y-6">
       <div className="rounded-xl border bg-card p-5">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="mt-4 h-7 w-64" />
-        <Skeleton className="mt-3 h-2.5 w-full" />
-        <div className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="flex items-baseline justify-between gap-4">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        {/* The segmented storage bar and its five-item legend. */}
+        <Skeleton className="mt-4 h-4 w-full rounded-full" />
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
           {Array.from({ length: STORAGE_CATEGORIES.length }, (_, index) => (
-            <Skeleton key={index} className="h-12 w-full" />
+            <Skeleton key={index} className="h-3 w-16" />
           ))}
         </div>
       </div>

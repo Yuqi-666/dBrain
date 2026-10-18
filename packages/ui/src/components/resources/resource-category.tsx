@@ -8,6 +8,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import type { StorageCategory } from "@workspace/api-client";
+import { cn } from "@workspace/ui/lib/utils";
 
 /** Source strings shared with the translation catalog. */
 export const CATEGORY_LABEL_KEYS: Record<StorageCategory, string> = {
@@ -47,4 +48,37 @@ export function CategoryIcon({
 }) {
   const Icon = CATEGORY_ICONS[category];
   return <Icon aria-hidden="true" className={className} />;
+}
+
+/**
+ * The color one category paints in the storage bar and in its legend dot.
+ *
+ * Five hues that stay distinguishable side by side, each lifted one step in
+ * dark mode so a segment keeps its contrast on a dark card. The legend reuses
+ * the same class, so a dot can never drift from the segment it explains.
+ */
+export const CATEGORY_COLOR_CLASSES: Record<StorageCategory, string> = {
+  image: "bg-sky-500 dark:bg-sky-400",
+  video: "bg-violet-500 dark:bg-violet-400",
+  audio: "bg-emerald-500 dark:bg-emerald-400",
+  pdf: "bg-rose-500 dark:bg-rose-400",
+  other: "bg-amber-500 dark:bg-amber-400",
+};
+
+/**
+ * The legend dot that explains a storage-bar segment.
+ *
+ * Decorative by design: the category name printed beside it is the value, so
+ * the dot adds no information to a screen reader and is hidden from one.
+ */
+export function CategoryDot({ category }: { category: StorageCategory }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "size-2.5 shrink-0 rounded-full",
+        CATEGORY_COLOR_CLASSES[category],
+      )}
+    />
+  );
 }

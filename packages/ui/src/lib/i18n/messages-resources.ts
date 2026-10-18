@@ -160,12 +160,20 @@ export const resourceLibraryMessages: Record<
     "zh-CN": "确定删除“{value1}”？此操作无法撤销。",
     en: "Delete “{value1}”? This cannot be undone.",
   },
-  "引用这个文件的节点将无法再加载它。删除节点不会释放存储；只有在这里删除才会释放。":
+  "引用这个文件的节点会失去该链接（显示为空）。删除节点不会释放存储；只有在这里删除才会释放。":
     {
       "zh-CN":
-        "引用这个文件的节点将无法再加载它。删除节点不会释放存储；只有在这里删除才会释放。",
-      en: "Every node that references this file will stop loading it. Deleting a node does not free storage; only deleting the file here does.",
+        "引用这个文件的节点会失去该链接（显示为空）。删除节点不会释放存储；只有在这里删除才会释放。",
+      en: "Every node that references this file loses the link (it becomes empty). Deleting a node does not free storage; only deleting the file here does.",
     },
+  此资源关联以下节点: {
+    "zh-CN": "此资源关联以下节点",
+    en: "This resource is referenced by these nodes",
+  },
+  "正在查找引用此资源的节点…": {
+    "zh-CN": "正在查找引用此资源的节点…",
+    en: "Finding the nodes that reference this resource…",
+  },
   "删除中…": {
     "zh-CN": "删除中…",
     en: "Deleting…",
