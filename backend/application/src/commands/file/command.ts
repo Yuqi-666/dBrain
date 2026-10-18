@@ -16,7 +16,14 @@ export interface AnalyzePdfCommand {
   fileUrl: string;
 }
 
-/** Result of {@link AnalyzePdfCommand}. */
+/**
+ * Result of {@link AnalyzePdfCommand}.
+ *
+ * A document that was already parsed answers from the analysis cached on its
+ * resource record: `pageCount` and `coverUrl` are then the cached values,
+ * `fileSize` the recorded byte length, and the page size and Info dictionary
+ * stay neutral (0 / `{ isEncrypted: false }`) because a node never stores them.
+ */
 export interface AnalyzedPdfDTO {
   /** `/Pages /Count`. */
   pageCount: number;
@@ -54,7 +61,14 @@ export interface TranscodeVideoCommand {
   fileUrl: string;
 }
 
-/** Result of {@link TranscodeVideoCommand}. */
+/**
+ * Result of {@link TranscodeVideoCommand}.
+ *
+ * A video that was already packaged answers from the cache on its resource
+ * record: `hlsUrl`, `coverUrl`, `duration`, `width` and `height` are the stored
+ * values, and the codec names are empty because they describe a transcode run
+ * rather than the resource.
+ */
 export interface TranscodedVideoDTO {
   /** URL of the stored `.m3u8` playlist. */
   hlsUrl: string;

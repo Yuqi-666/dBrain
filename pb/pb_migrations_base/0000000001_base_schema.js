@@ -239,6 +239,22 @@ migrate(
         { name: "size", type: "number", min: 0 },
         { name: "mimeType", type: "text", max: 200 },
         { name: "displayName", type: "text", max: 300 },
+        // The result of parsing a PDF or packaging a video is cached on the
+        // resource record that owns the blob, once, so every node that
+        // references that resource reuses it (`FileCommandService`). The fields
+        // are written by the analysis endpoints; a client may not set the size
+        // or the stored file through an update.
+        { name: "pageCount", type: "number", min: 0, onlyInt: true },
+        { name: "width", type: "number", min: 0, onlyInt: true },
+        { name: "height", type: "number", min: 0, onlyInt: true },
+        { name: "duration", type: "number", min: 0 },
+        { name: "coverUrl", type: "text", max: 1000 },
+        { name: "hlsUrl", type: "text", max: 1000 },
+        // Provenance of an artifact the server derived from a resource (a PDF
+        // cover, an HLS playlist, its segments, a poster): the id of the source
+        // record. The resource library lists only records without it, and
+        // deleting the resource deletes the artifacts (`pb_hooks/files.pb.js`).
+        { name: "derivedFrom", type: "text", max: 100 },
         { name: "created", type: "autodate", onCreate: true },
         { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
       ],
@@ -364,6 +380,12 @@ migrate(
       files.viewRule = files.listRule;
       files.createRule =
         auth + ' && (workspaceId = "" || (' + owner + ") || (" + editor + "))";
+      // A rename and the analysis cache are the only updates an owner may
+      // make. Everything that decides where the bytes land, who owns them or
+      // how big they are stays server-owned: the create hook writes it, and an
+      // update may not touch it. The analysis fields are display metadata, so
+      // they are not pinned; the derived-artifact provenance is written when
+      // the record is created and never changes.
       files.updateRule =
         auth +
         " && ownerId = @request.auth.id" +
@@ -371,7 +393,8 @@ migrate(
         " && @request.body.workspaceId:changed = false" +
         " && @request.body.size:changed = false" +
         " && @request.body.mimeType:changed = false" +
-        " && @request.body.file:changed = false";
+        " && @request.body.file:changed = false" +
+        " && @request.body.derivedFrom:changed = false";
       files.deleteRule =
         auth +
         " && (ownerId = @request.auth.id || (" +

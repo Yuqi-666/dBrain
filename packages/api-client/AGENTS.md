@@ -35,7 +35,7 @@ It exports:
 | `src/upload.ts` | Sends a blob to the PocketBase `files` collection, or delegates a large one to `upload-chunked.ts` |
 | `src/upload-chunked.ts` | Chunked, resumable upload of one file over the API upload routes |
 | `src/file-analysis.ts` | Asks the backend to parse a PDF or transcode a video |
-| `src/resources.ts` | The media resource library: reads the `files` collection, renames and deletes resources, and reads the storage limits |
+| `src/resources.ts` | The media resource library: reads the `files` collection (including the analysis cached on a resource and the derived artifacts hidden from the cards), renames and deletes resources, caches browser measurements, and reads the storage limits |
 
 ## Mechanisms
 

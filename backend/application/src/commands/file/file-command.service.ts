@@ -2,6 +2,7 @@ import type {
   DocumentCover,
   IDocumentAnalyzer,
   IFileStore,
+  IMediaAnalysisStore,
   IVideoTranscoder,
 } from "@workspace/domain";
 import type {
@@ -10,7 +11,7 @@ import type {
   TranscodeVideoCommand,
   TranscodedVideoDTO,
 } from "./command";
-import { rewriteSegmentUrls } from "./hls-playlist";
+import { rewriteSegmentUrls } from "./hls-playlist.ts";
 
 /**
  * File upload use cases.
@@ -22,23 +23,49 @@ import { rewriteSegmentUrls } from "./hls-playlist";
  * {@link IDocumentAnalyzer}, {@link IVideoTranscoder} and {@link IFileStore}
  * ports.
  *
+ * Both use cases are **idempotent per resource**. The result is cached on the
+ * record that owns the blob through {@link IMediaAnalysisStore}, and a second
+ * call returns that result without fetching, parsing, transcoding or storing
+ * anything. Every node that references the same resource therefore shares one
+ * cover and one HLS package, instead of adding a copy per reference.
+ *
  * Both use cases pull the blob through a temporary file rather than through
  * `download()`: an upload may be 2 GiB, and a video has to reach FFmpeg as a
  * path either way. The temp directory is always removed, on success and on
  * failure.
  */
 export class FileCommandService {
+  /**
+   * Plain field assignments rather than parameter properties: the co-located
+   * test runs this module through Node's type-stripping loader (`node --test`),
+   * which rejects TypeScript-only syntax that has a runtime effect.
+   */
+  private readonly analyzer: IDocumentAnalyzer;
+  private readonly fileStore: IFileStore;
+  private readonly videoTranscoder: IVideoTranscoder;
+  /** Cache of the analysis on the resource record. A cache hit answers without
+   * downloading the blob at all, which is what makes a reference cheap. */
+  private readonly analysis: IMediaAnalysisStore;
+  /**
+   * Largest PDF the analyzer is allowed to open, in bytes. Injected from the
+   * shared upload contract by the composition root so the client's "skip
+   * analysis" rule and this guard can never disagree.
+   */
+  private readonly pdfAnalyzeMaxBytes: number;
+
   constructor(
-    private readonly analyzer: IDocumentAnalyzer,
-    private readonly fileStore: IFileStore,
-    private readonly videoTranscoder: IVideoTranscoder,
-    /**
-     * Largest PDF the analyzer is allowed to open, in bytes. Injected from the
-     * shared upload contract by the composition root so the client's "skip
-     * analysis" rule and this guard can never disagree.
-     */
-    private readonly pdfAnalyzeMaxBytes: number,
-  ) {}
+    analyzer: IDocumentAnalyzer,
+    fileStore: IFileStore,
+    videoTranscoder: IVideoTranscoder,
+    analysis: IMediaAnalysisStore,
+    pdfAnalyzeMaxBytes: number,
+  ) {
+    this.analyzer = analyzer;
+    this.fileStore = fileStore;
+    this.videoTranscoder = videoTranscoder;
+    this.analysis = analysis;
+    this.pdfAnalyzeMaxBytes = pdfAnalyzeMaxBytes;
+  }
 
   /**
    * Parses the PDF at `cmd.fileUrl` and stores a cover for its first page.
@@ -50,6 +77,26 @@ export class FileCommandService {
    * opened.
    */
   async analyzePdf(cmd: AnalyzePdfCommand): Promise<AnalyzedPdfDTO> {
+    // The cache is the whole point of a second reference: a resource that was
+    // already parsed answers here, without a download or a render.
+    const cached = await this.analysis.read(cmd.fileUrl);
+    if (cached && (cached.pageCount > 0 || cached.coverUrl !== "")) {
+      return {
+        pageCount: cached.pageCount,
+        fileSize:
+          cached.fileSize > 0
+            ? cached.fileSize
+            : await this.fileStore.stat(cmd.fileUrl),
+        // Page size and the Info dictionary are not part of the cache: a node
+        // only stores the page count and the cover, so a cached answer leaves
+        // them at their neutral value instead of re-reading the document.
+        pageWidth: 0,
+        pageHeight: 0,
+        coverUrl: cached.coverUrl,
+        info: { isEncrypted: false },
+      };
+    }
+
     // Size first: the parser needs the whole document in memory, so a file the
     // parser may not open is never downloaded at all.
     const size = await this.fileStore.stat(cmd.fileUrl);
@@ -61,7 +108,13 @@ export class FileCommandService {
 
     const bytes = await this.fileStore.download(cmd.fileUrl);
     const analysis = await this.analyzer.analyzePdf(bytes);
-    const coverUrl = await this.storeCover(analysis.cover);
+    const coverUrl = await this.storeCover(cmd.fileUrl, analysis.cover);
+    // Best effort: a teammate's resource stays uncached, but this answer is
+    // still correct and the caller still gets it.
+    await this.analysis.write(cmd.fileUrl, {
+      pageCount: analysis.pageCount,
+      coverUrl,
+    });
 
     return {
       pageCount: analysis.pageCount,
@@ -87,6 +140,24 @@ export class FileCommandService {
   async transcodeVideo(
     cmd: TranscodeVideoCommand,
   ): Promise<TranscodedVideoDTO> {
+    // A packaged video answers from its own record: no download, no FFmpeg, and
+    // no second copy of the segments.
+    const cached = await this.analysis.read(cmd.fileUrl);
+    if (cached && cached.hlsUrl !== "") {
+      return {
+        hlsUrl: cached.hlsUrl,
+        coverUrl: cached.coverUrl,
+        duration: cached.duration,
+        width: cached.width,
+        height: cached.height,
+        // Codec names are diagnostics of the transcode, not a property of the
+        // stored resource; a cached answer does not claim one.
+        videoCodec: "",
+        audioCodec: undefined,
+        reencoded: false,
+      };
+    }
+
     const fileName = fileNameFromUrl(cmd.fileUrl);
     // The store owns the temporary location: this layer decides what happens to
     // a file, never where it lives. The suffix keeps the extension FFmpeg picks
@@ -108,13 +179,23 @@ export class FileCommandService {
       for (const segment of result.segments) {
         storedSegments.push({
           fileName: segment.fileName,
-          url: await this.fileStore.upload(segment),
+          url: await this.fileStore.uploadDerived(cmd.fileUrl, segment),
         });
       }
 
       const playlist = rewriteSegmentUrls(result.playlist, storedSegments);
-      const hlsUrl = await this.fileStore.upload(playlist);
-      const coverUrl = await this.storeCover(result.cover);
+      const hlsUrl = await this.fileStore.uploadDerived(cmd.fileUrl, playlist);
+      const coverUrl = await this.storeCover(cmd.fileUrl, result.cover);
+
+      // Best effort, as for a PDF: a resource the caller does not own is
+      // packaged but not cached, and the next caller packages it again.
+      await this.analysis.write(cmd.fileUrl, {
+        hlsUrl,
+        coverUrl,
+        duration: result.duration,
+        width: result.width,
+        height: result.height,
+      });
 
       return {
         hlsUrl,
@@ -131,11 +212,14 @@ export class FileCommandService {
     }
   }
 
-  private async storeCover(cover?: DocumentCover): Promise<string> {
+  private async storeCover(
+    sourceUrl: string,
+    cover?: DocumentCover,
+  ): Promise<string> {
     if (!cover) return "";
 
     try {
-      return await this.fileStore.upload(cover);
+      return await this.fileStore.uploadDerived(sourceUrl, cover);
     } catch (error) {
       console.warn("[FileCommandService] cover upload failed", error);
       return "";
@@ -182,5 +266,7 @@ function sourceSuffix(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   if (dot <= 0 || dot === fileName.length - 1) return ".bin";
   const suffix = safeSegment(fileName.slice(dot));
-  return suffix.startsWith(".") && suffix.length > 1 ? suffix.slice(0, 12) : ".bin";
+  return suffix.startsWith(".") && suffix.length > 1
+    ? suffix.slice(0, 12)
+    : ".bin";
 }

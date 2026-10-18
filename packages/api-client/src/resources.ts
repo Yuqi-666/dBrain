@@ -5,7 +5,10 @@
  * collection directly: the same transport the uploads already use, and the only
  * one both the browser app and the desktop local mode share. It reads the
  * record metadata (`size`, `mimeType`, `displayName`) that the PocketBase hook
- * writes server-side; it never trusts a client-supplied size for accounting.
+ * writes server-side; it never trusts a client-supplied size for accounting. It
+ * also exposes the analysis the server caches on a resource (page count,
+ * duration, cover, HLS playlist) so a node references the stored file once
+ * instead of asking the backend to parse or package it again.
  *
  * The storage *limits* are deployment configuration, not collection data, so
  * they come from the API (`storage.limits`) through the typed tRPC client. Both
@@ -61,6 +64,26 @@ export interface ResourceRecord {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * True for an artifact the server derived from a resource: a PDF cover, an
+   * HLS playlist, its segments, a video poster. The library hides these rows —
+   * they are listed only for the storage view, which charges their bytes.
+   */
+  derived: boolean;
+  /** Id of the resource an artifact belongs to; `""` on a resource. */
+  derivedFrom: string;
+  /** Cached PDF page count; 0 when the resource was never parsed. */
+  pageCount: number;
+  /** Cached pixel width of an image or a video; 0 when it was not measured. */
+  width: number;
+  /** Cached pixel height of an image or a video; 0 when it was not measured. */
+  height: number;
+  /** Cached duration of an audio file or a video, in seconds. */
+  duration: number;
+  /** Stored address of the cached cover; write it into node content unchanged. */
+  storedCoverUrl: string;
+  /** Stored address of the cached HLS playlist; `""` when not packaged. */
+  storedHlsUrl: string;
 }
 
 /** One user's storage occupation, split by category. */
@@ -141,6 +164,12 @@ function currentOwnerId(): string {
   return useAuthStore.getState().user?.id ?? "";
 }
 
+/** A finite, non-negative number from a record field; anything else is 0. */
+function nonNegativeNumber(value: unknown): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
 /** Maps one PocketBase record onto {@link ResourceRecord}. */
 function toResourceRecord(raw: Record<string, unknown>): ResourceRecord {
   const fileName = typeof raw.file === "string" ? raw.file : "";
@@ -149,6 +178,8 @@ function toResourceRecord(raw: Record<string, unknown>): ResourceRecord {
     typeof raw.displayName === "string" ? raw.displayName : "";
   const storedUrl = fileName ? buildUploadUrl(raw, fileName) : "";
   const size = Number(raw.size);
+  const derivedFrom =
+    typeof raw.derivedFrom === "string" ? raw.derivedFrom : "";
   const record: ResourceRecord = {
     id: String(raw.id ?? ""),
     fileName,
@@ -163,9 +194,28 @@ function toResourceRecord(raw: Record<string, unknown>): ResourceRecord {
     workspaceId: typeof raw.workspaceId === "string" ? raw.workspaceId : "",
     createdAt: typeof raw.created === "string" ? raw.created : "",
     updatedAt: typeof raw.updated === "string" ? raw.updated : "",
+    derived: derivedFrom !== "",
+    derivedFrom,
+    pageCount: nonNegativeNumber(raw.pageCount),
+    width: nonNegativeNumber(raw.width),
+    height: nonNegativeNumber(raw.height),
+    duration: nonNegativeNumber(raw.duration),
+    storedCoverUrl: typeof raw.coverUrl === "string" ? raw.coverUrl : "",
+    storedHlsUrl: typeof raw.hlsUrl === "string" ? raw.hlsUrl : "",
   };
   record.name = resourceDisplayName(record);
   return record;
+}
+
+/** Which records {@link listResources} returns for a scope. */
+export interface ListResourceOptions {
+  scope?: ResourceScope;
+  /**
+   * Include the artifacts the server derived from a resource (covers, HLS
+   * playlists, segments). The management page asks for them because they occupy
+   * quota; the card list and the selector hide them by default.
+   */
+  includeDerived?: boolean;
 }
 
 /**
@@ -175,24 +225,77 @@ function toResourceRecord(raw: Record<string, unknown>): ResourceRecord {
  * also the scope the management page shows. `visible` leaves the filter off and
  * lets the collection rules decide, so a workspace member can reference a
  * teammate's upload without gaining ownership of it.
+ *
+ * Derived artifacts are hidden unless asked for: a packaged video would
+ * otherwise appear as a playlist, a poster and dozens of segments. Their bytes
+ * still count against the quota, which is why the storage view reads them too.
  */
-export async function listResources(options?: {
-  scope?: ResourceScope;
-}): Promise<ResourceRecord[]> {
+export async function listResources(
+  options?: ListResourceOptions,
+): Promise<ResourceRecord[]> {
   const scope = options?.scope ?? "mine";
+  const includeDerived = options?.includeDerived ?? false;
   const pb = getPocketbaseClient();
-  const filter = scope === "mine" ? "ownerId = {:owner}" : "";
+  const filters: string[] = [];
+  if (scope === "mine") filters.push("ownerId = {:owner}");
+  if (!includeDerived) filters.push('derivedFrom = ""');
+  const filter = filters.join(" && ");
   const records = await pb.collection(COLLECTION).getFullList({
-    filter: filter
-      ? pb.filter(filter, { owner: currentOwnerId() })
-      : undefined,
+    filter: filter ? pb.filter(filter, { owner: currentOwnerId() }) : undefined,
     sort: "-created",
     fields:
-      "id,collectionId,collectionName,file,size,mimeType,displayName,ownerId,workspaceId,created,updated",
+      "id,collectionId,collectionName,file,size,mimeType,displayName,ownerId,workspaceId,created,updated,derivedFrom,pageCount,width,height,duration,coverUrl,hlsUrl",
   });
   return records.map((record) =>
     toResourceRecord(record as unknown as Record<string, unknown>),
   );
+}
+
+/**
+ * Record id in a stored file address (`/api/files/<collection>/<id>/<name>`).
+ *
+ * The empty string is returned for anything else, so a caller never sends a
+ * write at a guessed id.
+ */
+export function resourceIdFromStoredUrl(storedUrl: string): string {
+  const match = /\/api\/files\/[A-Za-z0-9_]+\/([A-Za-z0-9]+)\//.exec(storedUrl);
+  return match ? match[1]! : "";
+}
+
+/**
+ * Caches measurements the browser read from a stored resource.
+ *
+ * Image and audio metadata is read locally by the browser — no server work and
+ * no derived artifact — but it is read once per reference. Writing it once
+ * keeps the reference path uniform: whatever the resource record carries is
+ * reused, and only a record without it is measured again.
+ *
+ * Best effort: a workspace teammate's resource is not the caller's to update,
+ * and an older deployment may lack the fields. Either way the caller has the
+ * measurements it just read and does not need this write to succeed.
+ */
+export async function cacheResourceMeasurements(
+  storedUrl: string,
+  measurements: { width?: number; height?: number; duration?: number },
+): Promise<void> {
+  const id = resourceIdFromStoredUrl(storedUrl);
+  if (!id) return;
+
+  const body: Record<string, number> = {};
+  const width = Math.round(measurements.width ?? 0);
+  const height = Math.round(measurements.height ?? 0);
+  if (width > 0) body.width = width;
+  if (height > 0) body.height = height;
+  if (measurements.duration !== undefined && measurements.duration > 0) {
+    body.duration = measurements.duration;
+  }
+  if (Object.keys(body).length === 0) return;
+
+  try {
+    await getPocketbaseClient().collection(COLLECTION).update(id, body);
+  } catch {
+    // The cache is an optimisation; a refused write must not fail a reference.
+  }
 }
 
 /** Renames a resource's label. The stored blob and its URL do not change. */
@@ -276,9 +379,11 @@ export interface UseResourcesResult {
  */
 export function useResources(options?: {
   scope?: ResourceScope;
+  includeDerived?: boolean;
   enabled?: boolean;
 }): UseResourcesResult {
   const scope = options?.scope ?? "mine";
+  const includeDerived = options?.includeDerived ?? false;
   const enabled = options?.enabled ?? true;
 
   const [resources, setResources] = useState<ResourceRecord[]>([]);
@@ -294,7 +399,7 @@ export function useResources(options?: {
     }
     const ticket = ++generation.current;
     setLoading(true);
-    void listResources({ scope })
+    void listResources({ scope, includeDerived })
       .then((next) => {
         if (generation.current !== ticket) return;
         setResources(next);
@@ -313,7 +418,7 @@ export function useResources(options?: {
         if (generation.current !== ticket) return;
         setLoading(false);
       });
-  }, [enabled, scope, revision]);
+  }, [enabled, scope, includeDerived, revision]);
 
   const reload = useCallback(() => setRevision((value) => value + 1), []);
 

@@ -15,7 +15,7 @@
     "build:desktop": "pnpm --filter desktop desktop:build",
     "release:check": "node scripts/release/check.mjs",
     "release:version": "node scripts/release/version.mjs",
-    "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/lib/*.test.mjs scripts/policy/*.test.mjs scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts apps/server/src/origin.test.ts backend/application/src/commands/file/hls-playlist.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts backend/infrastructure/src/storage/file-upload-sessions.test.ts backend/infrastructure/src/storage/multipart-envelope.test.ts packages/utils/src/storage-limits.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
+    "test:release": "node --experimental-strip-types --test --test-isolation=none scripts/lib/*.test.mjs scripts/policy/*.test.mjs scripts/release/*.test.mjs apps/server/src/desktop/security.test.ts apps/server/src/origin.test.ts backend/application/src/commands/file/hls-playlist.test.ts backend/application/src/commands/file/file-command.service.test.ts backend/infrastructure/src/database/request-scope.test.ts backend/infrastructure/src/storage/file-address.test.ts backend/infrastructure/src/storage/file-upload-sessions.test.ts backend/infrastructure/src/storage/multipart-envelope.test.ts backend/infrastructure/src/storage/pocketbase-media-analysis.test.ts packages/utils/src/storage-limits.test.ts apps/server/src/desktop/upgrade-backup.test.ts",
     "smoke:server": "node scripts/release/server-smoke.mjs",
     "lint:gate": "node scripts/release/lint-gate.mjs"
   },

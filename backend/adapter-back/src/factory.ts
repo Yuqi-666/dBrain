@@ -19,6 +19,7 @@ import {
   PdfDocumentAnalyzer,
   PocketBaseFileStore,
   PocketBaseStorageUsage,
+  PocketBaseMediaAnalysis,
   FileUploadSessionStore,
   FfmpegVideoTranscoder,
 } from "@workspace/infrastructure";
@@ -37,11 +38,20 @@ import type {
   IDocumentAnalyzer,
   IFileStore,
   IStorageUsageReader,
+  IMediaAnalysisStore,
   IUploadSessionStore,
   IVideoTranscoder,
 } from "@workspace/domain";
 
-import { NodeDao, EdgeDao, ViewDao, UserDao, NodeSemanticDao, EdgeSemanticDao, NodeTagDao } from "./dao";
+import {
+  NodeDao,
+  EdgeDao,
+  ViewDao,
+  UserDao,
+  NodeSemanticDao,
+  EdgeSemanticDao,
+  NodeTagDao,
+} from "./dao";
 
 let nodeRepository: INodeRepository | null = null;
 let edgeRepository: IEdgeRepository | null = null;
@@ -112,12 +122,13 @@ export const createWorkspaceRepository = (): IWorkspaceRepository => {
   return workspaceRepository;
 };
 
-export const createWorkspaceMemberRepository = (): IWorkspaceMemberRepository => {
-  if (!workspaceMemberRepository) {
-    workspaceMemberRepository = new PocketBaseWorkspaceMemberRepository();
-  }
-  return workspaceMemberRepository;
-};
+export const createWorkspaceMemberRepository =
+  (): IWorkspaceMemberRepository => {
+    if (!workspaceMemberRepository) {
+      workspaceMemberRepository = new PocketBaseWorkspaceMemberRepository();
+    }
+    return workspaceMemberRepository;
+  };
 
 export const createNodeDao = (): NodeDao => {
   return new NodeDao(createNodeRepository());
@@ -196,6 +207,20 @@ export const createStorageUsageReader = (): IStorageUsageReader => {
   return storageUsageReader;
 };
 
+let mediaAnalysisStore: IMediaAnalysisStore | null = null;
+
+/**
+ * The analysis cache on a resource record. Reads and writes go through the
+ * request-scoped client, so the collection rules decide who may cache: the
+ * owner stores, a workspace teammate only reads.
+ */
+export const createMediaAnalysisStore = (): IMediaAnalysisStore => {
+  if (!mediaAnalysisStore) {
+    mediaAnalysisStore = new PocketBaseMediaAnalysis(getPocketBaseClient());
+  }
+  return mediaAnalysisStore;
+};
+
 let videoTranscoder: IVideoTranscoder | null = null;
 
 export const createVideoTranscoder = (): IVideoTranscoder => {
@@ -224,10 +249,17 @@ export const createAll = () => ({
   documentAnalyzer: createDocumentAnalyzer(),
   fileStore: createFileStore(),
   storageUsageReader: createStorageUsageReader(),
+  mediaAnalysisStore: createMediaAnalysisStore(),
   videoTranscoder: createVideoTranscoder(),
 });
 
-export { createPocketBaseClient, getPocketBaseClient } from "@workspace/infrastructure";
+export {
+  createPocketBaseClient,
+  getPocketBaseClient,
+} from "@workspace/infrastructure";
 
 /** Dashboard persistence uses the verified request identity rather than global auth. */
-export const createDashboardRepository = (token: string): IDashboardRepository => new PocketBaseDashboardRepository(getPocketBaseClient(), token);
+export const createDashboardRepository = (
+  token: string,
+): IDashboardRepository =>
+  new PocketBaseDashboardRepository(getPocketBaseClient(), token);

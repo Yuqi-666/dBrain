@@ -31,3 +31,11 @@ onFileDownloadRequest((e) => {
   }
   throw new NotFoundError("File not found");
 });
+// A resource owns the artifacts the server derived from it: a PDF cover, an
+// HLS playlist, its segments, a video poster. They are hidden from the resource
+// library and deleted together with the resource, so the bytes the library
+// frees are the bytes the quota charged. See `pb_hooks/lib/media-derived.js`.
+onRecordAfterDeleteSuccess((e) => {
+  if (e.collection && e.collection.name !== "files") return;
+  require(`${__hooks}/lib/media-derived.js`).deleteDerived(e);
+}, "files");

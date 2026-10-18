@@ -22,6 +22,7 @@ import { toast } from "@workspace/ui/components/ui/toast";
 import {
   MAX_UPLOAD_BYTES,
   PDF_ANALYZE_MAX_BYTES,
+  cacheResourceMeasurements,
   matchesAccept,
   useFileUpload,
   uploadFile,
@@ -328,9 +329,11 @@ function showUploadSuccessToast(upload: { name: string }): void {
  * at its file — it just keeps `pageCount: 0` and no cover, which is what the
  * node renders before any metadata arrives.
  *
- * A reference re-runs the analysis instead of copying another node's fields:
- * the resource record carries no page count or cover, and the cover the backend
- * stores on a fresh analysis belongs to the record it parsed.
+ * A reference only reaches this fallback when the resource record carries no
+ * cached analysis: `pageCount` / `storedCoverUrl` are written to the node
+ * straight from the record otherwise. A record that was never parsed still
+ * needs this call, and the backend caches the answer on the record, so only the
+ * first reference pays for the parse.
  *
  * A document past the analysis cap is skipped without asking: the server would
  * have to stream the whole file to disk only to refuse it, and the node is
@@ -370,9 +373,10 @@ async function analyzePdfUpload(
  * Packages an uploaded (or referenced) video as HLS and returns the content half
  * the node should end up with.
  *
- * A reference is re-packaged for the same reason a PDF is re-parsed: the
- * resource record has no playlist or cover, so the node needs the backend's
- * answer for this blob before it can play it.
+ * A reference only reaches this fallback when the resource has no cached
+ * playlist (`storedHlsUrl === ""`): a packaged record is written to the node
+ * directly. The backend caches a freshly built package on the record, so only
+ * the first reference pays for the transcode.
  *
  * A transcode that fails must not lose the upload: the node then simply keeps
  * the original blob as its only representation — what every upload did before
@@ -496,6 +500,10 @@ function UploadDropZone({
         }
 
         const preview = await generatePreview(file, variant);
+        // Cache what the browser just measured, so a later reference reads it
+        // off the resource record instead of loading the blob to measure it
+        // again. Best effort: the helper never throws.
+        await cacheResourceMeasurements(url, preview);
 
         const patch = buildNodeUpdates(variant, url, file, preview);
         await writeContentPatch(nodeId, liveContent(), patch);
@@ -527,12 +535,15 @@ function UploadDropZone({
   /**
    * Writes a referenced library resource onto this node, variant by variant.
    *
-   * It must leave the node in exactly the state an upload would: the node stores
-   * the resource's `storedUrl` (never its bytes), and the metadata an upload
-   * derives is re-derived here — the resource record carries no width, duration,
-   * page count, cover or playlist, so there is nothing to copy from it.
-   * `liveContent()` is read at write time so a concurrent writer's content half
-   * survives, exactly as in the upload path.
+   * It must leave the node in exactly the state an upload would, but it reuses
+   * the analysis cached on the resource record instead of deriving it again: a
+   * PDF record with a page count or cover, a video with an HLS playlist, and an
+   * image or audio file with its measurements are written straight from the
+   * record. Only a record that carries none falls back to parsing, packaging or
+   * measuring, and what the browser measures is written back (best effort) so
+   * the next reference is cheap. The node stores the resource's `storedUrl`,
+   * never its bytes. `liveContent()` is read at write time so a concurrent
+   * writer's content half survives, exactly as in the upload path.
    */
   const handleResourceSelected = async (resource: ResourceRecord) => {
     onUploadStart?.();
@@ -540,28 +551,73 @@ function UploadDropZone({
 
     try {
       if (variant === "pdf") {
-        // Parsing happens on the server (PDF parser + rasterizer): hand the
-        // stored address over and keep whatever comes back.
-        const patch = await analyzePdfUpload(resource.storedUrl, {
-          size: resource.fileSize,
-        });
-        await writeContentPatch(nodeId, liveContent(), patch);
-      } else if (variant === "video") {
-        // Same as the upload path: the drop zone stays up with a packaging note
-        // until the backend has built the playlist and cover.
-        setPackaging(true);
-        try {
-          const patch = await packageVideoUpload(resource.storedUrl, {
+        if (resource.pageCount > 0 || resource.storedCoverUrl !== "") {
+          // The record already carries what a parse would return, so the node
+          // is written from it without asking the backend to open the file.
+          await writeContentPatch(nodeId, liveContent(), {
+            contentHalf: {
+              url: resource.storedUrl,
+              coverUrl: resource.storedCoverUrl,
+            },
+            meta: {
+              fileSize: resource.fileSize,
+              pageCount: resource.pageCount,
+            },
+          });
+        } else {
+          // Parsing happens on the server (PDF parser + rasterizer): hand the
+          // stored address over and keep whatever comes back.
+          const patch = await analyzePdfUpload(resource.storedUrl, {
             size: resource.fileSize,
           });
           await writeContentPatch(nodeId, liveContent(), patch);
-        } finally {
-          setPackaging(false);
+        }
+      } else if (variant === "video") {
+        if (resource.storedHlsUrl !== "") {
+          // A packaged resource plays as stored: the playlist and cover are
+          // what a transcode would have returned.
+          await writeContentPatch(nodeId, liveContent(), {
+            contentHalf: {
+              url: resource.storedUrl,
+              coverUrl: resource.storedCoverUrl,
+              hlsUrl: resource.storedHlsUrl,
+            },
+            meta: {
+              fileSize: resource.fileSize,
+              duration: resource.duration,
+              source: "local",
+            },
+          });
+        } else {
+          // Same as the upload path: the drop zone stays up with a packaging
+          // note until the backend has built the playlist and cover.
+          setPackaging(true);
+          try {
+            const patch = await packageVideoUpload(resource.storedUrl, {
+              size: resource.fileSize,
+            });
+            await writeContentPatch(nodeId, liveContent(), patch);
+          } finally {
+            setPackaging(false);
+          }
         }
       } else {
-        // Image / audio: measure the stored blob itself. The resource address is
-        // already what `<img>` / `<audio>` needs, so no object URL is involved.
-        const preview = await generatePreviewFromUrl(resource.url, variant);
+        // Image / audio: reuse the measurements the record carries; measure
+        // only a record that has none. The resource address is already what
+        // `<img>` / `<audio>` needs, so no object URL is involved.
+        let preview: FilePreview;
+        if (variant === "image" && resource.width > 0 && resource.height > 0) {
+          preview = { width: resource.width, height: resource.height };
+        } else if (variant === "audio" && resource.duration > 0) {
+          preview = { duration: resource.duration };
+        } else {
+          preview = await generatePreviewFromUrl(resource.url, variant);
+          // Best effort: the resource may belong to a teammate, and the node
+          // already has these numbers; caching only spares the next reference
+          // the measurement.
+          await cacheResourceMeasurements(resource.storedUrl, preview);
+        }
+
         const patch = buildNodeUpdates(
           variant,
           resource.storedUrl,

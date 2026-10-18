@@ -16,6 +16,7 @@ export * from "./event-bus/in-memory-event-bus";
 export * from "./parsers/pdf-document-analyzer";
 export * from "./storage/pocketbase-file-store";
 export * from "./storage/pocketbase-storage-usage";
+export * from "./storage/pocketbase-media-analysis";
 export * from "./storage/file-upload-sessions";
 export * from "./transcoders/ffmpeg-video-transcoder";
 
@@ -45,4 +46,9 @@ export * from "./repositories/pocketbase-workspace-member.repository";
 export * from "./repositories/pocketbase-dashboard.repository";
 export * from "./database/mappers/dashboard.mapper";
 
-export { runWithToken, requestToken, runWithFileWorkspace, fileWorkspace } from "./database/request-scope";
+export {
+  runWithToken,
+  requestToken,
+  runWithFileWorkspace,
+  fileWorkspace,
+} from "./database/request-scope";

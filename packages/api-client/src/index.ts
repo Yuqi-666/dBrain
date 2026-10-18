@@ -20,6 +20,7 @@ export type { FileItem, UploadOptions } from "./upload";
 export { analyzePdf, transcodeVideo } from "./file-analysis";
 export {
   STORAGE_CATEGORIES,
+  cacheResourceMeasurements,
   checkResourceLimit,
   currentResourceOwnerId,
   deleteResource,
@@ -27,12 +28,14 @@ export {
   prettyStoredFileName,
   renameResource,
   resourceDisplayName,
+  resourceIdFromStoredUrl,
   storageUsageOf,
   uploadResource,
   useResources,
   useStorageLimits,
 } from "./resources";
 export type {
+  ListResourceOptions,
   ResourceLimitViolation,
   ResourceRecord,
   ResourceScope,
@@ -51,5 +54,9 @@ export { resolveBackendUrls } from "./backend-urls";
 export type { BackendUrls } from "./backend-urls";
 export * from "./auth";
 
-export { initializeDesktopBackend, getDesktopBackend, refreshDesktopSession } from "./desktop-backend";
+export {
+  initializeDesktopBackend,
+  getDesktopBackend,
+  refreshDesktopSession,
+} from "./desktop-backend";
 export type { DesktopBackend } from "./desktop-backend";

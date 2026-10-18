@@ -15,6 +15,10 @@ const CRITICAL_PERCENT = 90;
  * The storage panel: the owner's total occupation against the deployment
  * quota, then the same bytes split over the five categories.
  *
+ * The usage also counts the artifacts the server derived from a resource
+ * (covers, HLS playlists, segments): the library hides their cards, but their
+ * bytes are charged against the quota.
+ *
  * A record without a recorded size still counts as a resource but adds no
  * bytes, so `usage.total` can understate the number of records on screen; that
  * is deliberate, because the quota is charged on bytes the server recorded.

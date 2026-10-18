@@ -56,9 +56,22 @@ import { DeleteResourceDialog } from "./delete-resource-dialog";
 export function ResourceLibrary() {
   const { t } = useI18n();
 
-  const { resources, loading, error, reload } = useResources({ scope: "mine" });
+  // Derived artifacts (a PDF cover, an HLS playlist and its segments) are
+  // fetched so the storage panel can charge their bytes, but they are not files
+  // the user chose, so `listedResources` below hides them from every card,
+  // count and search.
+  const { resources, loading, error, reload } = useResources({
+    scope: "mine",
+    includeDerived: true,
+  });
   const limits = useStorageLimits();
+  // The quota charges every record, derived artifacts included.
   const usage = useMemo(() => storageUsageOf(resources), [resources]);
+  // What the library shows: everything the server did not derive from a file.
+  const listedResources = useMemo(
+    () => resources.filter((resource) => !resource.derived),
+    [resources],
+  );
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ResourceCategoryFilter>("all");
@@ -75,13 +88,13 @@ export function ResourceLibrary() {
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      resources.filter(
+      listedResources.filter(
         (resource) =>
           (category === "all" || resource.category === category) &&
           (normalizedQuery === "" ||
             resource.name.toLowerCase().includes(normalizedQuery)),
       ),
-    [resources, category, normalizedQuery],
+    [listedResources, category, normalizedQuery],
   );
 
   const counts = useMemo(() => {
@@ -92,12 +105,12 @@ export function ResourceLibrary() {
       pdf: 0,
       other: 0,
     };
-    for (const resource of resources) next[resource.category] += 1;
+    for (const resource of listedResources) next[resource.category] += 1;
     return next;
-  }, [resources]);
+  }, [listedResources]);
 
   const openPicker = () => fileInputRef.current?.click();
-  const firstLoad = loading && resources.length === 0 && !error;
+  const firstLoad = loading && listedResources.length === 0 && !error;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -219,7 +232,7 @@ export function ResourceLibrary() {
               </p>
               <ResourceLibrarySkeleton />
             </>
-          ) : resources.length === 0 ? (
+          ) : listedResources.length === 0 ? (
             <div className="mt-6 rounded-xl border border-dashed bg-background/60">
               <Empty className="min-h-80">
                 <div className="flex size-14 items-center justify-center rounded-2xl border bg-background">
@@ -259,7 +272,7 @@ export function ResourceLibrary() {
                 category={category}
                 onCategoryChange={setCategory}
                 counts={counts}
-                totalCount={resources.length}
+                totalCount={listedResources.length}
                 visibleCount={filtered.length}
               />
 

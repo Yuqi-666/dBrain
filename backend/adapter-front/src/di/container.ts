@@ -33,6 +33,7 @@ import {
   createNodeTagDao,
   createDocumentAnalyzer,
   createFileStore,
+  createMediaAnalysisStore,
   createFileUploadSessionStore,
   createStorageUsageReader,
   createVideoTranscoder,
@@ -143,6 +144,9 @@ export class AppContainer {
       createDocumentAnalyzer(),
       createFileStore(),
       createVideoTranscoder(),
+      // Parsing and packaging are cached on the resource record, so every node
+      // that references the same file reuses one analysis and one HLS package.
+      createMediaAnalysisStore(),
       PDF_ANALYZE_MAX_BYTES,
     );
 

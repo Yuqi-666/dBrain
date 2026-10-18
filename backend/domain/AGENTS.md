@@ -15,7 +15,7 @@ It imports only `packages/interfaces` and `packages/utils`.
 | `src/models/node/` | The node entity and the ten node types |
 | `src/models/filter/` | The filter value objects. They use `RuleGroupType` from `packages/utils`. |
 | `src/repositories/` | One interface per aggregate: node, edge, view, semantic, dashboard, workspace, user |
-| `src/ports/` | Outside effects: `IDocumentAnalyzer`, `IFileStore`, `IVideoTranscoder`, `IUploadSessionStore`, and `IStorageUsageReader` |
+| `src/ports/` | Outside effects: `IDocumentAnalyzer`, `IFileStore`, `IVideoTranscoder`, `IMediaAnalysisStore`, `IUploadSessionStore`, and `IStorageUsageReader` |
 | `src/event-bus/` | `IEventBus` and `IDomainEvent` |
 
 ## Mechanisms

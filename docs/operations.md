@@ -107,7 +107,7 @@ For a password file, add a Compose override that mounts the file into the Pocket
 
 ### Storage policy
 
-Six variables control the storage that a user may occupy. `DBRAIN_STORAGE_USER_QUOTA_BYTES` is one budget per user and covers the whole account, so it also counts the files that the server writes for a PDF cover or an HLS package. The five category variables cap one file each. A category is chosen by the MIME type that the browser reports, then by the file extension: image, video, audio, PDF, and other.
+Six variables control the storage that a user may occupy. `DBRAIN_STORAGE_USER_QUOTA_BYTES` is one budget per user and covers the whole account, so it also counts the artifacts the server derives from a resource: a PDF cover, an HLS playlist and its segments. Those rows are kept out of the library cards, and deleting the resource deletes them with it, so the bytes the library reports as freed are the bytes the quota charged. The five category variables cap one file each. A category is chosen by the MIME type that the browser reports, then by the file extension: image, video, audio, PDF, and other.
 
 Write the values as whole bytes. There is no unit suffix, so `10737418240` is 10 GiB. An empty or invalid value falls back to the built-in default; a typo never locks the storage. Only `DBRAIN_STORAGE_USER_QUOTA_BYTES` accepts `0`, which disables the total quota. A category cap must be positive. A cap above the upload transport ceiling of 2 GiB has no additional effect, because the transport refuses a bigger file first.
 
@@ -115,7 +115,7 @@ Both the API and PocketBase enforce the values, so `docker-compose.yml` passes t
 
 When an existing database first receives the media-library change, the migration records the size of every stored file it can reach in local storage. A deployment whose files live in S3 cannot read them there, so it keeps those old rows at 0 bytes and the quota counts only new files. A size of 0 never blocks a new upload.
 
-A lower quota takes effect on the next upload. It does not delete existing files. The resource library shows the usage, and deleting a resource there is what frees the bytes; deleting a node does not delete its attachment.
+The values are read when a service starts. Edit `.env` and restart the stack (recreate the containers with `docker compose up -d`); nothing is written to the database, so this is not a migration. The used bytes are always recomputed from the stored records, and a lower quota takes effect on the next upload. A quota change never deletes existing files. The resource library shows the usage, and deleting a resource there is what frees the bytes; deleting a node does not delete its attachment.
 
 ## Select the deployment port
 

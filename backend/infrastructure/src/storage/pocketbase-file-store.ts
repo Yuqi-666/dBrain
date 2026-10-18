@@ -43,8 +43,8 @@ import type { PocketBaseClient } from "../database/pocketbase-client";
 
 // Explicit `.ts` extension, as in the co-located tests: `node --test` loads this
 // module through Node's own resolver, which does not guess an extension.
-import { toFileEndpointPath } from "./file-address.ts";
-export { toFileEndpointPath } from "./file-address.ts";
+import { recordIdFromFileUrl, toFileEndpointPath } from "./file-address.ts";
+export { recordIdFromFileUrl, toFileEndpointPath } from "./file-address.ts";
 
 /**
  * Copies the bytes into a plain `ArrayBuffer` before wrapping them in a `Blob`:
@@ -171,11 +171,7 @@ export class PocketBaseFileStore implements IFileStore {
    * tests run this module through Node's type-stripping loader (`node --test`),
    * which rejects TypeScript-only syntax that has a runtime effect.
    */
-  constructor(
-    pb: PocketBaseClient,
-    collection = "files",
-    field = "file",
-  ) {
+  constructor(pb: PocketBaseClient, collection = "files", field = "file") {
     this.pb = pb;
     this.collection = collection;
     this.field = field;
@@ -183,7 +179,9 @@ export class PocketBaseFileStore implements IFileStore {
 
   async download(fileUrl: string): Promise<Uint8Array> {
     const target = new URL(toFileEndpointPath(fileUrl), this.pb.baseUrl);
-    const response = await fetch(target, { headers: { Authorization: requestToken() } });
+    const response = await fetch(target, {
+      headers: { Authorization: requestToken() },
+    });
 
     if (!response.ok) {
       throw new Error(
@@ -271,7 +269,9 @@ export class PocketBaseFileStore implements IFileStore {
    */
   async downloadToPath(fileUrl: string, destPath: string): Promise<number> {
     const target = new URL(toFileEndpointPath(fileUrl), this.pb.baseUrl);
-    const response = await fetch(target, { headers: { Authorization: requestToken() } });
+    const response = await fetch(target, {
+      headers: { Authorization: requestToken() },
+    });
 
     if (!response.ok) {
       throw new Error(
@@ -279,7 +279,9 @@ export class PocketBaseFileStore implements IFileStore {
       );
     }
     if (!response.body) {
-      throw new Error(`The file store returned an empty body for ${target.pathname}`);
+      throw new Error(
+        `The file store returned an empty body for ${target.pathname}`,
+      );
     }
 
     await pipeline(
@@ -296,15 +298,43 @@ export class PocketBaseFileStore implements IFileStore {
   }
 
   async upload(blob: StoredBlob): Promise<string> {
+    return this.store(blob);
+  }
+
+  /**
+   * Stores one artifact derived from a resource and names the source record as
+   * its `derivedFrom`. The library hides such rows, and deleting the source
+   * deletes them, so the artifact's bytes are accounted and released together
+   * with the resource they were made from.
+   */
+  async uploadDerived(sourceUrl: string, blob: StoredBlob): Promise<string> {
+    return this.store(blob, {
+      derivedFrom: recordIdFromFileUrl(sourceUrl),
+    });
+  }
+
+  /**
+   * Creates one `files` record, optionally with extra text fields, and resolves
+   * to the root-relative address of the stored blob.
+   *
+   * The workspace is taken from the request scope rather than from the caller:
+   * the API only writes a blob while it is handling a request that already
+   * resolved which workspace the source resource belongs to.
+   */
+  private async store(
+    blob: StoredBlob,
+    extra: Record<string, string> = {},
+  ): Promise<string> {
     const form = new FormData();
     form.append(this.field, toBlob(blob), blob.fileName);
+    for (const [name, value] of Object.entries(extra)) form.append(name, value);
     if (fileWorkspace()) form.append("workspaceId", fileWorkspace());
 
     const record = await this.pb.collection(this.collection).create(form);
     const storedName = record[this.field];
     if (typeof storedName !== "string" || storedName.length === 0) {
       throw new Error(
-        `Storing the cover returned no "${this.field}" value on the new record`,
+        `Storing the file returned no "${this.field}" value on the new record`,
       );
     }
 
@@ -448,9 +478,13 @@ export class PocketBaseFileStore implements IFileStore {
 
       request.once("error", reject);
       request.write(head);
-      pipeline(createReadStream(file.path, { highWaterMark: 1 << 20 }), request, {
-        end: false,
-      })
+      pipeline(
+        createReadStream(file.path, { highWaterMark: 1 << 20 }),
+        request,
+        {
+          end: false,
+        },
+      )
         .then(() => {
           request.end(tail);
         })
