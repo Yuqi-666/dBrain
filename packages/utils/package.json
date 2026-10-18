@@ -15,7 +15,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./upload": "./src/upload.ts",
-    "./storage-limits": "./src/storage-limits.ts"
+    "./storage-limits": "./src/storage-limits.ts",
+    "./resource-references": "./src/resource-references.ts",
+    "./node-content": "./src/node-content.ts"
   },
   "dependencies": {
     "@workspace/interfaces": "workspace:*",

@@ -14,6 +14,11 @@
 // The API also checks the category ceiling before it spools any chunk, but only
 // this hook sees every write, including the derived artifacts (PDF covers, HLS
 // segments and playlists) that the API creates while it packages a file.
+//
+// An owner may also replace the stored blob in place (same record id) — the
+// Excalidraw save rewrites its preview that way. That path is
+// `enforceFileUpdate`: it recomputes the metadata from the replacement and
+// charges only the difference against the quota.
 
 var MIB = 1024 * 1024;
 var GIB = 1024 * 1024 * 1024;
@@ -150,16 +155,10 @@ function recordSize(record) {
   return typeof size === "number" && size > 0 ? size : 0;
 }
 
-// Enforces the category ceiling and the per-user quota, then stamps the
-// server-owned metadata. Runs for every create request on `files`, which covers
-// the direct browser upload and the API's own store writes alike.
-function enforceFileCreate(e) {
-  if (!e.auth) throw new UnauthorizedError("Authentication required");
-  var ownerId = e.auth.id;
-  e.record.set("ownerId", ownerId);
-
-  var limits = resolveLimits();
-  var files = e.record.getUnsavedFiles("file") || [];
+// Applies the category ceiling to one upload and totals its byte length.
+// `firstName` is the name the upload was sent under (PocketBase stores the blob
+// under a randomized name), so the caller can default the display label.
+function measureIncoming(files, limits) {
   var incoming = 0;
   var firstName = "";
   var firstMime = "";
@@ -182,28 +181,90 @@ function enforceFileCreate(e) {
     if (typeof file.size === "number" && file.size > 0) incoming += file.size;
   }
 
-  e.record.set("size", incoming);
-  if (!e.record.getString("mimeType")) e.record.set("mimeType", firstMime);
-  if (!e.record.getString("displayName") && firstName) {
-    e.record.set("displayName", firstName);
+  return { bytes: incoming, firstName: firstName, mimeType: firstMime };
+}
+
+// The stored byte length of every record the owner has.
+function storedBytesForOwner(e, ownerId) {
+  var existing = e.app.findRecordsByFilter(
+    "files",
+    "ownerId = {:owner}",
+    "",
+    0,
+    0,
+    { owner: ownerId },
+  );
+  var used = 0;
+  for (var existingIndex = 0; existingIndex < existing.length; existingIndex += 1) {
+    used += recordSize(existing[existingIndex]);
+  }
+  return used;
+}
+
+// Enforces the category ceiling and the per-user quota, then stamps the
+// server-owned metadata. Runs for every create request on `files`, which covers
+// the direct browser upload and the API's own store writes alike.
+function enforceFileCreate(e) {
+  if (!e.auth) throw new UnauthorizedError("Authentication required");
+  var ownerId = e.auth.id;
+  e.record.set("ownerId", ownerId);
+
+  var limits = resolveLimits();
+  var files = e.record.getUnsavedFiles("file") || [];
+  var measured = measureIncoming(files, limits);
+
+  e.record.set("size", measured.bytes);
+  if (!e.record.getString("mimeType")) e.record.set("mimeType", measured.mimeType);
+  if (!e.record.getString("displayName") && measured.firstName) {
+    e.record.set("displayName", measured.firstName);
   }
 
-  if (limits.userQuotaBytes > 0 && incoming > 0) {
-    var existing = e.app.findRecordsByFilter(
-      "files",
-      "ownerId = {:owner}",
-      "",
-      0,
-      0,
-      { owner: ownerId },
-    );
-    var used = 0;
-    for (var existingIndex = 0; existingIndex < existing.length; existingIndex += 1) {
-      used += recordSize(existing[existingIndex]);
-    }
-    if (used + incoming > limits.userQuotaBytes) {
+  if (limits.userQuotaBytes > 0 && measured.bytes > 0) {
+    var used = storedBytesForOwner(e, ownerId);
+    if (used + measured.bytes > limits.userQuotaBytes) {
       throw new BadRequestError(
-        "Storage quota exceeded: " + (used + incoming) + " of " + limits.userQuotaBytes + " bytes",
+        "Storage quota exceeded: " + (used + measured.bytes) + " of " + limits.userQuotaBytes + " bytes",
+      );
+    }
+  }
+
+  return e.next();
+}
+
+// Enforces the same policy when an update replaces the stored blob in place.
+//
+// The record id and the owner stay the same; only the bytes change. That makes
+// the quota a delta: the bytes already charged for this record are removed from
+// the owner's total before the replacement is added, so a replacement can never
+// pass by counting the record against itself.
+//
+// An update that carries no new file (a rename, the analysis cache) is left
+// untouched: the rule pins the fields that make up the file payload, and the
+// request body cannot set `size` or `mimeType`.
+function enforceFileUpdate(e) {
+  if (!e.auth) throw new UnauthorizedError("Authentication required");
+  var files = e.record.getUnsavedFiles("file") || [];
+  if (!files.length) return e.next();
+
+  var original = typeof e.record.original === "function" ? e.record.original() : e.record;
+  var ownerId = original.getString("ownerId") || e.record.getString("ownerId");
+  var previousSize = recordSize(original);
+  var limits = resolveLimits();
+  var measured = measureIncoming(files, limits);
+
+  // The replacement decides the stored metadata, exactly like a create.
+  e.record.set("size", measured.bytes);
+  e.record.set("mimeType", measured.mimeType);
+  if (!e.record.getString("displayName") && measured.firstName) {
+    e.record.set("displayName", measured.firstName);
+  }
+
+  if (limits.userQuotaBytes > 0 && measured.bytes > 0 && ownerId) {
+    var usedOther = storedBytesForOwner(e, ownerId) - previousSize;
+    if (usedOther < 0) usedOther = 0;
+    if (usedOther + measured.bytes > limits.userQuotaBytes) {
+      throw new BadRequestError(
+        "Storage quota exceeded: " + (usedOther + measured.bytes) + " of " + limits.userQuotaBytes + " bytes",
       );
     }
   }
@@ -220,4 +281,5 @@ module.exports = {
   mimeTypeForName: mimeTypeForName,
   resolveLimits: resolveLimits,
   enforceFileCreate: enforceFileCreate,
+  enforceFileUpdate: enforceFileUpdate,
 };

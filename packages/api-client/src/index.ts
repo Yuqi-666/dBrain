@@ -11,6 +11,7 @@ export {
   PDF_ANALYZE_MAX_BYTES,
   buildUploadUrl,
   matchesAccept,
+  replaceAttachment,
   resolveFileUrl,
   uploadAttachment,
   uploadFile,
@@ -24,7 +25,9 @@ export {
   checkResourceLimit,
   currentResourceOwnerId,
   deleteResource,
+  listNodesReferencingResource,
   listResources,
+  listResourcesByIds,
   prettyStoredFileName,
   renameResource,
   resourceDisplayName,
@@ -36,6 +39,7 @@ export {
 } from "./resources";
 export type {
   ListResourceOptions,
+  NodeFileReference,
   ResourceLimitViolation,
   ResourceRecord,
   ResourceScope,

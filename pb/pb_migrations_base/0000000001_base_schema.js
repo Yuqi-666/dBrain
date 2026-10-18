@@ -380,12 +380,14 @@ migrate(
       files.viewRule = files.listRule;
       files.createRule =
         auth + ' && (workspaceId = "" || (' + owner + ") || (" + editor + "))";
-      // A rename and the analysis cache are the only updates an owner may
-      // make. Everything that decides where the bytes land, who owns them or
-      // how big they are stays server-owned: the create hook writes it, and an
-      // update may not touch it. The analysis fields are display metadata, so
-      // they are not pinned; the derived-artifact provenance is written when
-      // the record is created and never changes.
+      // A rename, the analysis cache and an in-place blob replacement are the
+      // updates an owner may make. The file payload (`file`, `size`,
+      // `mimeType`) is written by the update hook
+      // (`pb_hooks/lib/storage-limits.js`), so the request body may not set
+      // `size` or `mimeType`; only the stored blob itself may be replaced, and
+      // the hook re-checks the ceiling and the quota and recomputes the
+      // metadata. Everything that decides where the bytes land or who owns them
+      // stays pinned.
       files.updateRule =
         auth +
         " && ownerId = @request.auth.id" +
@@ -393,7 +395,6 @@ migrate(
         " && @request.body.workspaceId:changed = false" +
         " && @request.body.size:changed = false" +
         " && @request.body.mimeType:changed = false" +
-        " && @request.body.file:changed = false" +
         " && @request.body.derivedFrom:changed = false";
       files.deleteRule =
         auth +

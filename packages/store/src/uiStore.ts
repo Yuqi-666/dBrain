@@ -64,6 +64,14 @@ export type NodeSemanticAfterCreate =
       viewId?: string;
     };
 
+/**
+ * 「删除节点 / 清空节点」对话框的两种动作。
+ *
+ * 两者都要处理节点引用的已上传资源：节点本身是否保留、上传的文件是否一并删除，
+ * 由对话框里的第二个选择决定，与这个动作无关。
+ */
+export type NodeDispositionMode = "delete" | "clear";
+
 // ==================== Store Interface ====================
 
 export interface UIStore {
@@ -113,6 +121,22 @@ export interface UIStore {
   ) => void;
   closeNodeSemanticDialog: () => void;
 
+  // Node disposition dialog - Delete / Clear with an uploaded-resource choice
+  /**
+   * 删除或清空节点前，若节点引用了已上传资源，由这个对话框让用户决定资源是否
+   * 一并删除。`nodeId` 为对话目标（对话框自己从 store 里取最新节点）。
+   */
+  nodeDispositionDialog: {
+    open: boolean;
+    mode: NodeDispositionMode;
+    nodeId: NodeId | null;
+  };
+  openNodeDispositionDialog: (
+    nodeId: NodeId,
+    mode: NodeDispositionMode,
+  ) => void;
+  closeNodeDispositionDialog: () => void;
+
   // Semantic dialogs - Edge
   edgeSemanticDialog: {
     open: boolean;
@@ -155,6 +179,17 @@ export interface UIStore {
   currentEditingNodeId: NodeId | null;
   /** 设置当前正在编辑的节点 */
   setCurrentEditingNodeId: (nodeId: NodeId | null) => void;
+  /**
+   * 非受控 Tiptap 编辑器（text / rich-text）的重挂载记号：`nodeId -> 版本号`。
+   *
+   * 两个编辑器都是「挂载时读一次 `initialContent`，之后自己持有文档」，所以
+   * store 里的内容被整体替换（清空节点、删除资源后剥掉引用块）时，它们不会
+   * 重绘。把版本号并进编辑器的 `key`，替换一次就重挂载一次；普通输入只写 store，
+   * 不动这个 map，因此不会打断正在编辑的文档。
+   */
+  nodeContentReset: Record<string, number>;
+  /** 标记某个节点的内容已被外部整体替换，让其非受控编辑器重挂载。 */
+  resetNodeContent: (nodeId: NodeId) => void;
   /** 最近打开的节点ID队列（长度上限 10，队首为最新） */
   recentlyOpenedNodeIds: NodeId[];
   /** 将节点ID推入最近打开队列（去重置顶，超出 10 淘汰队尾） */
@@ -398,9 +433,40 @@ export const useUIStore = create<UIStore>()(
         // Placeholder - implementation depends on edge creation logic
       },
 
+      // ==================== Graph UI - Node Disposition Dialog ====================
+      nodeDispositionDialog: {
+        open: false,
+        mode: "delete",
+        nodeId: null,
+      },
+      openNodeDispositionDialog: (nodeId, mode) =>
+        set({
+          nodeDispositionDialog: {
+            open: true,
+            mode,
+            nodeId,
+          },
+        }),
+      closeNodeDispositionDialog: () =>
+        set({
+          nodeDispositionDialog: {
+            open: false,
+            mode: "delete",
+            nodeId: null,
+          },
+        }),
+
       // ==================== Node Editor ====================
       currentEditingNodeId: null,
       setCurrentEditingNodeId: (nodeId) => set({ currentEditingNodeId: nodeId }),
+      nodeContentReset: {},
+      resetNodeContent: (nodeId) =>
+        set((state) => ({
+          nodeContentReset: {
+            ...state.nodeContentReset,
+            [nodeId]: (state.nodeContentReset[nodeId] ?? 0) + 1,
+          },
+        })),
       recentlyOpenedNodeIds: [],
       pushRecentlyOpenedNode: (nodeId) =>
         set((state) => ({

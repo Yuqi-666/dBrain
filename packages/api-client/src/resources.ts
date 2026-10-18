@@ -230,6 +230,16 @@ export interface ListResourceOptions {
  * otherwise appear as a playlist, a poster and dozens of segments. Their bytes
  * still count against the quota, which is why the storage view reads them too.
  */
+/**
+ * The `files` fields {@link toResourceRecord} reads.
+ *
+ * Requested explicitly so a future server-side field does not travel to the
+ * browser by accident. {@link listResourcesByIds} and the node dialog read the
+ * same set, so a resource looks identical wherever it was fetched.
+ */
+const RESOURCE_FIELDS =
+  "id,collectionId,collectionName,file,size,mimeType,displayName,ownerId,workspaceId,created,updated,derivedFrom,pageCount,width,height,duration,coverUrl,hlsUrl";
+
 export async function listResources(
   options?: ListResourceOptions,
 ): Promise<ResourceRecord[]> {
@@ -243,12 +253,93 @@ export async function listResources(
   const records = await pb.collection(COLLECTION).getFullList({
     filter: filter ? pb.filter(filter, { owner: currentOwnerId() }) : undefined,
     sort: "-created",
-    fields:
-      "id,collectionId,collectionName,file,size,mimeType,displayName,ownerId,workspaceId,created,updated,derivedFrom,pageCount,width,height,duration,coverUrl,hlsUrl",
+    fields: RESOURCE_FIELDS,
   });
   return records.map((record) =>
     toResourceRecord(record as unknown as Record<string, unknown>),
   );
+}
+
+/**
+ * The library records named by stored file addresses (the ids a node embeds).
+ *
+ * The node dialogs ask "which uploaded files does this node use?" and answer it
+ * from the addresses in the node, not from a stored relation: a node can embed
+ * a file inside a rich-text document, so a single column could not describe it.
+ *
+ * Derived artifacts are not returned by default: a PDF cover or an HLS playlist
+ * belongs to its resource and disappears with it, so offering it as a separate
+ * deletion would delete the same bytes twice. The ids come from the user's own
+ * node content, but the collection rules still decide which records are
+ * readable.
+ */
+export async function listResourcesByIds(
+  ids: readonly string[],
+  options?: { includeDerived?: boolean },
+): Promise<ResourceRecord[]> {
+  const unique = [...new Set(ids.filter((id) => /^[A-Za-z0-9]+$/.test(id)))];
+  if (unique.length === 0) return [];
+  const pb = getPocketbaseClient();
+  const filter = unique.map((id) => `id = "${id}"`).join(" || ");
+  const records = await pb.collection(COLLECTION).getFullList({
+    filter,
+    sort: "-created",
+    fields: RESOURCE_FIELDS,
+  });
+  const resources = records.map((record) =>
+    toResourceRecord(record as unknown as Record<string, unknown>),
+  );
+  return options?.includeDerived
+    ? resources
+    : resources.filter((resource) => !resource.derived);
+}
+
+/** A node that points at a stored resource; enough to name it in a dialog. */
+export interface NodeFileReference {
+  id: string;
+  title: string;
+  nodeType: string;
+}
+
+/**
+ * Nodes whose content, document, cover, icon or favicon points at the record
+ * behind `storedUrl`.
+ *
+ * The PocketBase filter matches the record id as a path segment
+ * (`/<id>/`) of the stored address, so it works for the absolute, gateway and
+ * desktop forms of the URL without normalising them here. The match is a
+ * substring on JSON columns (`content`, `docs`, `cover`, `icon`) and on the
+ * plain columns the media types keep; a resource that no node references
+ * returns an empty list.
+ *
+ * The list is advisory: the delete hook is what actually clears the references.
+ * A caller uses this list to warn the user and to refresh the nodes afterwards.
+ */
+export async function listNodesReferencingResource(
+  storedUrl: string,
+): Promise<NodeFileReference[]> {
+  const recordId = resourceIdFromStoredUrl(storedUrl);
+  if (!recordId) return [];
+  const pb = getPocketbaseClient();
+  try {
+    const records = await pb.collection("nodes").getFullList({
+      filter: pb.filter(
+        "content ~ {:needle} || docs ~ {:needle} || coverUrl ~ {:needle} || hlsUrl ~ {:needle} || faviconUrl ~ {:needle} || cover ~ {:needle} || icon ~ {:needle}",
+        { needle: `/${recordId}/` },
+      ),
+      fields: "id,title,nodeType",
+      sort: "title",
+    });
+    return records.map((record) => ({
+      id: String(record.id ?? ""),
+      title: typeof record.title === "string" ? record.title : "",
+      nodeType: typeof record.nodeType === "string" ? record.nodeType : "",
+    }));
+  } catch {
+    // A read failure must not stop a deletion the user already confirmed: the
+    // dialog shows no nodes and the server hook still clears the references.
+    return [];
+  }
 }
 
 /**

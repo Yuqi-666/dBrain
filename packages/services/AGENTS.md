@@ -20,7 +20,7 @@ It is the single owner of that sequence.
 
 | Path | Content |
 | --- | --- |
-| `src/graph/node.service.ts` | `NodeService`. It can debounce an update call. |
+| `src/graph/node.service.ts` | `NodeService`. It can debounce an update call, and it owns the resource-reference reads: which nodes point at one file, and clearing a deleted file from the open nodes. |
 | `src/graph/edge.service.ts` | `EdgeService` |
 | `src/graph/view.service.ts` | `ViewService` |
 | `src/graph/workspace.service.ts` | `WorkspaceService`. It calls the other services. |
@@ -45,6 +45,7 @@ The scheduler also rolls back to the snapshot from before the debounce window.
 
 A service can read as well as write.
 `sync` and `syncByWorkspace` call a query and load the result into the store.
+`listNodesReferencingFile` unions the open store with the nodes the database lists, and `detachFileReferences` applies a deleted file's cleanup to the open nodes after the server hook has fixed the stored records.
 
 `WorkspaceService` calls the other services, so a workspace change cascades.
 
