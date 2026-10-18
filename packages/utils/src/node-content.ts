@@ -8,6 +8,18 @@
  * so the caller hides the option when this returns `null`.
  */
 
+/**
+ * Largest JSON value PocketBase accepts in the `nodes.content` field.
+ *
+ * PocketBase caps a JSON field at 1 MiB unless the field sets a size. A web page
+ * node keeps its whole HTML source in this field, so the schema raises the cap
+ * to this value; `pb_migrations_base/0000000001_base_schema.js` and
+ * `pb_migrations_changes/0000000006_node_content_size.js` must both carry it.
+ * 24 MiB leaves room for JSON escaping over the default 16 MiB web page file
+ * limit, which is the largest source the storage policy reads into a node.
+ */
+export const NODE_CONTENT_MAX_BYTES = 24 * 1024 * 1024;
+
 /** A rich-text document with no blocks. Shared with the editor's normalizer. */
 export function emptyRichTextDocument(): Record<string, unknown> {
   return { type: "doc", content: [] };

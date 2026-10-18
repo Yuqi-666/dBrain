@@ -159,7 +159,17 @@ migrate(
         { name: "isPinned", type: "bool" },
         { name: "stateData", type: "json" },
         { name: "nodeType", type: "text", required: true },
-        { name: "content", type: "json" },
+        // A web page node keeps its HTML source in `content`, and PocketBase caps
+        // a JSON field at 1 MiB unless a size is given. A source may be as large
+        // as the web page file category allows, so the ceiling is raised to
+        // `NODE_CONTENT_MAX_BYTES` (`packages/utils/src/node-content.ts`). The
+        // change migration `0000000006_node_content_size.js` raises it on an
+        // existing database.
+        {
+          name: "content",
+          type: "json",
+          maxSize: 24 * 1024 * 1024,
+        },
         { name: "width", type: "number" },
         { name: "height", type: "number" },
         { name: "fileSize", type: "number" },
