@@ -87,6 +87,10 @@ export function clearedNodeUpdates(node: {
         fileSize: 0,
       };
     case "audio":
+      // The content object is replaced whole, so the imported `coverUrl` (and
+      // any other field the import added) is dropped with the payload: a cover
+      // of a deleted audio file must not survive. The timeline stays, like the
+      // video branch above, because it is the user's own work.
       return {
         content: {
           url: "",

@@ -50,6 +50,10 @@ export interface AnalyzedPdfDTO {
  * choice, not the browser's: a phone writing HEVC produces a node that plays its
  * audio track with no picture. Only the address of the blob travels here — the
  * client has already uploaded it.
+ *
+ * Importing a video (or audio) from a site URL is a different use case; it lives
+ * in `../media/command.ts` because it downloads the source itself and shares one
+ * pipeline with audio.
  */
 export interface TranscodeVideoCommand {
   /**

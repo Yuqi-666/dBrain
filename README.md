@@ -31,13 +31,12 @@ dBrain 是一个知识工作空间：用节点记录内容，用关系连接知�
 
 ```bash
 pnpm install --frozen-lockfile
-node scripts/release/download-pocketbase.mjs
 cp .env.example .env
 # 编辑 .env，填写 DBRAIN_ADMIN_EMAIL 和 DBRAIN_ADMIN_PASSWORD
 pnpm dev
 ```
 
-打开 `http://localhost:3000`。端口在 `.env` 里配；远程域名开发用 `pnpm dev:remote`，见 [docs/zh/development.md](docs/zh/development.md)。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
+首次运行 `pnpm dev` 会自动下载固定版本的 PocketBase 和当前版本的 yt-dlp（后者缓存于 `.cache/yt-dlp/`）；也可以用 `YT_DLP_PATH` 指定已安装的 yt-dlp。打开 `http://localhost:3000`。端口在 `.env` 里配；远程域名开发用 `pnpm dev:remote`，见 [docs/zh/development.md](docs/zh/development.md)。运维管理员账号与应用用户账号用途不同：应用用户通过注册页创建，管理员用于 PocketBase 管理。
 
 桌面开发还需要 Rust 和对应平台原生依赖，然后运行 `pnpm dev:desktop`。详细前提见开发手册。
 

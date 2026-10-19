@@ -5,9 +5,7 @@ import type {
   NodeSemanticId,
   NodeStateData,
 } from "@workspace/interfaces/models/node/base";
-import type {
-  NodeDataType,
-} from "@workspace/interfaces/models/node/types";
+import type { NodeDataType } from "@workspace/interfaces/models/node/types";
 
 import {
   NodeId,
@@ -369,8 +367,7 @@ export class ImageNode extends Node {
 
     if (props.width < 0) throw new Error("Image width must bever positive");
     if (props.height < 0) throw new Error("Image height must be positive");
-    if (props.fileSize < 0)
-      throw new Error("Image file size must be positive");
+    if (props.fileSize < 0) throw new Error("Image file size must be positive");
 
     this._width = props.width;
     this._height = props.height;
@@ -524,8 +521,7 @@ export class PdfNode extends Node {
   ) {
     super({ ...props, nodeType: new NodeType<"pdf">("pdf") });
 
-    if (props.pageCount < 0)
-      throw new Error("PDF page count must be positive");
+    if (props.pageCount < 0) throw new Error("PDF page count must be positive");
     if (props.fileSize < 0) throw new Error("PDF file size must be positive");
 
     this._pageCount = props.pageCount;
@@ -795,12 +791,16 @@ export class VideoNode extends Node {
 
 export class AudioNode extends Node {
   protected readonly _duration: number;
+  protected readonly _source: "local" | "online";
+  protected readonly _sourceUrl: string | undefined;
   protected readonly _fileSize: number;
   protected readonly _content: AudioContent;
 
   private constructor(
     props: NodeBaseProps & {
       duration: number;
+      source: "local" | "online";
+      sourceUrl?: string;
       fileSize: number;
       content: AudioContent;
     },
@@ -808,16 +808,39 @@ export class AudioNode extends Node {
     super({ ...props, nodeType: new NodeType<"audio">("audio") });
 
     if (props.duration < 0) throw new Error("Audio duration must be positive");
-    if (props.fileSize < 0)
-      throw new Error("Audio file size must be positive");
+    if (props.fileSize < 0) throw new Error("Audio file size must be positive");
+    // The union is compile-time only; a payload that crossed the router (or a
+    // hand-edited record) can still carry any string, and "local" is the
+    // read-compat default, so an unknown value is a bug worth failing on.
+    if (props.source !== "local" && props.source !== "online") {
+      throw new Error("Audio source must be 'local' or 'online'");
+    }
 
     this._duration = props.duration;
+    this._source = props.source;
+    this._sourceUrl = props.sourceUrl;
     this._fileSize = props.fileSize;
     this._content = props.content;
   }
 
   get duration(): number {
     return this._duration;
+  }
+
+  /**
+   * Where the bytes came from.
+   *
+   * Always one of the two values: `create` defaults it to `"local"` so a record
+   * written before the music-site import (and a local upload) reads back as
+   * `"local"` instead of `undefined`.
+   */
+  get source(): "local" | "online" {
+    return this._source;
+  }
+
+  /** The page an online import came from; `undefined` on a local upload. */
+  get sourceUrl(): string | undefined {
+    return this._sourceUrl;
   }
 
   get fileSize(): number {
@@ -840,6 +863,8 @@ export class AudioNode extends Node {
     icon?: NodeIcon | null;
     cover?: NodeCover | null;
     duration: number;
+    source?: "local" | "online";
+    sourceUrl?: string;
     fileSize: number;
     content: AudioContent;
     createdAt?: string;
@@ -859,6 +884,8 @@ export class AudioNode extends Node {
       icon: props.icon,
       cover: props.cover,
       duration: props.duration,
+      source: props.source ?? "local",
+      sourceUrl: props.sourceUrl,
       fileSize: props.fileSize,
       content: props.content,
       createdAt: props.createdAt ?? now,
@@ -871,6 +898,8 @@ export class AudioNode extends Node {
     return new AudioNode({
       ...this.baseProps(),
       duration: this._duration,
+      source: this._source,
+      sourceUrl: this._sourceUrl,
       fileSize: this._fileSize,
       content,
       updatedAt: new Date().toISOString(),
@@ -878,14 +907,26 @@ export class AudioNode extends Node {
   }
 
   /** See `ImageNode.updateFileMeta`. */
-  updateFileMeta(meta: { duration?: number; fileSize?: number }): AudioNode {
-    if (meta.duration === undefined && meta.fileSize === undefined) {
+  updateFileMeta(meta: {
+    duration?: number;
+    source?: "local" | "online";
+    sourceUrl?: string;
+    fileSize?: number;
+  }): AudioNode {
+    if (
+      meta.duration === undefined &&
+      meta.source === undefined &&
+      meta.sourceUrl === undefined &&
+      meta.fileSize === undefined
+    ) {
       return this;
     }
 
     return new AudioNode({
       ...this.baseProps(),
       duration: meta.duration ?? this._duration,
+      source: meta.source ?? this._source,
+      sourceUrl: meta.sourceUrl ?? this._sourceUrl,
       fileSize: meta.fileSize ?? this._fileSize,
       content: this._content,
       updatedAt: new Date().toISOString(),
@@ -897,6 +938,8 @@ export class AudioNode extends Node {
       ...this.baseProps(),
       ...props,
       duration: this._duration,
+      source: this._source,
+      sourceUrl: this._sourceUrl,
       fileSize: this._fileSize,
       content: this._content,
     });
@@ -1104,9 +1147,7 @@ export class CollectionNode extends Node {
     });
   }
 
-  applyFilter(
-    filterConfig: FilterConfig,
-  ): CollectionNode {
+  applyFilter(filterConfig: FilterConfig): CollectionNode {
     return new CollectionNode({
       ...this.baseProps(),
       // `withFilter`, not a bare `new CollectionContent(...)`: the data views

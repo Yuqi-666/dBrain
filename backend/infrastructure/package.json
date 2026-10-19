@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.65",
+    "@workspace/domain": "workspace:*",
+    "@workspace/interfaces": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "pdfjs-dist": "^4.10.38",
     "pocketbase": "^0.26.9"
   },

@@ -36,9 +36,10 @@ export interface VideoContent {
    * cannot drift apart and the sidebar's two tabs are two filters over the same
    * list rather than two readers of the same JSON record.
    *
-   * Nothing produces cues yet (the backend has no transcription step), so the
-   * 字幕 tab shows its empty state on every record that exists today. The data
-   * path is wired end to end, so a transcript is a data problem, not a UI one.
+   * The media import writes downloaded subtitles here as `type: "subtitle"`
+   * cues; the backend still has no transcription step, so a video uploaded from
+   * a local file has none. The data path is wired end to end, so a transcript
+   * is a data problem, not a UI one.
    */
   timestamps?: TimestampData[];
 }

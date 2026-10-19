@@ -3,8 +3,10 @@ import type {
   IDocumentAnalyzer,
   IFileStore,
   IMediaAnalysisStore,
+  IStorageUsageReader,
   IVideoTranscoder,
 } from "@workspace/domain";
+import type { StorageLimits } from "@workspace/utils/storage-limits";
 import type {
   AnalyzePdfCommand,
   AnalyzedPdfDTO,
@@ -23,11 +25,16 @@ import { rewriteSegmentUrls } from "./hls-playlist.ts";
  * {@link IDocumentAnalyzer}, {@link IVideoTranscoder} and {@link IFileStore}
  * ports.
  *
- * Both use cases are **idempotent per resource**. The result is cached on the
- * record that owns the blob through {@link IMediaAnalysisStore}, and a second
- * call returns that result without fetching, parsing, transcoding or storing
- * anything. Every node that references the same resource therefore shares one
- * cover and one HLS package, instead of adding a copy per reference.
+ * Importing a video or an audio file from a site URL is the shared media use
+ * case and lives in `../media/media-import.service.ts`: it downloads the source
+ * itself and post-processes it per kind, which is more than this upload-side
+ * service should own.
+ *
+ * The PDF and transcode use cases are **idempotent per resource**. The result is
+ * cached on the record that owns the blob through {@link IMediaAnalysisStore},
+ * and a second call returns that result without fetching, parsing, transcoding
+ * or storing anything. Every node that references the same resource therefore
+ * shares one cover and one HLS package, instead of adding a copy per reference.
  *
  * Both use cases pull the blob through a temporary file rather than through
  * `download()`: an upload may be 2 GiB, and a video has to reach FFmpeg as a
@@ -52,6 +59,14 @@ export class FileCommandService {
    * analysis" rule and this guard can never disagree.
    */
   private readonly pdfAnalyzeMaxBytes: number;
+  /**
+   * Storage policy shared with the client and the PocketBase hook. These two
+   * dependencies were introduced for the old site-import path; they stay on the
+   * constructor because the composition root injects one upload-side policy
+   * set, and the import flow reads the same policy through its own service.
+   */
+  private readonly storageUsage: IStorageUsageReader;
+  private readonly storageLimits: StorageLimits;
 
   constructor(
     analyzer: IDocumentAnalyzer,
@@ -59,12 +74,16 @@ export class FileCommandService {
     videoTranscoder: IVideoTranscoder,
     analysis: IMediaAnalysisStore,
     pdfAnalyzeMaxBytes: number,
+    storageUsage: IStorageUsageReader,
+    storageLimits: StorageLimits,
   ) {
     this.analyzer = analyzer;
     this.fileStore = fileStore;
     this.videoTranscoder = videoTranscoder;
     this.analysis = analysis;
     this.pdfAnalyzeMaxBytes = pdfAnalyzeMaxBytes;
+    this.storageUsage = storageUsage;
+    this.storageLimits = storageLimits;
   }
 
   /**
@@ -158,12 +177,23 @@ export class FileCommandService {
       };
     }
 
-    const fileName = fileNameFromUrl(cmd.fileUrl);
+    return this.packageVideo(cmd.fileUrl);
+  }
+
+  /**
+   * The uncached half of {@link transcodeVideo}: downloads the stored source,
+   * transcodes it, stores the artifacts, caches the analysis and returns it.
+   *
+   * It never consults the cache: both callers have already decided a cache hit
+   * answers the call.
+   */
+  private async packageVideo(fileUrl: string): Promise<TranscodedVideoDTO> {
+    const fileName = fileNameFromUrl(fileUrl);
     // The store owns the temporary location: this layer decides what happens to
     // a file, never where it lives. The suffix keeps the extension FFmpeg picks
     // its demuxer by.
     const source = await this.fileStore.downloadToTempFile(
-      cmd.fileUrl,
+      fileUrl,
       sourceSuffix(fileName),
     );
 
@@ -179,17 +209,17 @@ export class FileCommandService {
       for (const segment of result.segments) {
         storedSegments.push({
           fileName: segment.fileName,
-          url: await this.fileStore.uploadDerived(cmd.fileUrl, segment),
+          url: await this.fileStore.uploadDerived(fileUrl, segment),
         });
       }
 
       const playlist = rewriteSegmentUrls(result.playlist, storedSegments);
-      const hlsUrl = await this.fileStore.uploadDerived(cmd.fileUrl, playlist);
-      const coverUrl = await this.storeCover(cmd.fileUrl, result.cover);
+      const hlsUrl = await this.fileStore.uploadDerived(fileUrl, playlist);
+      const coverUrl = await this.storeCover(fileUrl, result.cover);
 
       // Best effort, as for a PDF: a resource the caller does not own is
       // packaged but not cached, and the next caller packages it again.
-      await this.analysis.write(cmd.fileUrl, {
+      await this.analysis.write(fileUrl, {
         hlsUrl,
         coverUrl,
         duration: result.duration,

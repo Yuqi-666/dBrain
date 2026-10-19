@@ -132,7 +132,12 @@ interface VideoNodeRecord extends BaseNodeRecord {
 interface AudioNodeRecord extends BaseNodeRecord {
   nodeType: "audio";
   content: string;
+  /** Derived cover artwork; `""` on a local upload and on old records. */
+  coverUrl?: string;
   duration: number;
+  /** `"local"` on a record written before the music-site import existed. */
+  source?: "local" | "online";
+  sourceUrl?: string;
   fileSize: number;
   /** The played timeline (`TimestampData[]` JSON); see `VideoNodeRecord.timestamps`. */
   timestamps?: TimestampData[] | null;
@@ -385,10 +390,17 @@ export class NodeMapper {
     return AudioNode.create({
       ...baseProps,
       duration: record.duration || 0,
+      // `source` is a select column whose `""` is the pre-import shape: a
+      // record without it was uploaded locally, so it reads back as "local".
+      source: record.source || "local",
+      sourceUrl: record.sourceUrl,
       fileSize: record.fileSize || 0,
       // See `mapVideoNode`: absent / `null` → `undefined`, no empty array.
+      // `coverUrl` is optional on an audio node (a local upload has none), so
+      // the record's `""` sentinel maps to "no cover" here.
       content: new AudioContent(
         record.content || "",
+        record.coverUrl || undefined,
         record.timestamps ?? undefined,
       ),
     });
@@ -535,6 +547,10 @@ export class NodeMapper {
       return {
         ...baseRecord,
         content: node.content.url,
+        // `coverUrl` / `hlsUrl` are string columns with `""` as their "none"
+        // value. Like `source`, `sourceUrl` and every other content-adjacent
+        // field, they are written as-is: a missing `coverUrl` on an old video
+        // node is `""` in the domain, so it round-trips without a `?? ""`.
         coverUrl: node.content.coverUrl,
         hlsUrl: node.content.hlsUrl,
         duration: node.duration,
@@ -554,7 +570,15 @@ export class NodeMapper {
       return {
         ...baseRecord,
         content: node.content.url,
+        // Audio follows the VideoNode conventions above: `coverUrl` is a
+        // string column where `""` means "no cover" (the domain field is
+        // optional, so `undefined` is written as `""` to clear it), while
+        // `timestamps` is deliberately left `undefined` for "keep the old
+        // value" on a partial content update.
+        coverUrl: node.content.coverUrl ?? "",
         duration: node.duration,
+        source: node.source,
+        sourceUrl: node.sourceUrl,
         fileSize: node.fileSize,
         timestamps: node.content.timestamps,
       };

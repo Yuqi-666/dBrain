@@ -7,8 +7,9 @@
 | Node | The version in `.node-version`, currently 24.15.0 |
 | pnpm | 9.0.0, see the root `package.json` |
 | Rust | The version in `rust-toolchain.toml`, currently 1.99.0. Desktop development needs it. |
-| PocketBase | Use the repository download script. It gets the pinned version for the current platform. |
+| PocketBase | The first `pnpm dev` downloads the pinned version for the current platform. `node scripts/release/download-pocketbase.mjs` refreshes it. |
 | FFmpeg / FFprobe | Necessary for the media functions and for the desktop runtime preparation |
+| yt-dlp | The first `pnpm dev` downloads a current release into `.cache/yt-dlp/`. It is necessary for the media import (video and audio). |
 | Docker Compose | Necessary for container development, tests, and deployment |
 
 Install from the lock file with `pnpm install --frozen-lockfile`. Do not commit `node_modules`, build output, runtime resources, a real `.env`, or a local database.
@@ -36,11 +37,12 @@ Change the business behavior in the shared domain and application layers first. 
 
 ```bash
 pnpm install --frozen-lockfile
-node scripts/release/download-pocketbase.mjs
 cp .env.example .env
 # Set the operator email and password, and change the development ports if necessary
 pnpm dev
 ```
+
+The first `pnpm dev` downloads the two repository-owned binaries before it starts the stack: the pinned PocketBase release into `pb/` and the current yt-dlp release into `.cache/yt-dlp/`. Both downloads need network access once. A later start reuses them. `YT_DLP_PATH` selects a yt-dlp the developer installed instead; `YT_DLP_DOWNLOAD_BASE` points the yt-dlp download at a mirror of the release directory. A failed yt-dlp download does not stop the stack: it prints a warning, and only the media import reports the missing binary. The download script `node scripts/release/download-pocketbase.mjs` remains the explicit refresh for PocketBase, and CI and the desktop build call it directly.
 
 Only two development commands exist. `pnpm dev` starts PocketBase, the web app, and the server on this machine. `pnpm dev:remote` adds the gateway `scripts/dev-gateway.mjs` for a remote domain. Both commands start the child processes in parallel. The exit of one process stops the group.
 
@@ -62,6 +64,42 @@ Development data goes to the repository directory `pb/pb_data` by default, with 
 `DBRAIN_ADMIN_EMAIL` and the password in `.env` belong to the operator account. The app identity uses the normal `users` collection. A shell variable of the same name has priority over the file. After an admin configuration change, run `pnpm pb:admin` to synchronize the development database account.
 
 Run one package with `pnpm --filter <package> <script>`, or run the full stack with `pnpm dev`.
+
+## Media import (video and audio)
+
+A video node and an audio node can import from a media site. Both kinds share one implementation: the kind selects the site list, the quality mapping, and the step after the download (HLS packaging for a video, a container check for an audio file).
+
+| Layer | Files |
+| --- | --- |
+| Domain ports | `backend/domain/src/ports/media-download.ts` (`IMediaDownloader`, `IMediaProbe`, the quality, subtitle, and progress types), `media-sites.ts` (`MEDIA_SITES`, `IMediaSiteCatalog`), `media-site-auth.ts` (`IMediaSiteAuthRepository`, `IMediaBrowserDetector`), `media-import-job.ts` (`IMediaImportJobStore`), and `media-transcode.ts` (`IAudioTranscoder`). |
+| Shared types | `packages/interfaces/src/media-import.ts` (`MediaKind`, `MediaImportProgress`, the error codes). The error wire format is in `packages/utils/src/media-import.ts`. |
+| Infrastructure | `backend/infrastructure/src/downloaders/`: `media-sites.ts` (the eight sites), `media-quality.ts`, `vtt-parser.ts`, `yt-dlp-media-downloader.ts`, `yt-dlp-media-probe.ts`, and `media-browser-detector.ts`. Also `storage/media-import-jobs.ts`, `storage/media-cookie-cipher.ts`, and `repositories/pocketbase-media-site-auth.repository.ts`. |
+| Application | `backend/application/src/commands/media/media-import.service.ts` (`probe`, `import`, `job`, `confirm`, `cancel`, `sweep`), `media-auth.service.ts` (both login methods), and `cookie-file.ts` (Netscape parsing and host filtering). |
+| tRPC | `backend/adapter-front/src/trpc/router/file.ts`: `mediaSites`, `importMediaCookies`, `connectMediaSiteWithBrowser`, `verifyMediaSite`, `disconnectMediaSite`, `probeMediaSource`, `importMedia`, `mediaImportJob`, `confirmMediaImport`, `cancelMediaImport`, and the `onMediaImportProgress` subscription. |
+| API client | `packages/api-client/src/file-analysis.ts`: `probeMediaSource`, `importMedia`, `mediaImportJob`, `confirmMediaImport`, `cancelMediaImport`, `mediaSites`, `importMediaCookies`, `connectMediaSiteWithBrowser`, `verifyMediaSite`, `disconnectMediaSite`, and `MediaImportRequestError`. |
+| UI | `packages/ui/src/components/node-content/`: `media-url-import-dialog.tsx`, `media-site-capsules.tsx`, `media-site-login-panel.tsx`, `media-probe-card.tsx`, `media-import-progress-view.tsx`, `use-media-site-auth.ts`, and `use-media-url-import.ts`. |
+
+### Add a listed site
+
+Add one `MediaSiteDefinition` to `MEDIA_SITES` in `backend/infrastructure/src/downloaders/media-sites.ts`. Give it a stable `key`, a `name`, the `kinds` it serves, its `hosts`, a one-line `loginHint`, and a public `probeUrl`. The capsule and the URL match follow the entry. The site key is stored as text, so no PocketBase migration is needed. The cookie filter keeps the cookies of the new `hosts` automatically.
+
+### Subtitles and lyrics
+
+`vtt-parser.ts` turns a WebVTT file into subtitle cues. It accepts both `HH:MM:SS.mmm` and `MM:SS.mmm` timestamps; the music sites write the second form. It removes inline tags, joins the lines of one cue with `\n`, drops a cue whose end is before its start, and sorts the cues by start time. A track above 30,000 cues or 8 MiB is cut and marked `truncated`. The importer keeps one track for the node, because the timestamp data has no language dimension.
+
+### Import jobs
+
+An import can take minutes and must survive a closed dialog. The job store keeps one directory per job:
+
+```text
+<DBRAIN_MEDIA_IMPORT_DIR>/<ownerId>/<jobId>/
+  session.json    state, URL, format, stage, percent, result
+  download/       yt-dlp output: source file, partial files, thumbnail
+```
+
+`running` and `interrupted` keep the partial download. `completed` keeps the result until the client writes it onto the node and confirms it. `failed` and `cancelled` delete the directory at once. At startup the store marks every `running` job as `interrupted`, because its process is gone. A sweep runs every hour and removes `interrupted` and `completed` jobs older than 24 hours, and a directory without a session file. The default root is `<system temp>/dbrain-media-imports`; `DBRAIN_MEDIA_IMPORT_DIR` moves it. When a saved login is in use, the downloader writes a temporary `cookies.txt` with mode `0600` at `<jobDir>/download/cookies.txt`; that file is removed with the job directory.
+
+`CONCURRENT_FRAGMENTS = 4` is a constant in the downloader, so a fragmented download passes `--concurrent-fragments 4`. A progressive download ignores it. There is no user setting and no environment variable for it. The application layer limits the imports instead: two per user and four in total.
 
 ## Remote development with a public domain
 
@@ -106,7 +144,7 @@ sudo apt-get update
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libssl-dev librsvg2-dev build-essential patchelf ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 ```
 
-PocketBase uses `pb/pocketbase` by default (`.exe` on Windows). The app finds FFmpeg and FFprobe in PATH. You can set `DBRAIN_POCKETBASE_PATH`, `FFMPEG_PATH`, and `FFPROBE_PATH`.
+PocketBase uses `pb/pocketbase` by default (`.exe` on Windows). The app finds FFmpeg and FFprobe in PATH. You can set `DBRAIN_POCKETBASE_PATH`, `FFMPEG_PATH`, and `FFPROBE_PATH`. The media import spawns `yt-dlp`; `pnpm dev` downloads it into `.cache/yt-dlp/` and gives the server that path, and `YT_DLP_PATH` overrides the path or the binary name.
 
 ```bash
 pnpm dev:desktop

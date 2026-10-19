@@ -56,6 +56,12 @@ function nodeCoverUrl(node: NodeData): string | null {
       return node.content?.coverUrl
         ? resolveFileUrl(node.content.coverUrl)
         : null;
+    case "audio":
+      // Only an imported audio node has a cover; a local upload falls through
+      // to the type glyph, exactly as it did before the import existed.
+      return node.content?.coverUrl
+        ? resolveFileUrl(node.content.coverUrl)
+        : null;
     case "pdf":
       return node.content?.coverUrl
         ? resolveFileUrl(node.content.coverUrl)

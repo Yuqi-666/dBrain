@@ -37,6 +37,13 @@ import {
   createFileUploadSessionStore,
   createStorageUsageReader,
   createVideoTranscoder,
+  createAudioTranscoder,
+  createMediaDownloader,
+  createMediaProbe,
+  createMediaSiteCatalog,
+  createMediaBrowserDetector,
+  createMediaImportJobStore,
+  createMediaSiteAuthRepository,
   createWorkspaceRepository,
   createDashboardRepository,
   createWorkspaceMemberRepository,
@@ -56,6 +63,8 @@ import {
   WorkspaceQueryService,
   FileCommandService,
   UploadCommandService,
+  MediaImportService,
+  MediaAuthService,
 } from "@workspace/application";
 import type { IWorkspaceMemberRepository } from "@workspace/domain";
 import {
@@ -105,6 +114,10 @@ export class AppContainer {
   readonly fileCommandService: FileCommandService;
   /** Resumable (chunked) upload state machine, driven by the HTTP upload routes. */
   readonly uploadCommandService: UploadCommandService;
+  /** Downloads a video/audio from a site URL, stores it and post-processes it. */
+  readonly mediaImportService: MediaImportService;
+  /** Listed site capsules, saved logins (method A/B), verification. */
+  readonly mediaAuthService: MediaAuthService;
 
   // Application Query Services (require repository only)
   readonly nodeQueryService: NodeQueryService;
@@ -148,6 +161,8 @@ export class AppContainer {
       // that references the same file reuses one analysis and one HLS package.
       createMediaAnalysisStore(),
       PDF_ANALYZE_MAX_BYTES,
+      createStorageUsageReader(),
+      this.storageLimits,
     );
 
     // The transport limits come from the shared upload contract and the storage
@@ -164,6 +179,36 @@ export class AppContainer {
         userQuotaBytes: this.storageLimits.userQuotaBytes,
       },
       createStorageUsageReader(),
+    );
+
+    // Importing a media node from a site URL shares one layer between video and
+    // audio: the same site catalog, saved logins, job store and progress
+    // subscription, with a per-kind strategy (HLS packaging for video, container
+    // compatibility for audio). The two services are long lived because both the
+    // probe cache and the running-download registry live in them.
+    this.mediaImportService = new MediaImportService(
+      createMediaDownloader(),
+      createMediaProbe(),
+      createVideoTranscoder(),
+      createAudioTranscoder(),
+      createFileStore(),
+      createMediaAnalysisStore(),
+      createMediaImportJobStore(),
+      createMediaSiteCatalog(),
+      createMediaSiteAuthRepository(),
+      createStorageUsageReader(),
+      this.storageLimits,
+    );
+    this.mediaAuthService = new MediaAuthService(
+      createMediaSiteCatalog(),
+      createMediaSiteAuthRepository(),
+      createMediaProbe(),
+      createMediaBrowserDetector(),
+      // Method A reads the browser the server itself runs on, so it is only
+      // offered by a local backend: the desktop app, a local dev server, or an
+      // operator who sets DBRAIN_LOCAL_MODE. A remote deployment hides it,
+      // because reading the server's browsers would be useless there.
+      { browserLoginEnabled: isLocalBackend() },
     );
 
     this.nodeQueryService = new NodeQueryService(this.nodeDao);
@@ -188,6 +233,26 @@ export class AppContainer {
       createWorkspaceMemberRepository(),
     );
     this.workspaceMemberRepository = createWorkspaceMemberRepository();
+  }
+
+  /**
+   * Sweeps the media-import job directories: a job that was `running` when the
+   * previous process died becomes `interrupted` (resumable for a day), and stale
+   * `interrupted` / confirmed `completed` jobs are removed. The sweep is best
+   * effort and never blocks startup: an unwritable directory only logs.
+   */
+  private startMediaImportHousekeeping(): void {
+    const run = () => {
+      void this.mediaImportService.sweep().catch((error: unknown) => {
+        console.warn("[AppContainer] media import sweep failed", error);
+      });
+    };
+    run();
+    try {
+      setInterval(run, MEDIA_IMPORT_SWEEP_INTERVAL_MS).unref();
+    } catch {
+      // A runtime without unref (a test double) simply skips the timer.
+    }
   }
 
   dashboardServices(token: string) {
@@ -237,6 +302,7 @@ export class AppContainer {
     createPocketBaseClient({ url: pbUrl });
     AppContainer._instance = new AppContainer();
     initializeEventBridge();
+    AppContainer._instance.startMediaImportHousekeeping();
 
     return AppContainer._instance;
   }
@@ -258,3 +324,22 @@ export class AppContainer {
 
 // Export singleton accessor for convenience
 export const container = AppContainer.getInstance;
+
+/** One hour between two sweeps of the media-import job directories. */
+const MEDIA_IMPORT_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * True when this server runs on the user's own machine.
+ *
+ * The desktop app launches its backend with `DBRAIN_DESKTOP=1`; a local
+ * development server and an operator who opts in with `DBRAIN_LOCAL_MODE` are
+ * local as well. A remote deployment says none of these, so the "use my browser"
+ * login method is hidden there: reading the server's browsers would sign the
+ * server in, not the user.
+ */
+function isLocalBackend(): boolean {
+  const localMode = process.env.DBRAIN_LOCAL_MODE?.trim().toLowerCase();
+  if (localMode === "1" || localMode === "true") return true;
+  if (process.env.DBRAIN_DESKTOP === "1") return true;
+  return process.env.NODE_ENV !== "production";
+}

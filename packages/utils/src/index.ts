@@ -1,8 +1,4 @@
-export type {
-  RuleGroupType,
-  RuleType,
-  Field,
-} from "react-querybuilder";
+export type { RuleGroupType, RuleType, Field } from "react-querybuilder";
 export {
   QueryBuilder,
   defaultCombinators,
@@ -18,3 +14,4 @@ export * from "./file";
 export * from "./upload";
 export * from "./debounce";
 export * from "./debounce-scheduler";
+export * from "./media-import";

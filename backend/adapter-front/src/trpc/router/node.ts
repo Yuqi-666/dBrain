@@ -121,6 +121,10 @@ const videoContentSchema = z.object({
 
 const audioContentSchema = z.object({
   url: z.string(),
+  // The music-site import saves the artwork as a derived file; a local upload
+  // has none, so this is optional. Declared here because zod strips keys it
+  // does not know — an undeclared `coverUrl` would never reach the service.
+  coverUrl: z.string().optional(),
   timestamps: z.array(timestampDataSchema).optional(),
 });
 
@@ -289,6 +293,12 @@ const addSchema = z.discriminatedUnion("nodeType", [
     ...baseNodeFields,
     nodeType: z.literal("audio"),
     duration: z.number(),
+    // Optional so an old client (and the local upload path) keeps creating
+    // local nodes; the domain defaults a missing source to "local".
+    // Declared here because zod strips unknown keys — an undeclared
+    // `source` / `sourceUrl` would be dropped before the service sees it.
+    source: z.enum(["local", "online"]).optional(),
+    sourceUrl: z.string().optional(),
     fileSize: z.number(),
     content: audioContentSchema,
   }),

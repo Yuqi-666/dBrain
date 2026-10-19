@@ -163,8 +163,14 @@ export class NodeCommandService {
           icon: cmd.icon,
           cover: cmd.cover,
           duration: cmd.duration,
+          source: cmd.source,
+          sourceUrl: cmd.sourceUrl,
           fileSize: cmd.fileSize,
-          content: new AudioContent(cmd.content.url, cmd.content.timestamps),
+          content: new AudioContent(
+            cmd.content.url,
+            cmd.content.coverUrl,
+            cmd.content.timestamps,
+          ),
           workspaceId: cmd.workspaceId,
         });
         break;
@@ -440,12 +446,17 @@ export class NodeCommandService {
     }
     if (
       node instanceof AudioNode &&
-      (content.url !== undefined || content.timestamps !== undefined)
+      (content.url !== undefined ||
+        content.coverUrl !== undefined ||
+        content.timestamps !== undefined)
     ) {
-      // Same halves as video: a note may be added without re-sending the url.
+      // Same halves as video: a note may be added without re-sending the url,
+      // and the cover is patched in by the import that saved it. An omitted
+      // key keeps the value already stored.
       return node.updateContent(
         new AudioContent(
           content.url ?? node.content.url,
+          content.coverUrl ?? node.content.coverUrl,
           content.timestamps ?? node.content.timestamps,
         ),
       );
@@ -525,7 +536,7 @@ export class NodeCommandService {
           eventType: "EdgeDeleted",
           aggregateId: edge.id.getValue(),
           metadata: {
-        workspaceId: existing.workspaceId,
+            workspaceId: existing.workspaceId,
             occurredAt: new Date().toISOString(),
             eventVersion: 1,
             userId: cmd.userId,

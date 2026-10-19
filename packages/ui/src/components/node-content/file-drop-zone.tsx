@@ -2,7 +2,7 @@
 import { translate } from "@workspace/ui/lib/i18n/runtime";
 import { useI18n } from "@workspace/ui/lib/i18n";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   ClipboardPasteIcon,
   Code2Icon,
@@ -11,6 +11,7 @@ import {
   ImageIcon,
   ImagePlusIcon,
   LibraryIcon,
+  LinkIcon,
   MusicIcon,
   SmileIcon,
   UploadIcon,
@@ -32,8 +33,13 @@ import {
   useStorageLimits,
   uploadFile,
   analyzePdf,
+  cancelMediaImport,
+  confirmMediaImport,
+  importMedia,
+  mediaImportJob,
   transcodeVideo,
 } from "@workspace/api-client";
+import type { ImportedMedia, MediaImportJob } from "@workspace/api-client";
 import { maxFileBytesFor } from "@workspace/utils/storage-limits";
 import type { ResourceRecord } from "@workspace/api-client";
 import { NodeService } from "@workspace/services";
@@ -41,11 +47,32 @@ import { useDataStore } from "@workspace/store";
 import type {
   AudioContent,
   ImageContent,
+  MediaImportProgress,
+  MediaKind,
   NodeData,
   PdfContent,
+  TimestampData,
   VideoContent,
 } from "@workspace/interfaces";
+import { notesOf } from "../media-player/types";
+import { MediaImportProgressView } from "./media-import-progress-view";
+import {
+  MediaUrlImportDialog,
+  type MediaImportRequest,
+} from "./media-url-import-dialog";
 import { useNodeContentWriter } from "./use-node-content-writer";
+import {
+  clearMediaUrlImportResumable,
+  completeMediaUrlImport,
+  consumeMediaUrlImportFailure,
+  failMediaUrlImport,
+  getMediaUrlImport,
+  mediaImportFailure,
+  reportMediaUrlImportProgress,
+  setMediaUrlImportResumable,
+  startMediaUrlImport,
+  useMediaUrlImport,
+} from "./use-media-url-import";
 
 /** Variants that store an uploaded blob. */
 type UploadVariant = "audio" | "video" | "image" | "pdf";
@@ -339,6 +366,66 @@ function showUploadSuccessToast(upload: { name: string }): void {
   });
 }
 
+/** The import kind of a media variant, or `null` for a variant with no site flow. */
+function mediaImportKindFor(variant: UploadVariant): MediaKind | null {
+  return variant === "video" || variant === "audio" ? variant : null;
+}
+
+/**
+ * The node's timeline after an import: the user's existing notes first, then the
+ * subtitle / lyric cues the server returned.
+ *
+ * The cues are plain text with millisecond anchors, which is exactly
+ * `TimestampSubtitleData`; a note keeps its rich-text body and identity. Merging
+ * after `notesOf` is the rule the media sidebar documents: a re-import must
+ * never drop a note the user already wrote on the same node.
+ *
+ * `endMs` is omitted rather than written as `undefined`: the backend's schema
+ * accepts a missing span, and an explicitly-undefined key does not survive the
+ * JSON round trip predictably.
+ */
+function timestampsAfterImport(
+  content: unknown,
+  subtitle: ImportedMedia["subtitle"],
+): TimestampData[] {
+  const existing =
+    content && typeof content === "object"
+      ? ((content as { timestamps?: TimestampData[] }).timestamps ?? [])
+      : [];
+  const notes = notesOf(existing);
+  const cues: TimestampData[] = (subtitle?.cues ?? []).map((cue) => ({
+    type: "subtitle",
+    timeMs: cue.timeMs,
+    ...(cue.endMs === undefined ? {} : { endMs: cue.endMs }),
+    content: cue.content,
+  }));
+  return [...notes, ...cues];
+}
+
+/**
+ * Turns a re-attached server job into the progress shape the bar draws.
+ *
+ * A job read back after a reload carries only its phase and overall percentage;
+ * the byte totals and the speed of the original progress events are gone. The
+ * bar therefore shows what is known and leaves the byte line empty instead of
+ * inventing a rate — the phase and the percentage are the honest part.
+ */
+function progressFromJob(
+  job: NonNullable<MediaImportJob>,
+): MediaImportProgress {
+  return {
+    jobId: job.jobId,
+    nodeId: job.nodeId,
+    kind: job.kind,
+    stage: job.stage as MediaImportProgress["stage"],
+    percent: job.percent,
+    downloadedBytes: 0,
+    totalBytes: 0,
+    speedBytesPerSecond: 0,
+    etaSeconds: 0,
+  };
+}
+
 /**
  * Parses an uploaded (or referenced) PDF on the backend and returns the content
  * half the node should end up with.
@@ -436,13 +523,16 @@ async function packageVideoUpload(
 
 /**
  * Colour of each add method's logo. Local picks are blue, clipboard amber, and
- * the resource library green — the same family the menu used.
+ * the resource library green — the same family the menu used. Importing from a
+ * video site is rose: a distinct fifth colour, so the card that leaves the
+ * browser for a remote page is recognisable at a glance among the local ones.
  */
 const METHOD_TONES = {
   edit: "text-violet-500",
   local: "text-sky-500",
   paste: "text-amber-500",
   library: "text-emerald-500",
+  site: "text-rose-500",
 } as const;
 
 /**
@@ -710,6 +800,46 @@ function UploadDropZone({
   const [referencing, setReferencing] = useState<string | null>(null);
   /** Set while the 「从资源库选择」 dialog is open. */
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+  /**
+   * The site import, read from module-level state rather than component state:
+   * closing the node dialog unmounts this zone while the backend keeps working,
+   * and reopening it must show the bar that is still advancing
+   * (`use-media-url-import.ts`). An upload survives the same way.
+   */
+  const mediaImport = useMediaUrlImport(nodeId);
+  /** `video` / `audio` when this variant can import from a site, else `null`. */
+  const importKind = mediaImportKindFor(variant);
+  /** Set while the shared media URL dialog is open. */
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  /** Address and reason of the last failed import, prefilled into the dialog. */
+  const [importDraft, setImportDraft] = useState<{
+    url: string;
+    error: string | null;
+  }>({ url: "", error: null });
+  /**
+   * Writes a re-attached job's result; a ref because the mount effect below
+   * must not re-run on every render while it still uses the freshest closure.
+   */
+  const writeImportResultRef = useRef<
+    (imported: ImportedMedia) => Promise<void>
+  >(async () => {});
+
+  /**
+   * A failure that happened while this zone was not mounted (or that the
+   * previous instance recorded) is shown once here: the zone's inline line and
+   * the retry dialog, prefilled with the address, exactly as if the failure had
+   * arrived in the foreground.
+   */
+  useEffect(() => {
+    const failure = mediaImport.failure;
+    if (!failure) return;
+
+    setActionError(failure.message);
+    setImportDraft({ url: failure.url, error: failure.message });
+    setImportDialogOpen(true);
+    // Mark it shown, so reopening the editor later starts from a clean surface.
+    consumeMediaUrlImportFailure(nodeId);
+  }, [nodeId, mediaImport.failure]);
 
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
@@ -726,6 +856,182 @@ function UploadDropZone({
     variant,
     NO_LIVE_CONTENT,
   );
+
+  /**
+   * Writes one finished import onto the node.
+   *
+   * The result carries everything an upload would have produced — stored
+   * address, cover, HLS playlist for a video, subtitle / lyric cues — plus the
+   * page it came from. The cues are merged after the user's existing notes
+   * ({@link timestampsAfterImport}), and the content half merges over the live
+   * content, so a concurrent writer's half survives exactly as in the upload
+   * path. `source: "online"` is what tells the player and the resource panel
+   * that this is not a local file; `sourceUrl` is the canonical page.
+   *
+   * The title is a fallback, never a replacement: it is adopted with a second
+   * top-level write only when the node has no title yet, because the user's own
+   * title always wins.
+   */
+  const writeImportedMedia = async (imported: ImportedMedia) => {
+    const kind = importKind ?? "video";
+    await writeContentPatch(nodeId, liveContent(), {
+      contentHalf: {
+        url: imported.url,
+        coverUrl: imported.coverUrl,
+        timestamps: timestampsAfterImport(liveContent(), imported.subtitle),
+        // Only a video has an HLS rendition; writing `hlsUrl` onto an audio node
+        // would add a field its content type does not declare.
+        ...(kind === "video" ? { hlsUrl: imported.hlsUrl } : {}),
+      },
+      meta: {
+        fileSize: imported.fileSize,
+        duration: imported.duration,
+        source: "online",
+        sourceUrl: imported.sourceUrl,
+      },
+    });
+
+    const liveTitle = useDataStore.getState().nodes.get(nodeId)?.title ?? "";
+    const title = (imported.title || imported.fileName).trim();
+    if (title !== "" && liveTitle.trim() === "") {
+      await NodeService.upsert(nodeId, { title });
+    }
+
+    // Report first, then drop the progress view: `onUploaded` may swap the
+    // host's empty state for the player, and these updates batch into one
+    // render, so the zone never flashes back to its cards. The toast is global,
+    // so it also appears when the node dialog was closed during the import and
+    // this component is no longer mounted.
+    toast({
+      title: t("导入完成"),
+      description: title !== "" ? title : imported.fileName,
+    });
+    onUploaded?.();
+  };
+  // The mount effect re-attaches to a server job without re-subscribing on each
+  // render; the ref is how it still calls the latest closure.
+  writeImportResultRef.current = writeImportedMedia;
+
+  /**
+   * Re-attaches to a job the server still knows about.
+   *
+   * The progress promise started by an import belongs to the component (and the
+   * page) that started it. Closing the node dialog does not lose it — the store
+   * is module-level — but a reload does, while the server keeps downloading.
+   * On mount this asks `mediaImportJob(nodeId)` what is left:
+   *
+   * - `running` → adopt the job and poll it. The deltas of the lost subscription
+   *   are gone, but the job's stage and over-all percentage are enough for an
+   *   honest bar, and polling is also how the completion is noticed.
+   * - `completed` → write the cached result and confirm it, which deletes it.
+   * - `interrupted` → show 「继续」 and keep the job; resuming reuses its id, so
+   *   the partial download is not thrown away.
+   *
+   * A promise started by this same session is already reporting, so the query is
+   * skipped then — two sources would double every update.
+   */
+  useEffect(() => {
+    if (!importKind) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    const finishFromJob = async (job: NonNullable<MediaImportJob>) => {
+      stopPolling();
+      if (job.state === "interrupted") {
+        completeMediaUrlImport(nodeId);
+        setMediaUrlImportResumable(nodeId, {
+          jobId: job.jobId,
+          kind: job.kind,
+          url: job.url,
+          formatId: job.formatId,
+          state: "interrupted",
+        });
+        return;
+      }
+      if (job.state === "completed" && job.result) {
+        try {
+          await writeImportResultRef.current(job.result);
+          await confirmMediaImport(nodeId, job.jobId);
+          clearMediaUrlImportResumable(nodeId);
+        } catch (cause) {
+          const failure = mediaImportFailure(cause);
+          failMediaUrlImport(nodeId, {
+            kind: job.kind,
+            url: job.url,
+            code: failure.code,
+            message: failure.message,
+          });
+        } finally {
+          completeMediaUrlImport(nodeId);
+        }
+        return;
+      }
+      // No result to write (or the job vanished): clear the bar, never spin.
+      completeMediaUrlImport(nodeId);
+    };
+
+    const reattach = async () => {
+      if (getMediaUrlImport(nodeId).active) return;
+      let job: MediaImportJob | null;
+      try {
+        job = await mediaImportJob(nodeId);
+      } catch {
+        return;
+      }
+      if (cancelled || !job) return;
+
+      if (job.state !== "running") {
+        await finishFromJob(job);
+        return;
+      }
+
+      startMediaUrlImport(nodeId, {
+        kind: job.kind,
+        url: job.url,
+        jobId: job.jobId,
+      });
+      timer = setInterval(() => {
+        void (async () => {
+          let latest: MediaImportJob | null;
+          try {
+            latest = await mediaImportJob(nodeId);
+          } catch {
+            return;
+          }
+          if (cancelled) return;
+          if (!latest) {
+            stopPolling();
+            completeMediaUrlImport(nodeId);
+            return;
+          }
+          if (latest.state === "running") {
+            reportMediaUrlImportProgress(nodeId, progressFromJob(latest));
+            return;
+          }
+          await finishFromJob(latest);
+        })();
+      }, 1500);
+    };
+
+    void reattach();
+    return () => {
+      cancelled = true;
+      // A re-attached job is watched only by this effect's timer. If the zone
+      // unmounts, drop the adopted bar so the next mount queries the job again
+      // instead of showing a frozen one; an import this session started keeps
+      // its module-level entry, because its own promise still reports to it.
+      const wasPolling = timer !== null;
+      stopPolling();
+      if (wasPolling) completeMediaUrlImport(nodeId);
+    };
+  }, [importKind, nodeId]);
 
   const { fileItems, uploadFiles, removeFileItem } = useFileUpload({
     // The pipeline's own ceiling, not a UI preference: above it the server
@@ -932,6 +1238,151 @@ function UploadDropZone({
     }
   };
 
+  /**
+   * Runs one site import: download, store, and post-process on the server, then
+   * write the result onto this node.
+   *
+   * The dialog has already closed when this starts: the zone replaces its cards
+   * with {@link MediaImportProgressView} and follows the server's progress until
+   * the mutation resolves, so the user sees the download the same way they see
+   * an upload. A failure reopens the dialog with the address and the reason, so
+   * retrying costs no retyping.
+   *
+   * The stored addresses are written **as returned**, never through
+   * `resolveFileUrl`: node content and the resource library both keep
+   * root-relative addresses and the renderer resolves them, exactly as the
+   * upload and resource-reference paths do.
+   *
+   * `workspaceId` comes from the store, not from this render's props: the
+   * backend stores the downloaded file on behalf of a workspace, and the node's
+   * live record is the only place that names it.
+   *
+   * `jobId` is only set when continuing an interrupted job: the server reuses
+   * that job's partial download and its directory instead of starting over.
+   */
+  const runMediaImport = async (
+    request: MediaImportRequest & { jobId?: string },
+  ) => {
+    setActionError(null);
+    onUploadStart?.();
+    // Module-level, so the bar survives this zone unmounting with the node
+    // dialog; the promise below keeps writing to it either way.
+    startMediaUrlImport(nodeId, {
+      kind: request.kind,
+      url: request.url,
+      jobId: request.jobId,
+    });
+
+    try {
+      const workspaceId = useDataStore
+        .getState()
+        .nodes.get(nodeId)?.workspaceId;
+      if (!workspaceId) {
+        throw new Error(t("无法读取工作区信息，请重试"));
+      }
+
+      const imported = await importMedia(
+        {
+          url: request.url,
+          kind: request.kind,
+          nodeId,
+          workspaceId,
+          probeId: request.probeId,
+          formatId: request.formatId,
+          // Same job on resume; omitted for a fresh import so the API layer
+          // generates the id it subscribes with.
+          ...(request.jobId ? { jobId: request.jobId } : {}),
+        },
+        (progress) => reportMediaUrlImportProgress(nodeId, progress),
+      );
+
+      await writeImportedMedia(imported);
+      // The server keeps a completed job until the client confirms it, so a
+      // page reload between the write and this line can recover the result.
+      await confirmMediaImport(nodeId, imported.jobId);
+      clearMediaUrlImportResumable(nodeId);
+    } catch (cause) {
+      const failure = mediaImportFailure(cause);
+      if (failure.code !== "cancelled") {
+        // The zone maps this back to the field the user can correct. It is kept
+        // outside React as well, because the failure may land while the node
+        // dialog is closed: a zone mounted later reopens the retry dialog with
+        // the address and the reason instead of silently showing its cards.
+        onUploadError?.(new Error(failure.message));
+        failMediaUrlImport(nodeId, {
+          kind: request.kind,
+          url: request.url,
+          code: failure.code,
+          message: failure.message,
+        });
+      }
+    } finally {
+      completeMediaUrlImport(nodeId);
+    }
+  };
+
+  /** Cancels the import on the server; the promise above ignores its failure. */
+  const handleCancelMediaImport = async () => {
+    try {
+      await cancelMediaImport(nodeId);
+    } catch (cause) {
+      const failure = mediaImportFailure(cause);
+      // Cancelling an already-finished job is not worth a retry dialog; anything
+      // else may leave the download running, so it is reported.
+      if (failure.code !== "cancelled") {
+        onUploadError?.(new Error(failure.message));
+      }
+    } finally {
+      completeMediaUrlImport(nodeId);
+      clearMediaUrlImportResumable(nodeId);
+    }
+  };
+
+  /** Continues the interrupted job the mount query found. */
+  const handleResumeMediaImport = () => {
+    const resumable = mediaImport.resumable;
+    if (!resumable) return;
+    void runMediaImport({
+      kind: resumable.kind,
+      url: resumable.url,
+      formatId: resumable.formatId || undefined,
+      jobId: resumable.jobId,
+    });
+  };
+
+  // A site import takes over the whole zone while it runs: the backend can
+  // spend minutes on it, and a bar with the current phase is what tells the
+  // user it is working — not a dialog that only says "importing". Its state
+  // outlives this mount, so reopening the node dialog while the import runs
+  // shows the same live bar instead of an empty drop zone.
+  if (mediaImport.active) {
+    return (
+      <MediaImportProgressView
+        kind={mediaImport.active.kind}
+        url={mediaImport.active.url}
+        progress={mediaImport.active.progress}
+        onCancel={() => void handleCancelMediaImport()}
+        className={className}
+      />
+    );
+  }
+
+  // A job left interrupted by a reload or a server restart: offer to continue
+  // it instead of silently starting a new download.
+  if (mediaImport.resumable) {
+    return (
+      <MediaImportProgressView
+        kind={mediaImport.resumable.kind}
+        url={mediaImport.resumable.url}
+        progress={null}
+        resumable
+        onResume={handleResumeMediaImport}
+        onCancel={() => void handleCancelMediaImport()}
+        className={className}
+      />
+    );
+  }
+
   if (fileItems.length === 0) {
     return (
       <>
@@ -988,6 +1439,34 @@ function UploadDropZone({
                   onSelect={() => void handlePasteImage()}
                 />
               )}
+              {/* Media variants only: the backend downloads and post-processes
+                  the page's media, so the card opens the shared URL dialog
+                  instead of a file picker. The other variants have no remote
+                  counterpart. Both cards open the same dialog; only `kind`
+                  (which site list, quality picker and stage wording) differs. */}
+              {importKind && (
+                <AddMethodCard
+                  icon={LinkIcon}
+                  tone={METHOD_TONES.site}
+                  title={
+                    importKind === "video"
+                      ? t("从视频网站添加")
+                      : t("从音乐网站添加")
+                  }
+                  description={
+                    importKind === "video"
+                      ? t("粘贴 YouTube、Bilibili 等视频链接")
+                      : t("粘贴网易云音乐、QQ 音乐等链接")
+                  }
+                  onSelect={() => {
+                    // A fresh attempt starts from an empty field: the previous
+                    // address and its failure are only prefilled when the zone
+                    // itself sends the user back to fix them.
+                    setImportDraft({ url: "", error: null });
+                    setImportDialogOpen(true);
+                  }}
+                />
+              )}
               <AddMethodCard
                 icon={LibraryIcon}
                 tone={METHOD_TONES.library}
@@ -1007,6 +1486,19 @@ function UploadDropZone({
             void handleResourceSelected(resource);
           }}
         />
+
+        {importKind && (
+          <MediaUrlImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            kind={importKind}
+            onSubmit={(request) => {
+              void runMediaImport(request);
+            }}
+            initialUrl={importDraft.url}
+            initialError={importDraft.error}
+          />
+        )}
       </>
     );
   }

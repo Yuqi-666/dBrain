@@ -18,7 +18,21 @@ export {
   useFileUpload,
 } from "./upload";
 export type { FileItem, UploadOptions } from "./upload";
-export { analyzePdf, transcodeVideo } from "./file-analysis";
+export {
+  MediaImportRequestError,
+  analyzePdf,
+  cancelMediaImport,
+  confirmMediaImport,
+  connectMediaSiteWithBrowser,
+  disconnectMediaSite,
+  importMedia,
+  importMediaCookies,
+  mediaImportJob,
+  mediaSites,
+  probeMediaSource,
+  transcodeVideo,
+  verifyMediaSite,
+} from "./file-analysis";
 export {
   STORAGE_CATEGORIES,
   cacheResourceMeasurements,
@@ -48,7 +62,16 @@ export type {
   StorageUsage,
   UseResourcesResult,
 } from "./resources";
-export type { PdfAnalysis, VideoTranscode } from "./file-analysis";
+export type {
+  ImportedMedia,
+  MediaCookieImport,
+  MediaImportJob,
+  MediaProbe,
+  MediaSite,
+  MediaSites,
+  PdfAnalysis,
+  VideoTranscode,
+} from "./file-analysis";
 export {
   createPocketbaseClient,
   getPocketbaseClient,

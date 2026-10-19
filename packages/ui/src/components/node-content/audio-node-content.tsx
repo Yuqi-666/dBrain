@@ -40,6 +40,12 @@ export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
 
   const url = resolveFileUrl(node.content?.url);
   const hasUrl = !!url;
+  // The music-site import saves the artwork as a derived file; a local upload
+  // has none, in which case nothing is rendered and the player keeps its
+  // current centred layout (audio-import-design.md §8).
+  const coverUrl = node.content?.coverUrl
+    ? resolveFileUrl(node.content.coverUrl)
+    : "";
 
   // A record with no content half is malformed, not the normal case; the
   // fallback keeps the timestamp layer from reading through `undefined`.
@@ -102,7 +108,25 @@ export function AudioNodeContent({ node, className }: AudioNodeContentProps) {
         stretch` keeps the bar full-width; `items-center` would shrink it to its
         content instead).
       */}
-      <div className="relative flex min-h-0 flex-1 flex-col justify-center">
+      <div className="@container relative flex min-h-0 flex-1 flex-col justify-center">
+        {/*
+          The cover sits above the control bar and only exists on an imported
+          node. It is hidden in a narrow container (`@md` queries this box, not
+          the viewport) so the bar keeps its whole width in the small dialog.
+          When there is no cover this element is not rendered at all, which is
+          what keeps the layout byte-for-byte unchanged for local uploads.
+        */}
+        {coverUrl && (
+          <div className="mb-4 hidden shrink-0 justify-center @md:flex">
+            <img
+              src={coverUrl}
+              alt={node.title || t("封面")}
+              loading="lazy"
+              draggable={false}
+              className="size-32 rounded-lg object-cover shadow-sm"
+            />
+          </div>
+        )}
         <AudioPlayer
           src={url}
           onMediaController={timestamps.onMediaController}

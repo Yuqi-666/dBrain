@@ -51,10 +51,10 @@ Prerequisites: Node 24.15.0, pnpm 9.0.0, and FFmpeg with FFprobe.
 
 ```bash
 pnpm install --frozen-lockfile
-node scripts/release/download-pocketbase.mjs
 cp .env.example .env          # then set the admin email and password
-pnpm dev                      # starts PocketBase, web, and server in development
+pnpm dev                      # first run downloads PocketBase and yt-dlp; starts the stack
 pnpm dev:remote               # the same, behind the development gateway
+node scripts/release/download-pocketbase.mjs  # explicit PocketBase refresh
 ```
 
 Development addresses: web `http://localhost:3000`, server `http://localhost:3001`, PocketBase `http://127.0.0.1:8090`. The ports come from `.env` (`DBRAIN_WEB_PORT`, `DBRAIN_SERVER_PORT`, `DBRAIN_PB_HTTP`).

@@ -6,6 +6,40 @@ Web 部署有四部分：PocketBase、Node Server、Web 和 nginx Gateway。Pock
 
 `DBRAIN_ADMIN_EMAIL` 与密码属于 PocketBase 运维超级管理员。它们不是用户登录账号。应用以终端用户令牌读取数据库。容器在启动前按配置创建或更新管理员账号。要长期修改密码，请修改部署配置并重启服务。
 
+## 媒体运行时依赖
+
+服务端使用 FFmpeg 提供媒体功能，使用 yt-dlp 提供媒体导入（视频与音频）。两者都在 server 镜像内，因此容器部署无需额外安装。镜像在构建时安装当前的自包含 yt-dlp 发行二进制到 `/usr/local/bin/yt-dlp` 并校验，因为媒体网站的提取器变化频繁。
+
+服务端从 PATH 运行 `yt-dlp`。在 server 进程的环境中设置 `YT_DLP_PATH` 可改用其他二进制或绝对路径。容器部署在部署 `.env` 中设置该值，源码 Compose 文件会把它传给 `server` 服务。不运行在容器内的服务端或自定义镜像需要自行安装 yt-dlp（`pipx install yt-dlp` 或发行版包），并保持更新。导入还需要服务端能出网访问目标媒体网站。
+
+开发环境不使用该镜像。首次 `pnpm dev` 会把当前版本的 yt-dlp 下载到 `.cache/yt-dlp/`。`YT_DLP_DOWNLOAD_BASE` 可把该下载指向发行目录的镜像。server 容器不读取该变量。
+
+## 媒体导入
+
+服务端从粘贴的站点地址导入视频或音频。它用 yt-dlp 下载，把源文件存为资源，并把视频打包为 HLS。保存的登录信息和临时下载需要配置与磁盘空间。
+
+### 导入配置
+
+`DBRAIN_MEDIA_COOKIE_SECRET` 用 AES-256-GCM 加密保存的站点登录信息，密钥由该值派生。部署必须设置一个长随机值并保持不变：换值会使所有已保存的登录失效。用 `openssl rand -base64 32` 生成一次。该值为空时，服务端会生成随机的一机一份密钥，并保存到 `<repo>/.cache/media-cookie-secret`。服务端不会因该值为空而拒绝启动。部署仍必须设置该变量：生成的密钥只属于一个容器，重启或增加副本后已保存的登录会失效。
+
+`DBRAIN_MEDIA_IMPORT_DIR` 是导入任务目录的根。默认是 `<system temp>/dbrain-media-imports`。源码 Compose 文件把命名卷 `media_imports` 挂载到 `/var/lib/dbrain/media-imports`，并使用该路径。变量值与挂载点必须一致。容器启动时没有该卷会丢失本来可以继续的中断任务。
+
+登录方式 A（读取本机浏览器）只在服务端作为本地后端运行时开放。满足以下任一条件即为本地后端：`DBRAIN_LOCAL_MODE` 为 `1` 或 `true`；`DBRAIN_DESKTOP` 为 `1`（桌面应用会设置）；或 `NODE_ENV` 不是 `production`。远程或生产部署让 `DBRAIN_LOCAL_MODE` 与 `DBRAIN_DESKTOP` 留空并以 `NODE_ENV=production` 运行，因此对话框中的登录区只显示方式 B。
+
+### 任务生命周期与限制
+
+服务端为每个导入保留一个目录。`running` 与 `interrupted` 任务保留已下载的部分。`completed` 任务保留结果，直到客户端写入节点并确认。失败或取消的任务立即删除。启动时，服务端把所有 `running` 任务改为 `interrupted`，因为其进程已不存在。清理每小时运行一次，删除超过 24 小时的 `interrupted` 与 `completed` 任务，以及没有 session 文件的目录。
+
+服务端每个用户最多同时运行 2 个导入，全局最多 4 个。一个节点同时只运行一个导入。超过限制的请求会报告服务端繁忙。这些限制不可配置。
+
+按同时 4 个下载规划导入目录的空间。每个下载受分类上限（默认视频 2 GiB、音频 512 MiB）和用户配额约束。目录还要保留中断任务的部分下载，最长 24 小时。已存资源与 HLS 包写入 PocketBase 卷，不在该目录中。
+
+### Cookie 与隐私
+
+cookies 文件登录在保存前会加密。明文只在一次下载或一次验证期间存在：`<jobDir>/download/cookies.txt`，权限 `0600`，随该目录一起删除。服务端只保留域名匹配固定站点的 Cookie；其他域在保存前全部丢弃。浏览器登录只保存浏览器名。API 从不把 Cookie 返回给客户端，也从不写入日志。`media_site_auths` 集合按所有者隔离：任何 list、view、create、update、delete 都要求记录属于该所有者。
+
+把密钥随部署配置一起备份。已保存的登录信息在 `pb_data` 卷中，属于该卷的备份；恢复备份时需要匹配的密钥。
+
 ## 从源码构建自托管环境
 
 在仓库根目录配置并启动：
@@ -95,6 +129,11 @@ GitHub API 未认证时每小时只允许 60 次请求。在 `.env` 中设置 `D
 | `DBRAIN_GITHUB_TOKEN` | 可选，供更新容器使用的 token。它把 GitHub API 上限从每小时 60 次提高到 5000 次。这个公开仓库的 token 无需权限范围。 |
 | `DBRAIN_DEPLOYMENT_DIR` | 部署目录的宿主机绝对路径。它覆盖更新容器探测到的路径。通常留空。 |
 | `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
+| `YT_DLP_PATH` | 可选。媒体导入使用的 yt-dlp 路径或二进制名。默认使用 PATH 中的 `yt-dlp`。 |
+| `YT_DLP_DOWNLOAD_BASE` | 可选。首次开发下载 yt-dlp 时使用的发行目录镜像。server 容器不读取它。 |
+| `DBRAIN_MEDIA_COOKIE_SECRET` | 部署必填。加密保存的媒体站点登录信息。保持不变；换值会使它们不可读。留空时在 `<repo>/.cache/media-cookie-secret` 生成一机一份的密钥。 |
+| `DBRAIN_MEDIA_IMPORT_DIR` | 导入任务根目录。默认 `<system temp>/dbrain-media-imports`；容器使用 `media_imports` 卷上的 `/var/lib/dbrain/media-imports`。 |
+| `DBRAIN_LOCAL_MODE` | `1` 或 `true` 表示服务端是本地后端，开放登录方式 A。Web 部署留空。桌面应用改为设置 `DBRAIN_DESKTOP=1`；`NODE_ENV` 不是 `production` 也算本地。 |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
 | `DBRAIN_STORAGE_USER_QUOTA_BYTES` | 每个用户可存储的总字节数。`0` 关闭配额。默认 `10737418240`（10 GiB）。 |
 | `DBRAIN_STORAGE_MAX_IMAGE_BYTES` | 单张图片上限，字节。默认 `33554432`（32 MiB）。 |
@@ -166,6 +205,12 @@ curl -fsS http://127.0.0.1:3000/health
 | 升级后像全新安装 | project 名、部署目录和实际 `pb_data` 卷。 |
 | 自动更新后 gateway 停住 | 更新容器的 project 目录，以及宿主机上多出的 `/deployment` 路径。 |
 | 视频或 PDF 失败 | 对应后端日志、附件访问权限和运行时依赖。 |
+| 媒体导入失败 | 后端日志；yt-dlp 是否已安装且为最新；网站是否受支持；服务端能否出网访问该站点；存储配额是否还有空间。 |
+| 媒体导入要求登录，或报登录错误 | 站点胶囊；用方式 B 连接站点，桌面版可用方式 A；然后重新解析地址。 |
+| 媒体导入报服务端繁忙 | 该用户已有 2 个导入，或服务端已有 4 个导入。等待一个导入结束。 |
+| 媒体导入报大小或配额错误 | 分类上限与用户配额。选择更低档位，或删除资源。 |
+| 已保存的站点登录失效 | Cookie 已过期、`DBRAIN_MEDIA_COOKIE_SECRET` 已改变，或重启前使用的是生成的密钥。设置一个稳定密钥，然后重新连接站点。 |
+| 导入目录占满磁盘 | `DBRAIN_MEDIA_IMPORT_DIR` 的空间。可能同时有 4 个下载，中断任务还会保留 24 小时。 |
 
 日志可能包含业务信息。分享日志前删除隐私数据。把管理员 CLI 指向数据目录，容器内为 `/pb_data`。目录错误会误建空数据库。
 

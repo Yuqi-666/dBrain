@@ -56,6 +56,59 @@ The node types are text, rich text, image, PDF, video, audio, web page, website,
 
 A web page node stores its page as a file in the resource library. The node keeps the file's address and byte length, as a PDF node keeps its PDF. Choose 文件上传 to upload an HTML file, or 从资源库选择 to reference a web page that is already in the library. The 编辑器 entry starts an empty document; 保存 stores it as a new file. 预览 renders the stored page in a sandboxed frame, and 编辑 reads the source back and saves the change to the stored file. A web page file is capped by the storage policy's web page limit (16 MiB by default). Deleting the resource clears the node's address and returns it to the empty state.
 
+### Import from a media site
+
+A video node's empty area offers 本地上传, 「从视频网站添加」, and 「从资源库选择」. An audio node offers 本地上传, 「从音乐网站添加」, and 「从资源库选择」. Choose the site card and paste the address of a page.
+
+| Kind | Listed sites |
+| --- | --- |
+| Video | B 站, 抖音, 小红书, YouTube, TikTok |
+| Audio | 网易云音乐, QQ 音乐, 喜马拉雅 |
+
+The dialog shows one capsule for each listed site. A capsule lights up when the address belongs to its site. An address of another site that yt-dlp supports still imports, but that site has no capsule.
+
+Select 解析 to read the page. The dialog shows the cover, the title, the artist or uploader, the duration, and the available qualities. Select one quality and select 导入.
+
+- The video qualities are 最佳, 2160p, 1440p, 1080p, 720p, and 480p. The dialog shows the estimated size of each quality.
+- The audio tiers are 无损, 极高, 较高, and 标准. The dialog shows only the tiers that the site offers.
+- A quality that needs a login, or that would exceed the storage limit, is shown greyed out with the reason.
+
+An import takes minutes for a long video or track. The dialog closes at 导入, and the empty area shows the phase and the percentage: 下载, then 保存, then 转码 for a video or 准备 for an audio track. Closing the node editor and opening it again keeps the progress, because the server continues the work. A page reload also recovers the progress from the server.
+
+If the server restarts or the app closes during an import, the job is interrupted. Open the node again and select 继续 to continue from the partial download. The server keeps an interrupted job for 24 hours.
+
+Select 取消 to stop an import. The server stops the download and deletes the partial files. A failed import also deletes the partial files, and the dialog opens again with the address and the reason. Select 导入 again to retry from the start.
+
+An album or a playlist address imports only its first track. This version does not import a batch.
+
+The imported file counts in the storage quota and against the category limit: 2 GiB for a video and 512 MiB for an audio file by default. The node records the original page address as its source (`source: online`, `sourceUrl`).
+
+#### Site login
+
+Some content needs a login: a high video quality, a high audio tier, member content, or age-restricted content. The login area sits inside the import dialog: open it with 站点登录 or select a site capsule. dBrain stores no account password.
+
+- Method A, local backend only: select a browser that is installed on this machine. The server reads the cookies of that browser at download time and stores only the browser name, so the cookies never go stale. A remote deployment does not show this method.
+- Method B, web and desktop: select or drop a `cookies.txt` file that a browser extension exported. One file can contain the cookies of several sites, so a single export can light the capsules of several sites. dBrain keeps only the cookies of the listed sites and discards every other domain before it stores anything.
+
+A capsule shows the login state. A login error turns the capsule to the expired state. Connect the site again in the login area, then select 解析 again. A public page still imports without a login.
+
+#### Subtitles, lyrics, and cover
+
+At each import, dBrain asks the site for one subtitle track or lyric track. It selects the track automatically: the interface language first, then the original language, then English, then the first manual track, then the first automatic track. The track enters the 字幕 tab of the media sidebar. Select a line there to jump to that point. dBrain stores no subtitle file, so the track does not count in the quota. A page without a subtitle imports without one. This version does not switch between languages and does not create a subtitle.
+
+A site thumbnail becomes the cover of the node and of its preview card. The server stores the cover as a derived image of the resource. The library does not list it, and it counts in the quota. A video without a site thumbnail uses a frame of the video. An audio file without a cover shows no cover.
+
+#### Import errors
+
+| Message or situation | What to do |
+| --- | --- |
+| The dialog asks for a login, or the import reports a login error | Connect the site with method A or B, then select 解析 again. |
+| The import reports a membership error | The site offers this content to a paid account only. Select another quality or another page. |
+| The import reports a size or quota error | Select a lower quality, or delete resources in the library. |
+| The import reports an unsupported address | Check the address. Use a single video or track page. An album or a playlist imports its first track. |
+| The import reports a network error or a timeout | The server deleted the partial files. Select 导入 again. |
+| The import reports that the server is busy | The server runs at most two imports for one user and four in total. Wait for one import to finish. |
+
 In the rich-text editor, the first Ctrl+A (Command+A on macOS) selects the current block and the second selects the whole document. Copying writes Markdown to the plain-text clipboard. Nodes without a text form, such as images, stay out of the copied text.
 
 Before you remove content, check whether the menu applies to a node, a relation, or the selected collection. Back up important data first.

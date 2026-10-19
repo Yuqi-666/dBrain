@@ -39,7 +39,7 @@ pnpm dev:desktop
 pnpm build:desktop
 ```
 
-不指定路径时，PocketBase 取仓库 `pb/pocketbase`（Windows 为 `.exe`），FFmpeg/FFprobe 从 PATH 查找。准备脚本先验证可执行文件，避免把其他架构的二进制装入安装包。后端资源在 `apps/desktop/src-tauri/runtime` 生成且不入库，随安装包分发；用户无需自行安装 Node、PocketBase 或 FFmpeg。
+不指定路径时，PocketBase 取仓库 `pb/pocketbase`（Windows 为 `.exe`），FFmpeg/FFprobe 从 PATH 查找。准备脚本先验证可执行文件，避免把其他架构的二进制装入安装包。后端资源在 `apps/desktop/src-tauri/runtime` 生成且不入库，随安装包分发；用户无需自行安装 Node、PocketBase 或 FFmpeg。桌面包暂不携带 yt-dlp：视频节点的「从视频网站添加」需要系统 PATH 中存在 `yt-dlp`，也可用 `YT_DLP_PATH` 指定其路径。
 
 `pnpm --filter desktop runtime:prepare` 将 backend 打成独立 ESM 文件，并携带 PDF 字体/CMap 和 canvas 原生依赖。Linux 仅携带当前 libc 对应的 canvas 原生包，并收集 Node、FFmpeg、FFprobe、canvas 的共享库到 `runtime/lib`，运行时设置 `LD_LIBRARY_PATH`；glibc 与动态加载器使用目标系统版本。Linux 产物的最低 glibc 要求取决于构建机，跨发行版发布应在最低支持系统构建或采用适当的静态 FFmpeg，并在目标系统实测。RPM 使用 Zstd level 3 压缩。
 

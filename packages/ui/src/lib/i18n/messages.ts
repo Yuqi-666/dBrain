@@ -1293,6 +1293,369 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
     "zh-CN": "正在转码为 HLS…",
     en: "Transcoding to HLS…",
   },
+  // Video-site import (issue #73): the drop-zone card, its URL dialog, and the
+  // failures the download / transcode round trip can report.
+  从视频网站添加: {
+    "zh-CN": "从视频网站添加",
+    en: "Add from video site",
+  },
+  "粘贴 YouTube、Bilibili 等视频链接": {
+    "zh-CN": "粘贴 YouTube、Bilibili 等视频链接",
+    en: "Paste a YouTube, Bilibili, or other video page link",
+  },
+  "粘贴视频页面链接，服务器会下载并转码后保存到资源库。": {
+    "zh-CN": "粘贴视频页面链接，服务器会下载并转码后保存到资源库。",
+    en: "Paste the video page link; the server downloads and transcodes it into the resource library.",
+  },
+  视频页面链接: {
+    "zh-CN": "视频页面链接",
+    en: "Video page link",
+  },
+  粘贴视频页面地址: {
+    "zh-CN": "粘贴视频页面地址",
+    en: "Paste the video page address",
+  },
+  请输入视频链接: {
+    "zh-CN": "请输入视频链接",
+    en: "Enter a video link",
+  },
+  "请输入以 http:// 或 https:// 开头的视频链接": {
+    "zh-CN": "请输入以 http:// 或 https:// 开头的视频链接",
+    en: "Enter a video link that starts with http:// or https://",
+  },
+  // Video-site import progress (shown in the drop zone while the server works).
+  // The dialog closes on submit, so these are the only "in progress" labels.
+  "正在准备导入…": {
+    "zh-CN": "正在准备导入…",
+    en: "Preparing the import…",
+  },
+  "正在下载视频…": {
+    "zh-CN": "正在下载视频…",
+    en: "Downloading the video…",
+  },
+  "正在保存到资源库…": {
+    "zh-CN": "正在保存到资源库…",
+    en: "Saving to the resource library…",
+  },
+  导入: {
+    "zh-CN": "导入",
+    en: "Import",
+  },
+  导入完成: {
+    "zh-CN": "导入完成",
+    en: "Import finished",
+  },
+  视频导入失败: {
+    "zh-CN": "视频导入失败",
+    en: "Video import failed",
+  },
+  "无法读取工作区信息，请重试": {
+    "zh-CN": "无法读取工作区信息，请重试",
+    en: "Could not read the workspace. Try again.",
+  },
+  // Shared media import (video + audio): progress, site capsules, the login
+  // sheet, the parse card, and the URL dialog. Both kinds use this copy; only
+  // the phase wording and the quality label differ.
+  "正在下载音频…": {
+    "zh-CN": "正在下载音频…",
+    en: "Downloading the audio…",
+  },
+  导入已中断: {
+    "zh-CN": "导入已中断",
+    en: "Import interrupted",
+  },
+  "可以继续上次的下载，已完成的部分不会丢失。": {
+    "zh-CN": "可以继续上次的下载，已完成的部分不会丢失。",
+    en: "You can continue the download. The part already saved is not lost.",
+  },
+  取消导入: {
+    "zh-CN": "取消导入",
+    en: "Cancel import",
+  },
+  继续: {
+    "zh-CN": "继续",
+    en: "Continue",
+  },
+  "下载速度 {value1}": {
+    "zh-CN": "下载速度 {value1}",
+    en: "Download speed {value1}",
+  },
+  "剩余时间 {value1}": {
+    "zh-CN": "剩余时间 {value1}",
+    en: "{value1} remaining",
+  },
+  已登录: {
+    "zh-CN": "已登录",
+    en: "Signed in",
+  },
+  登录已失效: {
+    "zh-CN": "登录已失效",
+    en: "Sign-in expired",
+  },
+  未登录: {
+    "zh-CN": "未登录",
+    en: "Not signed in",
+  },
+  重新验证: {
+    "zh-CN": "重新验证",
+    en: "Check sign-in",
+  },
+  更换登录: {
+    "zh-CN": "更换登录",
+    en: "Replace sign-in",
+  },
+  退出登录: {
+    "zh-CN": "退出登录",
+    en: "Sign out",
+  },
+  "Cookie 文件不能超过 1 MiB": {
+    "zh-CN": "Cookie 文件不能超过 1 MiB",
+    en: "The cookie file must not be larger than 1 MiB",
+  },
+  站点登录: {
+    "zh-CN": "站点登录",
+    en: "Site sign-in",
+  },
+  // Site names and login hints arrive from the server catalog with Chinese
+  // copy; `t` maps the exact string, so an English interface shows English.
+  "B 站": {
+    "zh-CN": "B 站",
+    en: "Bilibili",
+  },
+  抖音: {
+    "zh-CN": "抖音",
+    en: "Douyin",
+  },
+  小红书: {
+    "zh-CN": "小红书",
+    en: "Xiaohongshu",
+  },
+  YouTube: {
+    "zh-CN": "YouTube",
+    en: "YouTube",
+  },
+  TikTok: {
+    "zh-CN": "TikTok",
+    en: "TikTok",
+  },
+  网易云音乐: {
+    "zh-CN": "网易云音乐",
+    en: "NetEase Cloud Music",
+  },
+  "QQ 音乐": {
+    "zh-CN": "QQ 音乐",
+    en: "QQ Music",
+  },
+  喜马拉雅: {
+    "zh-CN": "喜马拉雅",
+    en: "Ximalaya",
+  },
+  "登录后才能下载高清和大会员视频。": {
+    "zh-CN": "登录后才能下载高清和大会员视频。",
+    en: "A sign-in is needed for HD and premium videos.",
+  },
+  "多数视频需要登录后才能下载。": {
+    "zh-CN": "多数视频需要登录后才能下载。",
+    en: "Most videos need a sign-in before they can be downloaded.",
+  },
+  "多数笔记视频需要登录后才能下载。": {
+    "zh-CN": "多数笔记视频需要登录后才能下载。",
+    en: "Most note videos need a sign-in before they can be downloaded.",
+  },
+  "高清、会员和年龄限制视频需要登录。": {
+    "zh-CN": "高清、会员和年龄限制视频需要登录。",
+    en: "HD, premium, and age-restricted videos need a sign-in.",
+  },
+  "登录后可解锁较高、极高和无损音质。": {
+    "zh-CN": "登录后可解锁较高、极高和无损音质。",
+    en: "A sign-in unlocks the higher, very high, and lossless audio tiers.",
+  },
+  "QQ 音乐需要登录后才能解析和下载。": {
+    "zh-CN": "QQ 音乐需要登录后才能解析和下载。",
+    en: "QQ Music needs a sign-in to read and download a track.",
+  },
+  "部分节目需要登录后才能下载。": {
+    "zh-CN": "部分节目需要登录后才能下载。",
+    en: "Some episodes need a sign-in before they can be downloaded.",
+  },
+  // Quality tier labels also arrive from the server; the numeric video labels
+  // (1080p, …) fall through unchanged.
+  最佳: {
+    "zh-CN": "最佳",
+    en: "Best",
+  },
+  无损: {
+    "zh-CN": "无损",
+    en: "Lossless",
+  },
+  极高: {
+    "zh-CN": "极高",
+    en: "Very high",
+  },
+  较高: {
+    "zh-CN": "较高",
+    en: "High",
+  },
+  "登录后可以导入需要账号的内容。登录信息只保存在你的服务器上，不会返回浏览器。":
+    {
+      "zh-CN":
+        "登录后可以导入需要账号的内容。登录信息只保存在你的服务器上，不会返回浏览器。",
+      en: "Sign in to import content that needs an account. The sign-in stays on your server and is never sent back to the browser.",
+    },
+  使用本机浏览器: {
+    "zh-CN": "使用本机浏览器",
+    en: "Use a browser on this machine",
+  },
+  "读取你已登录的浏览器，不会上传账号密码。": {
+    "zh-CN": "读取你已登录的浏览器，不会上传账号密码。",
+    en: "Reads the browser you are already signed in to. Your account and password are not uploaded.",
+  },
+  "正在验证登录…": {
+    "zh-CN": "正在验证登录…",
+    en: "Checking sign-in…",
+  },
+  "使用 Cookie 文件": {
+    "zh-CN": "使用 Cookie 文件",
+    en: "Use a cookie file",
+  },
+  "在浏览器登录站点后，用扩展导出 Netscape 格式的 cookies.txt，再拖到这里。只保留支持站点的 Cookie。":
+    {
+      "zh-CN":
+        "在浏览器登录站点后，用扩展导出 Netscape 格式的 cookies.txt，再拖到这里。只保留支持站点的 Cookie。",
+      en: "Sign in to the site in a browser, export a Netscape cookies.txt with an extension, then drop it here. Only cookies of supported sites are kept.",
+    },
+  "正在读取…": {
+    "zh-CN": "正在读取…",
+    en: "Reading…",
+  },
+  "把 cookies.txt 拖到这里，或点击选择文件。": {
+    "zh-CN": "把 cookies.txt 拖到这里，或点击选择文件。",
+    en: "Drop cookies.txt here, or click to choose a file.",
+  },
+  "选择 cookies.txt": {
+    "zh-CN": "选择 cookies.txt",
+    en: "Choose cookies.txt",
+  },
+  "最大 1 MiB。": {
+    "zh-CN": "最大 1 MiB。",
+    en: "Up to 1 MiB.",
+  },
+  "已连接 {value1} 个站点": {
+    "zh-CN": "已连接 {value1} 个站点",
+    en: "Connected {value1} sites",
+  },
+  "以下站点验证失败：{value1}": {
+    "zh-CN": "以下站点验证失败：{value1}",
+    en: "Could not verify these sites: {value1}",
+  },
+  "已忽略 {value1} 个不在支持列表中的域名": {
+    "zh-CN": "已忽略 {value1} 个不在支持列表中的域名",
+    en: "Ignored {value1} domains that are not supported",
+  },
+  将同时导入歌词: {
+    "zh-CN": "将同时导入歌词",
+    en: "Lyrics are imported too",
+  },
+  将同时导入字幕: {
+    "zh-CN": "将同时导入字幕",
+    en: "Subtitles are imported too",
+  },
+  登录后可解锁: {
+    "zh-CN": "登录后可解锁",
+    en: "Sign in to unlock",
+  },
+  超出存储上限: {
+    "zh-CN": "超出存储上限",
+    en: "Over the storage limit",
+  },
+  不可用: {
+    "zh-CN": "不可用",
+    en: "Unavailable",
+  },
+  未命名媒体: {
+    "zh-CN": "未命名媒体",
+    en: "Untitled media",
+  },
+  音质: {
+    "zh-CN": "音质",
+    en: "Audio quality",
+  },
+  清晰度: {
+    "zh-CN": "清晰度",
+    en: "Video quality",
+  },
+  "预计大小 {value1}": {
+    "zh-CN": "预计大小 {value1}",
+    en: "About {value1}",
+  },
+  "登录后可解锁更高音质。": {
+    "zh-CN": "登录后可解锁更高音质。",
+    en: "Sign in to unlock higher audio quality.",
+  },
+  "登录后可解锁更多清晰度。": {
+    "zh-CN": "登录后可解锁更多清晰度。",
+    en: "Sign in to unlock more video qualities.",
+  },
+  登录: {
+    "zh-CN": "登录",
+    en: "Sign in",
+  },
+  "专辑或播放列表链接只导入第一首。": {
+    "zh-CN": "专辑或播放列表链接只导入第一首。",
+    en: "A link to an album or playlist imports only the first track.",
+  },
+  请输入链接: {
+    "zh-CN": "请输入链接",
+    en: "Enter a link",
+  },
+  "请输入以 http:// 或 https:// 开头的链接": {
+    "zh-CN": "请输入以 http:// 或 https:// 开头的链接",
+    en: "Enter a link that starts with http:// or https://",
+  },
+  从音乐网站添加: {
+    "zh-CN": "从音乐网站添加",
+    en: "Add from music site",
+  },
+  "粘贴音乐页面链接，服务器会下载并保存到资源库。": {
+    "zh-CN": "粘贴音乐页面链接，服务器会下载并保存到资源库。",
+    en: "Paste the music page link; the server downloads it into the resource library.",
+  },
+  音乐页面链接: {
+    "zh-CN": "音乐页面链接",
+    en: "Music page link",
+  },
+  粘贴音乐页面地址: {
+    "zh-CN": "粘贴音乐页面地址",
+    en: "Paste the music page address",
+  },
+  "正在解析…": {
+    "zh-CN": "正在解析…",
+    en: "Reading the link…",
+  },
+  解析: {
+    "zh-CN": "解析",
+    en: "Read link",
+  },
+  "{value1} 需要登录后才能解析。": {
+    "zh-CN": "{value1} 需要登录后才能解析。",
+    en: "{value1} needs a sign-in before it can be read.",
+  },
+  登录后解析: {
+    "zh-CN": "登录后解析",
+    en: "Sign in, then read the link",
+  },
+  "粘贴网易云音乐、QQ 音乐等链接": {
+    "zh-CN": "粘贴网易云音乐、QQ 音乐等链接",
+    en: "Paste a NetEase Cloud Music, QQ Music, or other music link",
+  },
+  "识别到 {value1}": {
+    "zh-CN": "识别到 {value1}",
+    en: "Detected {value1}",
+  },
+  "站点列表加载失败，请重试。": {
+    "zh-CN": "站点列表加载失败，请重试。",
+    en: "The site list could not be loaded. Try again.",
+  },
   文件内容为空: {
     "zh-CN": "文件内容为空",
     en: "The file is empty",

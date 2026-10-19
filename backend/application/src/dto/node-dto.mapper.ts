@@ -105,9 +105,12 @@ export function toNodeDTO(node: Node): NodeDTO {
         ...base,
         nodeType: "audio" as const,
         duration: audio.duration,
+        source: audio.source,
+        sourceUrl: audio.sourceUrl,
         fileSize: audio.fileSize,
         content: {
           url: audio.content.url,
+          coverUrl: audio.content.coverUrl,
           timestamps: audio.content.timestamps,
         },
       };

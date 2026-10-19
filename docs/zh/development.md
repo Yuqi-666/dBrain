@@ -7,8 +7,9 @@
 | Node | 按 `.node-version`，当前为 24.15.0 |
 | pnpm | 9.0.0，见根 `package.json` |
 | Rust | 按 `rust-toolchain.toml`，当前为 1.99.0。桌面开发需要它。 |
-| PocketBase | 用仓库下载脚本。脚本获取固定版本和匹配当前平台的二进制。 |
+| PocketBase | 首次 `pnpm dev` 自动下载固定版本和匹配当前平台的二进制；`node scripts/release/download-pocketbase.mjs` 可重新下载。 |
 | FFmpeg / FFprobe | 媒体功能和桌面运行时准备需要它们。 |
+| yt-dlp | 首次 `pnpm dev` 自动下载当前版本到 `.cache/yt-dlp/`。媒体导入（视频和音频）需要它。 |
 | Docker Compose | 容器开发、测试和部署需要它。 |
 
 用 `pnpm install --frozen-lockfile` 按锁文件安装。不要把 `node_modules`、构建产物、运行时资源、真实 `.env` 或本地数据库提交到仓库。
@@ -36,11 +37,12 @@
 
 ```bash
 pnpm install --frozen-lockfile
-node scripts/release/download-pocketbase.mjs
 cp .env.example .env
 # 填写管理员邮箱与密码，并按需更改开发端口
 pnpm dev
 ```
+
+首次 `pnpm dev` 会在启动前下载两个仓库自带的二进制：固定版本的 PocketBase 进入 `pb/`，当前版本的 yt-dlp 进入 `.cache/yt-dlp/`。两者都只需联网一次，之后的启动直接复用。`YT_DLP_PATH` 可改用开发者自行安装的 yt-dlp；`YT_DLP_DOWNLOAD_BASE` 可把 yt-dlp 下载指向发行目录的镜像。yt-dlp 下载失败不会阻止开发栈启动：脚本打印警告，只有媒体导入会报告缺少该二进制。PocketBase 的显式重下仍使用 `node scripts/release/download-pocketbase.mjs`，CI 和桌面构建也直接调用它。
 
 只有两个开发命令。`pnpm dev` 在本机启动 PocketBase、Web 和 Server。`pnpm dev:remote` 为远程域名增加网关 `scripts/dev-gateway.mjs`。两个命令都并行启动子进程。任一进程退出会停止整组。
 
@@ -62,6 +64,42 @@ pnpm dev
 `.env` 中的 `DBRAIN_ADMIN_EMAIL` 与密码属于运维账号。应用身份使用普通 `users` 集合。同名的 shell 变量优先于文件。管理员配置更改后，运行 `pnpm pb:admin` 同步开发库账号。
 
 用 `pnpm --filter <package> <script>` 单独运行某个包，或用 `pnpm dev` 运行完整服务栈。
+
+## 媒体导入（视频与音频）
+
+视频节点和音频节点都能从媒体网站导入。两种类型共用一个实现：类型决定站点清单、清晰度或音质映射，以及下载后的步骤（视频打包 HLS，音频检查容器）。
+
+| 层 | 文件 |
+| --- | --- |
+| 领域端口 | `backend/domain/src/ports/media-download.ts`（`IMediaDownloader`、`IMediaProbe`、清晰度/字幕/进度类型）、`media-sites.ts`（`MEDIA_SITES`、`IMediaSiteCatalog`）、`media-site-auth.ts`（`IMediaSiteAuthRepository`、`IMediaBrowserDetector`）、`media-import-job.ts`（`IMediaImportJobStore`）、`media-transcode.ts`（`IAudioTranscoder`）。 |
+| 共享类型 | `packages/interfaces/src/media-import.ts`（`MediaKind`、`MediaImportProgress`、错误码）。错误线格式在 `packages/utils/src/media-import.ts`。 |
+| 基础设施 | `backend/infrastructure/src/downloaders/`：`media-sites.ts`（8 个站点）、`media-quality.ts`、`vtt-parser.ts`、`yt-dlp-media-downloader.ts`、`yt-dlp-media-probe.ts`、`media-browser-detector.ts`。另有 `storage/media-import-jobs.ts`、`storage/media-cookie-cipher.ts`、`repositories/pocketbase-media-site-auth.repository.ts`。 |
+| 应用层 | `backend/application/src/commands/media/media-import.service.ts`（`probe`、`import`、`job`、`confirm`、`cancel`、`sweep`）、`media-auth.service.ts`（两种登录方式）、`cookie-file.ts`（Netscape 解析与域名过滤）。 |
+| tRPC | `backend/adapter-front/src/trpc/router/file.ts`：`mediaSites`、`importMediaCookies`、`connectMediaSiteWithBrowser`、`verifyMediaSite`、`disconnectMediaSite`、`probeMediaSource`、`importMedia`、`mediaImportJob`、`confirmMediaImport`、`cancelMediaImport`，以及 `onMediaImportProgress` 订阅。 |
+| API 客户端 | `packages/api-client/src/file-analysis.ts`：`probeMediaSource`、`importMedia`、`mediaImportJob`、`confirmMediaImport`、`cancelMediaImport`、`mediaSites`、`importMediaCookies`、`connectMediaSiteWithBrowser`、`verifyMediaSite`、`disconnectMediaSite`、`MediaImportRequestError`。 |
+| UI | `packages/ui/src/components/node-content/`：`media-url-import-dialog.tsx`、`media-site-capsules.tsx`、`media-site-login-panel.tsx`、`media-probe-card.tsx`、`media-import-progress-view.tsx`、`use-media-site-auth.ts`、`use-media-url-import.ts`。 |
+
+### 新增固定站点
+
+在 `backend/infrastructure/src/downloaders/media-sites.ts` 的 `MEDIA_SITES` 中增加一个 `MediaSiteDefinition`。为它填写稳定的 `key`、`name`、支持的 `kinds`、`hosts`、一行 `loginHint` 和公开的 `probeUrl`。胶囊与 URL 匹配会跟随该定义。站点 key 以文本存储，不需要 PocketBase 迁移。Cookie 过滤器会自动保留新 `hosts` 的 Cookie。
+
+### 字幕与歌词
+
+`vtt-parser.ts` 把 WebVTT 文件转换为字幕 cue。它同时支持 `HH:MM:SS.mmm` 和 `MM:SS.mmm` 时间戳；音乐站点使用后一种。它去掉内联标签，把同一条 cue 的多行用 `\n` 连接，丢弃结束时间早于开始时间的 cue，并按开始时间排序。超过 30,000 条 cue 或 8 MiB 的轨道会被截断并标记 `truncated`。节点只保留一条轨道，因为时间戳数据没有语言维度。
+
+### 导入任务
+
+一次导入可能持续数分钟，并且必须在对话框关闭后继续。任务存储为每个任务保留一个目录：
+
+```text
+<DBRAIN_MEDIA_IMPORT_DIR>/<ownerId>/<jobId>/
+  session.json    状态、URL、格式、阶段、百分比、结果
+  download/       yt-dlp 输出：源文件、部分文件、缩略图
+```
+
+`running` 和 `interrupted` 保留已下载的部分。`completed` 保留结果，直到客户端写入节点并确认。`failed` 和 `cancelled` 立即删除目录。启动时，存储把所有 `running` 任务改为 `interrupted`，因为其进程已不存在。清理每小时运行一次，删除超过 24 小时的 `interrupted` 与 `completed` 任务，以及没有 session 文件的目录。默认根目录是 `<system temp>/dbrain-media-imports`；`DBRAIN_MEDIA_IMPORT_DIR` 可改变它。使用保存的登录时，下载器会把临时 `cookies.txt` 以权限 `0600` 写入 `<jobDir>/download/cookies.txt`；该文件随任务目录一起删除。
+
+`CONCURRENT_FRAGMENTS = 4` 是下载器中的常量，因此分片下载会传 `--concurrent-fragments 4`。渐进式下载忽略它。它没有用户设置，也没有环境变量。并发限制由应用层执行：每个用户两个，全局四个。
 
 ## 公网域名远程开发
 
@@ -106,7 +144,7 @@ sudo apt-get update
 sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libssl-dev librsvg2-dev build-essential patchelf ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 ```
 
-PocketBase 默认使用 `pb/pocketbase`（Windows 为 `.exe`）。应用从 PATH 查找 FFmpeg 和 FFprobe。可以设置 `DBRAIN_POCKETBASE_PATH`、`FFMPEG_PATH`、`FFPROBE_PATH`。
+PocketBase 默认使用 `pb/pocketbase`（Windows 为 `.exe`）。应用从 PATH 查找 FFmpeg 和 FFprobe。可以设置 `DBRAIN_POCKETBASE_PATH`、`FFMPEG_PATH`、`FFPROBE_PATH`。媒体导入会调用 `yt-dlp`；`pnpm dev` 会把它下载到 `.cache/yt-dlp/` 并把该路径交给 Server，`YT_DLP_PATH` 可覆盖路径或二进制名。
 
 ```bash
 pnpm dev:desktop

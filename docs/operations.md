@@ -6,6 +6,40 @@ A web deployment has four parts: PocketBase, the Node server, the web app, and t
 
 `DBRAIN_ADMIN_EMAIL` and the password belong to the PocketBase operator superuser. They are not a user login account. The app reads the database with an end-user token. The container creates or updates the operator account from the configuration before the start. To change the password for the long term, change the deployment configuration and restart the service.
 
+## Media runtime dependencies
+
+The server uses FFmpeg for the media functions and yt-dlp for the media import (video and audio). Both are in the server image, so a container deployment needs no extra package. The image installs the current self-contained yt-dlp release binary at `/usr/local/bin/yt-dlp` and checks it during the build, because the extractors of a media site change often.
+
+The server spawns `yt-dlp` from PATH. Set `YT_DLP_PATH` in the environment of the server process to use another binary or an absolute path. In a container deployment, set it in the deployment `.env`; the source Compose file forwards it to the `server` service. A server outside the container, or a custom image, must install yt-dlp (`pipx install yt-dlp` or the package of the distribution) and keep it current. The import also needs outbound network access from the server to the media site.
+
+Development does not use that image. The first `pnpm dev` downloads a current yt-dlp release into `.cache/yt-dlp/`. `YT_DLP_DOWNLOAD_BASE` points that download at a mirror of the release directory. The server container does not read this variable.
+
+## Media import
+
+The server imports a video or an audio track from a pasted site address. It downloads with yt-dlp, stores the source file as a resource, and packages a video as HLS. The saved logins and the temporary downloads need configuration and disk space.
+
+### Import configuration
+
+`DBRAIN_MEDIA_COOKIE_SECRET` encrypts the saved site logins with AES-256-GCM, using a key derived from the value. A deployment must set a long random value and keep it stable: a new value makes every saved login unreadable. Generate it once with `openssl rand -base64 32`. When the value is empty, the server generates a random per-machine secret and persists it at `<repo>/.cache/media-cookie-secret`. The server does not refuse to start with an empty value. A deployment must still set the variable: a generated secret belongs to one container, so a restart or a second replica would invalidate the saved logins.
+
+`DBRAIN_MEDIA_IMPORT_DIR` is the root of the import job directories. The default is `<system temp>/dbrain-media-imports`. The source Compose file mounts the named volume `media_imports` at `/var/lib/dbrain/media-imports` and uses that path. Keep the value and the mount equal. A container start without the volume loses an interrupted job that it could resume.
+
+The login method A (read a browser on this machine) is available only when the server runs as a local backend. The server is a local backend when `DBRAIN_LOCAL_MODE` is `1` or `true`, or when `DBRAIN_DESKTOP` is `1` (the desktop app sets it), or when `NODE_ENV` is not `production`. A remote or production deployment leaves `DBRAIN_LOCAL_MODE` and `DBRAIN_DESKTOP` empty and runs with `NODE_ENV=production`, so the login area shows method B only.
+
+### Job lifecycle and limits
+
+The server keeps one directory per import. A `running` job and an `interrupted` job keep the partial download. A `completed` job keeps its result until the client writes it onto the node and confirms it. A failed or a cancelled job is deleted at once. At startup, the server marks every `running` job as `interrupted`, because its process is gone. A sweep runs every hour and deletes `interrupted` and `completed` jobs older than 24 hours, and a directory without a session file.
+
+The server runs at most two imports for one user and four in total. One node runs one import at a time. A request above the limit reports that the server is busy. These limits are not configurable.
+
+Size the import directory for four downloads. Each download is bounded by the category limit (2 GiB for a video and 512 MiB for an audio file by default) and by the user quota. The directory also holds the partial download of an interrupted job for up to 24 hours. The stored resources and the HLS package go to the PocketBase volume, not to this directory.
+
+### Cookies and privacy
+
+A cookies-file login is encrypted before the server stores it. The plaintext exists only while one download or one verification runs, in `<jobDir>/download/cookies.txt` with mode `0600`, and is removed with that directory. The server keeps only the cookies whose domain matches a listed site; it discards every other domain before it stores anything. A browser login stores only the browser name. The API never returns a cookie to a client and never writes one to a log. The `media_site_auths` PocketBase collection is scoped to its owner: every list, view, create, update, and delete requires the record owner.
+
+Back up the secret with the deployment configuration. The saved logins are in the `pb_data` volume and are part of its backup; a restored backup needs the matching secret.
+
 ## Build a self-hosted environment from the source
 
 Configure and start the stack in the repository root.
@@ -95,6 +129,11 @@ For each future schema change, edit the base script and add a new higher numbere
 | `DBRAIN_GITHUB_TOKEN` | Optional token for the updater. It raises the GitHub API limit from 60 to 5000 requests per hour. A token for this public repository needs no scope. |
 | `DBRAIN_DEPLOYMENT_DIR` | The absolute host path of the deployment directory. It overrides the path that the updater detects. Usually empty. |
 | `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
+| `YT_DLP_PATH` | Optional. The path or binary name of yt-dlp for the media import. The default is `yt-dlp` from PATH. |
+| `YT_DLP_DOWNLOAD_BASE` | Optional. A mirror of the yt-dlp release download directory for the first development download. The server container does not read it. |
+| `DBRAIN_MEDIA_COOKIE_SECRET` | Required in a deployment. Encrypts the saved media-site logins. Keep it stable; a new value makes them unreadable. Empty generates a per-machine secret in `<repo>/.cache/media-cookie-secret`. |
+| `DBRAIN_MEDIA_IMPORT_DIR` | Root directory of the import jobs. The default is `<system temp>/dbrain-media-imports`; the container uses `/var/lib/dbrain/media-imports` on the `media_imports` volume. |
+| `DBRAIN_LOCAL_MODE` | `1` or `true` marks the server as a local backend, which offers login method A. Leave it empty on a web deployment. The desktop app sets `DBRAIN_DESKTOP=1` instead; `NODE_ENV` not `production` also counts as local. |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | The image name and tag of the source Compose. A release uses the digest overlay. |
 | `DBRAIN_STORAGE_USER_QUOTA_BYTES` | Total bytes one user may store. `0` disables the quota. The default is `10737418240` (10 GiB). |
 | `DBRAIN_STORAGE_MAX_IMAGE_BYTES` | Largest single image, in bytes. The default is `33554432` (32 MiB). |
@@ -166,6 +205,12 @@ For a deployment managed by `update.sh`, add `-f docker-compose.yml -f compose.c
 | The upgrade looks like a new installation | The project name, the deployment directory, and the real `pb_data` volume. |
 | An automatic update stops the gateway | The project directory of the updater and a stray `/deployment` path on the host. |
 | A video or a PDF fails | The related backend log, the attachment access permission, and the runtime dependencies. |
+| A media import fails | The backend log; yt-dlp is installed and current; the site is supported; the server can reach the site; the storage quota has room. |
+| A media import asks for a login, or reports a login error | The site capsule; connect the site with method B, or with method A in the desktop app; then parse the address again. |
+| A media import reports that the server is busy | Two imports already run for this user, or four on the server. Wait for one import to finish. |
+| A media import reports a size or quota error | The category limit and the owner quota. Select a lower quality, or delete resources. |
+| A saved site login stopped working | The cookie expired, `DBRAIN_MEDIA_COOKIE_SECRET` changed, or the server used a generated secret before a restart. Set a stable secret, then connect the site again. |
+| The import directory fills the disk | The space of `DBRAIN_MEDIA_IMPORT_DIR`. Four downloads can run at once, and an interrupted job stays 24 hours. |
 
 Logs can contain business information. Remove private data before you share a log. Point the admin CLI at the data directory, `/pb_data` in the container. A wrong directory creates an empty database by accident.
 

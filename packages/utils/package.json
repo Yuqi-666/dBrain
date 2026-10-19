@@ -17,7 +17,8 @@
     "./upload": "./src/upload.ts",
     "./storage-limits": "./src/storage-limits.ts",
     "./resource-references": "./src/resource-references.ts",
-    "./node-content": "./src/node-content.ts"
+    "./node-content": "./src/node-content.ts",
+    "./media-import": "./src/media-import.ts"
   },
   "dependencies": {
     "@workspace/interfaces": "workspace:*",

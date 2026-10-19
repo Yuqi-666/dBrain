@@ -7,6 +7,9 @@
  * resource must not parse, transcode or store anything again, because a
  * reference is the common case and every reference used to pay the full cost
  * (and add its own copy of the cover and the HLS package).
+ *
+ * Importing a file from a site URL is not this service's job anymore; the shared
+ * video/audio pipeline lives in `../media/media-import.service.ts`.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -16,14 +19,29 @@ import type {
   IDocumentAnalyzer,
   IFileStore,
   IMediaAnalysisStore,
+  IStorageUsageReader,
   IVideoTranscoder,
   ResourceAnalysis,
   ResourceAnalysisPatch,
 } from "@workspace/domain";
+import type { StorageLimits } from "@workspace/utils/storage-limits";
 import { FileCommandService } from "./file-command.service.ts";
 
 const PDF_URL = "/api/files/files/pdfresource/file.pdf";
 const VIDEO_URL = "/api/files/files/videoresource/clip.mp4";
+
+/** Storage policy passed by the composition root; unused by these use cases. */
+const STORAGE_LIMITS: StorageLimits = {
+  userQuotaBytes: 0,
+  maxFileBytes: {
+    image: 1024,
+    video: 1024,
+    audio: 1024,
+    pdf: 1024,
+    webpage: 1024,
+    other: 1024,
+  },
+};
 
 /** An analysis cache that starts empty (or with one known answer). */
 function analysisCache(initial?: ResourceAnalysis) {
@@ -145,6 +163,15 @@ function videoTranscoder() {
   return { port, calls: () => calls };
 }
 
+/** A usage reader the constructor requires; these use cases never read it. */
+function storageUsage(): IStorageUsageReader {
+  return {
+    async usageFor() {
+      return 0;
+    },
+  };
+}
+
 function service() {
   const analyzer = pdfAnalyzer();
   const files = fileStore();
@@ -156,6 +183,8 @@ function service() {
     transcoder.port,
     cache.store,
     10 * 1024 * 1024,
+    storageUsage(),
+    STORAGE_LIMITS,
   );
   return { commands, analyzer, files, transcoder, cache };
 }
@@ -241,6 +270,8 @@ test("a failed analysis caches nothing and can be retried", async () => {
     videoTranscoder().port,
     cache.store,
     10 * 1024 * 1024,
+    storageUsage(),
+    STORAGE_LIMITS,
   );
 
   await assert.rejects(

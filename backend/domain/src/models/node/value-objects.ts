@@ -326,13 +326,21 @@ export class VideoContent {
 
 /**
  * Audio node content.
+ *
+ * `coverUrl` is the cover the music-site import saved as a derived file
+ * resource. It is optional — unlike `VideoContent.coverUrl`, which every video
+ * upload produces — because a local audio upload has no such artwork and every
+ * record written before the import existed has none. `undefined` therefore
+ * means "no cover", the same meaning the interface gives the optional field.
  */
 export class AudioContent {
   private readonly _url: string;
+  private readonly _coverUrl: string | undefined;
   private readonly _timestamps: TimestampData[] | undefined;
 
-  constructor(url: string, timestamps?: TimestampData[]) {
+  constructor(url: string, coverUrl?: string, timestamps?: TimestampData[]) {
     this._url = url;
+    this._coverUrl = coverUrl;
     this._timestamps = timestamps;
   }
 
@@ -340,19 +348,24 @@ export class AudioContent {
     return this._url;
   }
 
+  get coverUrl(): string | undefined {
+    return this._coverUrl;
+  }
+
   /** See `VideoContent.timestamps`. */
   get timestamps(): TimestampData[] | undefined {
     return this._timestamps;
   }
 
-  /** Same audio with a different timestamp list; `url` is carried over. */
+  /** Same audio with a different timestamp list; the media fields are carried over. */
   withTimestamps(timestamps: TimestampData[] | undefined): AudioContent {
-    return new AudioContent(this._url, timestamps);
+    return new AudioContent(this._url, this._coverUrl, timestamps);
   }
 
   equals(other: AudioContent): boolean {
     return (
       this._url === other._url &&
+      this._coverUrl === other._coverUrl &&
       JSON.stringify(this._timestamps) === JSON.stringify(other._timestamps)
     );
   }
