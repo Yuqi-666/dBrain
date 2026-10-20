@@ -20,7 +20,7 @@ The server imports a video or an audio track from a pasted site address. It down
 
 ### Import configuration
 
-`DBRAIN_MEDIA_COOKIE_SECRET` encrypts the saved site logins with AES-256-GCM, using a key derived from the value. A deployment must set a long random value and keep it stable: a new value makes every saved login unreadable. Generate it once with `openssl rand -base64 32`. When the value is empty, the server generates a random per-machine secret and persists it at `<repo>/.cache/media-cookie-secret`. The server does not refuse to start with an empty value. A deployment must still set the variable: a generated secret belongs to one container, so a restart or a second replica would invalidate the saved logins.
+`DBRAIN_MEDIA_COOKIE_SECRET` encrypts the saved site logins with AES-256-GCM, using a key derived from the value. A deployment must set a long random value and keep it stable: a new value makes every saved login unreadable. Generate it once with `openssl rand -base64 32`. When the value is empty, the server generates a random per-machine secret and persists it at `<repo>/.cache/media-cookie-secret`. A bundled server or a container has no writable repository directory, so it persists the secret in the system temporary directory instead. The server does not refuse to start with an empty value. A deployment must still set the variable: a generated secret belongs to one container, so a restart or a second replica would invalidate the saved logins.
 
 `DBRAIN_MEDIA_IMPORT_DIR` is the root of the import job directories. The default is `<system temp>/dbrain-media-imports`. The source Compose file mounts the named volume `media_imports` at `/var/lib/dbrain/media-imports` and uses that path. Keep the value and the mount equal. A container start without the volume loses an interrupted job that it could resume.
 
@@ -131,7 +131,7 @@ For each future schema change, edit the base script and add a new higher numbere
 | `DBRAIN_PUBLIC_ORIGIN` | Usually empty. Set it to the exact browser origin when a front proxy rewrites the Host header. |
 | `YT_DLP_PATH` | Optional. The path or binary name of yt-dlp for the media import. The default is `yt-dlp` from PATH. |
 | `YT_DLP_DOWNLOAD_BASE` | Optional. A mirror of the yt-dlp release download directory for the first development download. The server container does not read it. |
-| `DBRAIN_MEDIA_COOKIE_SECRET` | Required in a deployment. Encrypts the saved media-site logins. Keep it stable; a new value makes them unreadable. Empty generates a per-machine secret in `<repo>/.cache/media-cookie-secret`. |
+| `DBRAIN_MEDIA_COOKIE_SECRET` | Required in a deployment. Encrypts the saved media-site logins. Keep it stable; a new value makes them unreadable. Empty generates a per-machine secret in `<repo>/.cache/media-cookie-secret`, or in the system temporary directory when the repository directory is not writable. |
 | `DBRAIN_MEDIA_IMPORT_DIR` | Root directory of the import jobs. The default is `<system temp>/dbrain-media-imports`; the container uses `/var/lib/dbrain/media-imports` on the `media_imports` volume. |
 | `DBRAIN_LOCAL_MODE` | `1` or `true` marks the server as a local backend, which offers login method A. Leave it empty on a web deployment. The desktop app sets `DBRAIN_DESKTOP=1` instead; `NODE_ENV` not `production` also counts as local. |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | The image name and tag of the source Compose. A release uses the digest overlay. |

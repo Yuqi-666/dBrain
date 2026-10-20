@@ -11,6 +11,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -62,7 +63,9 @@ export class MediaCookieCipher {
    * undecryptable, and the user has to connect the site again. A development or
    * desktop run with no variable gets a random secret persisted to
    * `<repo>/.cache/media-cookie-secret` (`0600`, git-ignored), so saved logins
-   * survive a restart instead of becoming garbage.
+   * survive a restart instead of becoming garbage. A bundled server or a
+   * container has no writable repository directory: that run persists the
+   * secret in the system temporary directory instead.
    */
   static fromEnvironment(): MediaCookieCipher {
     for (const name of SECRET_ENV_NAMES) {
@@ -153,6 +156,13 @@ const SECRET_ENV_NAMES = [
 /** Development secret file, relative to the repository root. */
 const DEVELOPMENT_SECRET_FILE = join(".cache", "media-cookie-secret");
 
+/**
+ * Development secret file in the system temporary directory. A bundled server
+ * and a container image have no writable repository directory, so the generated
+ * secret goes here instead of failing the whole startup with `EACCES`.
+ */
+const FALLBACK_SECRET_FILE = "dbrain-media-cookie-secret";
+
 /** Parses a hex part, rejecting anything that is not an even-length hex string. */
 function decodeHex(value: string, label: string): Buffer {
   if (typeof value !== "string" || !/^(?:[0-9a-fA-F]{2})*$/.test(value)) {
@@ -164,9 +174,37 @@ function decodeHex(value: string, label: string): Buffer {
 /**
  * A generated secret for a run with no configured one, persisted so that a
  * later run can still decrypt the logins the earlier one stored.
+ *
+ * The repository directory is the first choice: `pnpm dev` and a desktop
+ * development run keep the secret next to the source. A bundled server and a
+ * container image cannot write there, so the system temporary directory is the
+ * second choice. A run that can write neither stays up with an ephemeral
+ * secret, and the operator is told that a restart drops the saved logins.
  */
 function developmentSecret(): string {
-  const path = join(repositoryRoot(), DEVELOPMENT_SECRET_FILE);
+  for (const path of developmentSecretPaths()) {
+    try {
+      return readOrCreateDevelopmentSecret(path);
+    } catch (error) {
+      if (!isUnwritableLocation(error)) throw error;
+    }
+  }
+  console.warn(
+    "[media-cookie] no writable location for the generated media cookie secret. A restart drops the saved site logins. Set DBRAIN_MEDIA_COOKIE_SECRET.",
+  );
+  return randomBytes(GENERATED_SECRET_BYTES).toString("base64");
+}
+
+/** The candidate secret paths, in order. */
+function developmentSecretPaths(): string[] {
+  return [
+    join(repositoryRoot(), DEVELOPMENT_SECRET_FILE),
+    join(tmpdir(), FALLBACK_SECRET_FILE),
+  ];
+}
+
+/** Reads the stored secret at `path`, or creates it there. */
+function readOrCreateDevelopmentSecret(path: string): string {
   try {
     const stored = readFileSync(path, "utf8").trim();
     if (stored) {
@@ -188,11 +226,24 @@ function developmentSecret(): string {
   return secret;
 }
 
+/** True when the filesystem refuses the location, not when the path is wrong. */
+function isUnwritableLocation(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  return (
+    code === "EACCES" ||
+    code === "EPERM" ||
+    code === "EROFS" ||
+    code === "ENOTDIR"
+  );
+}
+
 /**
  * The repository root, found by walking up from this module until the workspace
  * manifest is there. A bundled build that no longer contains the manifest falls
  * back to the working directory, which is the same place a desktop build keeps
- * it; production always configures the secret, so no generated file is involved.
+ * it. A container image has neither a writable repository directory nor a
+ * writable working directory, so {@link developmentSecret} falls back to the
+ * system temporary directory.
  */
 function repositoryRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));

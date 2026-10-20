@@ -20,7 +20,7 @@ Web 部署有四部分：PocketBase、Node Server、Web 和 nginx Gateway。Pock
 
 ### 导入配置
 
-`DBRAIN_MEDIA_COOKIE_SECRET` 用 AES-256-GCM 加密保存的站点登录信息，密钥由该值派生。部署必须设置一个长随机值并保持不变：换值会使所有已保存的登录失效。用 `openssl rand -base64 32` 生成一次。该值为空时，服务端会生成随机的一机一份密钥，并保存到 `<repo>/.cache/media-cookie-secret`。服务端不会因该值为空而拒绝启动。部署仍必须设置该变量：生成的密钥只属于一个容器，重启或增加副本后已保存的登录会失效。
+`DBRAIN_MEDIA_COOKIE_SECRET` 用 AES-256-GCM 加密保存的站点登录信息，密钥由该值派生。部署必须设置一个长随机值并保持不变：换值会使所有已保存的登录失效。用 `openssl rand -base64 32` 生成一次。该值为空时，服务端会生成随机的一机一份密钥，并保存到 `<repo>/.cache/media-cookie-secret`。打包的服务端或容器没有可写的仓库目录，此时密钥保存到系统临时目录。服务端不会因该值为空而拒绝启动。部署仍必须设置该变量：生成的密钥只属于一个容器，重启或增加副本后已保存的登录会失效。
 
 `DBRAIN_MEDIA_IMPORT_DIR` 是导入任务目录的根。默认是 `<system temp>/dbrain-media-imports`。源码 Compose 文件把命名卷 `media_imports` 挂载到 `/var/lib/dbrain/media-imports`，并使用该路径。变量值与挂载点必须一致。容器启动时没有该卷会丢失本来可以继续的中断任务。
 
@@ -131,7 +131,7 @@ GitHub API 未认证时每小时只允许 60 次请求。在 `.env` 中设置 `D
 | `DBRAIN_PUBLIC_ORIGIN` | 通常留空。前置代理改写 Host 时设为浏览器精确 Origin。 |
 | `YT_DLP_PATH` | 可选。媒体导入使用的 yt-dlp 路径或二进制名。默认使用 PATH 中的 `yt-dlp`。 |
 | `YT_DLP_DOWNLOAD_BASE` | 可选。首次开发下载 yt-dlp 时使用的发行目录镜像。server 容器不读取它。 |
-| `DBRAIN_MEDIA_COOKIE_SECRET` | 部署必填。加密保存的媒体站点登录信息。保持不变；换值会使它们不可读。留空时在 `<repo>/.cache/media-cookie-secret` 生成一机一份的密钥。 |
+| `DBRAIN_MEDIA_COOKIE_SECRET` | 部署必填。加密保存的媒体站点登录信息。保持不变；换值会使它们不可读。留空时在 `<repo>/.cache/media-cookie-secret` 生成一机一份的密钥；仓库目录不可写时保存在系统临时目录。 |
 | `DBRAIN_MEDIA_IMPORT_DIR` | 导入任务根目录。默认 `<system temp>/dbrain-media-imports`；容器使用 `media_imports` 卷上的 `/var/lib/dbrain/media-imports`。 |
 | `DBRAIN_LOCAL_MODE` | `1` 或 `true` 表示服务端是本地后端，开放登录方式 A。Web 部署留空。桌面应用改为设置 `DBRAIN_DESKTOP=1`；`NODE_ENV` 不是 `production` 也算本地。 |
 | `DBRAIN_IMAGE_PREFIX` / `DBRAIN_VERSION` | 源码 Compose 的镜像名与标签。发行以 digest 覆盖层为准。 |
