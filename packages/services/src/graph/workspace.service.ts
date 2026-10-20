@@ -9,10 +9,11 @@ import { EdgeSemanticService } from "./edge-semantic.service";
 import { NodeTagService } from "./node-tag.service";
 
 /**
- * Workspace-scoped service. Follows the same optimistic store-first + tRPC +
- * rollback pattern as NodeService/ViewService, but is scoped to the workspace
- * domain (best-effort optimistic local state; the workspace backend procedures
- * are expected in the B5 backend task).
+ * Workspace-scoped service: create, rename, delete, sync and open.
+ *
+ * It follows the same optimistic store-first + tRPC + rollback pattern as
+ * NodeService/ViewService, and it calls the other graph services when opening a
+ * workspace so a workspace change cascades to every workspace-scoped model.
  */
 export const WorkspaceService = {
   /**
@@ -41,9 +42,19 @@ export const WorkspaceService = {
         ),
       );
 
-      // 2. Persist via tRPC; roll back on failure.
+      // 2. Persist via tRPC; roll back on failure. The server response is the
+      //    source of truth for the fields it normalizes (for example the name
+      //    trim and the new `updatedAt`).
       try {
-        await trpcClient.workspace.update.mutate({ id, updates: merged });
+        const saved = await trpcClient.workspace.update.mutate({
+          id,
+          updates: merged,
+        });
+        wsStore.setWorkspaces(
+          Array.from(wsStore.workspaces.values()).map((w) =>
+            w.id === id ? saved : w,
+          ),
+        );
       } catch (error) {
         wsStore.setWorkspaces(
           Array.from(wsStore.workspaces.values()).map((w) =>
@@ -65,22 +76,71 @@ export const WorkspaceService = {
     return result;
   },
 
+  /**
+   * Delete one non-default workspace, then make sure the app still has an open
+   * workspace.
+   *
+   * The default workspace (the one provisioned on first login) is structural and
+   * cannot be deleted; the selector hides its delete entry and this guard covers
+   * a stale menu or a direct call.
+   *
+   * Store-first, like every other delete: the row disappears immediately and a
+   * server failure restores both the list and the previous current id. When the
+   * deleted workspace was the open one, its data is dropped before another
+   * workspace is loaded — otherwise `open` would see the next workspace's id
+   * and decide that its data was already in the store. The default workspace
+   * guarantees that one remains, and the `sync` fallback below is only a guard
+   * for inconsistent legacy data.
+   */
   async delete(id: WorkspaceId): Promise<void> {
     const wsStore = useWorkspaceStore.getState();
     const oldWorkspace = wsStore.workspaces.get(id);
     if (!oldWorkspace) throw new Error("Workspace not found");
-    wsStore.setWorkspaces(
-      Array.from(wsStore.workspaces.values()).filter((w) => w.id !== id),
-    );
+    if (oldWorkspace.isDefault) {
+      throw new Error("The default workspace cannot be deleted");
+    }
+
+    const previous = Array.from(wsStore.workspaces.values());
+    const wasCurrent = wsStore.currentWorkspaceId === id;
+    const remaining = previous.filter((w) => w.id !== id);
+
+    wsStore.setWorkspaces(remaining);
+    if (wasCurrent) {
+      wsStore.setCurrentWorkspaceId(remaining[0]?.id ?? null);
+    }
+
     try {
       await trpcClient.workspace.delete.mutate({ id });
     } catch (error) {
-      wsStore.setWorkspaces([
-        ...Array.from(wsStore.workspaces.values()),
-        oldWorkspace,
-      ]);
+      wsStore.setWorkspaces(previous);
+      if (wasCurrent) wsStore.setCurrentWorkspaceId(id);
       throw error;
     }
+
+    if (!wasCurrent) return;
+
+    // The deleted workspace's nodes, semantics, tags and views must not leak
+    // into the workspace opened next. The editor is a single-node surface, so
+    // leaving it also matches what `open` does on a normal workspace switch.
+    useDataStore.getState().reset();
+    if (useUIStore.getState().mainViewType === "editor") {
+      useUIStore
+        .getState()
+        .setMainViewType(useUIStore.getState().editorReturnViewType);
+    }
+
+    const nextWorkspace = remaining[0];
+    if (nextWorkspace) {
+      await WorkspaceService.open(nextWorkspace.id);
+      return;
+    }
+
+    // Last workspace: provision a fresh default, then open it.
+    await WorkspaceService.sync();
+    const next = Array.from(
+      useWorkspaceStore.getState().workspaces.values(),
+    )[0];
+    if (next) await WorkspaceService.open(next.id);
   },
 
   async sync(ids?: WorkspaceId[]): Promise<void> {

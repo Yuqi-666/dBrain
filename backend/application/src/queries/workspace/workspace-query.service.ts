@@ -17,6 +17,8 @@ function toWorkspaceDTO(workspace: Workspace): WorkspaceDTO {
     id: workspace.id.value,
     name: workspace.name,
     ownerId: workspace.ownerId,
+    icon: workspace.icon,
+    isDefault: workspace.isDefault,
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
   };

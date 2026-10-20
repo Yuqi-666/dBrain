@@ -1,7 +1,11 @@
+import type { NodeIcon } from "@workspace/interfaces";
+
 export interface CreateWorkspaceCommand {
   id: string;
   name: string;
   ownerId: string;
+  /** Optional picker icon; `null` is stored as "no icon". */
+  icon?: NodeIcon | null;
   userId: string;
   sourceId?: string;
 }
@@ -9,6 +13,11 @@ export interface CreateWorkspaceCommand {
 export interface UpdateWorkspaceCommand {
   id: string;
   name?: string;
+  /**
+   * `undefined` leaves the stored icon alone; `null` clears it. Same sentinel
+   * as the node update contract.
+   */
+  icon?: NodeIcon | null;
   userId: string;
   sourceId?: string;
 }

@@ -18,6 +18,7 @@
     "./storage-limits": "./src/storage-limits.ts",
     "./resource-references": "./src/resource-references.ts",
     "./node-content": "./src/node-content.ts",
+    "./workspace": "./src/workspace.ts",
     "./media-import": "./src/media-import.ts"
   },
   "dependencies": {

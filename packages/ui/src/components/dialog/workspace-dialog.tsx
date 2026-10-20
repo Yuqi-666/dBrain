@@ -15,9 +15,10 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { useAuthStore, useUIStore } from "@workspace/store";
 import { WorkspaceService } from "@workspace/services";
-import type { Workspace } from "@workspace/interfaces";
-
-const WORKSPACE_NAME_MAX_LENGTH = 50;
+import type { NodeIcon, Workspace } from "@workspace/interfaces";
+import { WORKSPACE_NAME_MAX_LENGTH } from "@workspace/utils/workspace";
+import { IconSelectorPopover } from "@workspace/ui/components/selector/icon-selector-popover";
+import { WorkspaceIcon } from "@workspace/ui/components/icon/workspace-icon";
 
 /**
  * 创建 workspace 的 dialog。
@@ -35,10 +36,11 @@ export function CreateWorkspaceDialog() {
    * 创建 workspace 并立即打开它。
    * 服务端 `workspace.add` 需要客户端提供 id + ownerId，因此这里生成 `tmp_`
    * 前缀的 id（与其它 service 的创建约定一致），ownerId 取当前登录用户。
+   * 图标随创建一起提交；未选择图标时 `null` 表示使用默认的地球图标。
    * 失败时向上抛出，由弹窗展示错误。
    */
   const handleSubmit = useCallback(
-    async (name: string) => {
+    async (name: string, icon: NodeIcon | null) => {
       const ownerId = useAuthStore.getState().getUserId();
       if (!ownerId) {
         throw new Error("Cannot create workspace: no authenticated user");
@@ -48,6 +50,7 @@ export function CreateWorkspaceDialog() {
       const workspace: Workspace = {
         id: `tmp_${crypto.randomUUID()}`,
         name: name.trim(),
+        icon,
         ownerId,
         createdAt: now,
         updatedAt: now,
@@ -76,7 +79,7 @@ export function CreateWorkspaceDialog() {
 export interface CreateWorkspaceDialogContentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (name: string) => void | Promise<void>;
+  onSubmit: (name: string, icon: NodeIcon | null) => void | Promise<void>;
 }
 
 export function CreateWorkspaceDialogContent({
@@ -87,13 +90,15 @@ export function CreateWorkspaceDialogContent({
   const { t } = useI18n();
 
   const [name, setName] = useState("");
+  const [icon, setIcon] = useState<NodeIcon | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 每次打开都重置表单，避免上一次的输入/错误残留。
+  // 每次打开都重置表单，避免上一次的输入/图标/错误残留。
   useEffect(() => {
     if (open) {
       setName("");
+      setIcon(null);
       setIsSubmitting(false);
       setError(null);
     }
@@ -111,7 +116,7 @@ export function CreateWorkspaceDialogContent({
       setIsSubmitting(true);
       setError(null);
       try {
-        await onSubmit(trimmed);
+        await onSubmit(trimmed, icon);
         onOpenChange(false);
       } catch (err) {
         console.error("Failed to create workspace:", err);
@@ -120,7 +125,7 @@ export function CreateWorkspaceDialogContent({
         setIsSubmitting(false);
       }
     },
-    [name, onSubmit, onOpenChange, t],
+    [name, icon, onSubmit, onOpenChange, t],
   );
 
   return (
@@ -134,23 +139,50 @@ export function CreateWorkspaceDialogContent({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-2 py-2">
-            <Label htmlFor="workspace-name">{t("名称")}</Label>
-            <Input
-              id="workspace-name"
-              name="name"
-              autoFocus
-              value={name}
-              maxLength={WORKSPACE_NAME_MAX_LENGTH}
-              placeholder={t("例如：我的知识库")}
-              disabled={isSubmitting}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError(null);
-              }}
-            />
-            {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex items-start gap-3 py-2">
+            <div className="grid gap-2">
+              <Label>{t("图标")}</Label>
+              <IconSelectorPopover
+                allowedKinds={["emoji", "icon"]}
+                showColorPicker={false}
+                value={icon ?? undefined}
+                onChange={(next) => setIcon(next ?? null)}
+                disabledReason={isSubmitting ? t("保存中…") : undefined}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-10 rounded-lg"
+                  aria-label={icon ? t("更换图标") : t("设置图标")}
+                  disabled={isSubmitting}
+                >
+                  <WorkspaceIcon
+                    icon={icon}
+                    className="size-5"
+                    glyphClassName="size-5"
+                  />
+                </Button>
+              </IconSelectorPopover>
+            </div>
+            <div className="grid min-w-0 flex-1 gap-2">
+              <Label htmlFor="workspace-name">{t("名称")}</Label>
+              <Input
+                id="workspace-name"
+                name="name"
+                autoFocus
+                value={name}
+                maxLength={WORKSPACE_NAME_MAX_LENGTH}
+                placeholder={t("例如：我的知识库")}
+                disabled={isSubmitting}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (error) setError(null);
+                }}
+              />
+            </div>
           </div>
+          {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
 
           <DialogFooter>
             <Button

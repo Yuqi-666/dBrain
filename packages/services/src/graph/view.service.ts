@@ -100,6 +100,10 @@ export const ViewService = {
     const store = useDataStore.getState();
     const oldView = store.views.get(id);
     if (!oldView) throw new Error("View not found");
+    // The default global view keeps every workspace renderable; the sidebar
+    // hides its delete entry, and the service refuses it too so a stale menu
+    // cannot bypass the rule.
+    if (oldView.isDefault) throw new Error("The default view cannot be deleted");
     store.deleteView(id);
     try {
       await trpcClient.view.delete.mutate({ id });

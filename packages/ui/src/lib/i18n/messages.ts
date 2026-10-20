@@ -1,6 +1,7 @@
 import { resourceLibraryMessages } from "./messages-resources.ts";
 import { resourceSelectorMessages } from "./messages-resource-selector.ts";
 import { nodeDispositionMessages } from "./messages-node-disposition.ts";
+import { workspaceMessages } from "./messages-workspace.ts";
 
 // Interface copy only. Never pass user-authored content through this catalog.
 //
@@ -13,6 +14,7 @@ export const messages: Record<string, { "zh-CN": string; en: string }> = {
   ...resourceLibraryMessages,
   ...resourceSelectorMessages,
   ...nodeDispositionMessages,
+  ...workspaceMessages,
   "Sign In": {
     "zh-CN": "登录",
     en: "Sign In",

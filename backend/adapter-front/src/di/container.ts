@@ -226,6 +226,9 @@ export class AppContainer {
       this.nodeDao,
       this.edgeDao,
       this.viewDao,
+      this.nodeSemanticDao,
+      this.edgeSemanticDao,
+      this.nodeTagDao,
       this.eventBus,
     );
     this.workspaceQueryService = new WorkspaceQueryService(

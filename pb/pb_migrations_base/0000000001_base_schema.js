@@ -85,6 +85,12 @@ migrate(
       fields: [
         { name: "name", type: "text", required: true },
         { name: "ownerId", type: "text", required: true },
+        // User-editable picker icon: `{ kind: "emoji" | "icon", value }`.
+        // `null` / a missing value means the picker shows its fallback glyph.
+        { name: "icon", type: "json" },
+        // Server-owned: true for the workspace provisioned on first login.
+        // Such a workspace cannot be deleted; a rename stays allowed.
+        { name: "isDefault", type: "bool" },
       ],
     });
     app.save(workspaces);
@@ -132,6 +138,9 @@ migrate(
         { name: "filterConfig", type: "json" },
         { name: "isPinned", type: "bool" },
         { name: "workspaceId", type: "text" },
+        // Server-owned: true for the global view created with a workspace.
+        // Such a view cannot be deleted; a rename stays allowed.
+        { name: "isDefault", type: "bool" },
       ],
     });
     app.save(views);
@@ -344,6 +353,10 @@ migrate(
         c.viewRule = read;
         c.createRule = write;
         c.updateRule = write + " && @request.body.workspaceId:changed = false";
+        // A view's isDefault is server-owned: a client update must not clear it,
+        // or the protected view would become deletable.
+        if (name === "views")
+          c.updateRule += " && @request.body.isDefault:changed = false";
         c.deleteRule = write;
         app.save(c);
       }
@@ -353,9 +366,12 @@ migrate(
         " && (ownerId = @request.auth.id || (@collection.workspace_members:membership_scope.workspaceId ?= id && @collection.workspace_members:membership_scope.userId ?= @request.auth.id))";
       workspace.viewRule = workspace.listRule;
       workspace.createRule = auth + " && ownerId = @request.auth.id";
+      // `isDefault` is server-owned for the same reason: clearing it through an
+      // update would make the default workspace deletable.
       workspace.updateRule =
         auth +
-        " && ownerId = @request.auth.id && @request.body.ownerId:changed = false";
+        " && ownerId = @request.auth.id && @request.body.ownerId:changed = false" +
+        " && @request.body.isDefault:changed = false";
       workspace.deleteRule = auth + " && ownerId = @request.auth.id";
       app.save(workspace);
       const members = app.findCollectionByNameOrId("workspace_members");

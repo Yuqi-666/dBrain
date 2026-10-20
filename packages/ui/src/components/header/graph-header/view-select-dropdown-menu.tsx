@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
+import { viewDisplayName } from "@workspace/ui/lib/default-instance-name";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -41,7 +42,9 @@ export function ViewSelectDropdownMenu({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="lg" className={className}>
           <LayoutDashboardIcon className="size-4 mr-1" />
-          <span>{currentView?.name || t("选择视图")}</span>
+          <span>
+            {currentView ? viewDisplayName(currentView, t) : t("选择视图")}
+          </span>
           <div className="flex flex-col items-center ml-1 leading-none">
             <ChevronUpIcon className="size-3" />
             <ChevronDownIcon className="size-3 -mt-1" />
@@ -61,7 +64,7 @@ export function ViewSelectDropdownMenu({
               data-active={view.id === currentViewId}
             >
               {view.isPinned && <span className="mr-1">📌</span>}
-              {view.name}
+              {viewDisplayName(view, t)}
             </DropdownMenuItem>
           ))
         )}

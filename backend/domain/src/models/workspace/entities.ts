@@ -1,28 +1,45 @@
+import type { NodeIcon } from "@workspace/interfaces";
+import { WORKSPACE_NAME_MAX_LENGTH } from "@workspace/utils/workspace";
 import { WorkspaceId, WorkspaceMemberId } from "./value-objects";
+import { normalizeWorkspaceName } from "./name";
 
 interface WorkspaceProps {
   id: WorkspaceId;
   name: string;
   ownerId: string;
+  /** Display icon; `null` clears it and `undefined` reads as "no icon". */
+  icon?: NodeIcon | null;
+  isDefault?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 /**
  * Workspace entity - represents a workspace container
+ *
+ * The name is normalized and validated on every construction, so `create` and
+ * `updateName` cannot persist a blank or over-long name.
+ * `isDefault` marks the workspace the server provisions on first login; it is
+ * server-owned and only the provisioning path sets it.
+ * `icon` is the picker icon; only the `emoji` and `icon` kinds are stored, and
+ * the constructor normalises `null` to `undefined` like the node entity does.
  * All properties are readonly - use update methods to create new instances
  */
 export class Workspace {
   readonly id: WorkspaceId;
   readonly name: string;
   readonly ownerId: string;
+  readonly icon?: NodeIcon;
+  readonly isDefault: boolean;
   readonly createdAt?: string;
   readonly updatedAt?: string;
 
   private constructor(props: WorkspaceProps) {
     this.id = props.id;
-    this.name = props.name;
+    this.name = normalizeWorkspaceName(props.name, WORKSPACE_NAME_MAX_LENGTH);
     this.ownerId = props.ownerId;
+    this.icon = props.icon ?? undefined;
+    this.isDefault = props.isDefault ?? false;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
@@ -34,6 +51,8 @@ export class Workspace {
     id: string | WorkspaceId;
     name: string;
     ownerId: string;
+    icon?: NodeIcon | null;
+    isDefault?: boolean;
     createdAt?: string;
     updatedAt?: string;
   }): Workspace {
@@ -43,6 +62,8 @@ export class Workspace {
       id,
       name: props.name,
       ownerId: props.ownerId,
+      icon: props.icon,
+      isDefault: props.isDefault,
       createdAt: props.createdAt,
       updatedAt: props.updatedAt,
     });
@@ -57,12 +78,32 @@ export class Workspace {
 
   /**
    * Creates a copy with updated name
+   * @throws Error if the trimmed name is empty or longer than the shared limit
    */
   updateName(name: string): Workspace {
     return new Workspace({
       id: this.id,
       name,
       ownerId: this.ownerId,
+      icon: this.icon,
+      isDefault: this.isDefault,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    });
+  }
+
+  /**
+   * Creates a copy with a new icon, or without one when `icon` is `null`.
+   * The `null` sentinel is required because `undefined` means "leave it alone"
+   * on the update path.
+   */
+  updateIcon(icon: NodeIcon | null): Workspace {
+    return new Workspace({
+      id: this.id,
+      name: this.name,
+      ownerId: this.ownerId,
+      icon,
+      isDefault: this.isDefault,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     });

@@ -184,6 +184,45 @@ try {
     b.workspace.provisionDefault.mutate(),
   ]);
   assert.notEqual(wa.id, wb.id);
+  // Both provisioned instances are the user's defaults: the flag reaches the
+  // client and neither instance can be deleted (renaming stays possible).
+  assert.equal(wa.isDefault, true);
+  assert.equal(wb.isDefault, true);
+  const [defaultView] = await a.view.listByWorkspace.query({
+    workspaceId: wa.id,
+  });
+  assert.equal(defaultView.isDefault, true);
+  await assert.rejects(
+    a.view.delete.mutate({ id: defaultView.id }),
+    /The default view cannot be deleted/,
+  );
+  // Renaming a default instance stays allowed and keeps the flag (the update
+  // rule pins only `isDefault`, not the name).
+  const renamedWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { name: "改名后的工作区" },
+  });
+  assert.equal(renamedWorkspace.name, "改名后的工作区");
+  assert.equal(renamedWorkspace.isDefault, true);
+  const renamedView = await a.view.update.mutate({
+    id: defaultView.id,
+    updates: { name: "改名后的视图" },
+  });
+  assert.equal(renamedView.name, "改名后的视图");
+  assert.equal(renamedView.isDefault, true);
+  // The picker icon is owner-editable, round-trips through the JSON column, and
+  // `null` clears it. It never touches the protection flag.
+  const iconWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { icon: { kind: "icon", value: "Globe" } },
+  });
+  assert.deepEqual(iconWorkspace.icon, { kind: "icon", value: "Globe" });
+  assert.equal(iconWorkspace.isDefault, true);
+  const clearedWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { icon: null },
+  });
+  assert.equal(clearedWorkspace.icon ?? null, null);
   assert.deepEqual(
     (await a.workspace.list.query()).map((w) => w.id),
     [wa.id],
@@ -585,7 +624,22 @@ try {
   assert.equal(la.user.id, alice.user.id);
   assert.equal(lb.user.id, bob.user.id);
   await assert.rejects(freshAnon.workspace.list.query());
-  await a.workspace.delete.mutate({ id: wa.id });
+  // The provisioned workspace is the user's default instance: it cannot be
+  // deleted, while a second, user-created workspace stays deletable.
+  await assert.rejects(
+    a.workspace.delete.mutate({ id: wa.id }),
+    /The default workspace cannot be deleted/,
+  );
+  const extra = await a.workspace.add.mutate({
+    id: `tmp_delete_${Date.now()}`,
+    name: "delete me",
+    ownerId: alice.user.id,
+    // The create dialog sends a picker icon with the new workspace.
+    icon: { kind: "emoji", value: "🧪" },
+  });
+  assert.deepEqual(extra.icon, { kind: "emoji", value: "🧪" });
+  await a.workspace.delete.mutate({ id: extra.id });
+  assert.equal(await a.workspace.getById.query({ id: extra.id }), null);
   console.log(
     "PASS concurrent login isolation and authorized workspace deletion",
   );

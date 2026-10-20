@@ -302,6 +302,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/utils
     devDependencies:
+      '@types/node':
+        specifier: ^25.1.0
+        version: 25.3.5
       typescript:
         specifier: ^5.0.0
         version: 5.9.3

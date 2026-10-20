@@ -54,6 +54,14 @@ A web user opens the service address from the maintainer. The user creates an ap
 
 The node types are text, rich text, image, PDF, video, audio, web page, website, collection, and database. A relation connects two nodes. A tag and a semantic classify a node. A workspace is the scope of the content. A view is the way that the app shows the content.
 
+The workspace selector is in the graph sidebar and in the left Dashboard sidebar. A workspace that you own shows a ⋯ menu with 编辑. A non-default workspace also shows 删除. Only the owner sees these entries. A user who is not the owner cannot edit or delete a shared workspace.
+
+编辑 changes the name and the icon. The dialog shows the current name and icon. The create entry offers the same icon picker. The app trims the name. The name must have 1 to 50 characters and cannot be blank. The icon picker offers an emoji or a Lucide graphic; a workspace without an icon shows a globe. An edit changes the workspace only. The nodes, the relations, and the views stay.
+
+删除 deletes a non-default workspace. The confirmation shows the name. The delete removes the nodes, the relations, the views, the semantics, the tags, and the Dashboard pages of the workspace. It cannot be undone. Files in the resource library are not deleted. They stay in the library. When you delete the open workspace, the app opens another workspace.
+
+Every user has a default workspace. The app creates it at the first login. The default workspace cannot be deleted. You can rename it and change its icon. Every workspace has a default view. It shows all content. The default view cannot be deleted. You can rename it and pin it. The default names use the interface language. In English they are "Default workspace" and "All". After a rename, the custom name shows.
+
 A web page node stores its page as a file in the resource library. The node keeps the file's address and byte length, as a PDF node keeps its PDF. Choose 文件上传 to upload an HTML file, or 从资源库选择 to reference a web page that is already in the library. The 编辑器 entry starts an empty document; 保存 stores it as a new file. 预览 renders the stored page in a sandboxed frame, and 编辑 reads the source back and saves the change to the stored file. A web page file is capped by the storage policy's web page limit (16 MiB by default). Deleting the resource clears the node's address and returns it to the empty state.
 
 ### Import from a media site

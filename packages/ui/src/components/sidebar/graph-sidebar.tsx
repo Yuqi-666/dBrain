@@ -43,6 +43,7 @@ import {
   TabsTrigger,
 } from "@workspace/ui/components/ui/tabs";
 import { cn } from "@workspace/ui/lib/utils";
+import { viewDisplayName } from "@workspace/ui/lib/default-instance-name";
 import {
   ChevronRight,
   CircleDot,
@@ -328,7 +329,7 @@ function ViewItem({
       <div className="flex items-center gap-2.5 min-w-0">
         <LayoutGrid className="size-3.5 text-sidebar-foreground/30 shrink-0" />
         <span className="text-[13px] text-sidebar-foreground truncate">
-          {view.name}
+          {viewDisplayName(view, t)}
         </span>
       </div>
       <div className="flex items-center gap-0.5">
@@ -377,13 +378,18 @@ function ViewItem({
               <Pencil className="mr-2 size-4" />
               {t("Edit")}{" "}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete(view.id)}
-              className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-            >
-              <Trash2 className="mr-2 size-4" />
-              {t("Delete")}{" "}
-            </DropdownMenuItem>
+            {/* The default global view is the workspace's guaranteed way to
+                show everything; deleting it would leave the graph without a
+                renderable view. It can still be renamed and pinned. */}
+            {!view.isDefault && (
+              <DropdownMenuItem
+                onClick={() => onDelete(view.id)}
+                className="rounded-lg px-2.5 py-2 text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+              >
+                <Trash2 className="mr-2 size-4" />
+                {t("Delete")}{" "}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
