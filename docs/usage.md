@@ -68,6 +68,8 @@ A web page node stores its page as a file in the resource library. The node keep
 
 A video node's empty area offers 本地上传, 「从视频网站添加」, and 「从资源库选择」. An audio node offers 本地上传, 「从音乐网站添加」, and 「从资源库选择」. Choose the site card and paste the address of a page.
 
+The import runs yt-dlp on the server. The web and container formats include yt-dlp. The desktop installer does not. On the desktop app, put `yt-dlp` in PATH, or set `YT_DLP_PATH` to its path.
+
 | Kind | Listed sites |
 | --- | --- |
 | Video | B 站, 抖音, 小红书, YouTube, TikTok |
@@ -118,6 +120,8 @@ A site thumbnail becomes the cover of the node and of its preview card. The serv
 | The import reports that the server is busy | The server runs at most two imports for one user and four in total. Wait for one import to finish. |
 
 In the rich-text editor, the first Ctrl+A (Command+A on macOS) selects the current block and the second selects the whole document. Copying writes Markdown to the plain-text clipboard. Nodes without a text form, such as images, stay out of the copied text.
+
+A paste into the rich-text editor is read as Markdown and becomes rich text. A bold run that contains full-width punctuation stays separate from the text after it: `**（Decimal）**和**（Hexadecimal）**` gives two bold runs and a plain 和. A single `~` stays literal. Use `~~text~~` for a strikethrough.
 
 Before you remove content, check whether the menu applies to a node, a relation, or the selected collection. Back up important data first.
 
