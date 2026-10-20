@@ -28,7 +28,7 @@ import {
 import {
   DeleteWorkspaceDialog,
   EditWorkspaceDialog,
-} from "@workspace/ui/components/dialog/workspace-manage-dialogs";
+} from "@workspace/ui/components/dialog/workspace-dialog";
 import { WorkspaceIcon } from "@workspace/ui/components/icon/workspace-icon";
 import { workspaceDisplayName } from "@workspace/ui/lib/default-instance-name";
 import { cn } from "@workspace/ui/lib/utils";
