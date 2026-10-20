@@ -27,10 +27,16 @@ import { useI18n } from "@workspace/ui/lib/i18n";
  *    therefore keyed **here** (`key={node.id}`) and the debounce carries the
  *    writer it was armed with, so neither the document nor a pending write can
  *    cross over to the node the dialog was pointed at next.
+ * 5. **A store-side clear is a remount too.** `useUIStore().nodeContentReset`
+ *    counts external replacements of this node's content (the disposition
+ *    dialog's 清空, a deleted file stripping an embedded block). The token joins
+ *    the key, so the uncontrolled editor reseeds from the cleared document —
+ *    ordinary typing only writes the store and never bumps it.
  */
 import { useCallback, useEffect, useRef } from "react";
 import type { TextNodeData } from "@workspace/interfaces";
 import { SingleBlockEditor } from "@workspace/editor/components/tiptap-templates/single-block/single-block-editor";
+import { useUIStore } from "@workspace/store";
 import { cn } from "@workspace/ui/lib/utils";
 import { normalizeDoc } from "./doc-normalize";
 import { useNodeContentWriter } from "./use-node-content-writer";
@@ -52,6 +58,13 @@ interface TextNodeContentProps {
 
 export function TextNodeContent({ node, className }: TextNodeContentProps) {
   const { t } = useI18n();
+
+  // Bumped only when the store content is replaced from outside (清空节点, a
+  // deleted file). It is part of the editor key below, so such a replacement
+  // remounts the uncontrolled editor; typing never touches it.
+  const contentReset = useUIStore(
+    (state) => state.nodeContentReset[node.id] ?? 0,
+  );
 
   const writer = useNodeContentWriter<TextContent>(
     node.id,
@@ -108,6 +121,17 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
   // Unmount (closing the dialog) persists whatever the debounce still holds.
   useEffect(() => flush, [flush]);
 
+  // An external replacement wins over whatever the debounce still holds: drop
+  // the queued document so a timer armed a moment ago cannot write the old
+  // content back after the clear.
+  useEffect(() => {
+    pending.current = null;
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  }, [contentReset]);
+
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       <div className="flex-1 overflow-y-auto">
@@ -116,18 +140,20 @@ export function TextNodeContent({ node, className }: TextNodeContentProps) {
             Tailwind), the editor only fills it. No viewport units: node-content
             is mounted both in a dialog and in `absolute inset-0` (plan §M3.2-12). */}
         <div className="mx-auto flex min-h-full w-full max-w-[42rem] flex-col px-8 py-16 text-center text-2xl leading-relaxed">
-          {/* Keyed by node id: the editor is **uncontrolled** and seeds itself
-              once per mount (that is the whole point — `SingleBlockEditor` reads
-              `initialContent` in a lazy `useState`), so pointing the same dialog
-              at another node has to remount it. Without the key, a text → text
-              switch through the sidebar kept the first node's document while the
-              writer moved to the second — and a keystroke then persisted one
-              node's text into the other. The seed is recomputed per render on
-              purpose: the key makes the editor read the value it mounts with,
-              and a re-render of this component (every store change) must not
-              reset a live editor. */}
+          {/* Keyed by node id **and** the external-reset token: the editor is
+              **uncontrolled** and seeds itself once per mount (that is the whole
+              point — `SingleBlockEditor` reads `initialContent` in a lazy
+              `useState`), so pointing the same dialog at another node — or
+              replacing the document from the store (清空节点) — has to remount it.
+              Without the node id, a text → text switch through the sidebar kept
+              the first node's document while the writer moved to the second —
+              and a keystroke then persisted one node's text into the other.
+              Without the reset token, a store-side clear left the old document
+              on screen. The seed is recomputed per render on purpose: the key
+              makes the editor read the value it mounts with, and a re-render of
+              this component (every store change) must not reset a live editor. */}
           <SingleBlockEditor
-            key={node.id}
+            key={`${node.id}:${contentReset}`}
             initialContent={normalizeDoc(node.content?.docs)}
             onContentChange={handleChange}
             placeholder={t("写下这句话…")}

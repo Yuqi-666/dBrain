@@ -26,6 +26,11 @@
  * when one exists), not the original file — `media.md` §0.3-10. Every duration
  * or position that crosses a boundary is an **integer millisecond**, never the
  * float seconds of `HTMLMediaElement.currentTime`.
+ *
+ * Subtitle cues have a writer now: the media import downloads a video's
+ * subtitles or a music site's lyrics and the client writes them into
+ * `content.timestamps`. The backend still does not transcribe anything, so a
+ * locally uploaded file has no cues until an import adds them.
  */
 import type { NodeId } from "../../base";
 

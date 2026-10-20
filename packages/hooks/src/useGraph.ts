@@ -134,12 +134,13 @@ export function useGraph() {
           break;
         }
         case "webpage": {
-          // A webpage node holds source only, so a fresh one opens straight in
-          // the editor with nothing to initialize first.
+          // A webpage node references a stored document, so a fresh one starts
+          // empty on its import surface (no address, no bytes).
           const webpageNode: WebpageNodeData = {
             ...baseNode,
             nodeType: "webpage",
-            content: { code: "", language: "html" },
+            fileSize: 0,
+            content: { url: "" },
           };
           newNode = webpageNode;
           break;

@@ -3,13 +3,19 @@ import type {
   NodeId,
   WorkspaceId,
 } from "@workspace/interfaces";
-import { trpcClient } from "@workspace/api-client";
-import { useDataStore, useWorkspaceStore } from "@workspace/store";
+import {
+  listNodesReferencingResource,
+  resourceIdFromStoredUrl,
+  trpcClient,
+  type NodeFileReference,
+} from "@workspace/api-client";
+import { useDataStore, useUIStore, useWorkspaceStore } from "@workspace/store";
 import {
   DebounceScheduler,
   resolveDebounceMs,
   shouldDebounce,
 } from "@workspace/utils";
+import { nodeWithoutFileReferences } from "@workspace/utils/resource-references";
 import {
   syncViewEnumerationOnCreate,
   syncViewEnumerationOnDelete,
@@ -112,6 +118,94 @@ export const NodeService = {
     } catch (error) {
       store.upsertNode(oldNode);
       throw error;
+    }
+  },
+
+  /**
+   * Nodes that point at one stored file, from the open store and the database.
+   *
+   * The store is authoritative for the nodes the user is looking at: the
+   * desktop local mode keeps its nodes outside PocketBase, so a database query
+   * alone would answer nothing there. The database adds the nodes in other
+   * workspaces, which the store never loads. The union is what the resource
+   * delete dialog lists before it warns the user.
+   */
+  async listNodesReferencingFile(
+    storedUrl: string,
+  ): Promise<NodeFileReference[]> {
+    const recordId = resourceIdFromStoredUrl(storedUrl);
+    if (!recordId) return [];
+
+    const recordIds = new Set([recordId]);
+    const local = [...useDataStore.getState().nodes.values()]
+      .filter((node) => nodeWithoutFileReferences(node, recordIds) !== null)
+      .map((node) => ({
+        id: node.id,
+        title: node.title,
+        nodeType: node.nodeType,
+      }));
+
+    let remote: NodeFileReference[] = [];
+    try {
+      remote = await listNodesReferencingResource(storedUrl);
+    } catch {
+      remote = [];
+    }
+
+    const seen = new Set(local.map((node) => node.id));
+    return [...local, ...remote.filter((node) => !seen.has(node.id))];
+  },
+
+  /**
+   * Clears deleted files from the nodes in the open store.
+   *
+   * Runs after the resource delete, so the server hook has already fixed the
+   * stored records on the web stack. The store is fixed here as well: without
+   * it the graph keeps the stale address until a reload, and in the desktop
+   * local mode the nodes are not in PocketBase at all, so no server hook will
+   * ever see them.
+   *
+   * Only the open store is touched on purpose. The resource dialog also lists
+   * nodes in other workspaces; inserting those into the store to fix them would
+   * leak another workspace's nodes into the graph of the current one. Their
+   * stored records were cleared by the server hook and they load cleared when
+   * their workspace is opened; on the desktop they keep the address until that
+   * workspace is opened and saved, which the desktop's local store cannot see
+   * from here.
+   */
+  async detachFileReferences(recordIds: readonly string[]): Promise<void> {
+    const deleted = new Set(recordIds.filter(Boolean));
+    if (deleted.size === 0) return;
+    const store = useDataStore.getState();
+
+    for (const node of [...store.nodes.values()]) {
+      const updates = nodeWithoutFileReferences(node, deleted);
+      if (!updates) continue;
+      try {
+        await NodeService.upsert(node.id, updates as Partial<NodeData>);
+      } catch (error) {
+        // The record is already deleted, and on the web stack the server hook
+        // has already fixed the stored node; an update the user may not write
+        // (a viewer of a shared workspace) must not leave the open surface
+        // showing a dead link until a reload. The local copy is corrected here;
+        // the next load reads the server's cleared record.
+        useDataStore
+          .getState()
+          .upsertNode({ ...node, ...updates } as unknown as NodeData);
+        console.error(
+          `[NodeService] Could not clear deleted files from ${node.id}; corrected the open copy only.`,
+          error,
+        );
+      }
+      // The open text / rich-text editor is uncontrolled and seeds itself once
+      // per mount; only a replaced document needs a remount (icon, cover and
+      // media payloads are read from the store on every render).
+      if (
+        "content" in updates &&
+        (node.nodeType === "text" || node.nodeType === "rich-text")
+      ) {
+        useUIStore.getState().resetNodeContent(node.id);
+      }
     }
   },
 

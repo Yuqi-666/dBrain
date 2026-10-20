@@ -81,14 +81,40 @@ export interface HlsTranscodeResult {
   reencoded: boolean;
 }
 
+/**
+ * How far one HLS packaging run has got.
+ *
+ * Packaging can be the longest step of a video import — a source that has to be
+ * re-encoded is worked through in real time — so the adapter reports the
+ * position it reached in the source timeline. `percent` is clamped to `0..100`
+ * by the adapter; the caller decides how the stage maps onto its own bar.
+ */
+export interface VideoTranscodeProgress {
+  /** Portion of the source already written to the HLS package, `0`–`100`. */
+  percent: number;
+}
+
+/** Receives packaging progress, at most a few times a second. */
+export type VideoTranscodeProgressListener = (
+  progress: VideoTranscodeProgress,
+) => void;
+
 /** Turns an uploaded video into an HLS package. */
 export interface IVideoTranscoder {
   /**
    * Re-packages `source` as HLS, copying streams that browsers already decode.
    *
+   * `onProgress` is optional and best effort: an adapter that cannot report
+   * progress simply never calls it, and the transcode still succeeds. It is
+   * called on the transcoder's own schedule, so a listener must be cheap and
+   * must not throw.
+   *
    * Rejects when the source cannot be read by the transcoder at all; a source
    * that opens but whose poster frame cannot be extracted still resolves, with
    * {@link HlsTranscodeResult.cover} left undefined.
    */
-  transcodeToHls(source: HlsTranscodeSource): Promise<HlsTranscodeResult>;
+  transcodeToHls(
+    source: HlsTranscodeSource,
+    onProgress?: VideoTranscodeProgressListener,
+  ): Promise<HlsTranscodeResult>;
 }

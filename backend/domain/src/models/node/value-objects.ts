@@ -326,13 +326,21 @@ export class VideoContent {
 
 /**
  * Audio node content.
+ *
+ * `coverUrl` is the cover the music-site import saved as a derived file
+ * resource. It is optional — unlike `VideoContent.coverUrl`, which every video
+ * upload produces — because a local audio upload has no such artwork and every
+ * record written before the import existed has none. `undefined` therefore
+ * means "no cover", the same meaning the interface gives the optional field.
  */
 export class AudioContent {
   private readonly _url: string;
+  private readonly _coverUrl: string | undefined;
   private readonly _timestamps: TimestampData[] | undefined;
 
-  constructor(url: string, timestamps?: TimestampData[]) {
+  constructor(url: string, coverUrl?: string, timestamps?: TimestampData[]) {
     this._url = url;
+    this._coverUrl = coverUrl;
     this._timestamps = timestamps;
   }
 
@@ -340,50 +348,51 @@ export class AudioContent {
     return this._url;
   }
 
+  get coverUrl(): string | undefined {
+    return this._coverUrl;
+  }
+
   /** See `VideoContent.timestamps`. */
   get timestamps(): TimestampData[] | undefined {
     return this._timestamps;
   }
 
-  /** Same audio with a different timestamp list; `url` is carried over. */
+  /** Same audio with a different timestamp list; the media fields are carried over. */
   withTimestamps(timestamps: TimestampData[] | undefined): AudioContent {
-    return new AudioContent(this._url, timestamps);
+    return new AudioContent(this._url, this._coverUrl, timestamps);
   }
 
   equals(other: AudioContent): boolean {
     return (
       this._url === other._url &&
+      this._coverUrl === other._coverUrl &&
       JSON.stringify(this._timestamps) === JSON.stringify(other._timestamps)
     );
   }
 }
 
 /**
- * Webpage node content: the page source and the language it is written in.
+ * Webpage node content: the address of the stored web page.
  *
- * Source is the only representation a webpage node holds — a live address
- * belongs to a `website` node, and a screenshot is just an uploaded `image`,
- * so there is no mode to discriminate on any more.
+ * The document's bytes live in the object store (the `files` collection), not
+ * in a JSON column — a `pdf` node works the same way. The address is the only
+ * representation the node keeps, so there is no source text here to outgrow a
+ * column limit or to disagree with the stored file. A live address belongs to a
+ * `website` node, and a screenshot is just an uploaded `image`.
  */
 export class WebpageContent {
-  private readonly _code: string;
-  private readonly _language: string;
+  private readonly _url: string;
 
   constructor(data: WebpageContentData) {
-    this._code = data.code;
-    this._language = data.language;
+    this._url = data.url;
   }
 
-  get code(): string {
-    return this._code;
-  }
-
-  get language(): string {
-    return this._language;
+  get url(): string {
+    return this._url;
   }
 
   equals(other: WebpageContent): boolean {
-    return this._code === other._code && this._language === other._language;
+    return this._url === other._url;
   }
 }
 

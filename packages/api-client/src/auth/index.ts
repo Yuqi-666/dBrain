@@ -14,4 +14,9 @@ export interface RegisterInput {
   nickname: string;
 }
 
-export { setAuthSession, clearAuthSession, decodeJwtPayload } from "./session";
+export {
+  setAuthSession,
+  clearAuthSession,
+  decodeJwtPayload,
+  readAuthSessionToken,
+} from "./session";

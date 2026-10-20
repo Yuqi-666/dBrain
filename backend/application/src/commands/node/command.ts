@@ -112,8 +112,11 @@ export interface CreateAudioNodeCommand {
   icon?: NodeIcon | null;
   cover?: NodeCover | null;
   duration: number;
+  /** Absent means "local": a create payload from an old client has no source. */
+  source?: "local" | "online";
+  sourceUrl?: string;
   fileSize: number;
-  content: { url: string; timestamps?: TimestampData[] };
+  content: { url: string; coverUrl?: string; timestamps?: TimestampData[] };
   userId: string;
   sourceId?: string;
   workspaceId?: string;
@@ -131,6 +134,8 @@ export interface CreateWebpageNodeCommand {
   stateData?: NodeStateData;
   icon?: NodeIcon | null;
   cover?: NodeCover | null;
+  /** Byte length of the stored document; 0 for a node created empty. */
+  fileSize?: number;
   content: WebpageContent;
   userId: string;
   sourceId?: string;

@@ -19,4 +19,5 @@ export interface ViewDTO {
   visualConfig: VisualConfigDTO;
   filterConfig: FilterConfig;
   isPinned: boolean;
+  isDefault: boolean;
 }

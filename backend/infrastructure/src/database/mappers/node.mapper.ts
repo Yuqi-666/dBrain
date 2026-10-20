@@ -132,7 +132,12 @@ interface VideoNodeRecord extends BaseNodeRecord {
 interface AudioNodeRecord extends BaseNodeRecord {
   nodeType: "audio";
   content: string;
+  /** Derived cover artwork; `""` on a local upload and on old records. */
+  coverUrl?: string;
   duration: number;
+  /** `"local"` on a record written before the music-site import existed. */
+  source?: "local" | "online";
+  sourceUrl?: string;
   fileSize: number;
   /** The played timeline (`TimestampData[]` JSON); see `VideoNodeRecord.timestamps`. */
   timestamps?: TimestampData[] | null;
@@ -140,8 +145,20 @@ interface AudioNodeRecord extends BaseNodeRecord {
 
 interface WebpageNodeRecord extends BaseNodeRecord {
   nodeType: "webpage";
-  /** Source text — the node's only representation. */
+  /**
+   * Stored address of the document (`/api/files/files/<record>/<name>`), or
+   * `""` before the first import.
+   *
+   * Records written by the retired inline shape hold the source text itself;
+   * `0000000007_webpage_object_storage.js` converts them, so this mapper reads
+   * the column as an address only. A legacy inline record that has not been
+   * converted yet is therefore read as empty — the migration is what upgrades
+   * it, not the mapper.
+   */
   content: string;
+  /** Byte length of the stored document; the media-node column, reused. */
+  fileSize?: number;
+  /** Retired inline-source language; kept out of the model (see above). */
   codeLanguage?: string;
 }
 
@@ -208,20 +225,16 @@ function isValidNodeType(type: string): type is ValidNodeType {
 }
 
 /**
- * Language assumed for webpage source written before `codeLanguage` existed.
+ * The document address a webpage node references.
  *
- * The retired `webpageMode` / `url` / `screenshotUrl` columns are deliberately
- * not read any more: `url` and `screenshot` are no longer representations of a
- * webpage node, so a record that only held one of them maps to empty source.
+ * `content` holds the stored address written by the import flow, or `""`. The
+ * retired `webpageMode` / `url` / `screenshotUrl` columns and the inline source
+ * shape are not read any more: `0000000007_webpage_object_storage.js` moves the
+ * old source into the object store, and a record that only held a URL of the
+ * old screenshot form is not a representation of this node type.
  */
-const DEFAULT_WEBPAGE_LANGUAGE = "html";
-
-/** The one representation a webpage node holds: its source and its language. */
 function resolveWebpageContent(record: WebpageNodeRecord): WebpageContentData {
-  return {
-    code: record.content || "",
-    language: record.codeLanguage || DEFAULT_WEBPAGE_LANGUAGE,
-  };
+  return { url: record.content || "" };
 }
 
 export class NodeMapper {
@@ -377,10 +390,17 @@ export class NodeMapper {
     return AudioNode.create({
       ...baseProps,
       duration: record.duration || 0,
+      // `source` is a select column whose `""` is the pre-import shape: a
+      // record without it was uploaded locally, so it reads back as "local".
+      source: record.source || "local",
+      sourceUrl: record.sourceUrl,
       fileSize: record.fileSize || 0,
       // See `mapVideoNode`: absent / `null` → `undefined`, no empty array.
+      // `coverUrl` is optional on an audio node (a local upload has none), so
+      // the record's `""` sentinel maps to "no cover" here.
       content: new AudioContent(
         record.content || "",
+        record.coverUrl || undefined,
         record.timestamps ?? undefined,
       ),
     });
@@ -392,6 +412,7 @@ export class NodeMapper {
   ): WebpageNode {
     return WebpageNode.create({
       ...baseProps,
+      fileSize: record.fileSize || 0,
       content: new WebpageContent(resolveWebpageContent(record)),
     });
   }
@@ -526,6 +547,10 @@ export class NodeMapper {
       return {
         ...baseRecord,
         content: node.content.url,
+        // `coverUrl` / `hlsUrl` are string columns with `""` as their "none"
+        // value. Like `source`, `sourceUrl` and every other content-adjacent
+        // field, they are written as-is: a missing `coverUrl` on an old video
+        // node is `""` in the domain, so it round-trips without a `?? ""`.
         coverUrl: node.content.coverUrl,
         hlsUrl: node.content.hlsUrl,
         duration: node.duration,
@@ -545,21 +570,29 @@ export class NodeMapper {
       return {
         ...baseRecord,
         content: node.content.url,
+        // Audio follows the VideoNode conventions above: `coverUrl` is a
+        // string column where `""` means "no cover" (the domain field is
+        // optional, so `undefined` is written as `""` to clear it), while
+        // `timestamps` is deliberately left `undefined` for "keep the old
+        // value" on a partial content update.
+        coverUrl: node.content.coverUrl ?? "",
         duration: node.duration,
+        source: node.source,
+        sourceUrl: node.sourceUrl,
         fileSize: node.fileSize,
         timestamps: node.content.timestamps,
       };
     }
 
     if (node instanceof WebpageNode) {
-      // Source goes in the `content` column, where every other node type keeps
-      // its payload too. The retired `url` / `screenshotUrl` / `webpageMode`
-      // columns are left untouched rather than cleared, so a record written by
-      // an older build keeps its bytes until something else rewrites them.
+      // The node keeps no source: the document is an object in the `files`
+      // collection, so only its address and recorded byte length are stored.
+      // The retired `codeLanguage` column is not cleared, because a record it
+      // wrote is read back through the migration that moved the bytes.
       return {
         ...baseRecord,
-        content: node.content.code,
-        codeLanguage: node.content.language,
+        content: node.content.url,
+        fileSize: node.fileSize,
       };
     }
 

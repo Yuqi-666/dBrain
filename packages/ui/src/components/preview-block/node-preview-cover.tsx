@@ -24,7 +24,6 @@ import { cn } from "@workspace/ui/lib/utils";
 import { NODE_TYPE_ICONS } from "@workspace/ui/components/icon/node-type-icons";
 
 /** How much extracted text a text-like cover shows. */
-const COVER_TEXT_LIMIT = 180;
 
 /** How many `{kind:"node"}` hops a cover may follow (`node-content-ui.md` §M2.2-5). */
 const MAX_COVER_DEPTH = 1;
@@ -57,6 +56,12 @@ function nodeCoverUrl(node: NodeData): string | null {
       return node.content?.coverUrl
         ? resolveFileUrl(node.content.coverUrl)
         : null;
+    case "audio":
+      // Only an imported audio node has a cover; a local upload falls through
+      // to the type glyph, exactly as it did before the import existed.
+      return node.content?.coverUrl
+        ? resolveFileUrl(node.content.coverUrl)
+        : null;
     case "pdf":
       return node.content?.coverUrl
         ? resolveFileUrl(node.content.coverUrl)
@@ -77,14 +82,9 @@ function nodeCoverText(node: NodeData): string {
       return extractDocText(node.content?.docs);
     case "rich-text":
       return extractDocText(node.content?.docs);
-    case "webpage":
-      return (
-        node.content?.code
-          ?.replace(/\s+/g, " ")
-          .trim()
-          .slice(0, COVER_TEXT_LIMIT) ?? ""
-      );
     default:
+      // A webpage node stores its document as an object, so there is no record
+      // text to draw; the type glyph stands in.
       return "";
   }
 }

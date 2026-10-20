@@ -17,6 +17,7 @@ export class ViewMapper {
       ),
       filterConfig: filterConfigFromRecord(record.filterConfig),
       isPinned: record.isPinned as boolean,
+      isDefault: record.isDefault as boolean,
       workspaceId: record.workspaceId as string | undefined,
     });
   }
@@ -38,6 +39,7 @@ export class ViewMapper {
       },
       filterConfig: filterConfigToRecord(view.filterConfig),
       isPinned: view.isPinned,
+      isDefault: view.isDefault,
       workspaceId: view.workspaceId,
     };
   }

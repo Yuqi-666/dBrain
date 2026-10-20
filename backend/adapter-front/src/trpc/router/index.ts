@@ -10,6 +10,7 @@ import { authRouter } from "./auth";
 import { workspaceRouter } from "./workspace";
 import { dashboardRouter } from "./dashboard";
 import { fileRouter } from "./file";
+import { storageRouter } from "./storage";
 
 export const appRouter = router({
   auth: authRouter,
@@ -22,6 +23,7 @@ export const appRouter = router({
   event: eventRouter,
   workspace: workspaceRouter,
   file: fileRouter,
+  storage: storageRouter,
   dashboard: dashboardRouter,
 });
 

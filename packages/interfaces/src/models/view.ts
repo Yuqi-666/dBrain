@@ -28,5 +28,10 @@ export interface View {
   visualConfig: VisualConfig;
   filterConfig: FilterConfig;
   isPinned?: boolean;
+  /**
+   * True for the global view the server creates with its workspace. A default
+   * view cannot be deleted; other views can.
+   */
+  isDefault?: boolean;
   workspaceId?: string;
 }

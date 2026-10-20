@@ -9,6 +9,7 @@ import type {
   HlsTranscodeSource,
   IVideoTranscoder,
   TranscodedArtifact,
+  VideoTranscodeProgressListener,
 } from "@workspace/domain";
 
 /**
@@ -94,6 +95,7 @@ function runProcess(
   file: string,
   args: string[],
   label: string,
+  onStdoutLine?: (line: string) => void,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const child = execFile(
@@ -126,8 +128,26 @@ function runProcess(
       },
     );
     activeProcesses.add(child);
+
+    if (!onStdoutLine) return;
+    // `-progress pipe:1` writes key=value blocks to stdout. The stream is
+    // tapped while `execFile` keeps collecting the same output for its callback,
+    // and lines are reassembled because a chunk boundary can split one.
+    let buffered = "";
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      buffered += chunk;
+      const lines = buffered.split("\n");
+      buffered = lines.pop() ?? "";
+      for (const line of lines) onStdoutLine(line.trim());
+    });
   });
 }
+
+/** Machine-readable ffmpeg progress fields this adapter reads. */
+const OUT_TIME_MICROSECONDS = /^out_time_(?:us|ms)=(\d+)$/;
+/** ffmpeg reports progress about twice a second; forward at most that often. */
+const PROGRESS_INTERVAL_MS = 250;
 
 /** Rounds up to an even number; x264 requires even dimensions. */
 function toEven(value: number): number {
@@ -213,6 +233,7 @@ function capWidth(size: { width: number; height: number }): {
 export class FfmpegVideoTranscoder implements IVideoTranscoder {
   async transcodeToHls(
     source: HlsTranscodeSource,
+    onProgress?: VideoTranscodeProgressListener,
   ): Promise<HlsTranscodeResult> {
     const workDir = await mkdtemp(join(tmpdir(), "dbrain-hls-"));
     const baseName = artifactBaseName(source.fileName);
@@ -232,7 +253,9 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
         : join(workDir, `input${sourceExtension(source.fileName)}`);
       if (!source.path) {
         if (!source.bytes) {
-          throw new Error(`The source video ${source.fileName} carried no bytes`);
+          throw new Error(
+            `The source video ${source.fileName} carried no bytes`,
+          );
         }
         await writeFile(input, source.bytes);
       }
@@ -266,6 +289,38 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
       const dimensions = copyVideo ? display : capWidth(display);
 
       const playlistPath = join(workDir, `${baseName}.m3u8`);
+      // Read before the transcode: the progress handler maps the output
+      // position onto it. `readDuration` only reads the probe result.
+      const duration = this.readDuration(probe, video);
+
+      /**
+       * `-progress pipe:1` reports the output position as `out_time_us`. The
+       * percentage is clamped below 100: the run is not finished while ffmpeg is
+       * still flushing its last segments and extracting the cover afterwards.
+       * A listener that throws must not kill a working transcode, so it is
+       * called through a guard.
+       */
+      let lastReportedAt = 0;
+      const reportProgress =
+        onProgress && duration > 0
+          ? (line: string) => {
+              const match = OUT_TIME_MICROSECONDS.exec(line);
+              if (!match) return;
+              const now = Date.now();
+              if (now - lastReportedAt < PROGRESS_INTERVAL_MS) return;
+              lastReportedAt = now;
+              const percent = Math.min(
+                99,
+                (Number(match[1]) / 1_000_000 / duration) * 100,
+              );
+              try {
+                onProgress({ percent });
+              } catch {
+                /* a progress listener must never fail the transcode */
+              }
+            }
+          : undefined;
+
       await runProcess(
         FFMPEG,
         this.buildArgs({
@@ -279,6 +334,7 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
           dimensions,
         }),
         "HLS transcode",
+        reportProgress,
       );
 
       const segments = await this.readSegments(workDir, baseName);
@@ -286,7 +342,6 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
         throw new Error("HLS transcode produced no segments");
       }
 
-      const duration = this.readDuration(probe, video);
       const cover = await this.createCover(input, workDir, baseName, duration);
 
       return {
@@ -346,6 +401,12 @@ export class FfmpegVideoTranscoder implements IVideoTranscoder {
       "-hide_banner",
       "-nostdin",
       "-y",
+      // Machine-readable progress on stdout, one `key=value` block per update;
+      // `-nostats` suppresses the human-formatted bar on stderr, which nothing
+      // reads because a failure only quotes its last lines.
+      "-progress",
+      "pipe:1",
+      "-nostats",
       "-i",
       input.input,
       // Only the first video track and, when present, the first audio track:

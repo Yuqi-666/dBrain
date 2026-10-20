@@ -1,4 +1,11 @@
 /** Desktop procedure adapter. Storage and the future sync transport stay outside this engine. */
+import {
+  DEFAULT_VIEW_NAME,
+  DEFAULT_WORKSPACE_NAME,
+  WORKSPACE_NAME_MAX_LENGTH,
+} from "@workspace/utils/workspace";
+import { DEFAULT_STORAGE_LIMITS } from "@workspace/utils/storage-limits";
+
 export type Entity = Record<string, unknown> & { id: string };
 export const collections = [
   "workspace",
@@ -66,6 +73,38 @@ function text(value: unknown): string {
     throw new LocalProcedureError("Expected a nonempty string");
   return value;
 }
+/** The shared workspace name rule: trimmed, non-empty, within the shared limit. */
+function workspaceName(value: unknown): string {
+  const name = text(value).trim();
+  if (name.length > WORKSPACE_NAME_MAX_LENGTH)
+    throw new LocalProcedureError(
+      `Workspace name cannot exceed ${WORKSPACE_NAME_MAX_LENGTH} characters`,
+    );
+  return name;
+}
+/**
+ * The workspace picker icon, validated like the server router does: only an
+ * emoji or a Lucide graphic name, never an uploaded image (the desktop has no
+ * file of the workspace's own to point at). `null` is the clear sentinel.
+ */
+function workspaceIcon(value: unknown): Record<string, unknown> | null {
+  if (value === null) return null;
+  const icon = object(value);
+  if (icon.kind !== "emoji" && icon.kind !== "icon")
+    throw new LocalProcedureError(
+      "Workspace icon must be an emoji or a named icon",
+    );
+  const result: Record<string, unknown> = {
+    kind: icon.kind,
+    value: text(icon.value),
+  };
+  if (icon.color !== undefined) {
+    if (typeof icon.color !== "string")
+      throw new LocalProcedureError("Workspace icon color must be a string");
+    result.color = icon.color;
+  }
+  return result;
+}
 function put(
   state: LocalState,
   collection: Collection,
@@ -109,19 +148,67 @@ function workspace(state: LocalState, id: unknown) {
   if (!found) throw new LocalProcedureError("Workspace not found", "NOT_FOUND");
   return found;
 }
+
+/**
+ * Repairs default flags on local state written before the flag existed.
+ *
+ * The desktop database has no schema migration: an install that predates
+ * `isDefault` keeps its records as they are. The provisioning code wrote the
+ * default workspace first and each workspace's global view first, so storage
+ * order distinguishes them. Marking them here makes the delete guard effective
+ * on the first write after the upgrade instead of leaving the old default
+ * deletable forever.
+ *
+ * The repair is idempotent and runs at the start of every entity call; a
+ * read-only IndexedDB transaction simply does not persist it, and the next
+ * write does.
+ */
+function repairDefaultInstances(state: LocalState) {
+  const workspaces = state.records.workspace;
+  if (workspaces.length === 0) return;
+  // Only a record without the property at all is pre-upgrade state. A modern
+  // record always carries the boolean explicitly (false for user-created
+  // instances), so this never promotes a workspace the user created later.
+  if (workspaces.every((record) => record.isDefault === undefined)) {
+    const [oldest] = workspaces;
+    if (oldest) oldest.isDefault = true;
+  }
+  for (const ws of workspaces) {
+    const views = state.records.view.filter(
+      (record) => record.workspaceId === ws.id,
+    );
+    if (views.length === 0) continue;
+    if (!views.every((record) => record.isDefault === undefined)) continue;
+    const [defaultView] = views;
+    if (defaultView) defaultView.isDefault = true;
+  }
+}
+
 function createWorkspace(
   state: LocalState,
   input: Record<string, unknown>,
   now: string,
+  isDefault: boolean,
 ): Entity {
-  const value = {
+  const value: Entity = {
     ...input,
     id: text(input.id),
     name: text(input.name),
     ownerId: localUser.id,
+    // Server-owned flag: only the provisioning path marks a workspace default,
+    // and a client-supplied value never survives.
+    isDefault,
     createdAt: now,
     updatedAt: now,
   };
+  // Keep the stored icon equal to the server's validated shape; a create with
+  // no icon stays without the property instead of writing `icon: undefined`.
+  if (input.icon === undefined) delete value.icon;
+  else {
+    const icon = workspaceIcon(input.icon);
+    if (icon) value.icon = icon;
+    else delete value.icon;
+  }
   if (state.records.workspace.some((record) => record.id === value.id))
     throw new LocalProcedureError("Workspace already exists", "CONFLICT");
   put(state, "workspace", value, now);
@@ -130,11 +217,14 @@ function createWorkspace(
     "view",
     {
       id: crypto.randomUUID(),
-      name: "全部",
+      name: DEFAULT_VIEW_NAME,
       viewType: "Force",
       visualConfig: { showMinimap: true },
       filterConfig: {},
       isPinned: true,
+      // Every workspace is created with its global view, so the view is the
+      // workspace's default view and cannot be deleted (renaming stays allowed).
+      isDefault: true,
       workspaceId: value.id,
     },
     now,
@@ -162,17 +252,29 @@ export function executeLocal(
     throw new LocalProcedureError(
       "此功能需要桌面文件处理适配器，目前可保留原始文件。",
     );
+  // The desktop local mode has no operator `.env` to read a storage policy from,
+  // so it answers with the shared built-in limits. The resource library then
+  // renders the same quota bar as the server deployment, and the local
+  // PocketBase hook enforces the same defaults.
+  if (name === "storage") {
+    if (action === "limits") return DEFAULT_STORAGE_LIMITS;
+    throw new LocalProcedureError(`Unsupported local procedure: ${path}`);
+  }
   if (!collections.includes(name as Collection))
     throw new LocalProcedureError(`Unsupported local procedure: ${path}`);
   const collection = name as Collection;
+  // Older local databases have no default flags yet; normalize them before any
+  // entity call so the delete guards cover the pre-existing instances too.
+  repairDefaultInstances(state);
   const records = state.records[collection];
   if (collection === "workspace" && action === "provisionDefault") {
     return (
       records[0] ??
       createWorkspace(
         state,
-        { id: crypto.randomUUID(), name: "本地工作空间" },
+        { id: crypto.randomUUID(), name: DEFAULT_WORKSPACE_NAME },
         now,
+        true,
       )
     );
   }
@@ -233,7 +335,8 @@ export function executeLocal(
     );
   }
   if (action === "add") {
-    if (collection === "workspace") return createWorkspace(state, input, now);
+    if (collection === "workspace")
+      return createWorkspace(state, input, now, false);
     const id = text(input.id);
     if (records.some((record) => record.id === id))
       throw new LocalProcedureError("Entity already exists", "CONFLICT");
@@ -264,7 +367,15 @@ export function executeLocal(
     }
     if (collection === "view")
       defaults = { filterConfig: {}, visualConfig: { showMinimap: true } };
-    const value = { ...defaults, ...input, id, createdAt: now, updatedAt: now };
+    const value: Entity = {
+      ...defaults,
+      ...input,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    // A user-created view is never the workspace's default view.
+    if (collection === "view") value.isDefault = false;
     put(state, collection, value, now);
     return value;
   }
@@ -272,6 +383,18 @@ export function executeLocal(
   if (!current) throw new LocalProcedureError("Entity not found", "NOT_FOUND");
   if (action === "update") {
     const updates = object(input.updates);
+    // A workspace rename follows the same rule as the server entity: trim the
+    // name, reject a blank name and reject a name over the shared limit.
+    if (collection === "workspace" && updates.name !== undefined)
+      updates.name = workspaceName(updates.name);
+    // A workspace icon is validated here too, so both modes store the same
+    // shape; `null` falls through to the generic clear below.
+    if (collection === "workspace" && updates.icon !== undefined)
+      updates.icon = workspaceIcon(updates.icon);
+    // The default flag is server-owned: an update may rename or reconfigure
+    // the instance, but it may not clear the protection flag.
+    if (collection === "workspace" || collection === "view")
+      delete updates.isDefault;
     if (
       updates.workspaceId !== undefined &&
       updates.workspaceId !== current.workspaceId
@@ -293,6 +416,10 @@ export function executeLocal(
     return value;
   }
   if (action === "delete") {
+    if (collection === "workspace" && current.isDefault === true)
+      throw new LocalProcedureError("The default workspace cannot be deleted");
+    if (collection === "view" && current.isDefault === true)
+      throw new LocalProcedureError("The default view cannot be deleted");
     if (collection === "workspace") {
       for (const key of collections) {
         if (key === "workspace") continue;

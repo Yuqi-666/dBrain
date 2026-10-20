@@ -184,6 +184,45 @@ try {
     b.workspace.provisionDefault.mutate(),
   ]);
   assert.notEqual(wa.id, wb.id);
+  // Both provisioned instances are the user's defaults: the flag reaches the
+  // client and neither instance can be deleted (renaming stays possible).
+  assert.equal(wa.isDefault, true);
+  assert.equal(wb.isDefault, true);
+  const [defaultView] = await a.view.listByWorkspace.query({
+    workspaceId: wa.id,
+  });
+  assert.equal(defaultView.isDefault, true);
+  await assert.rejects(
+    a.view.delete.mutate({ id: defaultView.id }),
+    /The default view cannot be deleted/,
+  );
+  // Renaming a default instance stays allowed and keeps the flag (the update
+  // rule pins only `isDefault`, not the name).
+  const renamedWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { name: "改名后的工作区" },
+  });
+  assert.equal(renamedWorkspace.name, "改名后的工作区");
+  assert.equal(renamedWorkspace.isDefault, true);
+  const renamedView = await a.view.update.mutate({
+    id: defaultView.id,
+    updates: { name: "改名后的视图" },
+  });
+  assert.equal(renamedView.name, "改名后的视图");
+  assert.equal(renamedView.isDefault, true);
+  // The picker icon is owner-editable, round-trips through the JSON column, and
+  // `null` clears it. It never touches the protection flag.
+  const iconWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { icon: { kind: "icon", value: "Globe" } },
+  });
+  assert.deepEqual(iconWorkspace.icon, { kind: "icon", value: "Globe" });
+  assert.equal(iconWorkspace.isDefault, true);
+  const clearedWorkspace = await a.workspace.update.mutate({
+    id: wa.id,
+    updates: { icon: null },
+  });
+  assert.equal(clearedWorkspace.icon ?? null, null);
   assert.deepEqual(
     (await a.workspace.list.query()).map((w) => w.id),
     [wa.id],
@@ -238,6 +277,90 @@ try {
   );
   const record = await upload(alice.token);
   assert.equal(record.ownerId, alice.user.id);
+  // Server-owned media metadata, written by the PocketBase upload hook.
+  assert.equal(record.size, Buffer.byteLength("private file"));
+  assert.equal(record.mimeType, "application/octet-stream");
+  assert.equal(record.displayName, "中文 sample.txt");
+  // The resource library reads the deployment policy from the API.
+  assert.deepEqual(await a.storage.limits.query(), {
+    userQuotaBytes: 10 * 1024 ** 3,
+    maxFileBytes: {
+      image: 32 * 1024 ** 2,
+      video: 2 * 1024 ** 3,
+      audio: 512 * 1024 ** 2,
+      pdf: 512 * 1024 ** 2,
+      webpage: 16 * 1024 ** 2,
+      other: 256 * 1024 ** 2,
+    },
+  });
+  console.log("PASS storage limits and server-stamped file metadata");
+  // The gateway admits the files collection so the library can list, rename and
+  // delete; PocketBase's rules still scope every row to the verified caller.
+  const listedFiles = await fetch(
+    `${serverUrl}/pb/api/collections/files/records?perPage=50`,
+    { headers: { Authorization: alice.token } },
+  );
+  assert.equal(listedFiles.status, 200, await listedFiles.clone().text());
+  assert.ok(
+    (await listedFiles.json()).items.some((item) => item.id === record.id),
+    "the owner lists the uploaded file",
+  );
+  const disposable = await upload(alice.token, "rename me");
+  const rename = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: alice.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "renamed.txt" }),
+    },
+  );
+  assert.equal(rename.status, 200, await rename.clone().text());
+  assert.equal((await rename.json()).displayName, "renamed.txt");
+  const tamper = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: alice.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ size: 1 }),
+    },
+  );
+  assert.equal(tamper.status, 404, await tamper.text());
+  const foreignRename = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: bob.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "stolen.txt" }),
+    },
+  );
+  assert.equal(foreignRename.status, 404, await foreignRename.text());
+  const removed = await fetch(
+    `${serverUrl}/pb/api/collections/files/records/${disposable.id}`,
+    { method: "DELETE", headers: { Authorization: alice.token } },
+  );
+  assert.equal(removed.status, 204, await removed.text());
+  assert.equal(
+    (
+      await fetch(
+        `${serverUrl}/pb/api/files/${disposable.collectionId}/${disposable.id}/${disposable.file}`,
+        { headers: { Authorization: alice.token } },
+      )
+    ).status,
+    404,
+    "a deleted resource stops being readable",
+  );
+  console.log(
+    "PASS files-collection management through the gateway (list, rename, delete)",
+  );
   const path = `/api/files/${record.collectionId}/${record.id}/${record.file}`;
   const direct = await fetch(`${pbUrl}${path}`);
   assert.equal(direct.status, 404, await direct.text());
@@ -501,7 +624,22 @@ try {
   assert.equal(la.user.id, alice.user.id);
   assert.equal(lb.user.id, bob.user.id);
   await assert.rejects(freshAnon.workspace.list.query());
-  await a.workspace.delete.mutate({ id: wa.id });
+  // The provisioned workspace is the user's default instance: it cannot be
+  // deleted, while a second, user-created workspace stays deletable.
+  await assert.rejects(
+    a.workspace.delete.mutate({ id: wa.id }),
+    /The default workspace cannot be deleted/,
+  );
+  const extra = await a.workspace.add.mutate({
+    id: `tmp_delete_${Date.now()}`,
+    name: "delete me",
+    ownerId: alice.user.id,
+    // The create dialog sends a picker icon with the new workspace.
+    icon: { kind: "emoji", value: "🧪" },
+  });
+  assert.deepEqual(extra.icon, { kind: "emoji", value: "🧪" });
+  await a.workspace.delete.mutate({ id: extra.id });
+  assert.equal(await a.workspace.getById.query({ id: extra.id }), null);
   console.log(
     "PASS concurrent login isolation and authorized workspace deletion",
   );

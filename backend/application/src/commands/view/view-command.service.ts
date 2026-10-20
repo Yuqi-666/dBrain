@@ -29,6 +29,7 @@ function toViewDTO(view: View): ViewDTO {
     }
     ,
     isPinned: view.isPinned,
+    isDefault: view.isDefault,
   };
 }
 
@@ -149,6 +150,9 @@ export class ViewCommandService {
     const id = ViewId.create(cmd.id);
     const existing = await this.viewRepository.findById(id);
     if (!existing) throw new Error("Record not found");
+    if (existing.isDefault) {
+      throw new Error("The default view cannot be deleted");
+    }
     await this.viewRepository.delete(id);
 
     const event: ViewDeleted = {

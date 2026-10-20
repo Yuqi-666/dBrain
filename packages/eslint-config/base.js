@@ -27,6 +27,9 @@ export const config = [
     },
   },
   {
-    ignores: ["dist/**"],
+    // The pdf.js worker is copied into every app's `public/` tree by
+    // scripts/lib/pdfjs-assets.mjs. It is generated, third-party and minified;
+    // it is never hand-edited, so linting it only reports the minifier's names.
+    ignores: ["dist/**", "**/public/pdfjs/**", "public/pdfjs/**"],
   },
 ];

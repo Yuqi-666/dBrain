@@ -42,7 +42,7 @@ The implementation lives in `infrastructure/src/parsers/` or `infrastructure/src
 
 `adapter-front` is the composition root.
 `AppContainer` wires the repositories and the services.
-It also defines 11 tRPC routers and merges them in `src/trpc/router/index.ts`.
+It also defines 12 tRPC routers and merges them in `src/trpc/router/index.ts`.
 The client imports only the `AppRouter` type.
 
 Identity comes from a verified token, never from a client field.

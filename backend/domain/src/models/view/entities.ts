@@ -7,11 +7,15 @@ interface ViewProps {
   visualConfig: VisualConfig;
   filterConfig: FilterConfig;
   isPinned: boolean;
+  isDefault?: boolean;
   workspaceId?: string;
 }
 
 /**
  * View entity - represents a graph view with type and visual configuration
+ *
+ * `isDefault` marks the global view the server creates with its workspace; it
+ * is server-owned and only the provisioning paths set it.
  * All properties are readonly - use update methods to create new instances
  */
 export class View {
@@ -21,6 +25,7 @@ export class View {
   readonly visualConfig: VisualConfig;
   readonly filterConfig: FilterConfig;
   readonly isPinned: boolean;
+  readonly isDefault: boolean;
   readonly workspaceId?: string;
 
   private constructor(props: ViewProps) {
@@ -30,6 +35,7 @@ export class View {
     this.visualConfig = props.visualConfig;
     this.filterConfig = props.filterConfig;
     this.isPinned = props.isPinned ?? false;
+    this.isDefault = props.isDefault ?? false;
     this.workspaceId = props.workspaceId;
   }
 
@@ -43,6 +49,7 @@ export class View {
     visualConfig: VisualConfig;
     filterConfig: FilterConfig;
     isPinned?: boolean;
+    isDefault?: boolean;
     workspaceId?: string;
   }): View {
     const id =
@@ -63,6 +70,7 @@ export class View {
       visualConfig,
       filterConfig: props.filterConfig,
       isPinned: props.isPinned ?? false,
+      isDefault: props.isDefault,
       workspaceId: props.workspaceId,
     });
   }
@@ -85,6 +93,7 @@ export class View {
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }
@@ -100,6 +109,7 @@ export class View {
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }
@@ -115,6 +125,7 @@ export class View {
       visualConfig: config,
       filterConfig: this.filterConfig,
       isPinned: this.isPinned,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }
@@ -130,6 +141,7 @@ export class View {
       visualConfig: this.visualConfig,
       filterConfig: config,
       isPinned: this.isPinned,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }
@@ -146,6 +158,7 @@ export class View {
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: true,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }
@@ -162,6 +175,7 @@ export class View {
       visualConfig: this.visualConfig,
       filterConfig: this.filterConfig,
       isPinned: false,
+      isDefault: this.isDefault,
       workspaceId: this.workspaceId,
     });
   }

@@ -9,7 +9,9 @@
     "typecheck": "tsc --noemit",
     "test": "node --experimental-transform-types --test --test-isolation=none src/local-engine.test.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@workspace/utils": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.0.0",
     "@types/node": "^25.1.0"

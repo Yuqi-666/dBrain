@@ -26,21 +26,37 @@ export function AudioPreview({ node }: { node: AudioNodeData }) {
   const { t } = useI18n();
 
   const url = resolveFileUrl(node.content?.url);
+  // A cover only exists on a node imported from a music site; a local upload
+  // keeps the full-width player it has always had.
+  const coverUrl = node.content?.coverUrl
+    ? resolveFileUrl(node.content.coverUrl)
+    : "";
   const hasDuration = Number.isFinite(node.duration) && node.duration > 0;
   const hasSize = Number.isFinite(node.fileSize) && node.fileSize > 0;
   return (
     <div className="space-y-2">
       {url ? (
-        <audio
-          key={`${node.id}:${url}`}
-          src={url}
-          controls
-          preload="metadata"
-          aria-label={translate("{value1}预览", {
-            value1: node.title || t("音频"),
-          })}
-          className="block w-full"
-        />
+        <div className="flex items-center gap-2">
+          {coverUrl && (
+            <img
+              src={coverUrl}
+              alt={node.title || t("封面")}
+              loading="lazy"
+              draggable={false}
+              className="size-12 shrink-0 rounded-md object-cover"
+            />
+          )}
+          <audio
+            key={`${node.id}:${url}`}
+            src={url}
+            controls
+            preload="metadata"
+            aria-label={translate("{value1}预览", {
+              value1: node.title || t("音频"),
+            })}
+            className="block min-w-0 flex-1"
+          />
+        </div>
       ) : (
         <div className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
           {t("暂无音频")}{" "}

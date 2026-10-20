@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/graph", "/dashboard", "/settings"];
+const PROTECTED_PATHS = ["/graph", "/dashboard", "/resources", "/settings"];
 const AUTH_PATHS = ["/login", "/register"];
 
 // Edge runtime: base64 decode via Web globals only (no Node / PocketBase SDK).
@@ -56,6 +56,7 @@ export const config = {
   matcher: [
     "/graph/:path*",
     "/dashboard/:path*",
+    "/resources/:path*",
     "/settings/:path*",
     "/login",
     "/register",

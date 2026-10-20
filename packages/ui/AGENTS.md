@@ -19,7 +19,7 @@ Consumers therefore import a deep path, for example `@workspace/ui/components/he
 
 | Path | Content |
 | --- | --- |
-| `src/components/` | About 23 feature directories, for example `header`, `dialog`, `sidebar`, `node-content`, and `dynamic-island` |
+| `src/components/` | About 24 feature directories, for example `header`, `dialog`, `sidebar`, `node-content`, `resources`, and `dynamic-island` |
 | `src/components/ui/` | About 31 vendored shadcn primitives |
 | `src/components/index.ts` | The aggregate application surface. It exports the graph layout, the sidebar, the preview block, and the dynamic island. |
 | `src/components/dynamic-island/` | Island shell, navigation, motion, and feature panels. Read [src/components/dynamic-island/AGENTS.md](src/components/dynamic-island/AGENTS.md). |

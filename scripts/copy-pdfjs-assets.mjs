@@ -19,5 +19,14 @@ const apps = requested.length > 0 ? requested : PDFJS_ASSET_APPS;
 for (const app of apps) {
   const destination = await copyPdfjsAssets(app);
   const counts = await countPdfjsAssets(app);
-  console.log("[pdfjs] " + counts.cmaps + " cmaps + " + counts.standard_fonts + " standard fonts -> " + destination);
+  console.log(
+    "[pdfjs] " +
+      counts.cmaps +
+      " cmaps + " +
+      counts.standard_fonts +
+      " standard fonts + " +
+      counts.worker +
+      " patched worker -> " +
+      destination,
+  );
 }

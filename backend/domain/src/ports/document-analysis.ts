@@ -144,6 +144,19 @@ export interface IFileStore {
   upload(blob: StoredBlob): Promise<string>;
 
   /**
+   * Stores one artifact derived from the resource at `sourceUrl` — a PDF cover,
+   * an HLS playlist, one of its segments, a video poster.
+   *
+   * Same write as {@link upload}, plus the provenance: the new record names the
+   * source record as its `derivedFrom`. The resource library lists only rows
+   * without that field, and deleting the source deletes the artifacts, so the
+   * bytes a user frees are the bytes the quota charged.
+   *
+   * @throws when the store rejects the write.
+   */
+  uploadDerived(sourceUrl: string, blob: StoredBlob): Promise<string>;
+
+  /**
    * Streams the file at `filePath` into the store. Resolves to the
    * root-relative address (`/api/files/…`) it can be read from afterwards.
    *

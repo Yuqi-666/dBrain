@@ -31,6 +31,7 @@ function toViewDTO(view: View): ViewDTO {
       collectionType: view.filterConfig.collectionType
     },
     isPinned: view.isPinned,
+    isDefault: view.isDefault,
   };
 }
 

@@ -27,7 +27,7 @@ It contains no business logic.
 
 `src/index.ts` creates a `node:http` server.
 It answers `/health`.
-It forwards `/pb/*` only after `allowedFileRequest`, `sameOrigin`, and `verifyToken` all pass.
+It forwards `/pb/*` only after `allowedFileRequest`, `sameOrigin`, and `verifyToken` all pass. The allowlist admits reading one blob, the `files` records list, the direct upload, and the rename/delete of one file record; PocketBase rules scope every row to the caller.
 It serves `/pb/upload/*` itself, after `sameOrigin` and `verifyToken`: the chunks are spooled on this host and only the assembled file reaches PocketBase.
 It serves the tRPC WebSocket at `/trpc` through `createWSServer` in `noServer` mode.
 

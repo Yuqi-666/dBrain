@@ -8,7 +8,7 @@ import type {
   RichTextNodeData,
 } from "@workspace/interfaces";
 import { NotionEditor } from "@workspace/editor/components/tiptap-templates/notion-like/notion-like-editor";
-import { useDataStore } from "@workspace/store";
+import { useDataStore, useUIStore } from "@workspace/store";
 import { Button } from "@workspace/ui/components/ui/button";
 import { CoverSelectorPopover } from "@workspace/ui/components/selector/cover-selector-popover";
 import { IconSelectorPopover } from "@workspace/ui/components/selector/icon-selector-popover";
@@ -45,6 +45,13 @@ export function RichTextNodeContent({
   // in, `patchNode` out) and `NodeService.upsert` updates the store synchronously,
   // so this subscription is what makes typing echo back.
   const liveNode = useDataStore((state) => state.getNode(node.id)) ?? node;
+  // Bumped only when the store content is replaced from outside (清空节点, a
+  // deleted file stripping an embedded image). It joins the editor key below,
+  // so such a replacement remounts the uncontrolled editor; typing does not
+  // touch it.
+  const contentReset = useUIStore(
+    (state) => state.nodeContentReset[node.id] ?? 0,
+  );
   const writer = useNodeContentWriter<RichTextContent>(
     node.id,
     "rich-text",
@@ -96,6 +103,17 @@ export function RichTextNodeContent({
   // Unmount (closing the dialog, switching the node) persists whatever the
   // debounce still holds, so the last keystrokes survive an immediate close.
   useEffect(() => flush, [flush]);
+
+  // An external replacement wins over whatever the debounce still holds: drop
+  // the queued document so a timer armed a moment ago cannot write the old
+  // content back after the clear.
+  useEffect(() => {
+    pending.current = null;
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  }, [contentReset]);
 
   const listNodes = useCallback(
     (query: string): NodeData[] => {
@@ -194,7 +212,7 @@ export function RichTextNodeContent({
       />
 
       <NotionEditor
-        key={node.id}
+        key={`${node.id}:${contentReset}`}
         placeholder={t("开始写作...")}
         onContentChange={handleBodyChange}
         getInitialContent={() =>

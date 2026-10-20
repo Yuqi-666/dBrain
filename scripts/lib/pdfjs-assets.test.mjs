@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
   PDFJS_ASSET_DIRECTORIES,
+  PDFJS_PATCHED_WORKER_FILE,
   copyPdfjsAssets,
   countPdfjsAssets,
   resolvePdfjsAssets,
@@ -46,6 +47,11 @@ test("the copy is idempotent and lands under public/pdfjs", async () => {
     assert.deepEqual(after, before);
     assert.ok(after.cmaps > 0);
     assert.ok(after.standard_fonts > 0);
+    // The worker is copied with the page-tree fast path already applied; a
+    // missing patch here is a silent return to one range read per page.
+    assert.equal(after.worker, 1);
+    const worker = await readFile(join(first, PDFJS_PATCHED_WORKER_FILE), "utf8");
+    assert.match(worker, /__pdfjsFastTop/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -163,8 +163,14 @@ export class NodeCommandService {
           icon: cmd.icon,
           cover: cmd.cover,
           duration: cmd.duration,
+          source: cmd.source,
+          sourceUrl: cmd.sourceUrl,
           fileSize: cmd.fileSize,
-          content: new AudioContent(cmd.content.url, cmd.content.timestamps),
+          content: new AudioContent(
+            cmd.content.url,
+            cmd.content.coverUrl,
+            cmd.content.timestamps,
+          ),
           workspaceId: cmd.workspaceId,
         });
         break;
@@ -180,6 +186,7 @@ export class NodeCommandService {
           stateData: cmd.stateData,
           icon: cmd.icon,
           cover: cmd.cover,
+          fileSize: cmd.fileSize ?? 0,
           content: new WebpageContent(cmd.content),
           workspaceId: cmd.workspaceId,
         });
@@ -379,6 +386,9 @@ export class NodeCommandService {
     if (node instanceof AudioNode) {
       return node.updateFileMeta(cmd);
     }
+    if (node instanceof WebpageNode) {
+      return node.updateFileMeta(cmd);
+    }
     return node;
   }
 
@@ -436,24 +446,27 @@ export class NodeCommandService {
     }
     if (
       node instanceof AudioNode &&
-      (content.url !== undefined || content.timestamps !== undefined)
+      (content.url !== undefined ||
+        content.coverUrl !== undefined ||
+        content.timestamps !== undefined)
     ) {
-      // Same halves as video: a note may be added without re-sending the url.
+      // Same halves as video: a note may be added without re-sending the url,
+      // and the cover is patched in by the import that saved it. An omitted
+      // key keeps the value already stored.
       return node.updateContent(
         new AudioContent(
           content.url ?? node.content.url,
+          content.coverUrl ?? node.content.coverUrl,
           content.timestamps ?? node.content.timestamps,
         ),
       );
     }
-    if (node instanceof WebpageNode) {
-      // The editor always writes source and language together; a partial patch
-      // keeps the stored half so a language switch cannot blank the source.
+    if (node instanceof WebpageNode && content.url !== undefined) {
+      // The node keeps only the address of the stored document, so there is one
+      // half to patch. `fileSize` rides along in the same update
+      // (`updateFileMeta`); an address written alone keeps the stored size.
       return node.updateContent(
-        new WebpageContent({
-          code: content.code ?? node.content.code,
-          language: content.language ?? node.content.language,
-        }),
+        new WebpageContent({ url: content.url ?? node.content.url }),
       );
     }
     if (node instanceof WebsiteNode && content.url !== undefined) {
@@ -523,7 +536,7 @@ export class NodeCommandService {
           eventType: "EdgeDeleted",
           aggregateId: edge.id.getValue(),
           metadata: {
-        workspaceId: existing.workspaceId,
+            workspaceId: existing.workspaceId,
             occurredAt: new Date().toISOString(),
             eventVersion: 1,
             userId: cmd.userId,

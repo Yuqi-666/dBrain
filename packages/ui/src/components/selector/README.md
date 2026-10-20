@@ -2,7 +2,7 @@
 
 `selector/` holds components that select a value or entity. Classification follows
 that purpose, even when the picker is rendered inside a dropdown menu.
-`menu/` holds action menus, such as the graph context menu and upload menu.
+`menu/` holds action menus, such as the graph context menu.
 
 ## Domain selectors
 
@@ -12,6 +12,7 @@ that purpose, even when the picker is rendered inside a dropdown menu.
 | `cover-selector-popover.tsx` / `CoverSelectorPopover`  | Node cover                                        | Complete popover and trigger    |
 | `node-data-type-selector.tsx` / `NodeDataTypeSelector` | Node data type, followed by host-provided content | `DropdownMenuSubContent`        |
 | `node-selector.tsx` / `NodeSelector`                   | Existing node                                     | `DropdownMenuSubContent`        |
+| `resource-selector.tsx` / `ResourceSelectorDialog`      | Existing media resource (reference an upload)     | Complete dialog                 |
 | `node-tag-selector.tsx` / `NodeTagSelector`            | Apply/create/delete node tags                     | `PopoverContent`                |
 | `node-semantic-selector.tsx` / `NodeSemanticSelector`  | Node semantic                                     | Body only                       |
 | `edge-semantic-selector.tsx` / `EdgeSemanticSelector`  | Edge semantic                                     | Body only                       |

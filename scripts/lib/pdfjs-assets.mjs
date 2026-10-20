@@ -12,11 +12,20 @@
  * They are copied out of the installed `pdfjs-dist` into each app's `public/`
  * tree instead of being fetched from a CDN, so the desktop build keeps working
  * offline and a self-hosted server never depends on a third party.
+ *
+ * The worker is copied too, but not verbatim: `pdfjs-worker-patch.mjs` adds the
+ * page-tree fast path first, because a flat page tree otherwise costs one range
+ * read per page just to open page 1.
  */
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  PDFJS_PATCHED_WORKER_FILE,
+  patchInstalledPdfjsWorker,
+} from "./pdfjs-worker-patch.mjs";
 
 /** The repository root, seen from `scripts/lib/`. */
 export const REPO_ROOT = resolve(
@@ -30,6 +39,8 @@ export const PDFJS_ASSET_DIRECTORIES = ["cmaps", "standard_fonts"];
 
 /** The apps whose `public/` tree serves the viewer. */
 export const PDFJS_ASSET_APPS = ["apps/web", "apps/desktop"];
+
+export { PDFJS_PATCHED_WORKER_FILE };
 
 const require = createRequire(join(REPO_ROOT, "packages/ui/package.json"));
 
@@ -59,31 +70,36 @@ function normalizeApp(app) {
 }
 
 /**
- * Copies both trees into `<root>/<app>/public/pdfjs/`.
+ * Copies both trees and the patched worker into `<root>/<app>/public/pdfjs/`.
  *
  * Idempotent: the destination directory is replaced, so a pdf.js upgrade cannot
- * leave a stale CMap beside a new one. Returns the directory that now holds the
- * assets, which the CLI prints.
+ * leave a stale CMap or an unpatched worker beside a new parser. Returns the
+ * directory that now holds the assets, which the CLI prints.
  */
 export async function copyPdfjsAssets(app, { root = REPO_ROOT } = {}) {
   const target = normalizeApp(app);
   const { directories } = resolvePdfjsAssets();
   const destination = join(root, target, "public", "pdfjs");
+  await rm(destination, { recursive: true, force: true });
+  await mkdir(destination, { recursive: true });
   for (const directory of directories) {
     const into = join(destination, directory.name);
-    await rm(into, { recursive: true, force: true });
-    await mkdir(into, { recursive: true });
     await cp(directory.path, into, { recursive: true });
   }
+  const { source } = await patchInstalledPdfjsWorker();
+  await writeFile(join(destination, PDFJS_PATCHED_WORKER_FILE), source);
   return destination;
 }
 
-/** The number of files in each copied directory, for the CLI's log line. */
+/** The number of files in each copied location, for the CLI's log line. */
 export async function countPdfjsAssets(app, { root = REPO_ROOT } = {}) {
   const destination = join(root, normalizeApp(app), "public", "pdfjs");
   const counts = {};
   for (const name of PDFJS_ASSET_DIRECTORIES) {
     counts[name] = (await readdir(join(destination, name))).length;
   }
+  counts.worker = (await readdir(destination)).filter(
+    (file) => file === PDFJS_PATCHED_WORKER_FILE,
+  ).length;
   return counts;
 }

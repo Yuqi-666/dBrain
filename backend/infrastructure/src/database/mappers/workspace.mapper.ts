@@ -1,4 +1,5 @@
 import type { RecordModel } from "pocketbase";
+import type { NodeIcon } from "@workspace/interfaces";
 import { Workspace } from "@workspace/domain/models/workspace/entities";
 import { WorkspaceId } from "@workspace/domain/models/workspace/value-objects";
 
@@ -8,6 +9,8 @@ export class WorkspaceMapper {
       id: record.id,
       name: record.name as string,
       ownerId: record.ownerId as string,
+      icon: (record.icon as NodeIcon | null | undefined) ?? undefined,
+      isDefault: record.isDefault as boolean,
       createdAt: record.created as string | undefined,
       updatedAt: record.updated as string | undefined,
     });
@@ -18,6 +21,10 @@ export class WorkspaceMapper {
       id: workspace.id.value,
       name: workspace.name,
       ownerId: workspace.ownerId,
+      // Same clear sentinel as the node mapper: a missing key on a partial
+      // PocketBase update keeps the old icon, so "no icon" must be `null`.
+      icon: workspace.icon ?? null,
+      isDefault: workspace.isDefault,
     };
   }
 }

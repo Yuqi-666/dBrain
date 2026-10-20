@@ -198,6 +198,29 @@ test("the viewer opens a pdf on demand, not by streaming it whole", async () => 
   }
 });
 
+test("the viewer loads the worker that carries the page-tree fast path", () => {
+  const source = readFileSync(VIEWER_SOURCE, "utf8");
+  // The worker is copied into `public/pdfjs/` by scripts/lib/pdfjs-assets.mjs,
+  // which also applies scripts/lib/pdfjs-worker-patch.mjs. A bundler-resolved
+  // worker would ship the unpatched parser again, and a flat page tree would
+  // need one range read per page before page 1 could render.
+  assert.match(source, /pdf\.worker\.patched\.mjs/);
+  assert.doesNotMatch(
+    source,
+    /new URL\("pdfjs-dist\/build\/pdf\.worker\.min\.mjs"/,
+  );
+});
+
+test("the reading position persists after a restore that lands off target", () => {
+  const viewer = readFileSync(VIEWER_TSX, "utf8");
+  // A restore jump can land one slot away (mixed page sizes, the end of the
+  // document, a mode change while opening). Persistence must follow whatever
+  // page the reader is on instead of waiting forever for the exact target.
+  assert.match(viewer, /restored\.before/);
+  assert.match(viewer, /page === restored\.before && page !== restored\.page/);
+  assert.doesNotMatch(viewer, /if \(page !== restored\.page\) return;/);
+});
+
 test("the viewer keeps asking pdfjs for on-demand reads", () => {
   const source = readFileSync(VIEWER_SOURCE, "utf8");
   const call = /getDocument\(\{[\s\S]*?\n\s*\}\);/.exec(source)?.[0];

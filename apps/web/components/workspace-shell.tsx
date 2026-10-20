@@ -4,6 +4,7 @@ import { useI18n } from "@workspace/ui/lib/i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Dashboard } from "@workspace/ui/components/dashboard/dashboard";
+import { ResourceLibrary } from "@workspace/ui/components/resources/resource-library";
 import { Graph } from "@workspace/graph";
 import { useUIStore } from "@workspace/store";
 import { GraphHeader } from "@workspace/ui/components/header/graph-header/graph-header";
@@ -14,6 +15,7 @@ import {
   NodeSemanticDialog,
   EdgeSemanticDialog,
 } from "@workspace/ui/components/dialog/semantic-dialog";
+import { NodeDispositionDialog } from "@workspace/ui/components/dialog/node-disposition-dialog";
 import { CreateWorkspaceDialog } from "@workspace/ui/components/dialog/workspace-dialog";
 import { ViewDialog } from "@workspace/ui/components/dialog/view-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -72,17 +74,17 @@ export function WorkspaceShell(): ReactNode {
     }
   }, [routeView]);
 
-  // The dashboard has no sidebar. A *transient* (temp) sidebar must not stay
-  // open behind it; a `fixed` one is the user's own preference and is restored
-  // with the graph, so it is deliberately left alone.
+  // A full-page surface (the dashboard, the resource library) has no sidebar.
+  // A *transient* (temp) sidebar must not stay open behind it; a `fixed` one is
+  // the user's own preference and is restored with the graph, so it is
+  // deliberately left alone.
+  const isFullPageSurface =
+    activeView === "dashboard" || activeView === "resources";
   useEffect(() => {
-    if (
-      activeView === "dashboard" &&
-      useUIStore.getState().sidebarMode === "temp"
-    ) {
+    if (isFullPageSurface && useUIStore.getState().sidebarMode === "temp") {
       useUIStore.getState().closeSidebar();
     }
-  }, [activeView]);
+  }, [isFullPageSurface]);
 
   // Mount the dashboard on its first visit, then keep it — a database widget
   // drags a whole VTable stack in with it, so it must not be paid for on the
@@ -94,8 +96,15 @@ export function WorkspaceShell(): ReactNode {
     if (activeView === "dashboard") setDashboardVisited(true);
   }, [activeView]);
 
+  // Same rule for the resource library: mount on the first visit, then keep it,
+  // so switching back and forth does not re-read the media collection.
+  const [resourcesVisited, setResourcesVisited] = useState(false);
+  useEffect(() => {
+    if (activeView === "resources") setResourcesVisited(true);
+  }, [activeView]);
+
   return (
-    <MainLayout sidebar={activeView === "dashboard" ? null : <GraphSidebar />}>
+    <MainLayout sidebar={isFullPageSurface ? null : <GraphSidebar />}>
       <div className="absolute inset-0 z-0">
         {error ? (
           <div
@@ -122,12 +131,19 @@ export function WorkspaceShell(): ReactNode {
               </WorkspaceSurface>
             )}
 
+            {(resourcesVisited || activeView === "resources") && (
+              <WorkspaceSurface active={activeView === "resources"}>
+                <ResourceLibrary />
+              </WorkspaceSurface>
+            )}
+
             {/* The editor and the dialogs are siblings of the surfaces, not
                 children of one: an inactive surface is `invisible` + `inert`,
                 and a dialog opened from the graph must survive a switch. */}
             <NodeEditor />
             <NodeSemanticDialog />
             <EdgeSemanticDialog />
+            <NodeDispositionDialog />
             <CreateWorkspaceDialog />
             <ViewDialog />
           </>

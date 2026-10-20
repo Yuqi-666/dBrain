@@ -32,9 +32,10 @@ It exports:
 | `src/pocketbase-client.ts` | The PocketBase singleton |
 | `src/backend-urls.ts` | Chooses the backend address |
 | `src/desktop-backend.ts` | Starts and refreshes the desktop local backend |
-| `src/upload.ts` | Sends a blob to the PocketBase `files` collection, or delegates a large one to `upload-chunked.ts` |
+| `src/upload.ts` | Sends a blob to the PocketBase `files` collection, or delegates a large one to `upload-chunked.ts`; `replaceAttachment` PATCHes a new blob into an existing record (same record id), which is how an Excalidraw preview is saved in place |
 | `src/upload-chunked.ts` | Chunked, resumable upload of one file over the API upload routes |
 | `src/file-analysis.ts` | Asks the backend to parse a PDF or transcode a video |
+| `src/resources.ts` | The media resource library: reads the `files` collection (including the analysis cached on a resource and the derived artifacts hidden from the cards), renames and deletes resources, caches browser measurements, reads the storage limits, resolves the resources named by a node's stored addresses, and lists the nodes that reference one resource |
 
 ## Mechanisms
 

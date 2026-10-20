@@ -105,9 +105,12 @@ export function toNodeDTO(node: Node): NodeDTO {
         ...base,
         nodeType: "audio" as const,
         duration: audio.duration,
+        source: audio.source,
+        sourceUrl: audio.sourceUrl,
         fileSize: audio.fileSize,
         content: {
           url: audio.content.url,
+          coverUrl: audio.content.coverUrl,
           timestamps: audio.content.timestamps,
         },
       };
@@ -117,9 +120,9 @@ export function toNodeDTO(node: Node): NodeDTO {
       return {
         ...base,
         nodeType: "webpage" as const,
+        fileSize: webpage.fileSize,
         content: {
-          code: webpage.content.code,
-          language: webpage.content.language,
+          url: webpage.content.url,
         },
       };
     }

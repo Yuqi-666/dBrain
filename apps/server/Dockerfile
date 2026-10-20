@@ -8,7 +8,22 @@ RUN pnpm install --offline --frozen-lockfile
 RUN pnpm --filter server build
 
 FROM node:24.15.0-bookworm-slim AS runner
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates libfontconfig1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl libfontconfig1 && rm -rf /var/lib/apt/lists/*
+# The video-link import spawns yt-dlp to download a remote video before the
+# server stores and packages it. Install the self-contained release binary at
+# build time: the site extractors of a video site change often, so a current
+# release is necessary and a distro package is usually stale. The binary needs
+# no Python runtime. Set `YT_DLP_PATH` in the server environment to override it.
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) yt_dlp_asset=yt-dlp_linux ;; \
+      arm64) yt_dlp_asset=yt-dlp_linux_aarch64 ;; \
+      *) echo "No self-contained yt-dlp release for architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL --retry 3 -o /usr/local/bin/yt-dlp "https://github.com/yt-dlp/yt-dlp/releases/latest/download/${yt_dlp_asset}"; \
+    chmod +x /usr/local/bin/yt-dlp; \
+    yt-dlp --version
 WORKDIR /app
 ENV NODE_ENV=production PORT=3001
 COPY --from=builder --chown=node:node /app/apps/server/dist ./

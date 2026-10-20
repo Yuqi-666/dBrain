@@ -1,7 +1,7 @@
 name: dbrain
 services:
   pocketbase:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.1.9}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-pocketbase:${DBRAIN_VERSION:-0.2.1}
     build:
       context: .
       dockerfile: deploy/pocketbase/Dockerfile
@@ -15,12 +15,22 @@ services:
       DBRAIN_ADMIN_EMAIL: ${DBRAIN_ADMIN_EMAIL:?Set DBRAIN_ADMIN_EMAIL in .env (copy .env.example)}
       DBRAIN_ADMIN_PASSWORD: ${DBRAIN_ADMIN_PASSWORD:-}
       DBRAIN_ADMIN_PASSWORD_FILE: ${DBRAIN_ADMIN_PASSWORD_FILE:-}
+      # Storage policy. PocketBase's upload hook enforces these values, so the
+      # store itself needs them as well as the API. Empty means "use the built-in
+      # default"; see `.env.example` for the units and the defaults.
+      DBRAIN_STORAGE_USER_QUOTA_BYTES: ${DBRAIN_STORAGE_USER_QUOTA_BYTES:-}
+      DBRAIN_STORAGE_MAX_IMAGE_BYTES: ${DBRAIN_STORAGE_MAX_IMAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_VIDEO_BYTES: ${DBRAIN_STORAGE_MAX_VIDEO_BYTES:-}
+      DBRAIN_STORAGE_MAX_AUDIO_BYTES: ${DBRAIN_STORAGE_MAX_AUDIO_BYTES:-}
+      DBRAIN_STORAGE_MAX_PDF_BYTES: ${DBRAIN_STORAGE_MAX_PDF_BYTES:-}
+      DBRAIN_STORAGE_MAX_WEBPAGE_BYTES: ${DBRAIN_STORAGE_MAX_WEBPAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_OTHER_BYTES: ${DBRAIN_STORAGE_MAX_OTHER_BYTES:-}
     volumes:
       - pb_data:/pb_data
     networks: [backend]
     security_opt: [no-new-privileges:true]
   server:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.1.9}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-server:${DBRAIN_VERSION:-0.2.1}
     build:
       context: .
       dockerfile: apps/server/Dockerfile
@@ -33,13 +43,37 @@ services:
       # directory; point it at a mounted volume when /tmp is too small for one
       # upload in flight (up to 2 GiB).
       DBRAIN_UPLOAD_DIR: ${DBRAIN_UPLOAD_DIR:-}
+      # Override for the yt-dlp binary the media import spawns. The image
+      # installs one on PATH, so this is only for pointing the server at a
+      # different install; empty means "yt-dlp" from PATH.
+      YT_DLP_PATH: ${YT_DLP_PATH:-}
+      # Root of the import-job directories. It is on the media_imports volume, so
+      # a partial download survives a container restart and can continue for 24
+      # hours. Keep the value equal to the volume mount path.
+      DBRAIN_MEDIA_IMPORT_DIR: ${DBRAIN_MEDIA_IMPORT_DIR:-/var/lib/dbrain/media-imports}
+      # Encrypts the saved media-site logins. A deployment sets a stable value in
+      # .env. With an empty value the server generates a per-container secret, so
+      # a restart invalidates the saved logins; it does not refuse to start.
+      DBRAIN_MEDIA_COOKIE_SECRET: ${DBRAIN_MEDIA_COOKIE_SECRET:-}
+      # Storage policy. The API rejects an upload before it spools any chunk and
+      # reports the same limits to the resource library. Keep these values equal
+      # to the PocketBase service above.
+      DBRAIN_STORAGE_USER_QUOTA_BYTES: ${DBRAIN_STORAGE_USER_QUOTA_BYTES:-}
+      DBRAIN_STORAGE_MAX_IMAGE_BYTES: ${DBRAIN_STORAGE_MAX_IMAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_VIDEO_BYTES: ${DBRAIN_STORAGE_MAX_VIDEO_BYTES:-}
+      DBRAIN_STORAGE_MAX_AUDIO_BYTES: ${DBRAIN_STORAGE_MAX_AUDIO_BYTES:-}
+      DBRAIN_STORAGE_MAX_PDF_BYTES: ${DBRAIN_STORAGE_MAX_PDF_BYTES:-}
+      DBRAIN_STORAGE_MAX_WEBPAGE_BYTES: ${DBRAIN_STORAGE_MAX_WEBPAGE_BYTES:-}
+      DBRAIN_STORAGE_MAX_OTHER_BYTES: ${DBRAIN_STORAGE_MAX_OTHER_BYTES:-}
+    volumes:
+      - media_imports:/var/lib/dbrain/media-imports
     depends_on:
       pocketbase:
         condition: service_healthy
     networks: [backend, frontend]
     security_opt: [no-new-privileges:true]
   web:
-    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.1.9}
+    image: ${DBRAIN_IMAGE_PREFIX:-ghcr.io/yuqi-666/dbrain}-web:${DBRAIN_VERSION:-0.2.1}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -75,3 +109,7 @@ networks:
   frontend:
 volumes:
   pb_data:
+  # Temporary media-import jobs: partial downloads and a completed result until
+  # the client writes it onto the node. A named volume keeps an interrupted job
+  # across a container restart, so the user can continue it for 24 hours.
+  media_imports:

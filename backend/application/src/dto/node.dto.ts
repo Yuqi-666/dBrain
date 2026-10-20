@@ -73,15 +73,22 @@ export interface VideoNodeDTO extends BaseNodeDTO {
 export interface AudioNodeDTO extends BaseNodeDTO {
   nodeType: "audio";
   duration: number;
+  /** Reads as `"local"` on every record written before the import existed. */
+  source: "local" | "online";
+  sourceUrl?: string;
   fileSize: number;
   content: {
     url: string;
+    /** Only an imported node has artwork; a local upload has none. */
+    coverUrl?: string;
     timestamps?: TimestampData[];
   };
 }
 
 export interface WebpageNodeDTO extends BaseNodeDTO {
   nodeType: "webpage";
+  /** Byte length of the stored document; 0 while the node has no file. */
+  fileSize: number;
   content: WebpageContent;
 }
 

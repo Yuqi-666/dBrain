@@ -201,7 +201,15 @@ export function resolveFileUrl(src?: string | null): string {
   return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-function buildUploadUrl(
+/**
+ * Address of a stored blob, in the shape a client writes into node content.
+ *
+ * Exported because the resource library resolves the same address from a record
+ * it read with the PocketBase list API; keeping one builder means a referenced
+ * blob and a freshly uploaded one are addressed identically. A caller that
+ * renders the URL must pass it through {@link resolveFileUrl}.
+ */
+export function buildUploadUrl(
   record: Record<string, unknown>,
   storedName: string,
 ): string {
@@ -225,24 +233,45 @@ function buildUploadUrl(
   }
 }
 
+/** One multipart write against the PocketBase `files` collection. */
+interface AttachmentWrite {
+  /** Verb used in the error message and the abort reason. */
+  kind: "Upload" | "Replace";
+  method: "POST" | "PATCH";
+  /** Path below the PocketBase base URL, e.g. `/api/collections/.../records/<id>`. */
+  path: string;
+  file: File;
+  onProgress: (event: { progress: number }) => void;
+  signal?: AbortSignal;
+  /**
+   * Extra multipart text fields. A create carries `workspaceId`; a replace
+   * carries none, because the record keeps the workspace it was created in.
+   */
+  fields?: Record<string, string>;
+  /**
+   * Record id to report when the response omits one. A `PATCH` target already
+   * names the record, so its id survives even a minimal response.
+   */
+  fallbackId?: string;
+}
+
 /**
- * Single-request upload: the whole file in one XHR `POST` to PocketBase.
+ * Single-request write: the whole file in one XHR `POST` (create) or `PATCH`
+ * (replace) to PocketBase.
  *
- * Implemented with `XMLHttpRequest` (instead of `pb.collection().create()`)
- * purely to get `upload.progress` events for the progress bar. Kept as its own
- * function so the chunked path can share the exact behaviour below without
- * changing it.
+ * Implemented with `XMLHttpRequest` (instead of `pb.collection().create()` /
+ * `.update()`) purely to get `upload.progress` events for the progress bar.
+ * Both writers share this function so the form, the Authorization choice and
+ * the response parsing cannot drift apart.
  */
-const uploadDirectAttachment = (
-  file: File,
-  onProgress: (event: { progress: number }) => void,
-  signal?: AbortSignal,
-): Promise<IAttachment> => {
+const writeAttachment = (write: AttachmentWrite): Promise<IAttachment> => {
   const pb = getPocketbaseClient();
+  const { kind, method, path, file, onProgress, signal, fields, fallbackId } =
+    write;
 
   return new Promise<IAttachment>((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new Error("Upload aborted"));
+      reject(new Error(`${kind} aborted`));
       return;
     }
 
@@ -250,7 +279,7 @@ const uploadDirectAttachment = (
 
     const onAbort = () => {
       xhr.abort();
-      reject(new Error("Upload aborted"));
+      reject(new Error(`${kind} aborted`));
     };
     const cleanup = () => signal?.removeEventListener("abort", onAbort);
 
@@ -275,7 +304,7 @@ const uploadDirectAttachment = (
         } catch {
           // non-JSON error body — status code alone is enough
         }
-        reject(new Error(`Upload failed with status ${xhr.status}${detail}`));
+        reject(new Error(`${kind} failed with status ${xhr.status}${detail}`));
         return;
       }
 
@@ -283,7 +312,9 @@ const uploadDirectAttachment = (
       try {
         record = JSON.parse(xhr.responseText) as Record<string, unknown>;
       } catch {
-        reject(new Error("Upload failed: server returned an invalid response"));
+        reject(
+          new Error(`${kind} failed: server returned an invalid response`),
+        );
         return;
       }
 
@@ -293,12 +324,12 @@ const uploadDirectAttachment = (
           : "";
 
       if (!storedName) {
-        reject(new Error("Upload failed: server response contained no file"));
+        reject(new Error(`${kind} failed: server response contained no file`));
         return;
       }
 
       resolve({
-        id: String(record.id ?? ""),
+        id: String(record.id ?? fallbackId ?? ""),
         // PocketBase renames on disk (`name_ab12cd34.png`); the local File keeps
         // the name the user actually picked.
         fileName: file.name || storedName,
@@ -310,27 +341,25 @@ const uploadDirectAttachment = (
 
     xhr.addEventListener("error", () => {
       cleanup();
-      reject(new Error("Upload failed: network error"));
+      reject(new Error(`${kind} failed: network error`));
     });
 
     xhr.addEventListener("abort", () => {
       cleanup();
-      reject(new Error("Upload aborted"));
+      reject(new Error(`${kind} aborted`));
     });
 
     const formData = new FormData();
     formData.append(FILES_FIELD, file);
-    const workspaceId = useWorkspaceStore.getState().currentWorkspaceId;
-    if (workspaceId) formData.append("workspaceId", workspaceId);
+    for (const [name, value] of Object.entries(fields ?? {})) {
+      formData.append(name, value);
+    }
 
-    xhr.open(
-      "POST",
-      pb.buildUrl(`/api/collections/${FILES_COLLECTION}/records`).toString(),
-    );
+    xhr.open(method, pb.buildUrl(path).toString());
 
     // Web login uses the session cookie; desktop initializes the PB auth store.
-    // Read the web cookie for every upload so renewal/logout cannot leave a
-    // stale SDK token in use. PB requires Authorization for record creation.
+    // Read the web cookie for every write so renewal/logout cannot leave a
+    // stale SDK token in use. PB requires Authorization for record writes.
     const token =
       process.env.NEXT_PUBLIC_DBRAIN_PLATFORM === "desktop"
         ? pb.authStore?.token
@@ -340,6 +369,59 @@ const uploadDirectAttachment = (
     xhr.send(formData);
   });
 };
+
+/** Creates a new `files` record; the direct, single-request upload path. */
+const uploadDirectAttachment = (
+  file: File,
+  onProgress: (event: { progress: number }) => void,
+  signal?: AbortSignal,
+): Promise<IAttachment> => {
+  const workspaceId = useWorkspaceStore.getState().currentWorkspaceId;
+  return writeAttachment({
+    kind: "Upload",
+    method: "POST",
+    path: `/api/collections/${FILES_COLLECTION}/records`,
+    file,
+    onProgress,
+    signal,
+    fields: workspaceId ? { workspaceId } : undefined,
+  });
+};
+
+/**
+ * Replaces the stored file of an existing `files` record, keeping its id.
+ *
+ * One logical file stays one record: an Excalidraw block writes its preview as
+ * a PNG that also embeds the scene (`exportEmbedScene`), so a save replaces
+ * that record's bytes instead of creating a second record. The resource library
+ * keeps one card, and the quota counts the current bytes instead of every
+ * save's leftover. The record id is stable; the stored file name (and the URL
+ * the caller renders) changes with the bytes, so the caller rewrites the node's
+ * `src` from the response.
+ *
+ * The owner may replace the `file` field; the PocketBase hook recomputes `size`
+ * and `mimeType` from the stored blob and applies the same category ceiling and
+ * per-user quota as a create (`pb/pb_hooks/lib/storage-limits.js`).
+ *
+ * Throws when the record is gone, when the deployment refuses the replacement,
+ * or when the server rejects the new bytes. A caller that must stay usable can
+ * fall back to {@link uploadAttachment}, which creates a fresh record.
+ */
+export const replaceAttachment = (
+  id: string,
+  file: File,
+  onProgress: (event: { progress: number }) => void = () => {},
+  signal?: AbortSignal,
+): Promise<IAttachment> =>
+  writeAttachment({
+    kind: "Replace",
+    method: "PATCH",
+    path: `/api/collections/${FILES_COLLECTION}/records/${encodeURIComponent(id)}`,
+    file,
+    onProgress,
+    signal,
+    fallbackId: id,
+  });
 
 /**
  * Uploads a file to PocketBase and returns the stored file as an
@@ -352,6 +434,10 @@ const uploadDirectAttachment = (
  *
  * Callers (drop zones, the Tiptap image node, Excalidraw) never pick a
  * transport and never see the difference beyond the progress events.
+ *
+ * Always creates a new `files` record. To overwrite the blob of an existing
+ * record and keep its id — one storage unit per diagram — use
+ * {@link replaceAttachment}.
  */
 export const uploadAttachment = async (
   file: File,

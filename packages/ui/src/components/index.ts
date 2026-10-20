@@ -15,4 +15,3 @@ export {
   type IslandPanel,
 } from "./dynamic-island/index";
 export * from "./editor/loading-placeholder";
-export * from "./menu/upload-menu";

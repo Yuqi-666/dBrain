@@ -9,11 +9,17 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/node": "^25.1.0"
   },
   "exports": {
     ".": "./src/index.ts",
-    "./upload": "./src/upload.ts"
+    "./upload": "./src/upload.ts",
+    "./storage-limits": "./src/storage-limits.ts",
+    "./resource-references": "./src/resource-references.ts",
+    "./node-content": "./src/node-content.ts",
+    "./workspace": "./src/workspace.ts",
+    "./media-import": "./src/media-import.ts"
   },
   "dependencies": {
     "@workspace/interfaces": "workspace:*",
